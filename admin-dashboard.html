@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard · ACE Outsource Solutions</title>
+    <link rel="stylesheet" href="css/app.css?v=28">
+</head>
+<body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <svg class="nav-logo" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span class="nav-title">ACE Clock In/Out</span>
+            </div>
+            <div class="nav-links">
+                <a href="admin-dashboard.html" class="nav-link active">Dashboard</a>
+                <a href="admin-management.html?view=users" class="nav-link">Users</a>
+                <a href="admin-management.html?view=departments" class="nav-link">Departments</a>
+                <a href="admin-management.html?view=projects" class="nav-link">Projects</a>
+                <a href="reports.html" class="nav-link">Reports</a>
+                <a href="admin-management.html?view=audit" class="nav-link">Audit Log</a>
+                <button class="btn btn-outline btn-sm" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content admin-dashboard">
+        <div class="dashboard-container">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-menu">
+                    <a href="admin-dashboard.html" class="sidebar-link active">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+                            <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                    <a href="admin-management.html?view=users" class="sidebar-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="9" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+                            <path d="M3 21V19C3 16.7909 4.79086 15 7 15H11C13.2091 15 15 16.7909 15 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="17" cy="9" r="3" stroke="currentColor" stroke-width="2"/>
+                            <path d="M17 14V16M17 16V18M17 16H19M17 16H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        User Management
+                    </a>
+                    <a href="admin-management.html?view=invitations" class="sidebar-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 4H20C21.1046 4 22 4.89543 22 6V18C22 19.1046 21.1046 20 20 20H4C2.89543 20 2 19.1046 2 18V6C2 4.89543 2.89543 4 4 4Z" stroke="currentColor" stroke-width="2"/>
+                            <path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        Invitations
+                    </a>
+                    <a href="admin-management.html?view=departments" class="sidebar-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M5 21V7L12 3L19 7V21" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                            <path d="M9 21V15H15V21" stroke="currentColor" stroke-width="2"/>
+                            <path d="M9 11H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Departments
+                    </a>
+                    <a href="admin-management.html?view=projects" class="sidebar-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 7H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M4 17H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <rect x="2" y="3" width="20" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        Projects
+                    </a>
+                    <a href="admin-management.html?view=entries" class="sidebar-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Time Entries
+                    </a>
+                    <a href="reports.html" class="sidebar-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 20V10M10 20V4M16 20V12M22 20H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Reports
+                    </a>
+                    <a href="admin-management.html?view=audit" class="sidebar-link">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 2C6.47715 2 2 6.47715 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Audit Logs
+                    </a>
+                </div>
+            </aside>
+
+            <!-- Dashboard Content -->
+            <div class="dashboard-content">
+                <!-- Dashboard Header -->
+                <div class="dashboard-header">
+                    <h1 class="dashboard-title">Admin Dashboard</h1>
+                    <div class="dashboard-actions">
+                        <button class="btn btn-primary" id="generateReportBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            Generate Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Overview -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="9" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+                                <path d="M3 21V19C3 16.7909 4.79086 15 7 15H11C13.2091 15 15 16.7909 15 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="totalUsers">0</div>
+                            <div class="stat-label">Total Users</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="activeUsers">0</div>
+                            <div class="stat-label">Active Now</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 20V10M10 20V4M16 20V12M22 20H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="todayEntries">0</div>
+                            <div class="stat-label">Today's Entries</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-number" id="pendingApprovals">0</div>
+                            <div class="stat-label">Pending Approvals</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button class="btn btn-primary" id="inviteUserBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Invite User
+                    </button>
+                    <button class="btn btn-secondary" id="manageDepartmentsBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M5 21V7L12 3L19 7V21" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                        Manage Departments
+                    </button>
+                    <button class="btn btn-secondary" id="manageProjectsBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 7H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M4 17H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <rect x="2" y="3" width="20" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        Manage Projects
+                    </button>
+                </div>
+
+                <!-- Team Analytics -->
+                <section class="dashboard-analytics" aria-labelledby="analyticsTitle">
+                    <div class="analytics-toolbar">
+                        <div>
+                            <p class="eyebrow">TIME ANALYTICS</p>
+                            <h2 id="analyticsTitle">Team performance overview</h2>
+                            <p>Tracked hours, project allocation, and workforce activity.</p>
+                        </div>
+                        <div class="analytics-filters" aria-label="Analytics filters">
+                            <div class="analytics-period-control">
+                                <label class="analytics-range" for="dashboardRange">
+                                    <span>Period</span>
+                                    <select class="form-select" id="dashboardRange">
+                                        <option value="month">This month</option>
+                                        <option value="week">This week</option>
+                                        <option value="custom">Custom date range</option>
+                                    </select>
+                                </label>
+                                <div class="analytics-date-range" id="analyticsDateRange" aria-label="Custom date range">
+                                    <label class="analytics-range" for="analyticsDateFrom">
+                                        <span>From</span>
+                                        <input class="form-input" id="analyticsDateFrom" type="date">
+                                    </label>
+                                    <label class="analytics-range" for="analyticsDateTo">
+                                        <span>To</span>
+                                        <input class="form-input" id="analyticsDateTo" type="date">
+                                    </label>
+                                </div>
+                            </div>
+                            <label class="analytics-range" for="analyticsProject">
+                                <span>Project</span>
+                                <select class="form-select" id="analyticsProject">
+                                    <option value="">All projects</option>
+                                </select>
+                            </label>
+                            <label class="analytics-range" for="analyticsDepartment">
+                                <span>Department</span>
+                                <select class="form-select" id="analyticsDepartment">
+                                    <option value="">All departments</option>
+                                </select>
+                            </label>
+                            <label class="analytics-range" for="analyticsEmployee">
+                                <span>Employee</span>
+                                <input class="form-input" id="analyticsEmployee" list="analyticsEmployeeOptions" placeholder="Search employee" autocomplete="off">
+                                <datalist id="analyticsEmployeeOptions"></datalist>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="analytics-grid">
+                        <article class="analytics-card hours-trend-card">
+                            <div class="analytics-card-header">
+                                <div><span class="analytics-label">Tracked time</span><strong id="analyticsTotalHours">0h 0m</strong><small class="analytics-detail" id="analyticsDetail">Across all projects</small></div>
+                                <span class="analytics-comparison" id="analyticsAverage">0h average/day</span>
+                            </div>
+                            <div class="hours-chart" id="hoursChart" role="img" aria-label="Tracked hours chart"></div>
+                        </article>
+                        <article class="analytics-card team-activity-card">
+                            <div class="analytics-card-header"><div><span class="analytics-label">Team activity</span><strong>Current status</strong></div></div>
+                            <div class="team-activity-content" id="teamActivityChart"></div>
+                        </article>
+                        <article class="analytics-card project-allocation-card">
+                            <div class="analytics-card-header"><div><span class="analytics-label">Project allocation</span><strong>Hours by project</strong></div><a href="projects.html" class="analytics-link">Manage projects</a></div>
+                            <div class="project-allocation" id="projectAllocationChart"></div>
+                        </article>
+                    </div>
+                </section>
+
+                <!-- Recent Activity -->
+                <div class="dashboard-section">
+                    <h2 class="section-title">Recent Time Entries</h2>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Project</th>
+                                    <th>Clock In</th>
+                                    <th>Clock Out</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentTimeEntries">
+                                <!-- Time entries will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pending Users -->
+                <div class="dashboard-section">
+                    <h2 class="section-title">Pending User Approvals</h2>
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Department</th>
+                                    <th>Requested</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingUsers">
+                                <!-- Pending users will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-section">
+                <h4 class="footer-title">ACE Clock In/Out</h4>
+                <p class="footer-text">Admin Dashboard</p>
+            </div>
+            <div class="footer-section">
+                <h4 class="footer-title">Quick Links</h4>
+                <ul class="footer-links">
+                    <li><a href="admin-dashboard.html">Dashboard</a></li>
+                    <li><a href="#" id="footerUsersLink">Users</a></li>
+                    <li><a href="#" id="footerReportsLink">Reports</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 ACE Clock In/Out System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Invite User Modal -->
+    <div id="inviteUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Invite User</h3>
+                <button class="modal-close" id="closeInviteUserModal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="inviteUserForm" class="invite-form">
+                    <div class="form-group">
+                        <label for="inviteEmail" class="form-label">Email Address</label>
+                        <input type="email" id="inviteEmail" class="form-input" placeholder="Enter email address" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="inviteDepartment" class="form-label">Department (Optional)</label>
+                        <select id="inviteDepartment" class="form-select">
+                            <option value="">Select Department</option>
+                            <!-- Departments will be populated here -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="inviteRole" class="form-label">Role</label>
+                        <select id="inviteRole" class="form-select" required>
+                            <option value="USER">User</option>
+                            <option value="ADMIN">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Send Invitation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generate Report Modal -->
+    <div id="generateReportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Generate Report</h3>
+                <button class="modal-close" id="closeGenerateReportModal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="generateReportForm" class="report-form">
+                    <input type="hidden" id="reportType" value="MONTHLY">
+                    <div class="form-group">
+                        <label for="reportMonth" class="form-label">Reporting month</label>
+                        <input type="month" id="reportMonth" class="form-input" required>
+                        <p class="form-help">The PDF includes the selected month’s totals, charts, and time-entry detail.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportDepartment" class="form-label">Department (Optional)</label>
+                        <select id="reportDepartment" class="form-select">
+                            <option value="">All Departments</option>
+                            <!-- Departments will be populated here -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportProject" class="form-label">Project (Optional)</label>
+                        <select id="reportProject" class="form-select">
+                            <option value="">All Projects</option>
+                            <!-- Projects will be populated here -->
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Generate Report</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="spinner-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="js/script.js?v=shell-control-20"></script>
+</body>
+</html>

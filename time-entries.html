@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My time entries · ACE Outsource Solutions</title>
+    <link rel="stylesheet" href="css/app.css?v=28">
+</head>
+<body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <svg class="nav-logo" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span class="nav-title">ACE Clock In/Out</span>
+            </div>
+            <div class="nav-links">
+                <a href="user-dashboard.html" class="nav-link">Dashboard</a>
+                <a href="time-entries.html" class="nav-link active">Time Entries</a>
+                <a href="settings.html" class="nav-link">Settings</a>
+                <button class="btn btn-outline btn-sm" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content time-entries-page">
+        <div class="time-entries-container">
+            <!-- Time Entries Header -->
+            <div class="time-entries-header">
+                <h1 class="time-entries-title">Time Entries</h1>
+                <div class="time-entries-actions">
+                    <button class="btn btn-primary" id="clockInBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Clock In
+                    </button>
+                    <button class="btn btn-secondary" id="clockOutBtn" style="display: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Clock Out
+                    </button>
+                </div>
+            </div>
+
+            <!-- Current Session Card -->
+            <div class="current-session-card" id="currentSessionCard" style="display: none;">
+                <div class="session-header">
+                    <div class="session-status">
+                        <span class="status-dot"></span>
+                        <span class="session-status-text">Currently Clocked In</span>
+                    </div>
+                    <div class="session-timer" id="sessionTimer">00:00:00</div>
+                </div>
+                <div class="session-details">
+                    <div class="session-detail">
+                        <span class="detail-label">Clock In Time</span>
+                        <span class="detail-value" id="sessionClockInTime">--:--:--</span>
+                    </div>
+                    <div class="session-detail">
+                        <span class="detail-label">Project</span>
+                        <span class="detail-value" id="sessionProject">None</span>
+                    </div>
+                    <div class="session-detail">
+                        <span class="detail-label">Note</span>
+                        <span class="detail-value" id="sessionNote">No note added</span>
+                    </div>
+                </div>
+                <button class="btn btn-danger" id="sessionClockOutBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Clock Out Now
+                </button>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="filters-section">
+                <h2 class="filters-title">Filters</h2>
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label for="filterDateFrom" class="filter-label">Date From</label>
+                        <input type="date" id="filterDateFrom" class="form-input">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterDateTo" class="filter-label">Date To</label>
+                        <input type="date" id="filterDateTo" class="form-input">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterProject" class="filter-label">Project</label>
+                        <select id="filterProject" class="form-select">
+                            <option value="">All Projects</option>
+                            <!-- Projects will be populated here -->
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterStatus" class="filter-label">Status</label>
+                        <select id="filterStatus" class="form-select">
+                            <option value="">All Statuses</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="COMPLETED">Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" id="applyFiltersBtn">Apply Filters</button>
+                    <button class="btn btn-secondary" id="clearFiltersBtn">Clear Filters</button>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="summary-stats">
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="summary-info">
+                        <div class="summary-value" id="totalHours">0h 0m</div>
+                        <div class="summary-label">Total Hours</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 20V10M10 20V4M16 20V12M22 20H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="summary-info">
+                        <div class="summary-value" id="totalEntries">0</div>
+                        <div class="summary-label">Total Entries</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 2C6.47715 2 2 6.47715 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="summary-info">
+                        <div class="summary-value" id="avgDuration">0h 0m</div>
+                        <div class="summary-label">Average Duration</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time Entries List -->
+            <div class="time-entries-list-section">
+                <h2 class="section-title">Time Entry History</h2>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Clock In</th>
+                                <th>Clock Out</th>
+                                <th>Duration</th>
+                                <th>Project</th>
+                                <th>Note</th>
+                                <th>Status</th>
+                                <th>Admin Remarks</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="timeEntriesList">
+                            <!-- Time entries will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="timeEntriesPagination">
+                    <!-- Pagination will be populated here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-section">
+                <h4 class="footer-title">ACE Clock In/Out</h4>
+                <p class="footer-text">Time Entries</p>
+            </div>
+            <div class="footer-section">
+                <h4 class="footer-title">Quick Links</h4>
+                <ul class="footer-links">
+                    <li><a href="user-dashboard.html">Dashboard</a></li>
+                    <li><a href="time-entries.html">Time Entries</a></li>
+                    <li><a href="settings.html">Settings</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 ACE Clock In/Out System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Clock In Modal -->
+    <div id="clockInModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Clock In</h3>
+                <button class="modal-close" id="closeClockInModal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="clockInForm" class="clock-in-form">
+                    <div class="form-group">
+                        <label for="clockInProject" class="form-label">Project (Optional)</label>
+                        <select id="clockInProject" class="form-select">
+                            <option value="">No Project</option>
+                            <!-- Projects will be populated here -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="clockInNote" class="form-label">Note (Optional)</label>
+                        <textarea id="clockInNote" class="form-textarea" rows="3" placeholder="Add a note for this session"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Clock In</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clock Out Modal -->
+    <div id="clockOutModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Clock Out</h3>
+                <button class="modal-close" id="closeClockOutModal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="session-summary">
+                    <div class="summary-row">
+                        <span class="summary-label">Clock In Time</span>
+                        <span class="summary-value" id="clockOutInTime">--:--:--</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Duration</span>
+                        <span class="summary-value" id="clockOutDuration">--:--:--</span>
+                    </div>
+                </div>
+                <form id="clockOutForm" class="clock-out-form">
+                    <div class="form-group">
+                        <label for="clockOutNote" class="form-label">Final Note (Optional)</label>
+                        <textarea id="clockOutNote" class="form-textarea" rows="3" placeholder="Add any final notes for this session"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger btn-block">Clock Out</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entry Details Modal -->
+    <div id="entryDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Time Entry Details</h3>
+                <button class="modal-close" id="closeEntryDetailsModal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="entry-details" id="entryDetailsContent">
+                    <!-- Entry details will be populated here -->
+                </div>
+                <div class="admin-remarks-section">
+                    <h4 class="remarks-title">Admin Remarks</h4>
+                    <div class="admin-remarks-list" id="adminRemarksList">
+                        <!-- Admin remarks will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="spinner-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="js/script.js?v=shell-control-20"></script>
+</body>
+</html>

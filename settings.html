@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings · ACE Outsource Solutions</title>
+    <link rel="stylesheet" href="css/app.css?v=17">
+</head>
+<body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <svg class="nav-logo" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span class="nav-title">ACE Clock In/Out</span>
+            </div>
+            <div class="nav-links">
+                <a href="user-dashboard.html" class="nav-link">Dashboard</a>
+                <a href="time-entries.html" class="nav-link">Time Entries</a>
+                <a href="settings.html" class="nav-link active">Settings</a>
+                <button class="btn btn-outline btn-sm" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content settings-page">
+        <div class="settings-container">
+            <!-- Settings Header -->
+            <div class="settings-header">
+                <h1 class="settings-title">Settings</h1>
+                <p class="settings-subtitle">Manage your account preferences</p>
+            </div>
+
+            <!-- Settings Navigation -->
+            <div class="settings-nav">
+                <button class="settings-tab active" id="profileTab">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+                        <path d="M4 21V19C4 16.7909 5.79086 15 8 15H16C18.2091 15 20 16.7909 20 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Profile
+                </button>
+                <button class="settings-tab" id="notificationsTab">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 8C18 4.68629 15.3137 2 12 2C8.68629 2 6 4.68629 6 8V16L4 18V20H20V18L18 16V8Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M9 21H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Notifications
+                </button>
+                <button class="settings-tab" id="securityTab">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L4 6V12C4 15.866 7.13401 19 12 22C16.866 19 20 15.866 20 12V6L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M12 22V12" stroke="currentColor" stroke-width="2"/>
+                        <path d="M8 8L12 12L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Security
+                </button>
+                <button class="settings-tab" id="appearanceTab">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 2C6.47715 2 2 6.47715 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M12 22C17.5228 22 22 17.5228 22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Appearance
+                </button>
+            </div>
+
+            <!-- Profile Settings -->
+            <div class="settings-section active" id="profileSettings">
+                <h2 class="section-title">Profile Information</h2>
+                <form id="profileForm" class="settings-form">
+                    <div class="form-group">
+                        <label for="fullName" class="form-label">Full Name</label>
+                        <input type="text" id="fullName" class="form-input" value="ACE Employee" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" id="email" class="form-input" value="john.doe@example.com" disabled>
+                        <small class="form-help">Email cannot be changed</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="department" class="form-label">Department</label>
+                        <input type="text" id="department" class="form-input" value="Engineering" disabled>
+                        <small class="form-help">Department is managed by administrator</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <button type="button" class="btn btn-secondary" id="cancelProfileBtn">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="settings-section" id="notificationSettings" style="display: none;">
+                <h2 class="section-title">Notification Preferences</h2>
+                <form id="notificationForm" class="settings-form">
+                    <div class="notification-option">
+                        <div class="notification-info">
+                            <h3 class="notification-title">Email Notifications</h3>
+                            <p class="notification-description">Receive email notifications for important events</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="emailNotifications" aria-label="Email notifications" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="notification-option">
+                        <div class="notification-info">
+                            <h3 class="notification-title">Clock In Reminders</h3>
+                            <p class="notification-description">Get reminded to clock in at your scheduled time</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="clockInReminders" aria-label="Clock in reminders" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="notification-option">
+                        <div class="notification-info">
+                            <h3 class="notification-title">Clock Out Reminders</h3>
+                            <p class="notification-description">Get reminded to clock out at the end of your shift</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="clockOutReminders" aria-label="Clock out reminders" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="notification-option">
+                        <div class="notification-info">
+                            <h3 class="notification-title">Weekly Summary</h3>
+                            <p class="notification-description">Receive a weekly summary of your time entries</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="weeklySummary" aria-label="Weekly summary">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="notification-option">
+                        <div class="notification-info">
+                            <h3 class="notification-title">Admin Remarks</h3>
+                            <p class="notification-description">Get notified when an admin adds a remark to your time entry</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="adminRemarksNotification" aria-label="Admin remarks notifications" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save Preferences</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Security Settings -->
+            <div class="settings-section" id="securitySettings" style="display: none;">
+                <h2 class="section-title">Security Settings</h2>
+                <form id="securityForm" class="settings-form">
+                    <div class="security-section">
+                        <h3 class="security-title">Password</h3>
+                        <div class="form-group">
+                            <label for="currentPassword" class="form-label">Current Password</label>
+                            <div class="input-group">
+                                <input type="password" id="currentPassword" class="form-input" placeholder="Enter current password">
+                                <button type="button" class="password-toggle">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
+                                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword" class="form-label">New Password</label>
+                            <div class="input-group">
+                                <input type="password" id="newPassword" class="form-input" placeholder="Enter new password">
+                                <button type="button" class="password-toggle">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
+                                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                            <div class="input-group">
+                                <input type="password" id="confirmPassword" class="form-input" placeholder="Confirm new password">
+                                <button type="button" class="password-toggle">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
+                                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="security-section">
+                        <h3 class="security-title">Two-Factor Authentication</h3>
+                        <div class="security-option">
+                            <div class="security-info">
+                                <h3 class="security-option-title">Enable 2FA</h3>
+                                <p class="security-description">Add an extra layer of security to your account</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="enable2FA" aria-label="Enable two-factor authentication">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="security-section">
+                        <h3 class="security-title">Active Sessions</h3>
+                        <div class="session-list">
+                            <div class="session-item">
+                                <div class="session-info">
+                                    <h4 class="session-device">Current Device</h4>
+                                    <p class="session-details">Chrome on Windows • Last active: Now</p>
+                                </div>
+                                <button type="button" class="btn btn-outline btn-sm" id="logoutOtherSessionsBtn">Logout Other Sessions</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Update Security Settings</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Appearance Settings -->
+            <div class="settings-section" id="appearanceSettings" style="display: none;">
+                <h2 class="section-title">Appearance Settings</h2>
+                <form id="appearanceForm" class="settings-form">
+                    <div class="appearance-option">
+                        <h3 class="appearance-title">Theme</h3>
+                        <div class="theme-options">
+                            <label class="theme-option">
+                                <input type="radio" name="theme" value="light" checked>
+                                <div class="theme-preview light-theme">
+                                    <div class="theme-preview-header"></div>
+                                    <div class="theme-preview-content"></div>
+                                </div>
+                                <span class="theme-label"><span class="theme-radio" aria-hidden="true"></span><span><strong>Light</strong><small>Clean daylight workspace</small></span></span>
+                            </label>
+                            <label class="theme-option">
+                                <input type="radio" name="theme" value="dark">
+                                <div class="theme-preview dark-theme">
+                                    <div class="theme-preview-header"></div>
+                                    <div class="theme-preview-content"></div>
+                                </div>
+                                <span class="theme-label"><span class="theme-radio" aria-hidden="true"></span><span><strong>Dark</strong><small>Low-light focused workspace</small></span></span>
+                            </label>
+                            <label class="theme-option">
+                                <input type="radio" name="theme" value="system">
+                                <div class="theme-preview system-theme">
+                                    <div class="theme-preview-header"></div>
+                                    <div class="theme-preview-content"></div>
+                                </div>
+                                <span class="theme-label"><span class="theme-radio" aria-hidden="true"></span><span><strong>System</strong><small>Match your device setting</small></span></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="appearance-option">
+                        <h3 class="appearance-title">Font Size</h3>
+                        <label class="form-label" for="fontSize">Choose font size</label>
+                        <select id="fontSize" class="form-select">
+                            <option value="small">Small</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="large">Large</option>
+                        </select>
+                    </div>
+                    <div class="appearance-option">
+                        <h3 class="appearance-title">Compact Mode</h3>
+                        <div class="notification-option">
+                            <div class="notification-info">
+                                <p class="notification-description">Reduce spacing and show more content on screen</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="compactMode" aria-label="Enable compact mode">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save Preferences</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-section">
+                <h4 class="footer-title">ACE Clock In/Out</h4>
+                <p class="footer-text">Settings</p>
+            </div>
+            <div class="footer-section">
+                <h4 class="footer-title">Quick Links</h4>
+                <ul class="footer-links">
+                    <li><a href="user-dashboard.html">Dashboard</a></li>
+                    <li><a href="time-entries.html">Time Entries</a></li>
+                    <li><a href="settings.html">Settings</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 ACE Clock In/Out System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="spinner-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="js/script.js?v=report-pdf-12"></script>
+</body>
+</html>

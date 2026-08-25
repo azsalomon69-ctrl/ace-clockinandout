@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard · ACE Outsource Solutions</title>
+    <link rel="stylesheet" href="css/app.css?v=28">
+</head>
+<body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <svg class="nav-logo" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span class="nav-title">ACE Clock In/Out</span>
+            </div>
+            <div class="nav-links">
+                <a href="user-dashboard.html" class="nav-link active">Dashboard</a>
+                <a href="time-entries.html" class="nav-link">Time Entries</a>
+                <a href="settings.html" class="nav-link">Settings</a>
+                <button class="btn btn-outline btn-sm" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content user-dashboard">
+        <div class="dashboard-container">
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <div class="welcome-info">
+                    <h1 class="welcome-title">Welcome back, <span id="userName">ACE Employee</span></h1>
+                    <p class="welcome-subtitle">Here's your time tracking overview</p>
+                </div>
+                <div class="welcome-date" id="currentDate">Monday, January 1, 2024</div>
+            </div>
+
+            <!-- Clock In/Out Section -->
+            <div class="clock-section">
+                <div class="clock-card">
+                    <div class="clock-status" id="clockStatus">
+                        <div class="status-indicator">
+                            <span class="status-dot"></span>
+                            <span class="status-text">Not Clocked In</span>
+                        </div>
+                        <div class="clock-time" id="clockTime">--:--:--</div>
+                    </div>
+                    <div class="clock-actions">
+                        <button class="btn btn-primary btn-lg" id="mainClockInBtn">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            Clock In
+                        </button>
+                        <button class="btn btn-danger btn-lg" id="mainClockOutBtn" style="display: none;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            Clock Out
+                        </button>
+                    </div>
+                    <div class="clock-info">
+                        <div class="info-item">
+                            <span class="info-label">Clocked In At</span>
+                            <span class="info-value" id="clockedInAt">--:--:--</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Duration</span>
+                            <span class="info-value" id="currentDuration">00:00:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-number" id="todayHours">0h 0m</div>
+                        <div class="stat-label">Today's Hours</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                            <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-number" id="weekHours">0h 0m</div>
+                        <div class="stat-label">This Week</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 20V10M10 20V4M16 20V12M22 20H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-number" id="monthHours">0h 0m</div>
+                        <div class="stat-label">This Month</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 2C6.47715 2 2 6.47715 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-number" id="totalEntries">0</div>
+                        <div class="stat-label">Total Entries</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="recent-activity-section">
+                <h2 class="section-title">Recent Activity</h2>
+                <div class="activity-list" id="recentActivity">
+                    <!-- Recent time entries will be populated here -->
+                </div>
+                <button class="btn btn-outline btn-block" id="viewAllEntriesBtn">
+                    View All Time Entries
+                </button>
+            </div>
+
+            <!-- Projects Section -->
+            <div class="projects-section">
+                <h2 class="section-title">My Projects</h2>
+                <div class="projects-grid" id="myProjects">
+                    <!-- User's projects will be populated here -->
+                </div>
+            </div>
+
+            <!-- Admin Remarks Section -->
+            <div class="admin-remarks-section">
+                <h2 class="section-title">Recent Admin Remarks</h2>
+                <div class="remarks-list" id="recentRemarks">
+                    <!-- Recent admin remarks will be populated here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-section">
+                <h4 class="footer-title">ACE Clock In/Out</h4>
+                <p class="footer-text">User Dashboard</p>
+            </div>
+            <div class="footer-section">
+                <h4 class="footer-title">Quick Links</h4>
+                <ul class="footer-links">
+                    <li><a href="user-dashboard.html">Dashboard</a></li>
+                    <li><a href="time-entries.html">Time Entries</a></li>
+                    <li><a href="settings.html">Settings</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 ACE Clock In/Out System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Clock In Modal -->
+    <div id="clockInModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Clock In</h3>
+                <button class="modal-close" id="closeClockInModal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="clockInForm" class="clock-in-form">
+                    <div class="form-group">
+                        <label for="clockInProject" class="form-label">Project (Optional)</label>
+                        <select id="clockInProject" class="form-select">
+                            <option value="">No Project</option>
+                            <!-- Projects will be populated here -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="clockInNote" class="form-label">Note (Optional)</label>
+                        <textarea id="clockInNote" class="form-textarea" rows="3" placeholder="Add a note for this session"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Clock In</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clock Out Modal -->
+    <div id="clockOutModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Clock Out</h3>
+                <button class="modal-close" id="closeClockOutModal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="session-summary">
+                    <div class="summary-row">
+                        <span class="summary-label">Clock In Time</span>
+                        <span class="summary-value" id="clockOutInTime">--:--:--</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Duration</span>
+                        <span class="summary-value" id="clockOutDuration">--:--:--</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Project</span>
+                        <span class="summary-value" id="clockOutProject">None</span>
+                    </div>
+                </div>
+                <form id="clockOutForm" class="clock-out-form">
+                    <div class="form-group">
+                        <label for="clockOutNote" class="form-label">Final Note (Optional)</label>
+                        <textarea id="clockOutNote" class="form-textarea" rows="3" placeholder="Add any final notes for this session"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger btn-block">Clock Out</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Details Modal -->
+    <div id="projectDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Project Details</h3>
+                <button class="modal-close" id="closeProjectDetailsModal">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="project-details" id="projectDetailsContent">
+                    <!-- Project details will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="spinner-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="js/script.js?v=shell-control-20"></script>
+</body>
+</html>
