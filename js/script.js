@@ -31,17 +31,20 @@ async function loadDatabase() {
 
 // Initialize App
 async function initApp() {
-    // Replace legacy inline drawings before the async prototype data loads so
-    // the page never flashes one icon and then swaps to another.
-    applySuppliedIcons();
-    renderInitialSkeletons();
-    applyStoredAppearance();
-
-    // Mount persistent navigation immediately. It must not wait for database
-    // loading or the minimum skeleton duration, otherwise the sidebar briefly
-    // disappears between authenticated pages.
-    checkAuthState();
-    initializeAppShell();
+    // The application shell is independent of page data. Keep it resilient so
+    // a stale browser preference can never leave an empty sidebar-sized gap.
+    try {
+        applySuppliedIcons();
+        renderInitialSkeletons();
+        applyStoredAppearance();
+        checkAuthState();
+    } catch (error) {
+        console.warn('Recovered from a saved interface preference.', error);
+        localStorage.removeItem('ace_current_user');
+        localStorage.removeItem('ace_current_session');
+    }
+    try { initializeAppShell(); }
+    catch (error) { console.error('Could not mount the application navigation.', error); }
 
     const [loaded] = await Promise.all([loadDatabase(), new Promise(resolve => setTimeout(resolve, 360))]);
     if (loaded) {
