@@ -1,3 +1,21 @@
+const liveApiUrl = () => String(window.ACE_API_URL || 'https://ace-clockinandout.onrender.com').replace(/\/$/, '');
+let liveSupabase;
+async function liveRequest(path, options = {}) {
+  if (!window.supabase) {
+    await new Promise((resolve, reject) => { const script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'; script.onload = resolve; script.onerror = reject; document.head.appendChild(script); });
+  }
+  if (!liveSupabase) {
+    const config = await fetch(`${liveApiUrl()}/v1/auth/config`).then(response => response.ok ? response.json() : Promise.reject(new Error('Unable to reach the sign-in service.')));
+    liveSupabase = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
+  }
+  const { data: { session } } = await liveSupabase.auth.getSession();
+  if (!session) throw new Error('Your session has ended. Please sign in again.');
+  const response = await fetch(`${liveApiUrl()}${path}`, { ...options, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, ...(options.headers || {}) } });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
 const ADMIN_SECTION_DATA = {
   users: { title: 'Users', description: 'Approve access, assign roles, and maintain employee records.', action: 'Invite user', actionIcon: 'user-plus', stats: [['7', 'Team members', 'users'], ['5', 'Active users', 'check'], ['1', 'Pending review', 'circle-alert']], columns: ['Name', 'Email', 'Role', 'Department', 'Status', 'Action'], rows: [['ACE Administrator', 'admin@ace.com', 'Admin', 'Unassigned', 'Active', 'Manage'], ['ACE Employee', 'employee@ace.com', 'Employee', 'Unassigned', 'Active', 'Manage'], ['John Doe', 'john.doe@example.com', 'Employee', 'Engineering', 'Active', 'Manage'], ['Bob Wilson', 'bob.wilson@example.com', 'Employee', 'Unassigned', 'Pending', 'Review']] },
   invitations: { title: 'Invitations', description: 'Invite employees and track every invitation through acceptance or expiry.', action: 'Send invitation', actionIcon: 'mail', stats: [['3', 'Pending', 'timer'], ['12', 'Accepted', 'check'], ['1', 'Expires today', 'circle-alert']], columns: ['Email', 'Invited by', 'Sent', 'Expires', 'Status', 'Action'], rows: [['maria@ace.com', 'ACE Administrator', 'Today', 'Aug 31', 'Pending', 'Resend'], ['ben@ace.com', 'ACE Administrator', 'Aug 22', 'Aug 29', 'Pending', 'Cancel'], ['sam@ace.com', 'ACE Administrator', 'Aug 19', 'Aug 26', 'Accepted', 'View']] },
@@ -6,6 +24,29 @@ const ADMIN_SECTION_DATA = {
   entries: { title: 'Time entries', description: 'Review company clocking activity and add internal administrator remarks.', action: 'Export entries', actionIcon: 'download', stats: [['42h 30m', 'Logged this week', 'timer'], ['5', 'Clocked in today', 'check'], ['3', 'Open entries', 'circle-alert']], columns: ['Employee', 'Project', 'Clock in', 'Clock out', 'Duration', 'Action'], rows: [['ACE Employee', 'Unassigned', 'Aug 24, 8:04 AM', '—', 'Running', 'Add remark'], ['John Doe', 'ACE Platform', 'Aug 23, 8:31 AM', 'Aug 23, 5:12 PM', '8h 41m', 'View'], ['Alice Brown', 'Client Success', 'Aug 23, 8:12 AM', 'Aug 23, 5:03 PM', '8h 51m', 'View']] },
   audit: { title: 'Audit log', description: 'Review the append-only record of important actions across the system.', stats: [['86', 'Events this week', 'brick-wall-shield'], ['14', 'Sign-ins', 'key-round'], ['3', 'Reports exported', 'download']], columns: ['When', 'Actor', 'Action', 'Entity', 'Description', 'Record'], rows: [['Aug 24, 8:04 AM', 'ACE Employee', 'CLOCK_IN', 'Time entry', 'Started a new time entry', '#104'], ['Aug 24, 8:01 AM', 'ACE Administrator', 'LOGIN', 'User', 'Signed in successfully', '#6'], ['Aug 23, 5:12 PM', 'John Doe', 'CLOCK_OUT', 'Time entry', 'Completed time entry', '#103']] }
 };
+
+const dateLabel = value => value ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+async function applyLiveSectionData(viewKey, view) {
+  if (viewKey === 'users') {
+    const users = await liveRequest('/v1/users');
+    view.rows = users.map(user => [user.full_name || 'Unnamed user', user.email, user.role === 'ADMIN' ? 'Admin' : 'Employee', user.departments?.name || 'Unassigned', user.status[0] + user.status.slice(1).toLowerCase(), 'Manage']);
+    view.stats = [[String(users.length), 'Team members', 'users'], [String(users.filter(user => user.status === 'ACTIVE').length), 'Active users', 'check'], [String(users.filter(user => user.status === 'PENDING').length), 'Pending review', 'circle-alert']];
+  } else if (viewKey === 'invitations') {
+    const invitations = await liveRequest('/v1/invitations');
+    view.rows = invitations.map(item => [item.email, item.profiles?.full_name || item.profiles?.email || 'ACE Administrator', dateLabel(item.invited_at), dateLabel(item.expires_at), item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Resend' : 'View']);
+    view.stats = [[String(invitations.filter(item => item.status === 'PENDING').length), 'Pending', 'timer'], [String(invitations.filter(item => item.status === 'ACCEPTED').length), 'Accepted', 'check'], [String(invitations.filter(item => item.status === 'PENDING' && new Date(item.expires_at).toDateString() === new Date().toDateString()).length), 'Expires today', 'circle-alert']];
+  } else if (viewKey === 'departments' || viewKey === 'projects') {
+    const items = await liveRequest(`/v1/${viewKey}`);
+    view.rows = items.map(item => [item.name, item.description || '—', '—', dateLabel(item.created_at), item.is_active ? 'Active' : 'Inactive', 'Edit']);
+    view.stats = [[String(items.filter(item => item.is_active).length), `Active ${viewKey}`, viewKey === 'projects' ? 'folder' : 'building'], [String(items.length), `Total ${viewKey}`, 'users'], ['0', 'Assigned employees', 'circle-alert']];
+  } else if (viewKey === 'entries') {
+    const entries = await liveRequest('/v1/time-entries');
+    view.rows = entries.map(item => [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || 'Unassigned', new Date(item.clock_in_at).toLocaleString(), item.clock_out_at ? new Date(item.clock_out_at).toLocaleString() : '—', item.duration_seconds ? `${Math.floor(item.duration_seconds / 3600)}h ${Math.floor(item.duration_seconds % 3600 / 60)}m` : 'Running', 'Add remark']);
+  } else if (viewKey === 'audit') {
+    const logs = await liveRequest('/v1/audit-logs');
+    view.rows = logs.map(item => [new Date(item.created_at).toLocaleString(), item.profiles?.full_name || item.profiles?.email || 'System', item.action, item.entity_type, item.description || '—', `#${item.id}`]);
+  }
+}
 
 function iconMarkup(name, className = 'ui-icon') { return `<img class="${className}" src="assets/icons/${name}.svg" alt="" aria-hidden="true">`; }
 
@@ -66,13 +107,26 @@ function buildAdminModal(view, mode, row = null) {
     return `<div class="form-group"><label class="form-label" for="${id}">${label}</label><input class="form-input" id="${id}" type="${type}" placeholder="${placeholder}" required></div>`;
   }).join('')}<div class="form-actions"><button class="btn ${/cancel/i.test(submitLabel) ? 'btn-danger' : 'btn-primary'}" type="submit">${iconMarkup(isPrimary ? view.actionIcon : isRemark ? 'message-circle-more' : 'check')}${submitLabel}</button><button class="btn btn-outline admin-modal-cancel" type="button">${iconMarkup('x')}Cancel</button></div></form>`;
   modal.querySelector('.admin-modal-cancel').addEventListener('click', () => closeModal('adminActionModal'));
-  modal.querySelector('form').addEventListener('submit', event => { event.preventDefault(); closeModal('adminActionModal'); showToast(`${submitLabel} completed in the frontend prototype.`, 'success'); });
+  modal.querySelector('form').addEventListener('submit', async event => {
+    event.preventDefault();
+    try {
+      if (isPrimary && viewKey === 'invitations') await liveRequest('/v1/invitations', { method: 'POST', body: JSON.stringify({ email: document.getElementById('adminField0').value }) });
+      else if (isPrimary && viewKey === 'departments') await liveRequest('/v1/departments', { method: 'POST', body: JSON.stringify({ name: document.getElementById('adminField0').value, description: document.getElementById('adminField1').value }) });
+      else if (isPrimary && viewKey === 'projects') await liveRequest('/v1/projects', { method: 'POST', body: JSON.stringify({ name: document.getElementById('adminField0').value, description: document.getElementById('adminField1').value }) });
+      else { showToast('This action will be connected next.', 'info'); return; }
+      closeModal('adminActionModal');
+      showToast(`${submitLabel} completed.`, 'success');
+      window.setTimeout(() => window.location.reload(), 500);
+    } catch (error) { showToast(error.message || 'Could not save changes.', 'error'); }
+  });
   openModal('adminActionModal');
 }
 
-function renderAdminSection() {
+async function renderAdminSection() {
   const view = ADMIN_SECTION_DATA[document.body.dataset.adminView];
   if (!view) return;
+  try { await applyLiveSectionData(document.body.dataset.adminView, view); }
+  catch (error) { view.rows = []; view.stats = [['0', 'No live data', 'circle-alert']]; showToast(error.message || 'Could not load live data.', 'error'); }
   document.title = `${view.title} · ACE Outsource Solutions`;
   document.getElementById('sectionTitle').textContent = view.title;
   document.getElementById('sectionDescription').textContent = view.description;
@@ -106,4 +160,4 @@ function renderAdminSection() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', renderAdminSection);
+document.addEventListener('DOMContentLoaded', () => { renderAdminSection(); });
