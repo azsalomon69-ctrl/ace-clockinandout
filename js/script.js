@@ -155,6 +155,7 @@ function initializeUXEnhancements() {
 
 // Shared application shell for every authenticated page.
 function initializeAppShell() {
+    if (document.body.classList.contains('has-app-shell')) return;
     const file = (window.location.pathname.split('/').pop() || '').toLowerCase();
     const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'invitations.html', 'departments.html', 'projects.html', 'admin-time-entries.html', 'reports.html', 'audit-logs.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'settings.html'];
