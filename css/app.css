@@ -2804,8 +2804,7 @@ html[data-theme="dark"] .session-detail { background: var(--ace-surface-raised);
 :root { --ace-page-max: 1500px; --ace-content-gap: clamp(18px, 2vw, 28px); }
 html[data-font-size="small"] { font-size: 14px; } html[data-font-size="medium"] { font-size: 15px; } html[data-font-size="large"] { font-size: 17px; }
 body { font-size: 1rem; text-rendering: optimizeLegibility; }
-.main-content { animation: ace-content-in .24s ease-out both; }
-@keyframes ace-content-in { from { opacity: .01; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.main-content { animation: none; }
 .btn { min-height: 42px; border-radius: 9px; letter-spacing: .005em; }.btn-sm { min-height: 34px; }.btn-lg { min-height: 50px; }
 
 /* Premium press feedback for real controls only. */
@@ -3063,8 +3062,6 @@ html[data-theme="dark"] .theme-preview.system-theme { background: linear-gradien
   html[data-theme="dark"] .home-page .hero-product-preview:hover { box-shadow: 0 20px 42px rgba(0,0,0,.34) !important; }
 
 }
-@media (prefers-reduced-motion: reduce) { .main-content { animation: none; } }
-
 /* Purposeful interface motion: fast feedback, clear spatial relationships, no idle decoration. */
 @media (prefers-reduced-motion: no-preference) {
   :root { --ace-motion-out: cubic-bezier(.16, 1, .3, 1); --ace-motion-in: cubic-bezier(.7, 0, .84, 0); }
