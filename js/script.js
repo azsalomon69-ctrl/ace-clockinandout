@@ -851,7 +851,8 @@ async function handleLogin(e) {
     } catch (error) { hideSpinner(); showToast(error.message || 'Unable to sign in', 'error'); }
 }
 
-async function handleGoogleLogin() {
+async function handleGoogleLogin(event) {
+    event?.preventDefault();
     showSpinner();
     try {
         if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
