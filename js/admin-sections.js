@@ -52,6 +52,7 @@ function status(value) {
 }
 function action(label, index, key) {
   if (key === 'audit') return '<span class="record-reference">' + esc(label) + '</span>';
+  if (key === 'entries') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Add remark</button><button class="btn btn-sm btn-danger admin-delete-entry" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button></div>';
   const iconName = /remove/i.test(label) ? 'trash' : /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
   const style = /remove/i.test(label) ? 'btn-danger' : 'btn-outline';
   return '<button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button>';
@@ -158,6 +159,17 @@ async function renderAdminSection() {
   const draw = records => {
     body.innerHTML = records.length ? records.map((record, rowIndex) => '<tr>' + record.cells.map((cell, index) => '<td>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key) : status(cell)) + '</td>').join('') + '</tr>').join('') : '<tr><td colspan="' + view.columns.length + '">No ' + view.title.toLowerCase() + ' found.</td></tr>';
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, records[Number(button.dataset.row)])));
+    body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
+      const record = records[Number(button.dataset.row)];
+      if (!record || !window.confirm('Move this time entry to Deleted time entries? You can restore it later.')) return;
+      try {
+        await liveRequest('/v1/time-entries/' + record.id, { method: 'DELETE' });
+        showToast('Time entry moved to Deleted time entries.', 'success');
+        window.setTimeout(() => window.location.reload(), 350);
+      } catch (error) {
+        showToast(error.message || 'Could not delete this time entry.', 'error');
+      }
+    }));
   };
   draw(view.records);
   const search = document.getElementById('sectionSearch'); const count = document.getElementById('sectionResultCount') || document.createElement('span');
