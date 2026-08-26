@@ -64,6 +64,11 @@ function action(label, index, key) {
 function formField(label, type, placeholder, value, index) {
   const id = 'adminField' + index;
   if (type === 'textarea') return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><textarea class="form-textarea" id="' + id + '" placeholder="' + esc(placeholder) + '">' + esc(value === '—' ? '' : value) + '</textarea></div>';
+  if (type === 'user-search') {
+    const users = (typeof AppState === 'undefined' ? [] : AppState.users || []).filter(user => user.Status === 'ACTIVE');
+    const listId = id + 'Options';
+    return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><div class="input-group"><input class="form-input" id="' + id + '" type="search" list="' + listId + '" placeholder="' + esc(placeholder) + '" autocomplete="off"><button class="btn btn-outline" id="' + id + 'Add" type="button">Add</button></div><datalist id="' + listId + '">' + users.map(user => '<option value="' + esc((user.FullName || user.Email) + ' — ' + user.Email) + '" data-user-id="' + esc(user.UserId) + '"></option>').join('') + '</datalist><input id="' + id + 'Selected" type="hidden" value=""><div id="' + id + 'SelectedList" aria-live="polite">No employees selected.</div></div>';
+  }
   if (type === 'select') {
     const state = typeof AppState === 'undefined' ? null : AppState;
     const options = label === 'Role' ? '<option value="USER"' + (value === 'Admin' ? '' : ' selected') + '>Employee</option><option value="ADMIN"' + (value === 'Admin' ? ' selected' : '') + '>Admin</option>'
@@ -92,7 +97,7 @@ function modal(view, primary, record) {
   const deleteRecord = !primary && (key === 'departments' || key === 'projects' || key === 'entries');
   const fields = remark ? [['Administrator remark', 'textarea', 'Add a clear internal remark for this time entry']]
     : primary && ['users', 'invitations'].includes(key) ? [['Work email', 'email', 'name@example.com'], ['Role', 'select', 'USER']]
-      : (primary || edit) && key === 'departments' ? [['Department name', 'text', 'e.g. Client Services'], ['Description', 'textarea', 'What does this department handle?']]
+      : (primary || edit) && key === 'departments' ? [['Department name', 'text', 'e.g. Client Services'], ['Description', 'textarea', 'What does this department handle?'], ...(edit ? [['Add employee (optional)', 'user-search', 'Search by employee name or email']] : [])]
         : (primary || edit) && key === 'projects' ? [['Project name', 'text', 'e.g. Customer Portal'], ['Description', 'textarea', 'Describe the project scope']]
           : manage ? [['Role', 'select', 'USER'], ['Department', 'select', ''], ['Project assignment', 'select', '']] : review ? [['Approval', 'select', 'ACTIVE']] : [];
   node.querySelector('.modal-title').textContent = primary ? view.action : label + ' ' + view.title.toLowerCase();
@@ -110,6 +115,30 @@ function modal(view, primary, record) {
   }
   const buttonLabel = remark ? 'Add remark' : review ? 'Save decision' : manage ? 'Save role' : primary ? view.action : 'Save changes';
   node.querySelector('.modal-body').innerHTML = summary + '<form id="adminActionForm">' + fields.map((field, index) => formField(field[0], field[1], field[2], edit ? record.cells[index] : manage ? (index === 0 ? record.cells[2] : index === 1 ? record.cells[3] : '') : '', index)).join('') + '<div class="form-actions"><button class="btn btn-primary" type="submit">' + icon('check') + buttonLabel + '</button>' + (manage ? '<button class="btn btn-danger admin-remove-user" type="button">' + icon('trash') + 'Remove user</button>' : '') + (deleteRecord ? '<button class="btn btn-danger admin-delete-record" type="button">' + icon('trash') + 'Delete</button>' : '') + '<button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div></form>';
+  const employeePicker = node.querySelector('#adminField2Add');
+  if (employeePicker) {
+    const search = document.getElementById('adminField2');
+    const selectedInput = document.getElementById('adminField2Selected');
+    const selectedList = document.getElementById('adminField2SelectedList');
+    const selectedUsers = [];
+    const renderSelectedUsers = () => {
+      selectedInput.value = selectedUsers.map(user => user.id).join(',');
+      selectedList.innerHTML = selectedUsers.length ? selectedUsers.map(user => '<button class="btn btn-sm btn-outline remove-department-user" type="button" data-id="' + esc(user.id) + '">' + esc(user.name) + ' ×</button>').join(' ') : 'No employees selected.';
+      selectedList.querySelectorAll('.remove-department-user').forEach(button => button.addEventListener('click', () => {
+        const index = selectedUsers.findIndex(user => user.id === button.dataset.id);
+        if (index >= 0) selectedUsers.splice(index, 1);
+        renderSelectedUsers();
+      }));
+    };
+    employeePicker.addEventListener('click', () => {
+      const option = Array.from(document.getElementById('adminField2Options')?.options || []).find(item => item.value === search.value);
+      const userId = option?.dataset.userId;
+      if (!userId) { showToast('Choose an employee from the search list first.', 'warning'); return; }
+      if (!selectedUsers.some(user => user.id === userId)) selectedUsers.push({ id: userId, name: option.value });
+      search.value = '';
+      renderSelectedUsers();
+    });
+  }
   node.querySelector('.admin-modal-cancel').addEventListener('click', () => closeModal('adminActionModal'));
   node.querySelector('.admin-remove-user')?.addEventListener('click', async () => {
     try { await liveRequest('/v1/users/' + record.id + '/remove', { method: 'PATCH' }); closeModal('adminActionModal'); showToast('User moved to Deleted users.', 'success'); window.setTimeout(() => window.location.reload(), 350); }
@@ -127,7 +156,11 @@ function modal(view, primary, record) {
     try {
       const first = document.getElementById('adminField0').value;
       if (primary && ['users', 'invitations'].includes(key)) await liveRequest('/v1/invitations', { method: 'POST', body: JSON.stringify({ email: first, role: document.getElementById('adminField1').value }) });
-      else if (key === 'departments') await liveRequest(edit ? '/v1/departments/' + record.id : '/v1/departments', { method: edit ? 'PATCH' : 'POST', body: JSON.stringify({ name: first, description: document.getElementById('adminField1').value }) });
+      else if (key === 'departments') {
+        const userIds = (document.getElementById('adminField2Selected')?.value || '').split(',').filter(Boolean);
+        const department = await liveRequest(edit ? '/v1/departments/' + record.id : '/v1/departments', { method: edit ? 'PATCH' : 'POST', body: JSON.stringify({ name: first, description: document.getElementById('adminField1').value }) });
+        await Promise.all(userIds.map(userId => liveRequest('/v1/users/' + userId + '/department', { method: 'PATCH', body: JSON.stringify({ departmentId: department.id }) })));
+      }
       else if (key === 'projects') await liveRequest(edit ? '/v1/projects/' + record.id : '/v1/projects', { method: edit ? 'PATCH' : 'POST', body: JSON.stringify({ name: first, description: document.getElementById('adminField1').value }) });
       else if (remark) await liveRequest('/v1/time-entries/' + record.id + '/remarks', { method: 'POST', body: JSON.stringify({ remark: first }) });
       else if (manage) {
