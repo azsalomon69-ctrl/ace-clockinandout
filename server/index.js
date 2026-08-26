@@ -195,8 +195,12 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   res.json(await query(request));
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/contacts', authenticate, employeeOnly, async (req, res, next) => { try {
-  const contacts = await query(db.from('profiles').select('id,full_name,email,last_seen_at').eq('role', 'USER').eq('status', 'ACTIVE').neq('id', req.profile.id).order('full_name'));
-  res.json(contacts);
+  const [contacts, unread] = await Promise.all([
+    query(db.from('profiles').select('id,full_name,email,last_seen_at').eq('role', 'USER').eq('status', 'ACTIVE').neq('id', req.profile.id).order('full_name')),
+    query(db.from('employee_messages').select('sender_id').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null))
+  ]);
+  const unreadCounts = unread.reduce((counts, message) => ({ ...counts, [message.sender_id]: (counts[message.sender_id] || 0) + 1 }), {});
+  res.json(contacts.map(contact => ({ ...contact, unread_count: unreadCounts[contact.id] || 0 })));
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/messages/:userId', authenticate, employeeOnly, async (req, res, next) => { try {
   const otherUserId = optionalUuid(req.params.userId);
@@ -216,6 +220,21 @@ app.post('/v1/employee-chat/messages', authenticate, employeeOnly, async (req, r
   if (!recipient) return fail(res, 404, 'Employee is not available for chat');
   const message = await query(db.from('employee_messages').insert({ sender_id: req.profile.id, recipient_id: recipientId, body }).select().single());
   res.status(201).json(message);
+} catch (error) { next(error); } });
+app.patch('/v1/employee-chat/messages/:messageId', authenticate, employeeOnly, async (req, res, next) => { try {
+  const messageId = optionalUuid(req.params.messageId);
+  const body = optionalText(req.body.body, 2000);
+  if (!messageId || !body) return fail(res, 400, 'A valid message is required');
+  const message = await query(db.from('employee_messages').update({ body, edited_at: new Date().toISOString() }).eq('id', messageId).eq('sender_id', req.profile.id).is('deleted_at', null).select().maybeSingle());
+  if (!message) return fail(res, 404, 'Message is not available to edit');
+  res.json(message);
+} catch (error) { next(error); } });
+app.delete('/v1/employee-chat/messages/:messageId', authenticate, employeeOnly, async (req, res, next) => { try {
+  const messageId = optionalUuid(req.params.messageId);
+  if (!messageId) return fail(res, 400, 'A valid message ID is required');
+  const message = await query(db.from('employee_messages').update({ body: '', deleted_at: new Date().toISOString() }).eq('id', messageId).eq('sender_id', req.profile.id).is('deleted_at', null).select().maybeSingle());
+  if (!message) return fail(res, 404, 'Message is not available to delete');
+  res.json(message);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try { if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED'); const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single()); await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`); res.json(profile); } catch (error) { next(error); } });
 app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) => { try {
