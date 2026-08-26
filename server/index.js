@@ -92,8 +92,24 @@ app.get('/v1/projects', authenticate, async (_, res, next) => { try { res.json(a
 app.post('/v1/projects', authenticate, adminOnly, async (req, res, next) => { try { const { name, description } = req.body; if (!name?.trim()) return fail(res, 400, 'Project name is required'); const item = await query(db.from('projects').insert({ name: name.trim(), description: description?.trim() || null }).select().single()); await audit(req, 'CREATE', 'PROJECT', item.id, `Created project ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
 app.patch('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('projects').update(req.body).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'PROJECT', item.id, `Updated project ${item.name}`); res.json(item); } catch (error) { next(error); } });
 
-app.get('/v1/users', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('profiles').select('*, departments(name)').order('created_at', { ascending: false }))); } catch (error) { next(error); } });
+app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
+  let request = db.from('profiles').select('*, departments(name)').order('created_at', { ascending: false });
+  request = req.query.removed === 'true' ? request.eq('status', 'DENIED') : request.neq('status', 'DENIED');
+  res.json(await query(request));
+} catch (error) { next(error); } });
 app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try { if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED'); const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single()); await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`); res.json(profile); } catch (error) { next(error); } });
+app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) => { try {
+  const role = req.body.role === 'ADMIN' ? 'ADMIN' : req.body.role === 'USER' ? 'USER' : null;
+  if (!role) return fail(res, 400, 'Role must be ADMIN or USER');
+  const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
+  if (target.role === 'ADMIN' && role === 'USER' && target.status === 'ACTIVE') {
+    const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE'));
+    if (admins.length <= 1) return fail(res, 400, 'At least one active administrator must remain.');
+  }
+  const profile = await query(db.from('profiles').update({ role }).eq('id', target.id).select().single());
+  await audit(req, 'CHANGE_ROLE', 'PROFILE', profile.id, `Changed ${profile.email} role to ${role}`);
+  res.json(profile);
+} catch (error) { next(error); } });
 app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next) => { try {
   if (req.params.id === req.profile.id) return fail(res, 400, 'You cannot remove your own administrator account.');
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
