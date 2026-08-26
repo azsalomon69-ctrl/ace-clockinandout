@@ -2685,8 +2685,8 @@ body { color: var(--ace-text); background: var(--ace-page); }
 /* Sidebar: make grouping and current location easier to scan. */
 .app-sidebar { background: #063b4b; }
 .shell-brand { border-bottom: 1px solid rgba(255,255,255,.1); }
-.shell-nav { padding-top: 15px; }
-.shell-nav-group + .shell-nav-group { margin-top: 13px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,.09); }
+.shell-nav { padding-top: 12px; }
+.shell-nav-group + .shell-nav-group { margin-top: 0; padding-top: 0; border-top: 0; }
 .shell-nav-label { color: #82b4c0; letter-spacing: .14em; }
 .shell-link { position: relative; min-height: 48px; }
 .shell-link.active::before { content: ''; position: absolute; left: 0; width: 3px; height: 22px; background: #fff; border-radius: 0 999px 999px 0; }
@@ -2985,7 +2985,7 @@ html[data-theme="dark"] :is(.shell-skeleton-title,.shell-skeleton-subtitle,.shel
 .shell-brand { height: 80px; padding: 0 18px; border-bottom: 1px solid rgba(255,255,255,.08); }
 .shell-brand a { width: 122px; height: 72px; }.shell-brand a > img { width: 112px; height: 66px; }
 .shell-collapse { right: -14px; top: 24px; width: 28px; height: 28px; border-radius: 7px; }
-.shell-nav { gap: 20px; padding: 18px 10px 22px; align-content: start; overflow-y: auto; }
+.shell-nav { gap: 11px; padding: 12px 10px 14px; align-content: start; overflow-y: auto; }
 .shell-nav-group { display: grid; gap: 2px; }
 .shell-nav-label { margin: 0 0 5px; padding: 0 12px; color: #8eaeb5; font: 700 .61rem 'Montserrat', Arial, sans-serif; letter-spacing: .13em; text-transform: uppercase; }
 .shell-link { min-height: 39px; gap: 11px; padding: 0 12px; border-radius: 7px; font-size: .79rem; font-weight: 650; }
