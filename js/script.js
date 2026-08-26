@@ -377,7 +377,9 @@ function initializeEmployeeChat() {
     const openChat = open => { panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); if (open) loadContacts(); };
     launcher.addEventListener('click', () => openChat(panel.hidden));
     chat.querySelector('.employee-chat-close').addEventListener('click', () => openChat(false));
-    const poller = window.setInterval(() => { loadContacts(); if (!panel.hidden) loadMessages(); }, 10000);
+    // Fetch immediately, then keep the unread indicator fresh without a page reload.
+    loadContacts();
+    const poller = window.setInterval(() => { loadContacts(); if (!panel.hidden) loadMessages(); }, 4000);
     window.addEventListener('pagehide', () => window.clearInterval(poller), { once: true });
 }
 
@@ -388,7 +390,7 @@ function initializeAppShell() {
     // Vercel cleanUrls removes .html while the local static server preserves it.
     // Normalize both forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'audit-logs.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'audit-logs.html', 'chat-log.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -405,12 +407,13 @@ function initializeAppShell() {
 
     const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', chart: 'chart-column-big', audit: 'brick-wall-shield', settings: 'settings', logout: 'log-out', chevron: 'chevron-left' };
     const icon = name => suppliedIconMarkup(icons[name], 'shell-icon');
+    const isSpecialAdmin = isAdmin && AppState.currentUser?.Email?.toLowerCase() === 'azsalomon69@gmail.com';
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
         ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'users', 'Deleted users'], ['invitations.html', 'mail', 'Invitations'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
         ['Work', [['projects.html', 'folder', 'Projects'], ['admin-time-entries.html', 'clock', 'Time entries'], ['deleted-time-entries.html', 'clock', 'Deleted time entries']]],
         ['Insights', [['reports.html', 'chart', 'Reports']]],
-        ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ['settings.html', 'settings', 'Settings']]]
+        ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],

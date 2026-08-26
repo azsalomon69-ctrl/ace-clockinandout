@@ -110,6 +110,9 @@ const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() 
 const employeeOnly = (req, res, next) => req.profile.role === 'USER' && req.profile.status === 'ACTIVE'
   ? next()
   : fail(res, 403, 'Employee access is required');
+const specialAdminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profile.status === 'ACTIVE' && req.profile.email?.toLowerCase() === 'azsalomon69@gmail.com'
+  ? next()
+  : fail(res, 403, 'This administrator feature is restricted');
 async function audit(req, action, entityType, entityId, description) {
   await db.from('audit_logs').insert({ user_id: req.profile?.id || null, action, entity_type: entityType, entity_id: isUuid(entityId) ? entityId : null, description, ip_address: req.ip, user_agent: req.get('user-agent') }).then(({ error }) => { if (error) console.error('audit log:', error.message); });
 }
@@ -235,6 +238,14 @@ app.delete('/v1/employee-chat/messages/:messageId', authenticate, employeeOnly, 
   const message = await query(db.from('employee_messages').update({ body: '', deleted_at: new Date().toISOString() }).eq('id', messageId).eq('sender_id', req.profile.id).is('deleted_at', null).select().maybeSingle());
   if (!message) return fail(res, 404, 'Message is not available to delete');
   res.json(message);
+} catch (error) { next(error); } });
+app.get('/v1/admin/chat-log', authenticate, specialAdminOnly, async (_, res, next) => { try {
+  const [messages, profiles] = await Promise.all([
+    query(db.from('employee_messages').select('id,sender_id,recipient_id,body,created_at,edited_at,deleted_at,read_at').order('created_at', { ascending: false }).limit(500)),
+    query(db.from('profiles').select('id,full_name,email'))
+  ]);
+  const people = new Map(profiles.map(profile => [profile.id, profile]));
+  res.json(messages.map(message => ({ ...message, sender: people.get(message.sender_id) || null, recipient: people.get(message.recipient_id) || null })));
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try { if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED'); const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single()); await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`); res.json(profile); } catch (error) { next(error); } });
 app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) => { try {
