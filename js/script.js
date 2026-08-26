@@ -946,11 +946,12 @@ async function beginGoogleAccessRequest() {
 
 async function handleRequestAccess(e) {
     e.preventDefault();
+    const form = e.currentTarget;
     try {
         if (!window.ACEAuth) throw new Error('Request service is unavailable.');
         await window.ACEAuth.request('/v1/access-requests', { method: 'POST', body: JSON.stringify({ department: document.getElementById('requestDepartment').value.trim(), message: document.getElementById('requestMessage').value.trim() }) });
         closeModal('requestAccessModal');
-        e.currentTarget.reset();
+        form.reset();
         showToast('Access request submitted. It expires in two minutes if it is not reviewed.', 'success');
     } catch (error) { showToast(error.message || 'Unable to submit access request', 'error'); }
 }

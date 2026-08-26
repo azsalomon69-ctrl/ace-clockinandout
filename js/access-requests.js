@@ -18,7 +18,14 @@ function renderAccessRequests() {
 function reviewRequest(request, decision, role) {
   requestApi('/v1/access-requests/' + request.id, { method: 'PATCH', body: JSON.stringify({ decision, role }) })
     .then(() => { showToast(decision === 'APPROVE' ? 'Access approved.' : 'Access denied.', 'success'); loadAccessRequests(); })
-    .catch(error => showToast(error.message || 'Unable to review request.', 'error'));
+    .catch(error => {
+      if (error.status === 404) {
+        showToast('This access request is no longer available. Refreshing the list.', 'warning');
+        loadAccessRequests();
+        return;
+      }
+      showToast(error.message || 'Unable to review request.', 'error');
+    });
 }
 async function loadAccessRequests() {
   try { accessRequests = await requestApi('/v1/access-requests'); renderAccessRequests(); }
