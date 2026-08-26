@@ -9,6 +9,7 @@ const AppState = {
     isClockedIn: false,
     currentSession: null,
     notificationTimers: [],
+    autoClockOutPoll: null,
     presenceInterval: null,
     presenceVisibilityHandler: null,
     clockInTime: null,
@@ -1041,15 +1042,45 @@ function scheduleSessionNotifications(entry) {
     // especially important on admin pages, which receive all team entries.
     if (!entry?.PlannedEndAt || entry.UserId !== AppState.currentUser?.UserId) return;
     const remaining = new Date(entry.PlannedEndAt).getTime() - Date.now();
-    if (remaining <= 0) return;
+    if (remaining <= 0) { syncScheduledClockOut(entry.TimeEntryId); return; }
     const reminderDelay = remaining - 5 * 60 * 1000;
     if (reminderDelay > 0) AppState.notificationTimers.push(window.setTimeout(() => sendWorkNotification('ACE shift reminder', 'Your scheduled clock-out is in five minutes.'), reminderDelay));
-    AppState.notificationTimers.push(window.setTimeout(() => sendWorkNotification('ACE clocked you out', 'Your scheduled shift has ended and was automatically clocked out.'), remaining + 5000));
+    AppState.notificationTimers.push(window.setTimeout(() => syncScheduledClockOut(entry.TimeEntryId), remaining + 2500));
 }
 
 function clearSessionNotifications() {
     AppState.notificationTimers.forEach(timer => window.clearTimeout(timer));
     AppState.notificationTimers = [];
+    if (AppState.autoClockOutPoll) window.clearTimeout(AppState.autoClockOutPoll);
+    AppState.autoClockOutPoll = null;
+}
+
+async function syncScheduledClockOut(entryId, attempt = 0) {
+    if (!AppState.currentSession || AppState.currentSession.TimeEntryId !== entryId) return;
+    try {
+        const entries = await window.ACEAuth.request('/v1/time-entries?mine=true');
+        const saved = entries.find(item => item.id === entryId);
+        if (saved?.clock_out_at) {
+            const completed = timeEntryRecord(saved);
+            AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === entryId ? completed : item);
+            AppState.currentSession = null;
+            AppState.isClockedIn = false;
+            AppState.clockInTime = null;
+            clearSessionNotifications();
+            stopTimer();
+            updateUI();
+            loadPageSpecificData();
+            await sendWorkNotification('ACE clocked you out', 'Your scheduled shift ended and has been automatically clocked out.');
+            return;
+        }
+    } catch (error) {
+        console.warn('Could not confirm scheduled clock-out yet.', error);
+    }
+    // Render checks scheduled entries every 30 seconds. Keep this employee tab
+    // synchronized until the server confirms the completed time entry.
+    if (attempt < 36 && AppState.currentSession?.TimeEntryId === entryId) {
+        AppState.autoClockOutPoll = window.setTimeout(() => syncScheduledClockOut(entryId, attempt + 1), 5000);
+    }
 }
 
 function startTimer() {
