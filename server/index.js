@@ -34,6 +34,7 @@ const query = async builder => { const { data, error } = await builder; if (erro
 const isUuid = value => /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value || '');
 const isDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const htmlEscape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const optionalText = (value, maximum = 500) => {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value !== 'string') return undefined;
@@ -50,6 +51,46 @@ app.param('id', (req, res, next, id) => isUuid(id) ? next() : fail(res, 400, 'In
 app.param('projectId', (req, res, next, id) => isUuid(id) ? next() : fail(res, 400, 'Invalid project ID'));
 const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
 const isAllowedCompanyEmail = email => !allowedDomains.length || allowedDomains.some(domain => email.endsWith(`@${domain}`));
+
+function inviteLoginUrl() {
+  const fallback = frontendOrigins[0] ? `${frontendOrigins[0].replace(/\/$/, '')}/login` : 'http://localhost:5500/login.html';
+  try { return new URL(process.env.INVITE_REDIRECT_URL || fallback).toString(); }
+  catch { throw Object.assign(new Error('INVITE_REDIRECT_URL must be a valid URL'), { status: 503, expose: true }); }
+}
+
+function assertInvitationEmailConfigured() {
+  if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+    throw Object.assign(new Error('Invitation email is not configured. Ask an administrator to configure the mail sender.'), { status: 503, expose: true });
+  }
+}
+
+async function sendInvitationEmail({ email, role }) {
+  assertInvitationEmailConfigured();
+  const loginUrl = inviteLoginUrl();
+  const logoUrl = new URL('/assets/images/ace-logo-hd-cropped.png', loginUrl).toString();
+  const roleLabel = role === 'ADMIN' ? 'Administrator' : 'Employee';
+  const safeRole = htmlEscape(roleLabel);
+  const safeLoginUrl = htmlEscape(loginUrl);
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'ace-clock-api/1.0'
+    },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM_EMAIL,
+      to: [email],
+      subject: 'You have access to ACE Clock In/Out',
+      html: `<!doctype html><html><body style="margin:0;background:#f3f8f9;font-family:Arial,sans-serif;color:#073646"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #d6e7eb;border-radius:16px;overflow:hidden"><tr><td style="padding:28px 32px 20px;background:#eaf7f9;text-align:center"><img src="${htmlEscape(logoUrl)}" width="108" alt="ACE Outsource Solutions" style="display:inline-block;max-width:108px;height:auto"><p style="margin:18px 0 0;color:#087f9d;font-size:12px;font-weight:700;letter-spacing:1.2px">ACE CLOCK IN / OUT</p></td></tr><tr><td style="padding:30px 32px"><h1 style="margin:0 0 14px;font-size:25px;line-height:1.2">You have been granted access</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.55;color:#34545f">You have been added to the ACE workforce workspace as an <strong>${safeRole}</strong>.</p><p style="margin:0 0 24px;font-size:16px;line-height:1.55;color:#34545f">Use the Google account this email was sent to. No password is required.</p><p style="margin:0 0 26px"><a href="${safeLoginUrl}" style="display:inline-block;padding:13px 20px;background:#08a2c2;border-radius:8px;color:#ffffff;font-weight:700;text-decoration:none">Continue with Google</a></p><p style="margin:0;font-size:13px;line-height:1.5;color:#68818b">If you were not expecting this invitation, you can ignore this email.</p></td></tr></table></td></tr></table></body></html>`,
+      text: `You have been granted ${roleLabel} access to ACE Clock In/Out. Sign in with the Google account ${email} at ${loginUrl}. No password is required.`
+    })
+  });
+  if (!response.ok) {
+    console.error(`Invitation email delivery failed with status ${response.status}`);
+    throw Object.assign(new Error('The account was prepared, but the invitation email could not be delivered. Please try again.'), { status: 502, expose: true });
+  }
+}
 
 async function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
@@ -218,6 +259,7 @@ app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, 
 app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try {
   const email = req.body.email?.trim().toLowerCase();
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
+  assertInvitationEmailConfigured();
   if (!email || !emailPattern.test(email) || email.length > 254) return fail(res, 400, 'A valid email is required');
   if (!isAllowedCompanyEmail(email)) return fail(res, 400, 'Use an approved company email address.');
   const duplicate = await query(db.from('invitations').select('id').eq('email', email).eq('status', 'PENDING').gt('expires_at', new Date().toISOString()).maybeSingle());
@@ -226,8 +268,9 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
     if (!existingProfile) return fail(res, 409, 'This email already has an active invitation.');
     await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: req.body.departmentId || null }).eq('id', existingProfile.id).select().single());
     const invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', duplicate.id).select().single());
-    await audit(req, 'INVITE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Activated existing Google profile ${email} as ${role}`);
-    return res.json(invitation);
+    await sendInvitationEmail({ email, role });
+    await audit(req, 'INVITE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Activated existing Google profile ${email} as ${role} and sent an access email`);
+    return res.json({ ...invitation, email_sent: true });
   }
   const departmentId = optionalUuid(req.body.departmentId);
   if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
@@ -240,8 +283,14 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
     await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: departmentId }).eq('id', existingProfile.id).select().single());
     invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', invitation.id).select().single());
   }
-  await audit(req, 'INVITE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Pre-authorized ${email} as ${role}`);
-  res.status(201).json(invitation);
+  try {
+    await sendInvitationEmail({ email, role });
+  } catch (error) {
+    if (!existingProfile) await query(db.from('invitations').delete().eq('id', invitation.id));
+    throw error;
+  }
+  await audit(req, 'INVITE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Pre-authorized ${email} as ${role} and sent an access email`);
+  res.status(201).json({ ...invitation, email_sent: true });
 } catch (error) { next(error); } });
 app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)').order('invited_at', { ascending: false }))); } catch (error) { next(error); } });
 

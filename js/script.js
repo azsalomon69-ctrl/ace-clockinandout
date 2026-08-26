@@ -1041,7 +1041,7 @@ async function handleInviteUser(e) {
     try {
         const invitation = await window.ACEAuth.request('/v1/invitations', { method: 'POST', body: JSON.stringify({ email, departmentId: departmentId || null, role: role || 'USER' }) });
         AppState.invitations.unshift(invitation); closeModal('inviteUserModal'); document.getElementById('inviteUserForm').reset();
-        showToast('Google account pre-authorized for ' + email, 'success');
+        showToast('Access email sent to ' + email + '. They can continue with Google from the link.', 'success');
     } catch (error) { showToast(error.message || 'Unable to send invitation', 'error'); }
 }
 
