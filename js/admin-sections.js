@@ -1,22 +1,6 @@
-const liveApiUrl = () => String(window.ACE_API_URL || 'https://ace-clockinandout.onrender.com').replace(/\/$/, '');
-let liveSupabase;
-
 async function liveRequest(path, options = {}) {
-  if (!window.supabase) await new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-    script.onload = resolve; script.onerror = reject; document.head.appendChild(script);
-  });
-  if (!liveSupabase) {
-    const config = await fetch(liveApiUrl() + '/v1/auth/config').then(response => response.ok ? response.json() : Promise.reject(new Error('Unable to reach the sign-in service.')));
-    liveSupabase = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
-  }
-  const session = (await liveSupabase.auth.getSession()).data.session;
-  if (!session) throw new Error('Your session has ended. Please sign in again.');
-  const response = await fetch(liveApiUrl() + path, { ...options, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token, ...(options.headers || {}) } });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
+  return window.ACEAuth.request(path, options);
 }
 
 // This is interface copy only. All records and counts are live Render/Supabase data.
