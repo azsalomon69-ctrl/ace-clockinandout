@@ -81,6 +81,16 @@ async function initApp() {
     try { initializeAppShell(); }
     catch (error) { console.error('Could not mount the application navigation.', error); }
 
+    if (isPublicRoute()) {
+        await resumePublicSession();
+        initializeNavigation();
+        initializeModals();
+        initializeForms();
+        initializeUXEnhancements();
+        clearInitialSkeletons();
+        return;
+    }
+
     const [loaded] = await Promise.all([loadDatabase(), new Promise(resolve => setTimeout(resolve, 360))]);
     if (loaded) {
         initializeNavigation();
@@ -96,6 +106,28 @@ async function initApp() {
         document.body.classList.remove('app-shell-pending');
         document.querySelector('.app-shell-skeleton')?.remove();
     });
+}
+
+function isPublicRoute() {
+    const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
+    return !routeName || routeName === 'index.html' || routeName === 'login.html' || routeName === 'index' || routeName === 'login';
+}
+
+async function resumePublicSession() {
+    if (!window.ACEAuth) return;
+    const auth = await window.ACEAuth.client();
+    const { data: { session } } = await auth.auth.getSession();
+    if (!session) return;
+    const { profile } = await window.ACEAuth.request('/v1/me');
+    AppState.currentUser = profileRecord(profile);
+    AppState.isAuthenticated = true;
+    localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
+    if (AppState.currentUser.Status === 'ACTIVE') {
+        window.location.replace(AppState.currentUser.Role === 'ADMIN' ? 'admin-dashboard.html' : 'user-dashboard.html');
+    } else {
+        await auth.auth.signOut();
+        showToast('Your account is awaiting administrator approval.', 'info');
+    }
 }
 
 function redirectAuthenticatedPublicRoute() {
