@@ -11,6 +11,7 @@ const AppState = {
     notificationTimers: [],
     presenceInterval: null,
     presenceVisibilityHandler: null,
+    onlineCountInterval: null,
     clockInTime: null,
     timerInterval: null,
     projects: [],
@@ -25,7 +26,7 @@ const AppState = {
     database: null
 };
 
-const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at });
+const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, Role: item.role, Status: item.status, DepartmentId: item.department_id, LastSeenAt: item.last_seen_at, CreatedAt: item.created_at });
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
@@ -868,6 +869,8 @@ async function performLogout() {
     }
     AppState.currentUser = null;
     stopPresenceHeartbeat();
+    if (AppState.onlineCountInterval) window.clearInterval(AppState.onlineCountInterval);
+    AppState.onlineCountInterval = null;
     AppState.isAuthenticated = false;
     AppState.isClockedIn = false;
     
@@ -1714,8 +1717,8 @@ function loadAdminDashboard() {
     const totalUsers = document.getElementById('totalUsers');
     if (totalUsers) totalUsers.textContent = AppState.users.length;
     
-    const activeUsers = document.getElementById('activeUsers');
-    if (activeUsers) activeUsers.textContent = AppState.users.filter(u => u.Status === 'ACTIVE').length;
+    updateOnlineUserCount();
+    startOnlineUserCountRefresh();
     
     const todayEntries = document.getElementById('todayEntries');
     if (todayEntries) {
@@ -1822,6 +1825,28 @@ function loadTimeEntries() {
             `;
         }).join('') : `<tr><td colspan="9">${emptyState('No time entries found', 'Your tracked sessions will appear here. Start by clocking in.', 'Clock in', '#')}</td></tr>`;
     }
+}
+
+function updateOnlineUserCount() {
+    const activeUsers = document.getElementById('activeUsers');
+    if (!activeUsers) return;
+    const onlineAfter = Date.now() - 2 * 60 * 1000;
+    activeUsers.textContent = AppState.users.filter(user =>
+        user.Status === 'ACTIVE' && user.LastSeenAt && new Date(user.LastSeenAt).getTime() >= onlineAfter
+    ).length;
+}
+
+function startOnlineUserCountRefresh() {
+    if (AppState.onlineCountInterval || AppState.currentUser?.Role !== 'ADMIN' || !document.getElementById('activeUsers')) return;
+    AppState.onlineCountInterval = window.setInterval(async () => {
+        try {
+            const users = await window.ACEAuth.request('/v1/users');
+            AppState.users = users.map(profileRecord);
+            updateOnlineUserCount();
+        } catch (error) {
+            console.warn('Could not refresh the online user count.', error);
+        }
+    }, 45 * 1000);
 }
 
 function loadReportsList() {
