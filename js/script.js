@@ -289,6 +289,37 @@ function initializeUXEnhancements() {
     });
 }
 
+// Use the same quiet fade for every ordinary in-app navigation. This is
+// intentionally app-managed instead of relying on browser-specific page
+// transitions, which can be inconsistent across navigation types.
+function installPageFadeNavigation() {
+    if (document.body.dataset.pageFadeReady === 'true') return;
+    document.body.dataset.pageFadeReady = 'true';
+    let navigating = false;
+
+    document.addEventListener('click', event => {
+        const link = event.target.closest('a[href]');
+        if (!link || navigating || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        if (link.target || link.hasAttribute('download')) return;
+
+        const destination = new URL(link.href, window.location.href);
+        const current = new URL(window.location.href);
+        const sameDocument = destination.origin === current.origin
+            && destination.pathname === current.pathname
+            && destination.search === current.search;
+        if (destination.origin !== current.origin || sameDocument) return;
+
+        event.preventDefault();
+        navigating = true;
+        const overlay = document.createElement('div');
+        overlay.className = 'page-transition-overlay';
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add('is-visible'));
+        window.setTimeout(() => window.location.assign(destination.href), 145);
+    });
+}
+
 // Shared application shell for every authenticated page.
 function initializeAppShell() {
     if (document.body.classList.contains('has-app-shell')) return;
@@ -2150,6 +2181,7 @@ const startApp = () => {
     });
 };
 
+installPageFadeNavigation();
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', startApp, { once: true });
 } else {

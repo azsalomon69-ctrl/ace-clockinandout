@@ -1624,12 +1624,6 @@ body { background: #f7fcfd; color: var(--ace-ink); }
 }
 
 html { background: var(--ace-sky-2); scroll-behavior: smooth; }
-/* Keep navigation calm: fade between pages without shifting the layout. */
-@view-transition { navigation: auto; }
-::view-transition-old(root) { animation: ace-page-fade-out 120ms ease-in both; }
-::view-transition-new(root) { animation: ace-page-fade-in 180ms ease-out both; }
-@keyframes ace-page-fade-out { to { opacity: 0; } }
-@keyframes ace-page-fade-in { from { opacity: 0; } }
 body {
   min-width: 320px;
   color: var(--ace-text);
@@ -1638,7 +1632,12 @@ body {
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  animation: ace-document-fade-in 180ms ease-out both;
 }
+@keyframes ace-document-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.page-transition-overlay { position: fixed; z-index: 10000; inset: 0; pointer-events: none; opacity: 0; background: var(--ace-sky-2); transition: opacity 140ms ease-in; }
+.page-transition-overlay.is-visible { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { body { animation: none; }.page-transition-overlay { transition: none; } }
 h1, h2, h3, h4, h5, h6, .btn, .shell-label, .nav-link {
   font-family: 'Montserrat', Arial, sans-serif;
 }
