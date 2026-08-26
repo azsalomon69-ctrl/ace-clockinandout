@@ -84,6 +84,8 @@ create table public.time_entries (
     case when clock_out_at is null then null
     else greatest(0, extract(epoch from (clock_out_at - clock_in_at))::integer) end
   ) stored,
+  deleted_at timestamptz,
+  deleted_by_user_id uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint clock_out_after_clock_in check (clock_out_at is null or clock_out_at >= clock_in_at)
 );
