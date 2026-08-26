@@ -156,7 +156,10 @@ function initializeUXEnhancements() {
 // Shared application shell for every authenticated page.
 function initializeAppShell() {
     if (document.body.classList.contains('has-app-shell')) return;
-    const file = (window.location.pathname.split('/').pop() || '').toLowerCase();
+    const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
+    // Vercel cleanUrls removes .html while the local static server preserves it.
+    // Normalize both forms before selecting the application shell.
+    const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
     const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'invitations.html', 'departments.html', 'projects.html', 'admin-time-entries.html', 'reports.html', 'audit-logs.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
