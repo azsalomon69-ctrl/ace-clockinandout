@@ -226,6 +226,28 @@ if (systemThemeMedia.addEventListener) {
 }
 
 function renderInitialSkeletons() {
+    const shell = document.querySelector('.app-shell-skeleton');
+    if (shell) {
+        const page = (window.location.pathname.split('/').pop() || '').toLowerCase();
+        const managementPages = ['users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'audit-logs.html'];
+        const rows = count => Array.from({ length: count }, () => '<div class="shell-skeleton-row"></div>').join('');
+        const header = '<div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div>';
+        if (page === 'admin-dashboard.html') {
+            shell.innerHTML = `<main class="shell-skeleton-main shell-skeleton-dashboard">${header}<div class="shell-skeleton-stats">${'<div class="shell-skeleton-stat"></div>'.repeat(4)}</div><section class="shell-skeleton-analytics"><div class="shell-skeleton-panel shell-skeleton-filter-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-filter-row">${'<i></i>'.repeat(4)}</div></div><div class="shell-skeleton-analytics-grid"><div class="shell-skeleton-panel">${rows(4)}</div><div class="shell-skeleton-panel">${rows(4)}</div></div></section></main>`;
+        } else if (page === 'user-dashboard.html') {
+            shell.innerHTML = `<main class="shell-skeleton-main shell-skeleton-employee">${header}<div class="shell-skeleton-employee-grid"><section class="shell-skeleton-clock"><div class="shell-skeleton-orb"></div><div class="shell-skeleton-title"></div><div class="shell-skeleton-button"></div></section><section class="shell-skeleton-panel">${rows(4)}</section></div><section class="shell-skeleton-panel">${rows(3)}</section></main>`;
+        } else if (managementPages.includes(page)) {
+            shell.innerHTML = `<main class="shell-skeleton-main shell-skeleton-management">${header}<div class="shell-skeleton-stats">${'<div class="shell-skeleton-stat"></div>'.repeat(3)}</div><section class="shell-skeleton-panel shell-skeleton-table"><div class="shell-skeleton-table-head"><div class="shell-skeleton-panel-title"></div><i></i></div>${rows(6)}</section></main>`;
+        } else if (page === 'reports.html') {
+            shell.innerHTML = `<main class="shell-skeleton-main shell-skeleton-reports">${header}<section class="shell-skeleton-panel shell-skeleton-table"><div class="shell-skeleton-table-head"><div class="shell-skeleton-panel-title"></div><i></i></div>${rows(5)}</section></main>`;
+        } else if (page === 'settings.html') {
+            shell.innerHTML = `<main class="shell-skeleton-main shell-skeleton-settings">${header}<div class="shell-skeleton-settings-grid"><aside class="shell-skeleton-panel">${rows(4)}</aside><section class="shell-skeleton-panel">${rows(6)}</section></div></main>`;
+        } else if (page === 'chat-log.html') {
+            shell.innerHTML = `<main class="shell-skeleton-main shell-skeleton-chat">${header}<section class="shell-skeleton-panel"><div class="shell-skeleton-chat-layout"><aside>${rows(7)}</aside><div>${rows(8)}</div></div></section></main>`;
+        } else if (page === 'time-entries.html') {
+            shell.innerHTML = `<main class="shell-skeleton-main shell-skeleton-entries">${header}<section class="shell-skeleton-panel shell-skeleton-filter-panel"><div class="shell-skeleton-filter-row">${'<i></i>'.repeat(4)}</div></section><section class="shell-skeleton-panel shell-skeleton-table">${rows(6)}</section></main>`;
+        }
+    }
     const tableBody = document.querySelector('tbody[id]');
     if (tableBody && !tableBody.children.length) {
         const columns = tableBody.closest('table')?.querySelectorAll('thead th').length || 5;

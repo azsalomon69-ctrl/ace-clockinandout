@@ -2339,6 +2339,11 @@ body.app-shell-pending .shell-collapse { z-index: 2; }
 .shell-skeleton-title, .shell-skeleton-subtitle, .shell-skeleton-stat,
 .shell-skeleton-panel-title, .shell-skeleton-row { animation: shell-skeleton-pulse .8s ease-in-out infinite alternate; }
 @keyframes shell-skeleton-pulse { from { opacity: .58; } to { opacity: 1; } }
+.shell-skeleton-analytics-grid, .shell-skeleton-employee-grid, .shell-skeleton-settings-grid { display: grid; grid-template-columns: minmax(0,1.65fr) minmax(300px,1fr); gap: 20px; }
+.shell-skeleton-analytics-grid { margin-top: 20px; }.shell-skeleton-filter-panel { min-height: 132px; }.shell-skeleton-filter-row { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-top: 22px; }.shell-skeleton-filter-row i, .shell-skeleton-table-head > i { display: block; height: 42px; border-radius: 8px; background: #edf5f7; }
+.shell-skeleton-table { padding: 0 22px 22px; }.shell-skeleton-table-head { display: flex; align-items: center; justify-content: space-between; min-height: 74px; border-bottom: 1px solid var(--ace-line); }.shell-skeleton-table-head > i { width: 220px; }.shell-skeleton-table .shell-skeleton-row { height: 56px; margin-top: 0; border-bottom: 1px solid var(--ace-line); border-radius: 0; }
+.shell-skeleton-clock { min-height: 316px; display: grid; justify-items: center; align-content: center; gap: 17px; padding: 28px; border: 1px solid var(--ace-line); border-radius: 13px; background: #fff; }.shell-skeleton-clock .shell-skeleton-title { width: 180px; margin: 0; }.shell-skeleton-orb { width: 112px; height: 112px; border-radius: 50%; background: #e3f1f4; }.shell-skeleton-button { width: 170px; height: 46px; border-radius: 8px; background: #d9e9ed; }.shell-skeleton-orb, .shell-skeleton-button { animation: shell-skeleton-pulse .8s ease-in-out infinite alternate; }
+.shell-skeleton-settings-grid { grid-template-columns: minmax(220px,.5fr) minmax(0,1.5fr); }.shell-skeleton-chat-layout { display: grid; grid-template-columns: minmax(220px,.6fr) minmax(0,1.4fr); gap: 22px; }.shell-skeleton-chat-layout > * { min-width: 0; }
 
 a[href], button:not(:disabled), select, input[type="checkbox"], input[type="radio"], label[for] { cursor: pointer; }
 button:disabled, .btn:disabled, [aria-disabled="true"] { cursor: not-allowed; }
