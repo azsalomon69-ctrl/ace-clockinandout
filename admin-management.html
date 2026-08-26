@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administration · ACE Outsource Solutions</title>
-    <link rel="stylesheet" href="css/app.css?v=fbbc9f4">
+    <link rel="stylesheet" href="css/app.css?v=single-css-js-1">
   <script>
     const legacyView = new URLSearchParams(location.search).get('view') || 'users';
     const legacyRoutes = { users: 'users.html', invitations: 'invitations.html', departments: 'departments.html', projects: 'projects.html', entries: 'admin-time-entries.html', audit: 'audit-logs.html' };
@@ -30,7 +30,7 @@
     </section>
   </div></main>
   <div id="toastContainer" class="toast-container"></div><div id="loadingSpinner" class="spinner-overlay" style="display: none;"><div class="spinner"></div></div>
-  <script src="js/script.js?v=report-pdf-12"></script><script>
+  <script src="js/script.js?v=single-css-js-1"></script><script>
     const data={
       users:{title:'User management',description:'Approve access, assign roles, and maintain employee records.',action:'Invite user',stats:[['7','Team members'],['5','Active users'],['1','Pending review']],head:['Name','Role','Department','Status','Action'],rows:[['ACE Administrator','Admin','—','Active','Manage'],['ACE Employee','Employee','—','Active','Manage'],['John Doe','Employee','Engineering','Active','Manage'],['Bob Wilson','Employee','—','Pending','Review']]},
       invitations:{title:'Invitations',description:'Invite a new team member and track their response.',action:'Send invitation',stats:[['3','Pending'],['12','Accepted'],['1','Expires today']],head:['Email','Invited by','Sent','Status','Action'],rows:[['maria@ace.com','ACE Administrator','Today','Pending','Resend'],['ben@ace.com','ACE Administrator','Aug 22','Pending','Cancel'],['sam@ace.com','ACE Administrator','Aug 19','Accepted','View']]},

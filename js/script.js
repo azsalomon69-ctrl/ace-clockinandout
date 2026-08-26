@@ -2024,5 +2024,18 @@ function hideSpinner() {
     if (spinner) spinner.style.display = 'none';
 }
 
-// Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', initApp);
+// Start exactly once whether the script is parsed before or after DOM readiness.
+// This prevents a cached navigation transition from skipping application-shell setup.
+const startApp = () => {
+    initApp().catch(error => {
+        console.error('Application startup failed.', error);
+        document.body.classList.remove('app-shell-pending');
+        document.querySelector('.app-shell-skeleton')?.remove();
+    });
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startApp, { once: true });
+} else {
+    startApp();
+}
