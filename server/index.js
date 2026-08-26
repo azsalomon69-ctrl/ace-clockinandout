@@ -235,7 +235,9 @@ app.patch('/v1/employee-chat/messages/:messageId', authenticate, employeeOnly, a
 app.delete('/v1/employee-chat/messages/:messageId', authenticate, employeeOnly, async (req, res, next) => { try {
   const messageId = optionalUuid(req.params.messageId);
   if (!messageId) return fail(res, 400, 'A valid message ID is required');
-  const message = await query(db.from('employee_messages').update({ body: '', deleted_at: new Date().toISOString() }).eq('id', messageId).eq('sender_id', req.profile.id).is('deleted_at', null).select().maybeSingle());
+  // Keep the original body for the restricted administrator log. The employee
+  // chat renders the deleted marker instead, so deletion hides it only there.
+  const message = await query(db.from('employee_messages').update({ deleted_at: new Date().toISOString() }).eq('id', messageId).eq('sender_id', req.profile.id).is('deleted_at', null).select().maybeSingle());
   if (!message) return fail(res, 404, 'Message is not available to delete');
   res.json(message);
 } catch (error) { next(error); } });
