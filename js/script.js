@@ -897,7 +897,7 @@ async function handleGoogleLogin(event) {
     try {
         if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
         const auth = await window.ACEAuth.client();
-        const { error } = await auth.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/login` } });
+        const { error } = await auth.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/login`, queryParams: { prompt: 'select_account' } } });
         if (error) throw error;
     } catch (error) {
         hideSpinner();
