@@ -923,8 +923,18 @@ function handleLogout() {
     openModal('logoutConfirmModal');
 }
 
-function performLogout() {
+async function performLogout() {
     closeModal('logoutConfirmModal');
+    try {
+        if (window.ACEAuth) {
+            const auth = await window.ACEAuth.client();
+            const { error } = await auth.auth.signOut();
+            if (error) throw error;
+        }
+    } catch (error) {
+        showToast(error.message || 'Unable to sign out of the authentication service', 'error');
+        return;
+    }
     AppState.currentUser = null;
     AppState.isAuthenticated = false;
     AppState.isClockedIn = false;
