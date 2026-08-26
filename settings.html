@@ -129,50 +129,10 @@
             <!-- Security Settings -->
             <div class="settings-section" id="securitySettings" style="display: none;">
                 <h2 class="section-title">Security Settings</h2>
-                <form id="securityForm" class="settings-form">
-                    <div class="security-section">
-                        <h3 class="security-title">Password</h3>
-                        <p class="security-description">Set a password for email sign-in, or change your existing password. If you use Google only, leave Current Password empty when creating your first password.</p>
-                        <div class="form-group">
-                            <label for="currentPassword" class="form-label">Current Password <span aria-hidden="true">(optional for first password)</span></label>
-                            <div class="input-group">
-                                <input type="password" id="currentPassword" class="form-input" placeholder="Enter current password">
-                                <button type="button" class="password-toggle">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
-                                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="newPassword" class="form-label">New Password</label>
-                            <div class="input-group">
-                                <input type="password" id="newPassword" class="form-input" placeholder="Enter new password">
-                                <button type="button" class="password-toggle">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
-                                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="confirmPassword" class="form-label">Confirm New Password</label>
-                            <div class="input-group">
-                                <input type="password" id="confirmPassword" class="form-input" placeholder="Confirm new password">
-                                <button type="button" class="password-toggle">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
-                                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
+                <div class="settings-form">
                     <div class="security-section">
                         <h3 class="security-title">Active Sessions</h3>
+                        <p class="security-description">ACE uses Google sign-in only. Manage access to your Google account through Google.</p>
                         <div class="session-list">
                             <div class="session-item">
                                 <div class="session-info">
@@ -183,11 +143,7 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Update Security Settings</button>
-                    </div>
-                </form>
+                </div>
             </div>
 
             <!-- Appearance Settings -->
@@ -264,6 +220,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-auth.js"></script>
     <script src="js/sidebar.js?v=admin-role-fix-1"></script>
-    <script src="js/script.js?v=security-audit-1"></script>
+    <script src="js/script.js?v=google-only-1"></script>
 </body>
 </html>

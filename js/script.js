@@ -536,16 +536,6 @@ function initializeModals() {
         }
     });
 
-    // Forgot password
-    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
-    if (forgotPasswordLink) {
-        forgotPasswordLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            closeModal('loginModal');
-            openModal('forgotPasswordModal');
-        });
-    }
-
     // Request access
     const requestAccessLink = document.getElementById('requestAccessLink');
     if (requestAccessLink) {
@@ -669,21 +659,6 @@ function initializeModals() {
         });
     });
 
-    // Password toggles
-    document.querySelectorAll('.password-toggle').forEach(btn => {
-        btn.setAttribute('aria-label', 'Show password');
-        btn.setAttribute('aria-pressed', 'false');
-        btn.addEventListener('click', function() {
-            const input = this.closest('.input-group').querySelector('input');
-            const willShow = input.type === 'password';
-            input.type = willShow ? 'text' : 'password';
-            const icon = this.querySelector('img');
-            if (icon) icon.src = `assets/icons/${willShow ? 'eye-off' : 'eye'}.svg`;
-            this.setAttribute('aria-label', willShow ? 'Hide password' : 'Show password');
-            this.setAttribute('aria-pressed', willShow ? 'true' : 'false');
-        });
-    });
-
     // FAQ toggles
     document.querySelectorAll('.faq-question').forEach(question => {
         question.addEventListener('click', function() {
@@ -733,22 +708,10 @@ function closeModal(modalId) {
 
 // Forms
 function initializeForms() {
-    // Login form
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-        loginForm.addEventListener('submit', handleLogin);
-    }
-
     // Google login
     const googleLoginBtn = document.getElementById('googleLoginBtn');
     if (googleLoginBtn) {
         googleLoginBtn.addEventListener('click', handleGoogleLogin);
-    }
-
-    // Forgot password form
-    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
-    if (forgotPasswordForm) {
-        forgotPasswordForm.addEventListener('submit', handleForgotPassword);
     }
 
     // Request access form
@@ -790,12 +753,6 @@ function initializeForms() {
     const notificationForm = document.getElementById('notificationForm');
     if (notificationForm) {
         notificationForm.addEventListener('submit', handleNotificationUpdate);
-    }
-
-    // Security form
-    const securityForm = document.getElementById('securityForm');
-    if (securityForm) {
-        securityForm.addEventListener('submit', handleSecurityUpdate);
     }
 
     // Appearance form
@@ -862,30 +819,6 @@ function checkAuthState() {
             startTimer();
         }
     }
-}
-
-async function handleLogin(e) {
-    e.preventDefault();
-    showSpinner();
-    try {
-        if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
-        const auth = await window.ACEAuth.client();
-        const { data, error } = await auth.auth.signInWithPassword({ email: document.getElementById('email').value.trim(), password: document.getElementById('password').value });
-        if (error || !data.session) throw new Error(error?.message || 'Invalid email or password');
-        const { profile } = await window.ACEAuth.request('/v1/me');
-        if (profile.status !== 'ACTIVE') {
-            await auth.auth.signOut();
-            throw new Error(profile.status === 'DENIED' ? 'Your access request was not approved.' : 'Your access request is awaiting administrator approval.');
-        }
-        const user = { UserId: profile.id, Email: profile.email, FullName: profile.full_name, Role: profile.role, Status: profile.status, DepartmentId: profile.department_id };
-        AppState.currentUser = user;
-        AppState.isAuthenticated = true;
-        localStorage.setItem('ace_current_user', JSON.stringify(user));
-        await recordLoginOnce();
-        hideSpinner();
-        showToast('Login successful', 'success');
-        window.location.href = user.Role === 'ADMIN' ? 'admin-dashboard.html' : 'user-dashboard.html';
-    } catch (error) { hideSpinner(); showToast(error.message || 'Unable to sign in', 'error'); }
 }
 
 async function handleGoogleLogin(event) {
@@ -975,20 +908,6 @@ async function beginGoogleAccessRequest() {
         const { error } = await auth.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/login?requestAccess=1`, queryParams: { prompt: 'select_account' } } });
         if (error) throw error;
     } catch (error) { showToast(error.message || 'Unable to start Google sign-in.', 'error'); }
-}
-
-async function handleForgotPassword(e) {
-    e.preventDefault();
-    const email = document.getElementById('resetEmail').value.trim();
-    try {
-        const auth = await window.ACEAuth.client();
-        const { error } = await auth.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/settings` });
-        if (error) throw error;
-        showToast('Password reset instructions were sent to ' + email, 'success');
-        closeModal('forgotPasswordModal');
-    } catch (error) {
-        showToast(error.message || 'Could not send password reset instructions.', 'error');
-    }
 }
 
 async function handleRequestAccess(e) {
@@ -1256,36 +1175,6 @@ function handleNotificationUpdate(e) {
     e.currentTarget.querySelectorAll('input[type="checkbox"]').forEach(input => { preferences[input.id] = input.checked; });
     localStorage.setItem('ace_notification_preferences', JSON.stringify(preferences));
     showToast('Notification preferences saved', 'success');
-}
-
-async function handleSecurityUpdate(e) {
-    e.preventDefault();
-    const current = document.getElementById('currentPassword')?.value || '';
-    const next = document.getElementById('newPassword')?.value || '';
-    const confirm = document.getElementById('confirmPassword')?.value || '';
-    if (!next && !confirm) {
-        showToast('Enter a new password to save password changes.', 'warning');
-        return;
-    }
-    if (next !== confirm) {
-        showToast('New passwords do not match.', 'error');
-        return;
-    }
-    if (next && next.length < 6) {
-        showToast('Use at least 6 characters for the new password.', 'warning');
-        return;
-    }
-    try {
-        const auth = await window.ACEAuth.client();
-        const update = { password: next };
-        if (current) update.current_password = current;
-        const { error } = await auth.auth.updateUser(update);
-        if (error) throw error;
-        e.currentTarget.reset();
-        showToast('Password saved. You can now sign in with your email and password.', 'success');
-    } catch (error) {
-        showToast(error.message || 'Could not update your password.', 'error');
-    }
 }
 
 function handleAppearanceUpdate(e) {
