@@ -9,7 +9,6 @@ const AppState = {
     isClockedIn: false,
     currentSession: null,
     notificationTimers: [],
-    autoClockOutPoll: null,
     presenceInterval: null,
     presenceVisibilityHandler: null,
     clockInTime: null,
@@ -29,7 +28,7 @@ const AppState = {
 const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at });
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
-const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, PlannedEndAt: item.planned_end_at, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
+const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
 
 // Live data is supplied exclusively by the Render API and Supabase.
@@ -69,7 +68,7 @@ async function loadDatabase() {
     AppState.currentSession = active || null;
     AppState.isClockedIn = Boolean(active);
     AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
-    if (active) { startTimer(); scheduleSessionNotifications(active); }
+    if (active) startTimer();
     return true;
 }
 
@@ -759,12 +758,6 @@ function initializeForms() {
     if (clockInForm) {
         clockInForm.addEventListener('submit', handleClockIn);
     }
-    const durationSelect = document.getElementById('clockInDuration');
-    durationSelect?.addEventListener('change', () => {
-        const custom = document.getElementById('clockInCustomDuration');
-        if (custom) { custom.hidden = durationSelect.value !== 'custom'; custom.required = durationSelect.value === 'custom'; }
-    });
-
     // Clock out form
     const clockOutForm = document.getElementById('clockOutForm');
     if (clockOutForm) {
@@ -999,15 +992,11 @@ async function handleClockIn(e) {
     
     const projectId = document.getElementById('clockInProject')?.value;
     const note = document.getElementById('clockInNote')?.value;
-    const durationChoice = document.getElementById('clockInDuration')?.value;
-    const durationMinutes = durationChoice === 'custom' ? Number(document.getElementById('clockInCustomDuration')?.value || 0) : Number(durationChoice || 0);
-    
     try {
-        const entry = await window.ACEAuth.request('/v1/time-entries/clock-in', { method: 'POST', body: JSON.stringify({ projectId: projectId || null, note: note || null, durationMinutes }) });
+        const entry = await window.ACEAuth.request('/v1/time-entries/clock-in', { method: 'POST', body: JSON.stringify({ projectId: projectId || null, note: note || null }) });
         AppState.currentSession = timeEntryRecord(entry);
         AppState.timeEntries.unshift(AppState.currentSession);
         AppState.isClockedIn = true; AppState.clockInTime = new Date(AppState.currentSession.ClockInAt);
-        scheduleSessionNotifications(AppState.currentSession);
         closeModal('clockInModal'); startTimer(); updateUI(); loadPageSpecificData();
         showToast('Clocked in successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
@@ -1036,51 +1025,9 @@ async function sendWorkNotification(title, body) {
     if (Notification.permission === 'granted') new Notification(title, { body, icon: 'assets/images/ace-logo.png' });
 }
 
-function scheduleSessionNotifications(entry) {
-    clearSessionNotifications();
-    // Never schedule a work reminder for another employee's entry. This is
-    // especially important on admin pages, which receive all team entries.
-    if (!entry?.PlannedEndAt || entry.UserId !== AppState.currentUser?.UserId) return;
-    const remaining = new Date(entry.PlannedEndAt).getTime() - Date.now();
-    if (remaining <= 0) { syncScheduledClockOut(entry.TimeEntryId); return; }
-    const reminderDelay = remaining - 5 * 60 * 1000;
-    if (reminderDelay > 0) AppState.notificationTimers.push(window.setTimeout(() => sendWorkNotification('ACE shift reminder', 'Your scheduled clock-out is in five minutes.'), reminderDelay));
-    AppState.notificationTimers.push(window.setTimeout(() => syncScheduledClockOut(entry.TimeEntryId), remaining + 2500));
-}
-
 function clearSessionNotifications() {
     AppState.notificationTimers.forEach(timer => window.clearTimeout(timer));
     AppState.notificationTimers = [];
-    if (AppState.autoClockOutPoll) window.clearTimeout(AppState.autoClockOutPoll);
-    AppState.autoClockOutPoll = null;
-}
-
-async function syncScheduledClockOut(entryId, attempt = 0) {
-    if (!AppState.currentSession || AppState.currentSession.TimeEntryId !== entryId) return;
-    try {
-        const entries = await window.ACEAuth.request('/v1/time-entries?mine=true');
-        const saved = entries.find(item => item.id === entryId);
-        if (saved?.clock_out_at) {
-            const completed = timeEntryRecord(saved);
-            AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === entryId ? completed : item);
-            AppState.currentSession = null;
-            AppState.isClockedIn = false;
-            AppState.clockInTime = null;
-            clearSessionNotifications();
-            stopTimer();
-            updateUI();
-            loadPageSpecificData();
-            await sendWorkNotification('ACE clocked you out', 'Your scheduled shift ended and has been automatically clocked out.');
-            return;
-        }
-    } catch (error) {
-        console.warn('Could not confirm scheduled clock-out yet.', error);
-    }
-    // Render checks scheduled entries every 30 seconds. Keep this employee tab
-    // synchronized until the server confirms the completed time entry.
-    if (attempt < 36 && AppState.currentSession?.TimeEntryId === entryId) {
-        AppState.autoClockOutPoll = window.setTimeout(() => syncScheduledClockOut(entryId, attempt + 1), 5000);
-    }
 }
 
 function startTimer() {
