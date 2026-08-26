@@ -1624,6 +1624,12 @@ body { background: #f7fcfd; color: var(--ace-ink); }
 }
 
 html { background: var(--ace-sky-2); scroll-behavior: smooth; }
+/* Keep navigation calm: fade between pages without shifting the layout. */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation: ace-page-fade-out 120ms ease-in both; }
+::view-transition-new(root) { animation: ace-page-fade-in 180ms ease-out both; }
+@keyframes ace-page-fade-out { to { opacity: 0; } }
+@keyframes ace-page-fade-in { from { opacity: 0; } }
 body {
   min-width: 320px;
   color: var(--ace-text);
