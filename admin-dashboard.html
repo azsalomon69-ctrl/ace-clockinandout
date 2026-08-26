@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard · ACE Outsource Solutions</title>
-<link rel="stylesheet" href="css/app.css?v=single-css-js-1">
+<link rel="stylesheet" href="css/app.css?v=range-picker-1">
 </head>
 <body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div>
 
@@ -122,14 +122,14 @@
                                     </select>
                                 </label>
                                 <div class="analytics-date-range" id="analyticsDateRange" aria-label="Custom date range">
-                                    <label class="analytics-range" for="analyticsDateFrom">
-                                        <span>From</span>
-                                        <input class="form-input" id="analyticsDateFrom" type="date">
-                                    </label>
-                                    <label class="analytics-range" for="analyticsDateTo">
-                                        <span>To</span>
-                                        <input class="form-input" id="analyticsDateTo" type="date">
-                                    </label>
+                                    <input id="analyticsDateFrom" type="hidden">
+                                    <input id="analyticsDateTo" type="hidden">
+                                    <div class="analytics-range-summary" aria-live="polite">
+                                        <span id="analyticsDateRangeSummary">Choose a start and end date</span>
+                                        <button class="analytics-calendar-nav" id="analyticsCalendarPrevious" type="button" aria-label="Previous month">‹</button>
+                                        <button class="analytics-calendar-nav" id="analyticsCalendarNext" type="button" aria-label="Next month">›</button>
+                                    </div>
+                                    <div class="analytics-calendars" id="analyticsCalendars"></div>
                                 </div>
                             </div>
                             <label class="analytics-range" for="analyticsProject">
@@ -305,6 +305,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-auth.js"></script>
     <script src="js/sidebar.js?v=admin-role-fix-1"></script>
-    <script src="js/script.js?v=live-data-1"></script>
+    <script src="js/script.js?v=range-picker-1"></script>
 </body>
 </html>
