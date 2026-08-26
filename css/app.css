@@ -2648,6 +2648,155 @@ html[data-font-size="large"] body { font-size: 16px; }
 @media (max-width: 900px) { .home-page .hero-section { min-height: auto; }.home-preview { justify-self: stretch; max-width: none; }.path-grid, .home-capabilities .features-grid { grid-template-columns: 1fr; }.path-card { min-height: 0; }.home-cta { align-items: flex-start; flex-direction: column; } }
 @media (max-width: 640px) { .home-page .hero-section { padding: 38px 24px; }.hero-assurances { display: grid; gap: 10px; }.preview-summary { grid-template-columns: 1fr; }.home-paths, .home-capabilities { padding-top: 62px; }.path-card, .home-capabilities .feature-card { padding: 23px; }.home-cta { margin-top: 62px; padding: 28px 24px; }.home-cta .btn { width: 100%; } }
 
+/* Final shared experience refinement — hierarchy, legibility, and responsive comfort. */
+:root {
+  --ace-page: #f4fafb;
+  --ace-surface: #ffffff;
+  --ace-surface-subtle: #f8fcfd;
+  --ace-content-width: 1460px;
+}
+
+html { background: var(--ace-page); }
+body { color: var(--ace-text); background: var(--ace-page); }
+::selection { color: #fff; background: var(--ace-cyan); }
+
+.has-app-shell .main-content {
+  padding-top: clamp(26px, 3vw, 44px);
+  padding-bottom: clamp(40px, 5vw, 76px);
+}
+.has-app-shell .main-content > :is(.dashboard-container, .admin-section-wrap, .reports-container, .settings-container, .time-entries-container) {
+  max-width: var(--ace-content-width);
+}
+
+/* Sidebar: make grouping and current location easier to scan. */
+.app-sidebar { background: #063b4b; }
+.shell-brand { border-bottom: 1px solid rgba(255,255,255,.1); }
+.shell-nav { padding-top: 15px; }
+.shell-nav-group + .shell-nav-group { margin-top: 13px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,.09); }
+.shell-nav-label { color: #82b4c0; letter-spacing: .14em; }
+.shell-link { position: relative; min-height: 48px; }
+.shell-link.active::before { content: ''; position: absolute; left: 0; width: 3px; height: 22px; background: #fff; border-radius: 0 999px 999px 0; }
+.shell-account { background: rgba(1,27,37,.18); }
+
+/* Headers establish a reliable orientation point on every workspace screen. */
+.dashboard-header, .welcome-section, .admin-section-header, .reports-header, .time-entries-header, .settings-header {
+  min-height: 116px;
+  padding-block: 27px;
+  box-shadow: 0 10px 26px rgba(4, 69, 85, .045);
+}
+.dashboard-title, .welcome-title, .admin-section-header h1, .reports-title, .time-entries-title, .settings-title {
+  color: var(--ace-navy);
+  font-size: clamp(1.65rem, 2.3vw, 2.2rem);
+  letter-spacing: -.035em;
+}
+.dashboard-header p, .welcome-subtitle, .admin-section-header p, .reports-subtitle, .settings-subtitle { max-width: 720px; line-height: 1.6; }
+
+/* Metrics and panels use stronger grouping without looking like clickable controls. */
+.stats-grid, .summary-stats { gap: 18px; }
+.stat-card, .summary-card { min-height: 122px; padding: 21px; background: var(--ace-surface); }
+.stat-icon, .summary-icon { width: 48px; height: 48px; flex-basis: 48px; border: 1px solid #ccecf1; }
+.stat-number, .summary-value { font-size: 1.5rem; letter-spacing: -.035em; }
+.dashboard-section, .recent-activity-section, .projects-section, .admin-remarks-section,
+.time-entries-list-section, .filters-section, .table-container, .report-preview-section,
+.settings-section, .current-session-card, .analytics-card, .analytics-toolbar {
+  border-color: #d7eaee;
+  box-shadow: 0 8px 22px rgba(4, 69, 85, .035);
+}
+.dashboard-section, .recent-activity-section, .projects-section, .admin-remarks-section,
+.time-entries-list-section, .filters-section, .settings-section, .current-session-card { padding: clamp(20px, 2vw, 28px); }
+
+/* Data-heavy pages: clearer rows, calmer labels, deliberate horizontal overflow. */
+.table-container { background: var(--ace-surface); }
+.table-header { min-height: 76px; padding-inline: 22px; background: var(--ace-surface-subtle); }
+.table th { padding-block: 14px; color: #537782; background: #edf8fa; }
+.table td { padding-block: 16px; color: #284f5b; }
+.table tbody tr { background: #fff; }
+.table tbody tr:nth-child(even) { background: #fbfeff; }
+.table tbody tr:hover { background: #f1fbfd; }
+.table td:first-child { font-weight: 650; color: var(--ace-navy); }
+.table td .btn + .btn { margin-left: 7px; }
+.table-search { min-height: 42px; }
+.badge, .status-badge, .status-active { min-height: 25px; padding-inline: 10px; }
+
+/* Forms and action hierarchy. */
+.form-group { gap: 8px; margin-bottom: 20px; }
+.form-label, .filter-label { color: #315c68; letter-spacing: .01em; }
+.form-input, .form-select, .form-textarea { background: #fff; border-color: #b8d9e1; }
+.form-input:hover, .form-select:hover, .form-textarea:hover { background: #fcfeff; }
+.form-input:focus, .form-select:focus, .form-textarea:focus { background: #fff; box-shadow: 0 0 0 4px rgba(8,162,194,.12); }
+.btn { border-radius: 9px; }
+.btn-primary { box-shadow: 0 5px 12px rgba(8,162,194,.17); }
+.btn-primary:hover { box-shadow: 0 7px 16px rgba(8,162,194,.22); }
+.btn-danger { box-shadow: none; }
+
+/* Employee workspaces give the active shift the visual priority it needs. */
+.user-dashboard .clock-card { min-height: 286px; padding: clamp(28px, 4vw, 56px); }
+.clock-time { text-wrap: balance; }
+.clock-info { padding-top: 14px; }
+.activity-item, .remark-item { border-color: #d9ecf0; background: var(--ace-surface-subtle); }
+.activity-item { padding: 16px 18px; }
+.project-card { border-color: #d6e9ed; background: var(--ace-surface); }
+.project-card-action:hover { background: #f3fbfd; box-shadow: 0 7px 16px rgba(4,69,85,.05); }
+.current-session-card { border-left: 4px solid var(--ace-cyan); }
+.session-detail { background: #f5fbfc; }
+
+/* Settings and modal content are easier to parse at a glance. */
+.settings-nav { padding: 7px; }
+.settings-tab { min-height: 44px; }
+.settings-section > .section-title { font-size: 1.1rem; }
+.notification-option, .security-option, .session-item { padding-block: 18px; }
+.modal-content { box-shadow: 0 24px 70px rgba(1, 35, 46, .28); }
+.modal-header { min-height: 74px; }
+.modal-body { padding: 26px; }
+
+/* Dark mode mirrors the same hierarchy instead of merely inverting surfaces. */
+html[data-theme="dark"] body,
+html[data-theme="dark"] .has-app-shell .main-content { background: var(--ace-page-bg); }
+html[data-theme="dark"] .dashboard-header,
+html[data-theme="dark"] .welcome-section,
+html[data-theme="dark"] .admin-section-header,
+html[data-theme="dark"] .reports-header,
+html[data-theme="dark"] .time-entries-header,
+html[data-theme="dark"] .settings-header,
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .summary-card,
+html[data-theme="dark"] .dashboard-section,
+html[data-theme="dark"] .recent-activity-section,
+html[data-theme="dark"] .projects-section,
+html[data-theme="dark"] .admin-remarks-section,
+html[data-theme="dark"] .time-entries-list-section,
+html[data-theme="dark"] .filters-section,
+html[data-theme="dark"] .table-container,
+html[data-theme="dark"] .settings-section,
+html[data-theme="dark"] .current-session-card,
+html[data-theme="dark"] .analytics-card,
+html[data-theme="dark"] .analytics-toolbar { box-shadow: none; }
+html[data-theme="dark"] .table-header,
+html[data-theme="dark"] .table th { background: var(--ace-surface-raised); }
+html[data-theme="dark"] .table tbody tr,
+html[data-theme="dark"] .table tbody tr:nth-child(even) { background: var(--ace-surface); }
+html[data-theme="dark"] .table tbody tr:hover { background: var(--ace-surface-raised); }
+html[data-theme="dark"] .activity-item,
+html[data-theme="dark"] .remark-item,
+html[data-theme="dark"] .session-detail { background: var(--ace-surface-raised); }
+
+@media (max-width: 900px) {
+  .has-app-shell .main-content { padding-inline: 20px; }
+  .dashboard-header, .welcome-section, .admin-section-header, .reports-header, .time-entries-header, .settings-header { min-height: 0; padding: 22px 24px; }
+  .stats-grid, .summary-stats { gap: 14px; }
+  .analytics-grid { gap: 18px; }
+}
+@media (max-width: 640px) {
+  .has-app-shell .main-content { padding: 78px 14px 34px; }
+  .dashboard-header, .welcome-section, .admin-section-header, .reports-header, .time-entries-header, .settings-header { padding: 20px 21px 20px 25px; border-radius: 13px; }
+  .dashboard-header::after, .welcome-section::after, .admin-section-header::after, .reports-header::after, .time-entries-header::after, .settings-header::after { top: 20px; bottom: 20px; }
+  .dashboard-title, .welcome-title, .admin-section-header h1, .reports-title, .time-entries-title, .settings-title { font-size: 1.55rem; }
+  .stat-card, .summary-card { min-height: 104px; padding: 17px; }
+  .table-header { min-height: 68px; padding-inline: 16px; }
+  .dashboard-section, .recent-activity-section, .projects-section, .admin-remarks-section, .time-entries-list-section, .filters-section, .settings-section, .current-session-card { padding: 18px; border-radius: 12px; }
+  .modal-body { padding: 20px 17px; }
+}
+
 
 
 /* Product-wide consistency layer. */
