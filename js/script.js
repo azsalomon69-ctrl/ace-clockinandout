@@ -22,10 +22,44 @@ const AppState = {
     database: null
 };
 
-// Live data is supplied by the Supabase-backed API. No local credentials or
-// database fixture is bundled with the frontend.
+const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at });
+const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
+const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
+const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
+const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
+
+// Live data is supplied exclusively by the Render API and Supabase.
 async function loadDatabase() {
-    AppState.database = null;
+    if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
+    const { profile } = await window.ACEAuth.request('/v1/me');
+    AppState.currentUser = profileRecord(profile);
+    AppState.isAuthenticated = true;
+    localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
+    const [departments, projects, entries] = await Promise.all([
+        window.ACEAuth.request('/v1/departments'),
+        window.ACEAuth.request('/v1/projects'),
+        window.ACEAuth.request(`/v1/time-entries${AppState.currentUser.Role === 'ADMIN' ? '' : '?mine=true'}`)
+    ]);
+    AppState.departments = departments.map(departmentRecord);
+    AppState.projects = projects.map(projectRecord);
+    AppState.timeEntries = entries.map(timeEntryRecord);
+    if (AppState.currentUser.Role === 'ADMIN') {
+        const [users, invitations, reports, auditLogs] = await Promise.all([
+            window.ACEAuth.request('/v1/users'), window.ACEAuth.request('/v1/invitations'),
+            window.ACEAuth.request('/v1/reports'), window.ACEAuth.request('/v1/audit-logs')
+        ]);
+        AppState.users = users.map(profileRecord);
+        AppState.invitations = invitations;
+        AppState.reports = reports.map(reportRecord);
+        AppState.auditLogs = auditLogs;
+    } else {
+        AppState.users = [AppState.currentUser]; AppState.invitations = []; AppState.reports = []; AppState.auditLogs = [];
+    }
+    const active = AppState.timeEntries.find(entry => !entry.ClockOutAt);
+    AppState.currentSession = active || null;
+    AppState.isClockedIn = Boolean(active);
+    AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
+    if (active) startTimer();
     return true;
 }
 
@@ -880,64 +914,35 @@ async function handleRequestAccess(e) {
 }
 
 // Clock In/Out Handlers
-function handleClockIn(e) {
+async function handleClockIn(e) {
     e.preventDefault();
     
     const projectId = document.getElementById('clockInProject')?.value;
     const note = document.getElementById('clockInNote')?.value;
     
-    const now = new Date();
-    
-    AppState.currentSession = {
-        TimeEntryId: AppState.timeEntries.length + 1,
-        UserId: AppState.currentUser?.UserId || 1,
-        ProjectId: projectId ? parseInt(projectId) : null,
-        ClockInAt: now.toISOString(),
-        ClockOutAt: null,
-        UserNote: note || null,
-        DurationSeconds: null
-    };
-    
-    AppState.isClockedIn = true;
-    AppState.clockInTime = now;
-    
-    localStorage.setItem('ace_current_session', JSON.stringify(AppState.currentSession));
-    
-    closeModal('clockInModal');
-    startTimer();
-    updateUI();
-    
-    showToast('Clocked in successfully', 'success');
+    try {
+        const entry = await window.ACEAuth.request('/v1/time-entries/clock-in', { method: 'POST', body: JSON.stringify({ projectId: projectId || null, note: note || null }) });
+        AppState.currentSession = timeEntryRecord(entry);
+        AppState.timeEntries.unshift(AppState.currentSession);
+        AppState.isClockedIn = true; AppState.clockInTime = new Date(AppState.currentSession.ClockInAt);
+        closeModal('clockInModal'); startTimer(); updateUI();
+        showToast('Clocked in successfully', 'success');
+    } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
 }
 
-function handleClockOut(e) {
+async function handleClockOut(e) {
     e.preventDefault();
     
     const note = document.getElementById('clockOutNote')?.value;
-    const now = new Date();
-    
-    if (AppState.currentSession) {
-        AppState.currentSession.ClockOutAt = now.toISOString();
-        AppState.currentSession.DurationSeconds = Math.floor((now - AppState.clockInTime) / 1000);
-        
-        if (note) {
-            AppState.currentSession.UserNote = note;
-        }
-        
-        AppState.timeEntries.push(AppState.currentSession);
-        
-        AppState.isClockedIn = false;
-        AppState.currentSession = null;
-        AppState.clockInTime = null;
-        
-        localStorage.removeItem('ace_current_session');
-        
-        stopTimer();
-        closeModal('clockOutModal');
-        updateUI();
-        
+    if (!AppState.currentSession) return;
+    try {
+        const entry = await window.ACEAuth.request(`/v1/time-entries/${AppState.currentSession.TimeEntryId}/clock-out`, { method: 'POST', body: JSON.stringify({ note: note || '' }) });
+        const saved = timeEntryRecord(entry);
+        AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
+        AppState.isClockedIn = false; AppState.currentSession = null; AppState.clockInTime = null;
+        stopTimer(); closeModal('clockOutModal'); updateUI();
         showToast('Clocked out successfully', 'success');
-    }
+    } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
 }
 
 function startTimer() {
@@ -1003,32 +1008,21 @@ function showClockOutSummary() {
 }
 
 // Admin Handlers
-function handleInviteUser(e) {
+async function handleInviteUser(e) {
     e.preventDefault();
     
     const email = document.getElementById('inviteEmail').value;
     const departmentId = document.getElementById('inviteDepartment')?.value;
     const role = document.getElementById('inviteRole')?.value;
     
-    const invitation = {
-        InvitationId: AppState.invitations.length + 1,
-        InvitedByUserId: AppState.currentUser?.UserId || 1,
-        Email: email,
-        Status: 'PENDING',
-        InvitedAt: new Date().toISOString(),
-        ExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        AcceptedAt: null
-    };
-    
-    AppState.invitations.push(invitation);
-    
-    closeModal('inviteUserModal');
-    document.getElementById('inviteUserForm').reset();
-    
-    showToast('Invitation sent to ' + email, 'success');
+    try {
+        const invitation = await window.ACEAuth.request('/v1/invitations', { method: 'POST', body: JSON.stringify({ email, departmentId: departmentId || null, role: role || 'USER' }) });
+        AppState.invitations.unshift(invitation); closeModal('inviteUserModal'); document.getElementById('inviteUserForm').reset();
+        showToast('Invitation sent to ' + email, 'success');
+    } catch (error) { showToast(error.message || 'Unable to send invitation', 'error'); }
 }
 
-function handleGenerateReport(e) {
+async function handleGenerateReport(e) {
     e.preventDefault();
     
     const reportType = document.getElementById('reportType').value;
@@ -1046,29 +1040,15 @@ function handleGenerateReport(e) {
         projectId: projectId || null,
         userId: userId || null
     };
-    const previewEntries = filterEntriesForReport({ DateFrom: dateFrom, DateTo: dateTo, Filters: previewFilters });
-    const report = {
-        ReportId: AppState.reports.length + 1,
-        CreatedByUserId: AppState.currentUser?.UserId || 1,
-        ReportType: reportType,
-        DateFrom: dateFrom,
-        DateTo: dateTo,
-        Filters: previewFilters,
-        GeneratedAt: new Date().toISOString(),
-        TotalRecords: previewEntries.length
-    };
-    
-    AppState.reports.push(report);
-    
-    closeModal('generateReportModal');
-    document.getElementById('generateReportForm').reset();
-    
-    showToast('Monthly PDF report is ready to save', 'success');
-    
-    if (window.location.href.includes('reports.html')) {
-        loadReportsList();
-    }
-    renderGeneratedReport(report);
+    try {
+        const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType, dateFrom, dateTo, filters: previewFilters }) });
+        const report = reportRecord(saved);
+        AppState.reports.unshift(report);
+        closeModal('generateReportModal'); document.getElementById('generateReportForm').reset();
+        showToast('Report generated from Supabase data.', 'success');
+        if (window.location.href.includes('reports.html')) loadReportsList();
+        renderGeneratedReport(report);
+    } catch (error) { showToast(error.message || 'Unable to generate report', 'error'); }
 }
 
 function filterEntriesForReport(report) {
@@ -1485,7 +1465,7 @@ function getAnalyticsEmployeeId() {
     return Number(byId?.UserId || byName?.UserId || 0);
 }
 
-function generateAdminAnalyticsReport() {
+async function generateAdminAnalyticsReport() {
     const projectFilter = document.getElementById('analyticsProject');
     const departmentFilter = document.getElementById('analyticsDepartment');
     const range = document.getElementById('dashboardRange');
@@ -1496,20 +1476,14 @@ function generateAdminAnalyticsReport() {
         return;
     }
     const filters = getAdminAnalyticsFilters();
-    const report = {
-        ReportId: AppState.reports.length + 1,
-        CreatedByUserId: AppState.currentUser?.UserId || 1,
-        ReportType: 'TEAM PERFORMANCE',
-        DateFrom: toAnalyticsDateValue(filters.periodStart),
-        DateTo: toAnalyticsDateValue(filters.periodEnd),
-        Filters: { departmentId: departmentFilter?.value || null, projectId: projectFilter?.value || null, userId: getAnalyticsEmployeeId() || null },
-        GeneratedAt: new Date().toISOString()
-    };
-    report.TotalRecords = filterEntriesForReport(report).length;
-    AppState.reports.push(report);
-    renderGeneratedReport(report, { printOnly: true });
-    showToast('Your A4 report is ready. Choose “Save as PDF” in the print dialog.', 'success');
-    window.setTimeout(printGeneratedReport, 250);
+    try {
+        const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType: 'TEAM_PERFORMANCE', dateFrom: toAnalyticsDateValue(filters.periodStart), dateTo: toAnalyticsDateValue(filters.periodEnd), filters: { departmentId: departmentFilter?.value || null, projectId: projectFilter?.value || null, userId: getAnalyticsEmployeeId() || null } }) });
+        const report = reportRecord(saved);
+        AppState.reports.unshift(report);
+        renderGeneratedReport(report, { printOnly: true });
+        showToast('Your A4 report is ready. Choose “Save as PDF” in the print dialog.', 'success');
+        window.setTimeout(printGeneratedReport, 250);
+    } catch (error) { showToast(error.message || 'Unable to generate report', 'error'); }
 }
 
 function renderAdminAnalytics(days = 7) {
@@ -1914,22 +1888,22 @@ function viewTimeEntry(entryId) {
     }
 }
 
-function approveUser(userId) {
-    const user = AppState.users.find(u => u.UserId === userId);
-    if (user) {
-        user.Status = 'ACTIVE';
-        showToast(`${user.FullName} approved`, 'success');
-        loadAdminDashboard();
-    }
+async function approveUser(userId) {
+    try {
+        const saved = await window.ACEAuth.request(`/v1/users/${userId}/approval`, { method: 'PATCH', body: JSON.stringify({ status: 'ACTIVE' }) });
+        const user = profileRecord(saved);
+        AppState.users = AppState.users.map(item => item.UserId === user.UserId ? user : item);
+        showToast(`${user.FullName} approved`, 'success'); loadAdminDashboard();
+    } catch (error) { showToast(error.message || 'Unable to approve user', 'error'); }
 }
 
-function denyUser(userId) {
-    const user = AppState.users.find(u => u.UserId === userId);
-    if (user) {
-        user.Status = 'DENIED';
-        showToast(`${user.FullName} denied`, 'error');
-        loadAdminDashboard();
-    }
+async function denyUser(userId) {
+    try {
+        const saved = await window.ACEAuth.request(`/v1/users/${userId}/approval`, { method: 'PATCH', body: JSON.stringify({ status: 'DENIED' }) });
+        const user = profileRecord(saved);
+        AppState.users = AppState.users.map(item => item.UserId === user.UserId ? user : item);
+        showToast(`${user.FullName} denied`, 'success'); loadAdminDashboard();
+    } catch (error) { showToast(error.message || 'Unable to deny user', 'error'); }
 }
 
 function viewReport(reportId) {
