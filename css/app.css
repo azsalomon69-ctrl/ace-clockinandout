@@ -3063,3 +3063,46 @@ html[data-theme="dark"] .theme-preview.system-theme { background: linear-gradien
 
 }
 @media (prefers-reduced-motion: reduce) { .main-content { animation: none; } }
+
+/* Purposeful interface motion: fast feedback, clear spatial relationships, no idle decoration. */
+@media (prefers-reduced-motion: no-preference) {
+  :root { --ace-motion-out: cubic-bezier(.16, 1, .3, 1); --ace-motion-in: cubic-bezier(.7, 0, .84, 0); }
+
+  .has-app-shell .main-content > :is(.dashboard-container, .admin-section-wrap, .reports-container, .settings-container, .time-entries-container) {
+    animation: ace-page-arrive 420ms var(--ace-motion-out) both;
+  }
+  .dashboard-header, .welcome-section, .admin-section-header, .reports-header, .time-entries-header, .settings-header {
+    animation: ace-rise-in 440ms var(--ace-motion-out) both;
+  }
+  .stats-grid > *, .summary-stats > * { animation: ace-rise-in 480ms var(--ace-motion-out) both; }
+  .stats-grid > :nth-child(1), .summary-stats > :nth-child(1) { animation-delay: 45ms; }
+  .stats-grid > :nth-child(2), .summary-stats > :nth-child(2) { animation-delay: 80ms; }
+  .stats-grid > :nth-child(3), .summary-stats > :nth-child(3) { animation-delay: 115ms; }
+  .stats-grid > :nth-child(4), .summary-stats > :nth-child(4) { animation-delay: 150ms; }
+
+  .btn:not(:disabled), .settings-tab, .shell-link, .project-card-action, .pagination button:not(:disabled) {
+    transition-timing-function: var(--ace-motion-out);
+  }
+  .btn:not(:disabled):active { transform: scale(.975); transition-duration: 80ms; }
+  .shell-link.active .shell-icon { animation: ace-icon-settle 360ms var(--ace-motion-out) both; }
+  .settings-tab.active { animation: ace-tab-settle 280ms var(--ace-motion-out) both; }
+
+  .modal.active { animation: ace-backdrop-in 180ms ease-out both; }
+  .modal.active .modal-content { animation: ace-dialog-in 360ms var(--ace-motion-out) both; }
+  .toast { animation: ace-toast-in 420ms var(--ace-motion-out) both; }
+  .toast.is-leaving { animation: ace-toast-out 180ms var(--ace-motion-in) forwards; }
+
+  .table tbody tr { transition: background-color 150ms ease-out; }
+  .table tbody tr:hover td:first-child { color: var(--ace-cyan-dark); }
+  .analytics-calendar-day.is-selected { animation: ace-date-select 260ms var(--ace-motion-out) both; }
+}
+
+@keyframes ace-page-arrive { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ace-rise-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ace-icon-settle { from { transform: scale(.72) rotate(-10deg); } to { transform: scale(1) rotate(0); } }
+@keyframes ace-tab-settle { from { transform: scale(.96); } to { transform: scale(1); } }
+@keyframes ace-backdrop-in { from { background-color: rgba(7,42,54,0); } to { background-color: rgba(7,42,54,.66); } }
+@keyframes ace-dialog-in { from { opacity: 0; transform: translateY(18px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes ace-toast-in { from { opacity: 0; transform: translateX(20px) scale(.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes ace-toast-out { to { opacity: 0; transform: translateX(14px) scale(.98); } }
+@keyframes ace-date-select { from { transform: scale(.72); } to { transform: scale(1); } }
