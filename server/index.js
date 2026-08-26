@@ -107,6 +107,9 @@ const adminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profil
   ? next()
   : fail(res, 403, 'Active administrator access required');
 const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() : fail(res, 403, 'Your account is awaiting approval');
+const employeeOnly = (req, res, next) => req.profile.role === 'USER' && req.profile.status === 'ACTIVE'
+  ? next()
+  : fail(res, 403, 'Employee access is required');
 async function audit(req, action, entityType, entityId, description) {
   await db.from('audit_logs').insert({ user_id: req.profile?.id || null, action, entity_type: entityType, entity_id: isUuid(entityId) ? entityId : null, description, ip_address: req.ip, user_agent: req.get('user-agent') }).then(({ error }) => { if (error) console.error('audit log:', error.message); });
 }
@@ -190,6 +193,29 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   let request = db.from('profiles').select('*, departments(name)').order('created_at', { ascending: false });
   request = req.query.removed === 'true' ? request.eq('status', 'DENIED') : request.neq('status', 'DENIED');
   res.json(await query(request));
+} catch (error) { next(error); } });
+app.get('/v1/employee-chat/contacts', authenticate, employeeOnly, async (req, res, next) => { try {
+  const contacts = await query(db.from('profiles').select('id,full_name,email,last_seen_at').eq('role', 'USER').eq('status', 'ACTIVE').neq('id', req.profile.id).order('full_name'));
+  res.json(contacts);
+} catch (error) { next(error); } });
+app.get('/v1/employee-chat/messages/:userId', authenticate, employeeOnly, async (req, res, next) => { try {
+  const otherUserId = optionalUuid(req.params.userId);
+  if (!otherUserId) return fail(res, 400, 'A valid employee ID is required');
+  const contact = await query(db.from('profiles').select('id').eq('id', otherUserId).eq('role', 'USER').eq('status', 'ACTIVE').maybeSingle());
+  if (!contact) return fail(res, 404, 'Employee is not available for chat');
+  const messages = await query(db.from('employee_messages').select('*').or(`and(sender_id.eq.${req.profile.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${req.profile.id})`).order('created_at').limit(200));
+  await query(db.from('employee_messages').update({ read_at: new Date().toISOString() }).eq('sender_id', otherUserId).eq('recipient_id', req.profile.id).is('read_at', null));
+  res.json(messages);
+} catch (error) { next(error); } });
+app.post('/v1/employee-chat/messages', authenticate, employeeOnly, async (req, res, next) => { try {
+  const recipientId = optionalUuid(req.body.recipientId);
+  const body = optionalText(req.body.body, 2000);
+  if (!recipientId || !body) return fail(res, 400, 'A recipient and message are required');
+  if (recipientId === req.profile.id) return fail(res, 400, 'You cannot message yourself');
+  const recipient = await query(db.from('profiles').select('id').eq('id', recipientId).eq('role', 'USER').eq('status', 'ACTIVE').maybeSingle());
+  if (!recipient) return fail(res, 404, 'Employee is not available for chat');
+  const message = await query(db.from('employee_messages').insert({ sender_id: req.profile.id, recipient_id: recipientId, body }).select().single());
+  res.status(201).json(message);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try { if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED'); const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single()); await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`); res.json(profile); } catch (error) { next(error); } });
 app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) => { try {

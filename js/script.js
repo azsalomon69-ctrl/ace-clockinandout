@@ -152,6 +152,7 @@ async function initApp() {
         startClock();
         loadPageSpecificData();
         initializeUXEnhancements();
+        initializeEmployeeChat();
     }
     clearInitialSkeletons();
     requestAnimationFrame(() => {
@@ -318,6 +319,52 @@ function installPageFadeNavigation() {
         requestAnimationFrame(() => overlay.classList.add('is-visible'));
         window.setTimeout(() => window.location.assign(destination.href), 145);
     });
+}
+
+function initializeEmployeeChat() {
+    if (AppState.currentUser?.Role !== 'USER' || document.getElementById('employeeChat')) return;
+    const chat = document.createElement('section');
+    chat.id = 'employeeChat';
+    chat.className = 'employee-chat';
+    chat.innerHTML = `<button class="employee-chat-launcher" type="button" aria-expanded="false" aria-controls="employeeChatPanel"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Chat</span></button><div class="employee-chat-panel" id="employeeChatPanel" hidden><header><strong>Employee chat</strong><button type="button" class="employee-chat-close" aria-label="Close chat">×</button></header><div class="employee-chat-layout"><aside><p>PRIVATE CHATS</p><div class="employee-chat-contacts"></div></aside><section class="employee-chat-thread"><div class="employee-chat-empty">Choose an employee to start a private chat.</div></section></div></div>`;
+    document.body.appendChild(chat);
+    const launcher = chat.querySelector('.employee-chat-launcher');
+    const panel = chat.querySelector('.employee-chat-panel');
+    const contacts = chat.querySelector('.employee-chat-contacts');
+    const thread = chat.querySelector('.employee-chat-thread');
+    let selectedId = null;
+    let selectedName = '';
+    const formatTime = value => new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const loadMessages = async () => {
+        if (!selectedId) return;
+        try {
+            const messages = await window.ACEAuth.request(`/v1/employee-chat/messages/${selectedId}`);
+            thread.innerHTML = `<div class="employee-chat-thread-head"><strong>${escapeHtml(selectedName)}</strong><span>Private conversation</span></div><div class="employee-chat-messages">${messages.map(message => `<div class="employee-chat-message${message.sender_id === AppState.currentUser.UserId ? ' mine' : ''}"><span>${escapeHtml(message.body)}</span><time>${formatTime(message.created_at)}</time></div>`).join('')}</div><form class="employee-chat-compose"><input maxlength="2000" aria-label="Message ${escapeHtml(selectedName)}" placeholder="Write a message…" required><button type="submit">Send</button></form>`;
+            const messagesBox = thread.querySelector('.employee-chat-messages');
+            if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight;
+            thread.querySelector('form').addEventListener('submit', async event => {
+                event.preventDefault();
+                const input = event.currentTarget.querySelector('input');
+                const body = input.value.trim();
+                if (!body) return;
+                input.disabled = true;
+                try { await window.ACEAuth.request('/v1/employee-chat/messages', { method: 'POST', body: JSON.stringify({ recipientId: selectedId, body }) }); await loadMessages(); }
+                catch (error) { showToast(error.message || 'Unable to send chat message.', 'error'); input.disabled = false; }
+            });
+        } catch (error) { thread.innerHTML = `<div class="employee-chat-empty">${escapeHtml(error.message || 'Unable to load this conversation.')}</div>`; }
+    };
+    const loadContacts = async () => {
+        try {
+            const people = await window.ACEAuth.request('/v1/employee-chat/contacts');
+            contacts.innerHTML = people.length ? people.map(person => `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(person.full_name || person.email)}" type="button"><span>${escapeHtml((person.full_name || person.email).slice(0, 1).toUpperCase())}</span><strong>${escapeHtml(person.full_name || person.email)}</strong></button>`).join('') : '<div class="employee-chat-empty">No other active employees yet.</div>';
+            contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.id; selectedName = button.dataset.name; loadContacts(); loadMessages(); }));
+        } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
+    };
+    const openChat = open => { panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); if (open) loadContacts(); };
+    launcher.addEventListener('click', () => openChat(panel.hidden));
+    chat.querySelector('.employee-chat-close').addEventListener('click', () => openChat(false));
+    const poller = window.setInterval(() => { if (!panel.hidden) { loadContacts(); loadMessages(); } }, 10000);
+    window.addEventListener('pagehide', () => window.clearInterval(poller), { once: true });
 }
 
 // Shared application shell for every authenticated page.
