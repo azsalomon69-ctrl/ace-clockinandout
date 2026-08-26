@@ -72,6 +72,27 @@ async function loadDatabase() {
     return true;
 }
 
+const pause = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+
+async function loadDatabaseWhenServiceIsReady() {
+    // Free Render services can sleep. Keep the page skeleton visible while the
+    // service wakes, and only reveal the application after a complete live load.
+    const retryDelays = [1500, 2500, 4000, 6000, 8000, 10000, 10000, 10000, 10000];
+    let lastError;
+    for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+        try {
+            return await loadDatabase();
+        } catch (error) {
+            lastError = error;
+            const retryable = !error.status || error.status >= 500 || error.status === 429;
+            if (!retryable || attempt === retryDelays.length) throw error;
+            console.info(`Waiting for ACE services to wake up (attempt ${attempt + 1}).`);
+            await pause(retryDelays[attempt]);
+        }
+    }
+    throw lastError;
+}
+
 // Initialize App
 async function initApp() {
     // The application shell is independent of page data. Keep it resilient so
@@ -104,7 +125,7 @@ async function initApp() {
         return;
     }
 
-    const [loaded] = await Promise.all([loadDatabase(), new Promise(resolve => setTimeout(resolve, 360))]);
+    const loaded = await loadDatabaseWhenServiceIsReady();
     if (loaded) {
         startPresenceHeartbeat();
         initializeNavigation();

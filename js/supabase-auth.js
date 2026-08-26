@@ -16,7 +16,11 @@ window.ACEAuth = (() => {
         const { data: { session } } = await auth.auth.getSession();
         const response = await fetch(`${apiUrl()}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}), ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) } });
         const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body.error || 'Request failed');
+        if (!response.ok) {
+            const error = new Error(body.error || 'Request failed');
+            error.status = response.status;
+            throw error;
+        }
         return body;
     }
     return { client, request };
