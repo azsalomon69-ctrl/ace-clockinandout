@@ -1878,11 +1878,12 @@ body:not(.has-app-shell) .nav-link.active { background: var(--ace-sky); color: v
 .analytics-period-control { position: relative; z-index: 5; }
 .analytics-date-range { position: absolute; top: calc(100% + 8px); left: 0; z-index: 20; width: min(580px, calc(100vw - 32px)); display: none; gap: 12px; padding: 14px; background: #fff; border: 1px solid var(--ace-line); border-radius: 10px; box-shadow: var(--ace-shadow-md); }
 .analytics-date-range.is-visible { display: grid; }
-.analytics-range-summary { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 7px; min-height: 34px; color: var(--ace-navy); font-size: .75rem; font-weight: 700; }
+.analytics-range-summary { display: grid; align-items: center; min-height: 34px; color: var(--ace-navy); font-size: .75rem; font-weight: 700; }
 .analytics-calendar-nav { width: 30px; height: 30px; display: grid; place-items: center; padding: 0; color: var(--ace-navy); background: #fff; border: 1px solid var(--ace-line); border-radius: 7px; font-size: 1.25rem; line-height: 1; cursor: pointer; }
 .analytics-calendar-nav:hover { color: var(--ace-cyan-dark); background: var(--ace-sky); }
 .analytics-calendars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.analytics-calendar-month h3 { margin: 0 0 9px; color: var(--ace-navy); font-size: .78rem; text-align: center; }
+.analytics-calendar-month-header { display: grid; grid-template-columns: 30px 1fr 30px; align-items: center; gap: 7px; margin: 0 0 9px; }
+.analytics-calendar-month h3 { margin: 0; color: var(--ace-navy); font-size: .78rem; text-align: center; }
 .analytics-calendar-weekdays, .analytics-calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
 .analytics-calendar-weekdays { margin-bottom: 4px; color: var(--ace-muted); font-size: .59rem; font-weight: 700; text-align: center; }
 .analytics-calendar-days { align-items: center; }

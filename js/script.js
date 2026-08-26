@@ -1440,9 +1440,11 @@ function renderAnalyticsRangeCalendars() {
     if (!mount || !from || !to) return;
     const start = analyticsDateFromValue(from.value);
     const end = analyticsDateFromValue(to.value);
-    const visibleMonth = new Date(Number(mount.dataset.year || new Date().getFullYear()), Number(mount.dataset.month || new Date().getMonth()), 1);
+    const current = new Date();
+    const startMonth = new Date(Number(mount.dataset.startYear || current.getFullYear()), Number(mount.dataset.startMonth || current.getMonth()), 1);
+    const endMonth = new Date(Number(mount.dataset.endYear || startMonth.getFullYear()), Number(mount.dataset.endMonth || startMonth.getMonth() + 1), 1);
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const calendar = month => {
+    const calendar = (month, endpoint) => {
         const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
         const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
         const cells = Array.from({ length: monthStart.getDay() + monthEnd.getDate() }, (_, index) => {
@@ -1457,9 +1459,18 @@ function renderAnalyticsRangeCalendars() {
             if (inRange) classes.push('is-in-range');
             return `<button class="${classes.join(' ')}" type="button" data-date="${value}" aria-pressed="${selectedStart || selectedEnd}">${date.getDate()}</button>`;
         }).join('');
-        return `<section class="analytics-calendar-month" aria-label="${month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}"><h3>${month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3><div class="analytics-calendar-weekdays">${weekdays.map(day => `<span>${day}</span>`).join('')}</div><div class="analytics-calendar-days">${cells}</div></section>`;
+        const title = month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        return `<section class="analytics-calendar-month" aria-label="${title}"><div class="analytics-calendar-month-header"><button class="analytics-calendar-nav" type="button" data-calendar-endpoint="${endpoint}" data-calendar-step="-1" aria-label="Previous month for ${endpoint === 'start' ? 'start' : 'end'} date">‹</button><h3>${title}</h3><button class="analytics-calendar-nav" type="button" data-calendar-endpoint="${endpoint}" data-calendar-step="1" aria-label="Next month for ${endpoint === 'start' ? 'start' : 'end'} date">›</button></div><div class="analytics-calendar-weekdays">${weekdays.map(day => `<span>${day}</span>`).join('')}</div><div class="analytics-calendar-days">${cells}</div></section>`;
     };
-    mount.innerHTML = calendar(visibleMonth) + calendar(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1));
+    mount.innerHTML = calendar(startMonth, 'start') + calendar(endMonth, 'end');
+    mount.querySelectorAll('[data-calendar-endpoint]').forEach(button => button.addEventListener('click', () => {
+        const endpoint = button.dataset.calendarEndpoint;
+        const shown = endpoint === 'start' ? startMonth : endMonth;
+        const next = new Date(shown.getFullYear(), shown.getMonth() + Number(button.dataset.calendarStep), 1);
+        mount.dataset[`${endpoint}Year`] = String(next.getFullYear());
+        mount.dataset[`${endpoint}Month`] = String(next.getMonth());
+        renderAnalyticsRangeCalendars();
+    }));
     mount.querySelectorAll('.analytics-calendar-day').forEach(button => button.addEventListener('click', () => {
         const picked = button.dataset.date;
         if (!from.value || (from.value && to.value) || picked < from.value) {
@@ -1480,18 +1491,11 @@ function initializeAnalyticsRangePicker() {
     if (!mount || mount.dataset.bound) return;
     mount.dataset.bound = 'true';
     const current = new Date();
-    mount.dataset.year = String(current.getFullYear());
-    mount.dataset.month = String(current.getMonth());
-    document.getElementById('analyticsCalendarPrevious')?.addEventListener('click', () => {
-        const month = new Date(Number(mount.dataset.year), Number(mount.dataset.month) - 1, 1);
-        mount.dataset.year = String(month.getFullYear()); mount.dataset.month = String(month.getMonth());
-        renderAnalyticsRangeCalendars();
-    });
-    document.getElementById('analyticsCalendarNext')?.addEventListener('click', () => {
-        const month = new Date(Number(mount.dataset.year), Number(mount.dataset.month) + 1, 1);
-        mount.dataset.year = String(month.getFullYear()); mount.dataset.month = String(month.getMonth());
-        renderAnalyticsRangeCalendars();
-    });
+    mount.dataset.startYear = String(current.getFullYear());
+    mount.dataset.startMonth = String(current.getMonth());
+    const followingMonth = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+    mount.dataset.endYear = String(followingMonth.getFullYear());
+    mount.dataset.endMonth = String(followingMonth.getMonth());
     renderAnalyticsRangeCalendars();
 }
 
