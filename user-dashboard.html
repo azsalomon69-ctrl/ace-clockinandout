@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard · ACE Outsource Solutions</title>
-<link rel="stylesheet" href="css/app.css?v=dark-mode-audit-1">
+<link rel="stylesheet" href="css/app.css?v=employee-hierarchy-1">
 </head>
 <body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div>
 
@@ -14,8 +14,9 @@
             <!-- Welcome Section -->
             <div class="welcome-section">
                 <div class="welcome-info">
+                    <p class="employee-eyebrow">MY WORKSPACE</p>
                     <h1 class="welcome-title">Welcome back, <span id="userName">ACE Employee</span></h1>
-                    <p class="welcome-subtitle">Here's your time tracking overview</p>
+                    <p class="welcome-subtitle">Start your shift, review your work, and keep your time records current.</p>
                 </div>
                 <div class="welcome-date" id="currentDate">Monday, January 1, 2024</div>
             </div>
@@ -24,6 +25,7 @@
             <div class="clock-section">
                 <div class="clock-card">
                     <div class="clock-status" id="clockStatus">
+                        <p class="clock-kicker">CURRENT SHIFT</p>
                         <div class="status-indicator">
                             <span class="status-dot"></span>
                             <span class="status-text">Not Clocked In</span>
@@ -60,6 +62,11 @@
             </div>
 
             <!-- Quick Stats -->
+            <section class="employee-stats-section" aria-labelledby="timeAtGlanceTitle">
+                <div class="employee-section-heading">
+                    <div><p class="employee-section-kicker">TIME SUMMARY</p><h2 class="section-title" id="timeAtGlanceTitle">Your time at a glance</h2></div>
+                    <p>Updated from your completed entries.</p>
+                </div>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon">
@@ -110,33 +117,36 @@
                     </div>
                 </div>
             </div>
+            </section>
 
+            <div class="employee-work-grid">
             <!-- Recent Activity -->
-            <div class="recent-activity-section">
-                <h2 class="section-title">Recent Activity</h2>
+            <section class="recent-activity-section">
+                <div class="employee-section-heading"><div><p class="employee-section-kicker">TIME RECORDS</p><h2 class="section-title">Recent activity</h2></div></div>
                 <div class="activity-list" id="recentActivity">
                     <!-- Recent time entries will be populated here -->
                 </div>
                 <button class="btn btn-outline btn-block" id="viewAllEntriesBtn">
                     View All Time Entries
                 </button>
-            </div>
+            </section>
 
             <!-- Projects Section -->
-            <div class="projects-section">
-                <h2 class="section-title">My Projects</h2>
+            <section class="projects-section">
+                <div class="employee-section-heading"><div><p class="employee-section-kicker">ASSIGNED WORK</p><h2 class="section-title">My projects</h2></div></div>
                 <div class="projects-grid" id="myProjects">
                     <!-- User's projects will be populated here -->
                 </div>
+            </section>
             </div>
 
             <!-- Admin Remarks Section -->
-            <div class="admin-remarks-section">
-                <h2 class="section-title">Recent Admin Remarks</h2>
+            <section class="admin-remarks-section employee-remarks-section">
+                <div class="employee-section-heading"><div><p class="employee-section-kicker">TEAM CONTEXT</p><h2 class="section-title">Admin remarks</h2></div><p>Notes related to your time entries.</p></div>
                 <div class="remarks-list" id="recentRemarks">
                     <!-- Recent admin remarks will be populated here -->
                 </div>
-            </div>
+            </section>
         </div>
     </main>
 
