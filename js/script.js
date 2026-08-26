@@ -8,6 +8,7 @@ const AppState = {
     isAuthenticated: false,
     isClockedIn: false,
     currentSession: null,
+    notificationTimers: [],
     clockInTime: null,
     timerInterval: null,
     projects: [],
@@ -57,7 +58,11 @@ async function loadDatabase() {
     } else {
         AppState.users = [AppState.currentUser]; AppState.invitations = []; AppState.reports = []; AppState.auditLogs = [];
     }
-    const active = AppState.timeEntries.find(entry => !entry.ClockOutAt);
+    // Administrators load the whole team's entries for reporting. Only the
+    // signed-in person's entry may control their timer or browser reminders.
+    const active = AppState.timeEntries.find(entry =>
+        !entry.ClockOutAt && entry.UserId === AppState.currentUser.UserId
+    );
     AppState.currentSession = active || null;
     AppState.isClockedIn = Boolean(active);
     AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
@@ -967,6 +972,7 @@ async function handleClockOut(e) {
         const saved = timeEntryRecord(entry);
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
         AppState.isClockedIn = false; AppState.currentSession = null; AppState.clockInTime = null;
+        clearSessionNotifications();
         stopTimer(); closeModal('clockOutModal'); updateUI(); loadPageSpecificData();
         showToast('Clocked out successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
@@ -980,12 +986,20 @@ async function sendWorkNotification(title, body) {
 }
 
 function scheduleSessionNotifications(entry) {
-    if (!entry?.PlannedEndAt) return;
+    clearSessionNotifications();
+    // Never schedule a work reminder for another employee's entry. This is
+    // especially important on admin pages, which receive all team entries.
+    if (!entry?.PlannedEndAt || entry.UserId !== AppState.currentUser?.UserId) return;
     const remaining = new Date(entry.PlannedEndAt).getTime() - Date.now();
     if (remaining <= 0) return;
     const reminderDelay = remaining - 5 * 60 * 1000;
-    if (reminderDelay > 0) window.setTimeout(() => sendWorkNotification('ACE shift reminder', 'Your scheduled clock-out is in five minutes.'), reminderDelay);
-    window.setTimeout(() => sendWorkNotification('ACE clocked you out', 'Your scheduled shift has ended and was automatically clocked out.'), remaining + 5000);
+    if (reminderDelay > 0) AppState.notificationTimers.push(window.setTimeout(() => sendWorkNotification('ACE shift reminder', 'Your scheduled clock-out is in five minutes.'), reminderDelay));
+    AppState.notificationTimers.push(window.setTimeout(() => sendWorkNotification('ACE clocked you out', 'Your scheduled shift has ended and was automatically clocked out.'), remaining + 5000));
+}
+
+function clearSessionNotifications() {
+    AppState.notificationTimers.forEach(timer => window.clearTimeout(timer));
+    AppState.notificationTimers = [];
 }
 
 function startTimer() {
