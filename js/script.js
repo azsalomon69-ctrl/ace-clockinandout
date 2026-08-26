@@ -35,14 +35,16 @@ async function loadDatabase() {
     AppState.currentUser = profileRecord(profile);
     AppState.isAuthenticated = true;
     localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
-    const [departments, projects, entries] = await Promise.all([
+    const [departments, projects, entries, userProjects] = await Promise.all([
         window.ACEAuth.request('/v1/departments'),
         window.ACEAuth.request('/v1/projects'),
-        window.ACEAuth.request(`/v1/time-entries${AppState.currentUser.Role === 'ADMIN' ? '' : '?mine=true'}`)
+        window.ACEAuth.request(`/v1/time-entries${AppState.currentUser.Role === 'ADMIN' ? '' : '?mine=true'}`),
+        window.ACEAuth.request('/v1/user-projects')
     ]);
     AppState.departments = departments.map(departmentRecord);
     AppState.projects = projects.map(projectRecord);
     AppState.timeEntries = entries.map(timeEntryRecord);
+    AppState.userProjects = userProjects.map(item => ({ UserId: item.user_id, ProjectId: item.project_id, AssignedAt: item.assigned_at, IsActive: true }));
     if (AppState.currentUser.Role === 'ADMIN') {
         const [users, invitations, reports, auditLogs] = await Promise.all([
             window.ACEAuth.request('/v1/users'), window.ACEAuth.request('/v1/invitations'),
@@ -1749,7 +1751,7 @@ function loadAdminDashboard() {
                     <td>${duration}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
                     <td>
-                        <button class="btn btn-sm btn-outline" onclick="viewTimeEntry(${entry.TimeEntryId})">View</button>
+                        <button class="btn btn-sm btn-outline" onclick="viewTimeEntry('${entry.TimeEntryId}')">View</button>
                     </td>
                 </tr>
             `;
@@ -1816,7 +1818,7 @@ function loadTimeEntries() {
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
                     <td>${remarks.length > 0 ? `${remarks.length} remark(s)` : 'None'}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline" onclick="viewTimeEntry(${entry.TimeEntryId})">View</button>
+                        <button class="btn btn-sm btn-outline" onclick="viewTimeEntry('${entry.TimeEntryId}')">View</button>
                     </td>
                 </tr>
             `;
@@ -1947,6 +1949,16 @@ function clearFilters() {
 function viewTimeEntry(entryId) {
     const entry = AppState.timeEntries.find(te => te.TimeEntryId === entryId);
     if (entry) {
+        let detailsModal = document.getElementById('entryDetailsModal');
+        if (!detailsModal) {
+            detailsModal = document.createElement('div');
+            detailsModal.id = 'entryDetailsModal';
+            detailsModal.className = 'modal';
+            detailsModal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title">Time entry details</h3><button class="modal-close" type="button" aria-label="Close">' + suppliedIconMarkup('x') + '</button></div><div class="modal-body"><div id="entryDetailsContent"></div><div id="adminRemarksList"></div></div></div>';
+            document.body.appendChild(detailsModal);
+            detailsModal.querySelector('.modal-close').addEventListener('click', () => closeModal('entryDetailsModal'));
+            detailsModal.addEventListener('click', event => { if (event.target === detailsModal) closeModal('entryDetailsModal'); });
+        }
         const entryDetails = document.getElementById('entryDetailsContent');
         if (entryDetails) {
             const user = AppState.users.find(u => u.UserId === entry.UserId);
