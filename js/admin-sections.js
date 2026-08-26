@@ -5,7 +5,7 @@ async function liveRequest(path, options = {}) {
 
 // This is interface copy only. All records and counts are live Render/Supabase data.
 const ADMIN_SECTION_CONFIG = {
-  users: { title: 'Users', description: 'Approve access, assign roles, and maintain employee records.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Name', 'Email', 'Role', 'Department', 'Status', 'Action'] },
+  users: { title: 'Users', description: 'Approve access, assign roles, and maintain employee records.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Name', 'Email', 'Role', 'Department', 'Presence', 'Status', 'Action'] },
   invitations: { title: 'Invitations', description: 'Invite employees and track every invitation through acceptance or expiry.', action: 'Send invitation', actionIcon: 'mail', columns: ['Email', 'Invited by', 'Sent', 'Expires', 'Status', 'Action'] },
   departments: { title: 'Departments', description: 'Organize employees by department. Assignments remain optional.', action: 'Add department', actionIcon: 'building', columns: ['Department', 'Description', 'Created', 'Status', 'Action'] },
   projects: { title: 'Projects', description: 'Manage projects available for optional time-entry assignment.', action: 'Add project', actionIcon: 'folder', columns: ['Project', 'Description', 'Created', 'Status', 'Action'] },
@@ -21,7 +21,11 @@ const icon = (name, className = 'ui-icon') => '<img class="' + className + '" sr
 async function applyLiveData(key, view) {
   if (key === 'users') {
     const items = await liveRequest('/v1/users');
-    view.records = items.map(item => ({ id: item.id, cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || 'Unassigned', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] }));
+    const onlineAfter = Date.now() - 2 * 60 * 1000;
+    view.records = items.map(item => {
+      const online = item.last_seen_at && new Date(item.last_seen_at).getTime() >= onlineAfter;
+      return { id: item.id, cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || 'Unassigned', online ? 'Online' : 'Offline', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
+    });
     view.stats = [[items.length, 'Team members', 'users'], [items.filter(item => item.status === 'ACTIVE').length, 'Active users', 'check'], [items.filter(item => item.status === 'PENDING').length, 'Pending review', 'circle-alert']];
   } else if (key === 'invitations') {
     const items = await liveRequest('/v1/invitations');
@@ -46,8 +50,8 @@ async function applyLiveData(key, view) {
 
 function status(value) {
   const normalized = String(value).toLowerCase();
-  if (!['active', 'pending', 'accepted', 'running', 'completed', 'inactive'].includes(normalized)) return esc(value);
-  const type = ['active', 'accepted', 'completed'].includes(normalized) ? 'success' : normalized === 'inactive' ? 'neutral' : 'warning';
+  if (!['active', 'pending', 'accepted', 'running', 'completed', 'inactive', 'online', 'offline'].includes(normalized)) return esc(value);
+  const type = ['active', 'accepted', 'completed', 'online'].includes(normalized) ? 'success' : ['inactive', 'offline'].includes(normalized) ? 'neutral' : 'warning';
   return '<span class="badge badge-' + type + '">' + esc(value) + '</span>';
 }
 function action(label, index, key) {

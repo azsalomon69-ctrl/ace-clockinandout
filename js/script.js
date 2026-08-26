@@ -9,6 +9,8 @@ const AppState = {
     isClockedIn: false,
     currentSession: null,
     notificationTimers: [],
+    presenceInterval: null,
+    presenceVisibilityHandler: null,
     clockInTime: null,
     timerInterval: null,
     projects: [],
@@ -104,6 +106,7 @@ async function initApp() {
 
     const [loaded] = await Promise.all([loadDatabase(), new Promise(resolve => setTimeout(resolve, 360))]);
     if (loaded) {
+        startPresenceHeartbeat();
         initializeNavigation();
         initializeModals();
         initializeForms();
@@ -900,6 +903,7 @@ async function performLogout() {
         return;
     }
     AppState.currentUser = null;
+    stopPresenceHeartbeat();
     AppState.isAuthenticated = false;
     AppState.isClockedIn = false;
     
@@ -912,6 +916,25 @@ async function performLogout() {
     setTimeout(() => {
         window.location.href = 'login.html';
     }, 450);
+}
+
+function startPresenceHeartbeat() {
+    stopPresenceHeartbeat();
+    const send = () => {
+        if (document.visibilityState !== 'visible' || !window.ACEAuth) return;
+        window.ACEAuth.request('/v1/auth/heartbeat', { method: 'POST' }).catch(() => {});
+    };
+    send();
+    AppState.presenceInterval = window.setInterval(send, 45 * 1000);
+    AppState.presenceVisibilityHandler = send;
+    document.addEventListener('visibilitychange', AppState.presenceVisibilityHandler);
+}
+
+function stopPresenceHeartbeat() {
+    if (AppState.presenceInterval) window.clearInterval(AppState.presenceInterval);
+    if (AppState.presenceVisibilityHandler) document.removeEventListener('visibilitychange', AppState.presenceVisibilityHandler);
+    AppState.presenceInterval = null;
+    AppState.presenceVisibilityHandler = null;
 }
 
 async function beginGoogleAccessRequest() {

@@ -45,10 +45,16 @@ app.get('/health', (_, res) => res.json({ ok: true, service: 'ace-clock-api' }))
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
 app.get('/v1/me', authenticate, (req, res) => res.json({ profile: req.profile }));
 app.post('/v1/auth/session-start', authenticate, async (req, res, next) => { try {
+  await query(db.from('profiles').update({ last_login_at: new Date().toISOString(), last_seen_at: new Date().toISOString() }).eq('id', req.profile.id).select().single());
   await audit(req, 'LOGIN', 'PROFILE', req.profile.id, 'Signed in successfully');
   res.status(204).end();
 } catch (error) { next(error); } });
+app.post('/v1/auth/heartbeat', authenticate, activeOnly, async (req, res, next) => { try {
+  await query(db.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', req.profile.id).select().single());
+  res.status(204).end();
+} catch (error) { next(error); } });
 app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
+  await query(db.from('profiles').update({ last_logout_at: new Date().toISOString() }).eq('id', req.profile.id).select().single());
   await audit(req, 'LOGOUT', 'PROFILE', req.profile.id, 'Signed out successfully');
   res.status(204).end();
 } catch (error) { next(error); } });

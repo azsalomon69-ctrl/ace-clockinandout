@@ -25,6 +25,7 @@ create table public.profiles (
   department_id uuid references public.departments(id) on delete set null,
   last_login_at timestamptz,
   last_logout_at timestamptz,
+  last_seen_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
