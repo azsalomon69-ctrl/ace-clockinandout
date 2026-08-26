@@ -79,6 +79,7 @@ create table public.time_entries (
   project_id uuid references public.projects(id) on delete set null,
   clock_in_at timestamptz not null default now(),
   clock_out_at timestamptz,
+  planned_end_at timestamptz,
   user_note text,
   duration_seconds integer generated always as (
     case when clock_out_at is null then null

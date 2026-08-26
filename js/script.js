@@ -25,7 +25,7 @@ const AppState = {
 const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at });
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
-const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
+const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, PlannedEndAt: item.planned_end_at, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
 
 // Live data is supplied exclusively by the Render API and Supabase.
@@ -61,7 +61,7 @@ async function loadDatabase() {
     AppState.currentSession = active || null;
     AppState.isClockedIn = Boolean(active);
     AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
-    if (active) startTimer();
+    if (active) { startTimer(); scheduleSessionNotifications(active); }
     return true;
 }
 
@@ -729,6 +729,11 @@ function initializeForms() {
     if (clockInForm) {
         clockInForm.addEventListener('submit', handleClockIn);
     }
+    const durationSelect = document.getElementById('clockInDuration');
+    durationSelect?.addEventListener('change', () => {
+        const custom = document.getElementById('clockInCustomDuration');
+        if (custom) { custom.hidden = durationSelect.value !== 'custom'; custom.required = durationSelect.value === 'custom'; }
+    });
 
     // Clock out form
     const clockOutForm = document.getElementById('clockOutForm');
@@ -938,12 +943,15 @@ async function handleClockIn(e) {
     
     const projectId = document.getElementById('clockInProject')?.value;
     const note = document.getElementById('clockInNote')?.value;
+    const durationChoice = document.getElementById('clockInDuration')?.value;
+    const durationMinutes = durationChoice === 'custom' ? Number(document.getElementById('clockInCustomDuration')?.value || 0) : Number(durationChoice || 0);
     
     try {
-        const entry = await window.ACEAuth.request('/v1/time-entries/clock-in', { method: 'POST', body: JSON.stringify({ projectId: projectId || null, note: note || null }) });
+        const entry = await window.ACEAuth.request('/v1/time-entries/clock-in', { method: 'POST', body: JSON.stringify({ projectId: projectId || null, note: note || null, durationMinutes }) });
         AppState.currentSession = timeEntryRecord(entry);
         AppState.timeEntries.unshift(AppState.currentSession);
         AppState.isClockedIn = true; AppState.clockInTime = new Date(AppState.currentSession.ClockInAt);
+        scheduleSessionNotifications(AppState.currentSession);
         closeModal('clockInModal'); startTimer(); updateUI(); loadPageSpecificData();
         showToast('Clocked in successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
@@ -962,6 +970,22 @@ async function handleClockOut(e) {
         stopTimer(); closeModal('clockOutModal'); updateUI(); loadPageSpecificData();
         showToast('Clocked out successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
+}
+
+async function sendWorkNotification(title, body) {
+    showToast(body, 'info');
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') await Notification.requestPermission();
+    if (Notification.permission === 'granted') new Notification(title, { body, icon: 'assets/images/ace-logo.png' });
+}
+
+function scheduleSessionNotifications(entry) {
+    if (!entry?.PlannedEndAt) return;
+    const remaining = new Date(entry.PlannedEndAt).getTime() - Date.now();
+    if (remaining <= 0) return;
+    const reminderDelay = remaining - 5 * 60 * 1000;
+    if (reminderDelay > 0) window.setTimeout(() => sendWorkNotification('ACE shift reminder', 'Your scheduled clock-out is in five minutes.'), reminderDelay);
+    window.setTimeout(() => sendWorkNotification('ACE clocked you out', 'Your scheduled shift has ended and was automatically clocked out.'), remaining + 5000);
 }
 
 function startTimer() {

@@ -160,10 +160,17 @@
                             <!-- Projects will be populated here -->
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="clockInNote" class="form-label">Note (Optional)</label>
-                        <textarea id="clockInNote" class="form-textarea" rows="3" placeholder="Add a note for this session"></textarea>
-                    </div>
+                      <div class="form-group">
+                          <label for="clockInNote" class="form-label">Note (Optional)</label>
+                          <textarea id="clockInNote" class="form-textarea" rows="3" placeholder="Add a note for this session"></textarea>
+                      </div>
+                      <div class="form-group">
+                          <label for="clockInDuration" class="form-label">Automatic clock-out</label>
+                          <select id="clockInDuration" class="form-select">
+                              <option value="">Clock out manually</option><option value="60">1 hour</option><option value="240">4 hours</option><option value="480">8 hours</option><option value="custom">Custom duration</option>
+                          </select>
+                          <input id="clockInCustomDuration" class="form-input" type="number" min="1" max="720" placeholder="Minutes" hidden>
+                      </div>
                     <button type="submit" class="btn btn-primary btn-block">Clock In</button>
                 </form>
             </div>
@@ -238,6 +245,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-auth.js"></script>
     <script src="js/sidebar.js?v=admin-role-fix-1"></script>
-    <script src="js/script.js?v=admin-controls-1"></script>
+    <script src="js/script.js?v=scheduled-clock-1"></script>
 </body>
 </html>

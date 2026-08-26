@@ -178,7 +178,16 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
 app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)').order('invited_at', { ascending: false }))); } catch (error) { next(error); } });
 
 app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try { const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email)').order('clock_in_at', { ascending: false }); request = req.query.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null); if (own) request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
-app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try { const open = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('clock_out_at', null).maybeSingle()); if (open) return fail(res, 409, 'You already have an active time entry'); const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: req.body.projectId || null, user_note: req.body.note?.trim() || null }).select().single()); await audit(req, 'CLOCK_IN', 'TIME_ENTRY', entry.id, 'Started a time entry'); res.status(201).json(entry); } catch (error) { next(error); } });
+app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
+  const open = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('clock_out_at', null).maybeSingle());
+  if (open) return fail(res, 409, 'You already have an active time entry');
+  const durationMinutes = Number(req.body.durationMinutes || 0);
+  if (durationMinutes && (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 720)) return fail(res, 400, 'Duration must be between 1 and 720 minutes.');
+  const plannedEndAt = durationMinutes ? new Date(Date.now() + durationMinutes * 60000).toISOString() : null;
+  const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: req.body.projectId || null, user_note: req.body.note?.trim() || null, planned_end_at: plannedEndAt }).select().single());
+  await audit(req, 'CLOCK_IN', 'TIME_ENTRY', entry.id, plannedEndAt ? `Started a scheduled ${durationMinutes}-minute time entry` : 'Started a time entry');
+  res.status(201).json(entry);
+} catch (error) { next(error); } });
 app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try { if (!req.body.note?.trim()) return fail(res, 400, 'A clock-out note is required'); let request = db.from('time_entries').update({ clock_out_at: new Date().toISOString(), user_note: req.body.note.trim() }).eq('id', req.params.id).is('clock_out_at', null); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); const entry = await query(request.select().single()); await audit(req, 'CLOCK_OUT', 'TIME_ENTRY', entry.id, 'Completed a time entry'); res.json(entry); } catch (error) { next(error); } });
 
 app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try { if (!req.body.remark?.trim()) return fail(res, 400, 'Remark is required'); const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: req.body.remark.trim() }).select().single()); await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark'); res.status(201).json(remark); } catch (error) { next(error); } });
@@ -191,4 +200,16 @@ app.post('/v1/reports/:id/exports', authenticate, adminOnly, async (req, res, ne
 app.get('/v1/audit-logs', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('audit_logs').select('*, profiles(full_name,email)').order('created_at', { ascending: false }).limit(250))); } catch (error) { next(error); } });
 
 app.use((error, _, res, __) => { console.error(error); fail(res, error.code === '23505' ? 409 : 500, error.message || 'Unexpected server error'); });
+async function closeExpiredScheduledEntries() {
+  try {
+    const now = new Date().toISOString();
+    const entries = await query(db.from('time_entries').select('id,user_id').is('clock_out_at', null).not('planned_end_at', 'is', null).lte('planned_end_at', now));
+    for (const entry of entries) {
+      const saved = await query(db.from('time_entries').update({ clock_out_at: now, user_note: 'Automatically clocked out at the scheduled end time.' }).eq('id', entry.id).is('clock_out_at', null).select().maybeSingle());
+      if (saved) await db.from('audit_logs').insert({ user_id: entry.user_id, action: 'AUTO_CLOCK_OUT', entity_type: 'TIME_ENTRY', entity_id: entry.id, description: 'Automatically clocked out at scheduled end time' });
+    }
+  } catch (error) { console.error('scheduled clock-out:', error.message); }
+}
+setInterval(closeExpiredScheduledEntries, 30 * 1000);
+closeExpiredScheduledEntries();
 app.listen(process.env.PORT || 3000, () => console.log(`ACE API listening on ${process.env.PORT || 3000}`));
