@@ -189,6 +189,31 @@ app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, nex
   await audit(req, 'RESTORE_USER', 'PROFILE', profile.id, `Restored user ${profile.email}`);
   res.json(profile);
 } catch (error) { next(error); } });
+app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, next) => { try {
+  if (req.params.id === req.profile.id) return fail(res, 400, 'You cannot permanently delete your own administrator account.');
+  const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
+  if (target.status !== 'DENIED') return fail(res, 409, 'Only archived users can be permanently deleted.');
+
+  // A hard deletion must never break attendance, reports, invitations, or
+  // administrator remarks that reference the profile. Those accounts remain
+  // safely archived instead of destroying historical business data.
+  const dependencyChecks = await Promise.all([
+    query(db.from('time_entries').select('id').eq('user_id', target.id).limit(1)),
+    query(db.from('admin_remarks').select('id').eq('admin_user_id', target.id).limit(1)),
+    query(db.from('invitations').select('id').eq('invited_by_user_id', target.id).limit(1)),
+    query(db.from('reports').select('id').eq('created_by_user_id', target.id).limit(1)),
+    query(db.from('report_exports').select('id').eq('exported_by_user_id', target.id).limit(1)),
+    query(db.from('access_requests').select('id').eq('reviewed_by_user_id', target.id).limit(1))
+  ]);
+  if (dependencyChecks.some(records => records.length)) {
+    return fail(res, 409, 'This user has historical company records and must remain archived.');
+  }
+
+  const { error } = await db.auth.admin.deleteUser(target.id);
+  if (error) throw error;
+  await audit(req, 'PERMANENT_DELETE_USER', 'PROFILE', target.id, `Permanently deleted archived user ${target.email}`);
+  res.status(204).end();
+} catch (error) { next(error); } });
 
 app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try {
   const email = req.body.email?.trim().toLowerCase();
