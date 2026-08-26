@@ -1651,7 +1651,12 @@ function renderAdminAnalytics(days = 7) {
         const label = selectedDays <= 7
             ? bucket.start.toLocaleDateString('en-US', { weekday: 'short' })
             : bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return `<div class="chart-column" title="${label}: ${formatDuration(bucket.seconds)}"><div class="chart-column-track"><div class="chart-column-bar" style="height:${height}%"></div></div><span class="chart-column-label">${label}</span><span class="chart-column-value">${formatDuration(bucket.seconds)}</span></div>`;
+        const bucketEnd = new Date(Math.min(new Date(bucket.start).setDate(bucket.start.getDate() + bucketDays - 1), periodEnd.getTime()));
+        const periodLabel = bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) === bucketEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            ? bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : `${bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${bucketEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        const detail = `${periodLabel}: ${formatDuration(bucket.seconds)} tracked`;
+        return `<div class="chart-column analytics-tooltip" tabindex="0" role="listitem" aria-label="${detail}" data-tooltip="${detail}"><div class="chart-column-track"><div class="chart-column-bar" style="height:${height}%"></div></div><span class="chart-column-label">${label}</span><span class="chart-column-value">${formatDuration(bucket.seconds)}</span></div>`;
     }).join('');
 
     const projectTotals = new Map();
@@ -1662,7 +1667,11 @@ function renderAdminAnalytics(days = 7) {
     });
     const projects = [...projectTotals.entries()].sort((a, b) => b[1] - a[1]);
     const largestProject = Math.max(...projects.map(([, seconds]) => seconds), 1);
-    projectChart.innerHTML = projects.length ? projects.map(([name, seconds]) => `<div class="allocation-row"><span class="allocation-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span><div class="allocation-track" aria-hidden="true"><div class="allocation-fill" style="width:${Math.max(4, Math.round(seconds / largestProject * 100))}%"></div></div><span class="allocation-hours">${formatDuration(seconds)}</span></div>`).join('') : '<div class="analytics-empty">No tracked project hours in this period.</div>';
+    projectChart.innerHTML = projects.length ? projects.map(([name, seconds]) => {
+        const share = totalSeconds ? Math.round(seconds / totalSeconds * 100) : 0;
+        const detail = `${name}: ${formatDuration(seconds)} tracked (${share}% of selected time)`;
+        return `<div class="allocation-row analytics-tooltip" tabindex="0" role="listitem" aria-label="${escapeHtml(detail)}" data-tooltip="${escapeHtml(detail)}"><span class="allocation-name">${escapeHtml(name)}</span><div class="allocation-track" aria-hidden="true"><div class="allocation-fill" style="width:${Math.max(4, Math.round(seconds / largestProject * 100))}%"></div></div><span class="allocation-hours">${formatDuration(seconds)}</span></div>`;
+    }).join('') : '<div class="analytics-empty">No tracked project hours in this period.</div>';
 
     const activeTeam = AppState.users.filter(user => user.Role === 'USER' && user.Status === 'ACTIVE' && (!selectedDepartmentId || Number(user.DepartmentId) === selectedDepartmentId) && (!selectedEmployeeId || Number(user.UserId) === selectedEmployeeId));
     const clockedInIds = new Set(AppState.timeEntries.filter(entry => !entry.ClockOutAt).map(entry => entry.UserId));
@@ -1671,7 +1680,8 @@ function renderAdminAnalytics(days = 7) {
     const pending = AppState.users.filter(user => user.Status === 'PENDING').length;
     const circumference = 2 * Math.PI * 48;
     const ratio = activeTeam.length ? clockedIn / activeTeam.length : 0;
-    teamChart.innerHTML = `<div class="team-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="team-ring-track" cx="60" cy="60" r="48"></circle><circle class="team-ring-value" cx="60" cy="60" r="48" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference * (1 - ratio)}"></circle></svg><div class="team-ring-label"><strong>${clockedIn}</strong><span>clocked in</span></div></div><div class="team-status-list"><div class="team-status-row"><span class="team-status-name"><i class="team-status-dot"></i>Clocked in</span><strong>${clockedIn}</strong></div><div class="team-status-row"><span class="team-status-name"><i class="team-status-dot is-muted"></i>Available</span><strong>${available}</strong></div><div class="team-status-row"><span class="team-status-name"><i class="team-status-dot is-muted"></i>Pending approval</span><strong>${pending}</strong></div></div>`;
+    const teamDetail = `${clockedIn} of ${activeTeam.length} active employees are clocked in (${Math.round(ratio * 100)}%).`;
+    teamChart.innerHTML = `<div class="team-ring analytics-tooltip" tabindex="0" role="img" aria-label="${teamDetail}" data-tooltip="${teamDetail}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="team-ring-track" cx="60" cy="60" r="48"></circle><circle class="team-ring-value" cx="60" cy="60" r="48" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference * (1 - ratio)}"></circle></svg><div class="team-ring-label"><strong>${clockedIn}</strong><span>clocked in</span></div></div><div class="team-status-list"><div class="team-status-row"><span class="team-status-name"><i class="team-status-dot"></i>Clocked in</span><strong>${clockedIn}</strong></div><div class="team-status-row"><span class="team-status-name"><i class="team-status-dot is-muted"></i>Available</span><strong>${available}</strong></div><div class="team-status-row"><span class="team-status-name"><i class="team-status-dot is-muted"></i>Pending approval</span><strong>${pending}</strong></div></div>`;
 
     const range = document.getElementById('dashboardRange');
     if (range && !range.dataset.bound) {

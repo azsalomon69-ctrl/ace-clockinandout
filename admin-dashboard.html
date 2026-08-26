@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard · ACE Outsource Solutions</title>
-    <link rel="stylesheet" href="css/app.css?v=independent-range-1">
+    <link rel="stylesheet" href="css/app.css?v=chart-tooltips-1">
 </head>
 <body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div>
 
@@ -155,7 +155,8 @@
                                 <div><span class="analytics-label">Tracked time</span><strong id="analyticsTotalHours">0h 0m</strong><small class="analytics-detail" id="analyticsDetail">Across all projects</small></div>
                                 <span class="analytics-comparison" id="analyticsAverage">0h average/day</span>
                             </div>
-                            <div class="hours-chart" id="hoursChart" role="img" aria-label="Tracked hours chart"></div>
+                            <p class="analytics-chart-hint">Hover or focus a bar to view its date range and tracked time.</p>
+                            <div class="hours-chart" id="hoursChart" role="group" aria-label="Tracked time by date"></div>
                         </article>
                         <article class="analytics-card team-activity-card">
                             <div class="analytics-card-header"><div><span class="analytics-label">Team activity</span><strong>Current status</strong></div></div>
@@ -163,7 +164,8 @@
                         </article>
                         <article class="analytics-card project-allocation-card">
                             <div class="analytics-card-header"><div><span class="analytics-label">Project allocation</span><strong>Hours by project</strong></div><a href="projects.html" class="analytics-link">Manage projects</a></div>
-                            <div class="project-allocation" id="projectAllocationChart"></div>
+                            <p class="analytics-chart-hint">Hover or focus a project to view its share of tracked time.</p>
+                            <div class="project-allocation" id="projectAllocationChart" role="list" aria-label="Tracked time by project"></div>
                         </article>
                     </div>
                 </section>
@@ -304,6 +306,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-auth.js"></script>
     <script src="js/sidebar.js?v=admin-role-fix-1"></script>
-    <script src="js/script.js?v=independent-range-1"></script>
+    <script src="js/script.js?v=chart-tooltips-1"></script>
 </body>
 </html>
