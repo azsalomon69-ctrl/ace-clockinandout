@@ -1941,7 +1941,8 @@ function loadReportsList() {
                     <td>${new Date(report.GeneratedAt).toLocaleString()}</td>
                     <td>${report.TotalRecords}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary" onclick="exportReport(${report.ReportId}, 'PDF')">Save PDF</button>
+                        <button class="btn btn-sm btn-primary" onclick="exportReport('${report.ReportId}', 'PDF')">Save PDF</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteReport('${report.ReportId}')">Delete</button>
                     </td>
                 </tr>
             `;
@@ -2111,6 +2112,19 @@ async function denyUser(userId) {
 function viewReport(reportId) {
     const report = AppState.reports.find(r => r.ReportId === reportId);
     if (report) renderGeneratedReport(report);
+}
+
+async function deleteReport(reportId) {
+    const report = AppState.reports.find(item => item.ReportId === reportId);
+    if (!report || !window.confirm('Delete this generated report from the ACE report library? This cannot be undone.')) return;
+    try {
+        await window.ACEAuth.request(`/v1/reports/${reportId}`, { method: 'DELETE' });
+        AppState.reports = AppState.reports.filter(item => item.ReportId !== reportId);
+        loadReportsList();
+        showToast('Generated report deleted.', 'success');
+    } catch (error) {
+        showToast(error.message || 'Could not delete the generated report.', 'error');
+    }
 }
 
 function exportReport(reportId, fileType) {
