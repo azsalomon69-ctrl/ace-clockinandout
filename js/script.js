@@ -942,7 +942,7 @@ async function handleClockIn(e) {
         AppState.currentSession = timeEntryRecord(entry);
         AppState.timeEntries.unshift(AppState.currentSession);
         AppState.isClockedIn = true; AppState.clockInTime = new Date(AppState.currentSession.ClockInAt);
-        closeModal('clockInModal'); startTimer(); updateUI();
+        closeModal('clockInModal'); startTimer(); updateUI(); loadPageSpecificData();
         showToast('Clocked in successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
 }
@@ -957,7 +957,7 @@ async function handleClockOut(e) {
         const saved = timeEntryRecord(entry);
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
         AppState.isClockedIn = false; AppState.currentSession = null; AppState.clockInTime = null;
-        stopTimer(); closeModal('clockOutModal'); updateUI();
+        stopTimer(); closeModal('clockOutModal'); updateUI(); loadPageSpecificData();
         showToast('Clocked out successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
 }
@@ -1320,28 +1320,30 @@ function updateClock() {
 
 // Page Specific Data
 function loadPageSpecificData() {
+    const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
+    const page = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
     // User Dashboard
-    if (window.location.href.includes('user-dashboard.html')) {
+    if (page === 'user-dashboard.html') {
         loadUserDashboard();
     }
     
     // Admin Dashboard
-    if (window.location.href.includes('admin-dashboard.html')) {
+    if (page === 'admin-dashboard.html') {
         loadAdminDashboard();
     }
     
     // Time Entries
-    if (window.location.href.includes('time-entries.html')) {
+    if (page === 'time-entries.html') {
         loadTimeEntries();
     }
     
     // Reports
-    if (window.location.href.includes('reports.html')) {
+    if (page === 'reports.html') {
         loadReportsList();
     }
     
     // Settings
-    if (window.location.href.includes('settings.html')) {
+    if (page === 'settings.html') {
         loadUserSettings();
     }
 }
