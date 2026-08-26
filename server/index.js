@@ -21,6 +21,8 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 const fail = (res, status, message) => res.status(status).json({ error: message });
 const query = async builder => { const { data, error } = await builder; if (error) throw error; return data; };
 const isUuid = value => /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value || '');
+const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
+const isAllowedCompanyEmail = email => !allowedDomains.length || allowedDomains.some(domain => email.endsWith(`@${domain}`));
 
 async function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
@@ -41,8 +43,46 @@ async function audit(req, action, entityType, entityId, description) {
 
 app.get('/health', (_, res) => res.json({ ok: true, service: 'ace-clock-api' }));
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
-app.post('/v1/access-requests', async (req, res, next) => { try { const email = req.body.email?.trim().toLowerCase(); const fullName = req.body.fullName?.trim(); if (!email || !fullName) return fail(res, 400, 'Email and full name are required'); const request = await query(db.from('access_requests').insert({ email, full_name: fullName, requested_department: req.body.department?.trim() || null, message: req.body.message?.trim() || null }).select().single()); res.status(201).json({ request }); } catch (error) { next(error); } });
 app.get('/v1/me', authenticate, async (req, res, next) => { try { await audit(req, 'LOGIN', 'PROFILE', req.profile.id, 'Session validated'); res.json({ profile: req.profile }); } catch (error) { next(error); } });
+app.post('/v1/access-requests', authenticate, async (req, res, next) => { try {
+  const email = req.profile.email.trim().toLowerCase();
+  if (!isAllowedCompanyEmail(email)) return fail(res, 403, 'Use an approved company email address to request access.');
+  const now = new Date();
+  const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
+  const [active, profileRecent, ipRecent] = await Promise.all([
+    query(db.from('access_requests').select('id, expires_at').eq('profile_id', req.profile.id).eq('status', 'PENDING').gt('expires_at', now.toISOString()).maybeSingle()),
+    query(db.from('access_requests').select('id').eq('profile_id', req.profile.id).gte('created_at', tenMinutesAgo)),
+    query(db.from('access_requests').select('id').eq('request_ip', req.ip).gte('created_at', tenMinutesAgo))
+  ]);
+  if (active) return fail(res, 409, 'You already have a request awaiting review.');
+  if (profileRecent.length >= 2 || ipRecent.length >= 5) return fail(res, 429, 'Too many access requests. Please wait 10 minutes before trying again.');
+  const request = await query(db.from('access_requests').insert({
+    profile_id: req.profile.id, email, full_name: req.profile.full_name || req.authUser.user_metadata?.full_name || '',
+    requested_department: req.body.department?.trim() || null, message: req.body.message?.trim() || null,
+    requested_role: 'USER', request_ip: req.ip, expires_at: new Date(now.getTime() + 2 * 60 * 1000).toISOString()
+  }).select().single());
+  await audit(req, 'REQUEST_ACCESS', 'ACCESS_REQUEST', request.id, 'Requested account approval');
+  res.status(201).json({ request });
+} catch (error) { next(error); } });
+app.get('/v1/access-requests', authenticate, adminOnly, async (_, res, next) => { try {
+  const requests = await query(db.from('access_requests').select('*, profiles!access_requests_profile_id_fkey(email,full_name)').order('created_at', { ascending: false }).limit(200));
+  const now = Date.now();
+  res.json(requests.map(request => ({ ...request, state: request.status === 'PENDING' && new Date(request.expires_at).getTime() <= now ? 'EXPIRED' : request.status })));
+} catch (error) { next(error); } });
+app.patch('/v1/access-requests/:id', authenticate, adminOnly, async (req, res, next) => { try {
+  const decision = req.body.decision;
+  const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
+  if (!['APPROVE', 'DENY'].includes(decision)) return fail(res, 400, 'Decision must be APPROVE or DENY');
+  const request = await query(db.from('access_requests').select('*').eq('id', req.params.id).single());
+  if (request.status !== 'PENDING') return fail(res, 409, 'This request has already been reviewed.');
+  if (new Date(request.expires_at).getTime() <= Date.now()) return fail(res, 410, 'This request expired after two minutes.');
+  if (!request.profile_id) return fail(res, 409, 'This legacy request is not linked to a Google account.');
+  const status = decision === 'APPROVE' ? 'ACTIVE' : 'DENIED';
+  if (decision === 'APPROVE') await query(db.from('profiles').update({ status, role, department_id: req.body.departmentId || null }).eq('id', request.profile_id).select().single());
+  const reviewed = await query(db.from('access_requests').update({ status, reviewed_at: new Date().toISOString(), reviewed_by_user_id: req.profile.id }).eq('id', request.id).select().single());
+  await audit(req, decision === 'APPROVE' ? 'APPROVE_ACCESS_REQUEST' : 'DENY_ACCESS_REQUEST', 'ACCESS_REQUEST', request.id, `${decision === 'APPROVE' ? 'Approved' : 'Denied'} ${request.email}`);
+  res.json(reviewed);
+} catch (error) { next(error); } });
 
 app.get('/v1/departments', authenticate, async (_, res, next) => { try { res.json(await query(db.from('departments').select('*').order('name'))); } catch (error) { next(error); } });
 app.post('/v1/departments', authenticate, adminOnly, async (req, res, next) => { try { const { name, description } = req.body; if (!name?.trim()) return fail(res, 400, 'Department name is required'); const item = await query(db.from('departments').insert({ name: name.trim(), description: description?.trim() || null }).select().single()); await audit(req, 'CREATE', 'DEPARTMENT', item.id, `Created department ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
@@ -55,7 +95,17 @@ app.patch('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) =>
 app.get('/v1/users', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('profiles').select('*, departments(name)').order('created_at', { ascending: false }))); } catch (error) { next(error); } });
 app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try { if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED'); const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single()); await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`); res.json(profile); } catch (error) { next(error); } });
 
-app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try { const email = req.body.email?.trim().toLowerCase(); if (!email) return fail(res, 400, 'Email is required'); const invitation = await query(db.from('invitations').insert({ invited_by_user_id: req.profile.id, email }).select().single()); const { error } = await db.auth.admin.inviteUserByEmail(email, { redirectTo: process.env.INVITE_REDIRECT_URL }); if (error) throw error; await audit(req, 'INVITE', 'INVITATION', invitation.id, `Invited ${email}`); res.status(201).json(invitation); } catch (error) { next(error); } });
+app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try {
+  const email = req.body.email?.trim().toLowerCase();
+  const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
+  if (!email) return fail(res, 400, 'Email is required');
+  if (!isAllowedCompanyEmail(email)) return fail(res, 400, 'Use an approved company email address.');
+  const duplicate = await query(db.from('invitations').select('id').eq('email', email).eq('status', 'PENDING').gt('expires_at', new Date().toISOString()).maybeSingle());
+  if (duplicate) return fail(res, 409, 'This email already has an active invitation.');
+  const invitation = await query(db.from('invitations').insert({ invited_by_user_id: req.profile.id, email, role, department_id: req.body.departmentId || null }).select().single());
+  await audit(req, 'INVITE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Pre-authorized ${email} as ${role}`);
+  res.status(201).json(invitation);
+} catch (error) { next(error); } });
 app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)').order('invited_at', { ascending: false }))); } catch (error) { next(error); } });
 
 app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try { const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email)').order('clock_in_at', { ascending: false }); if (own) request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });

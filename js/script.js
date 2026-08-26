@@ -86,6 +86,10 @@ async function initApp() {
         initializeNavigation();
         initializeModals();
         initializeForms();
+        if (document.body.dataset.openAccessRequest === 'true') {
+            delete document.body.dataset.openAccessRequest;
+            window.setTimeout(() => openModal('requestAccessModal'), 0);
+        }
         initializeUXEnhancements();
         clearInitialSkeletons();
         return;
@@ -125,8 +129,7 @@ async function resumePublicSession() {
     if (AppState.currentUser.Status === 'ACTIVE') {
         window.location.replace(AppState.currentUser.Role === 'ADMIN' ? 'admin-dashboard.html' : 'user-dashboard.html');
     } else {
-        await auth.auth.signOut();
-        showToast('Your account is awaiting administrator approval.', 'info');
+        document.body.dataset.openAccessRequest = 'true';
     }
 }
 
@@ -234,7 +237,7 @@ function initializeAppShell() {
     // Vercel cleanUrls removes .html while the local static server preserves it.
     // Normalize both forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'invitations.html', 'departments.html', 'projects.html', 'admin-time-entries.html', 'reports.html', 'audit-logs.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'admin-time-entries.html', 'reports.html', 'audit-logs.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -249,11 +252,11 @@ function initializeAppShell() {
         return;
     }
 
-    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', building: 'building', folder: 'folder', clock: 'timer', chart: 'chart-column-big', audit: 'brick-wall-shield', settings: 'settings', logout: 'log-out', chevron: 'chevron-left' };
+    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', chart: 'chart-column-big', audit: 'brick-wall-shield', settings: 'settings', logout: 'log-out', chevron: 'chevron-left' };
     const icon = name => suppliedIconMarkup(icons[name], 'shell-icon');
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['People', [['users.html', 'users', 'Users'], ['invitations.html', 'mail', 'Invitations'], ['departments.html', 'building', 'Departments']]],
+        ['People', [['users.html', 'users', 'Users'], ['invitations.html', 'mail', 'Invitations'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
         ['Work', [['projects.html', 'folder', 'Projects'], ['admin-time-entries.html', 'clock', 'Time entries']]],
         ['Insights', [['reports.html', 'chart', 'Reports']]],
         ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ['settings.html', 'settings', 'Settings']]]
@@ -490,8 +493,7 @@ function initializeModals() {
     if (requestAccessLink) {
         requestAccessLink.addEventListener('click', (e) => {
             e.preventDefault();
-            closeModal('loginModal');
-            openModal('requestAccessModal');
+            beginGoogleAccessRequest();
         });
     }
 
@@ -886,6 +888,15 @@ async function performLogout() {
     }, 450);
 }
 
+async function beginGoogleAccessRequest() {
+    try {
+        if (!window.ACEAuth) throw new Error('Request service is unavailable.');
+        const auth = await window.ACEAuth.client();
+        const { error } = await auth.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/login?requestAccess=1`, queryParams: { prompt: 'select_account' } } });
+        if (error) throw error;
+    } catch (error) { showToast(error.message || 'Unable to start Google sign-in.', 'error'); }
+}
+
 function handleForgotPassword(e) {
     e.preventDefault();
     const email = document.getElementById('resetEmail').value;
@@ -898,10 +909,10 @@ async function handleRequestAccess(e) {
     e.preventDefault();
     try {
         if (!window.ACEAuth) throw new Error('Request service is unavailable.');
-        await window.ACEAuth.request('/v1/access-requests', { method: 'POST', body: JSON.stringify({ email: document.getElementById('requestEmail').value.trim(), fullName: document.getElementById('requestFullName').value.trim(), department: document.getElementById('requestDepartment').value.trim(), message: document.getElementById('requestMessage').value.trim() }) });
+        await window.ACEAuth.request('/v1/access-requests', { method: 'POST', body: JSON.stringify({ department: document.getElementById('requestDepartment').value.trim(), message: document.getElementById('requestMessage').value.trim() }) });
         closeModal('requestAccessModal');
         e.currentTarget.reset();
-        showToast('Access request submitted. An administrator will review it shortly.', 'success');
+        showToast('Access request submitted. It expires in two minutes if it is not reviewed.', 'success');
     } catch (error) { showToast(error.message || 'Unable to submit access request', 'error'); }
 }
 
@@ -1010,7 +1021,7 @@ async function handleInviteUser(e) {
     try {
         const invitation = await window.ACEAuth.request('/v1/invitations', { method: 'POST', body: JSON.stringify({ email, departmentId: departmentId || null, role: role || 'USER' }) });
         AppState.invitations.unshift(invitation); closeModal('inviteUserModal'); document.getElementById('inviteUserForm').reset();
-        showToast('Invitation sent to ' + email, 'success');
+        showToast('Google account pre-authorized for ' + email, 'success');
     } catch (error) { showToast(error.message || 'Unable to send invitation', 'error'); }
 }
 

@@ -17,7 +17,7 @@ create table public.departments (
 
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  email text not null unique,
+  email text not null,
   full_name text not null default '',
   profile_picture_url text,
   role public.user_role not null default 'USER',
@@ -48,6 +48,8 @@ create table public.invitations (
   id uuid primary key default gen_random_uuid(),
   invited_by_user_id uuid not null references public.profiles(id),
   email text not null,
+  role public.user_role not null default 'USER',
+  department_id uuid references public.departments(id) on delete set null,
   status public.invitation_status not null default 'PENDING',
   invited_at timestamptz not null default now(),
   expires_at timestamptz not null default now() + interval '7 days',
@@ -58,11 +60,15 @@ create table public.invitations (
 create table public.access_requests (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
+  profile_id uuid references public.profiles(id) on delete cascade,
   full_name text not null,
   requested_department text,
   message text,
+  requested_role public.user_role not null default 'USER',
   status public.user_status not null default 'PENDING',
   created_at timestamptz not null default now(),
+  expires_at timestamptz not null default now() + interval '2 minutes',
+  request_ip inet,
   reviewed_at timestamptz,
   reviewed_by_user_id uuid references public.profiles(id)
 );
@@ -135,10 +141,17 @@ create trigger admin_remarks_updated_at before update on public.admin_remarks fo
 
 -- Profiles are created automatically after Google/email sign-up.
 create or replace function public.create_profile_for_auth_user() returns trigger language plpgsql security definer set search_path = public as $$
+declare invitation_row public.invitations%rowtype;
 begin
-  insert into public.profiles (id, email, full_name, profile_picture_url)
-  values (new.id, new.email, coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''), new.raw_user_meta_data->>'avatar_url')
+  select * into invitation_row from public.invitations
+  where lower(email) = lower(new.email) and status = 'PENDING' and expires_at > now()
+  order by invited_at desc limit 1;
+  insert into public.profiles (id, email, full_name, profile_picture_url, role, status, department_id)
+  values (new.id, new.email, coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''), new.raw_user_meta_data->>'avatar_url', coalesce(invitation_row.role, 'USER'), case when invitation_row.id is null then 'PENDING' else 'ACTIVE' end, invitation_row.department_id)
   on conflict (id) do nothing;
+  if invitation_row.id is not null then
+    update public.invitations set status = 'ACCEPTED', accepted_at = now() where id = invitation_row.id;
+  end if;
   return new;
 end;
 $$;

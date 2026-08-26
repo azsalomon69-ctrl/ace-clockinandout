@@ -74,7 +74,10 @@ function action(label, index, key) {
 function formField(label, type, placeholder, value, index) {
   const id = 'adminField' + index;
   if (type === 'textarea') return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><textarea class="form-textarea" id="' + id + '" placeholder="' + esc(placeholder) + '">' + esc(value === '—' ? '' : value) + '</textarea></div>';
-  if (type === 'select') return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><select class="form-select" id="' + id + '"><option value="ACTIVE">Approve</option><option value="DENIED">Deny</option></select></div>';
+  if (type === 'select') {
+    const options = label === 'Role' ? '<option value="USER">Employee</option><option value="ADMIN">Admin</option>' : '<option value="ACTIVE">Approve</option><option value="DENIED">Deny</option>';
+    return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><select class="form-select" id="' + id + '">' + options + '</select></div>';
+  }
   return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><input class="form-input" id="' + id + '" type="' + type + '" placeholder="' + esc(placeholder) + '" value="' + esc(value) + '" required></div>';
 }
 function modal(view, primary, record) {
@@ -91,7 +94,7 @@ function modal(view, primary, record) {
   const remark = !primary && key === 'entries';
   const review = !primary && key === 'users' && /^review$/i.test(label);
   const fields = remark ? [['Administrator remark', 'textarea', 'Add a clear internal remark for this time entry']]
-    : primary && ['users', 'invitations'].includes(key) ? [['Work email', 'email', 'name@example.com']]
+    : primary && ['users', 'invitations'].includes(key) ? [['Work email', 'email', 'name@example.com'], ['Role', 'select', 'USER']]
       : (primary || edit) && key === 'departments' ? [['Department name', 'text', 'e.g. Client Services'], ['Description', 'textarea', 'What does this department handle?']]
         : (primary || edit) && key === 'projects' ? [['Project name', 'text', 'e.g. Customer Portal'], ['Description', 'textarea', 'Describe the project scope']]
           : review ? [['Approval', 'select', 'ACTIVE']] : [];
@@ -108,7 +111,7 @@ function modal(view, primary, record) {
     event.preventDefault();
     try {
       const first = document.getElementById('adminField0').value;
-      if (primary && ['users', 'invitations'].includes(key)) await liveRequest('/v1/invitations', { method: 'POST', body: JSON.stringify({ email: first }) });
+      if (primary && ['users', 'invitations'].includes(key)) await liveRequest('/v1/invitations', { method: 'POST', body: JSON.stringify({ email: first, role: document.getElementById('adminField1').value }) });
       else if (key === 'departments') await liveRequest(edit ? '/v1/departments/' + record.id : '/v1/departments', { method: edit ? 'PATCH' : 'POST', body: JSON.stringify({ name: first, description: document.getElementById('adminField1').value }) });
       else if (key === 'projects') await liveRequest(edit ? '/v1/projects/' + record.id : '/v1/projects', { method: edit ? 'PATCH' : 'POST', body: JSON.stringify({ name: first, description: document.getElementById('adminField1').value }) });
       else if (remark) await liveRequest('/v1/time-entries/' + record.id + '/remarks', { method: 'POST', body: JSON.stringify({ remark: first }) });
