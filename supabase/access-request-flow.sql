@@ -18,9 +18,13 @@ create index if not exists access_requests_ip_created_idx on public.access_reque
 -- A pre-authorized invitation is consumed when that exact email first signs in
 -- with Google. It never grants access to a different Google account.
 create or replace function public.create_profile_for_auth_user() returns trigger language plpgsql security definer set search_path = public as $$
-declare invitation_row public.invitations%rowtype;
+declare
+  invitation_id uuid;
+  invitation_role public.user_role;
+  invitation_department_id uuid;
 begin
-  select * into invitation_row
+  select id, role, department_id
+  into invitation_id, invitation_role, invitation_department_id
   from public.invitations
   where lower(email) = lower(new.email)
     and status = 'PENDING'
@@ -34,14 +38,14 @@ begin
     new.email,
     coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''),
     new.raw_user_meta_data->>'avatar_url',
-    coalesce(invitation_row.role, 'USER'),
-    case when invitation_row.id is null then 'PENDING' else 'ACTIVE' end,
-    invitation_row.department_id
+    coalesce(invitation_role, 'USER'::public.user_role),
+    case when invitation_id is null then 'PENDING'::public.user_status else 'ACTIVE'::public.user_status end,
+    invitation_department_id
   )
   on conflict (id) do nothing;
 
-  if invitation_row.id is not null then
-    update public.invitations set status = 'ACCEPTED', accepted_at = now() where id = invitation_row.id;
+  if invitation_id is not null then
+    update public.invitations set status = 'ACCEPTED', accepted_at = now() where id = invitation_id;
   end if;
   return new;
 end;
