@@ -1624,11 +1624,6 @@ body { background: #f7fcfd; color: var(--ace-ink); }
 }
 
 html { background: var(--ace-sky-2); scroll-behavior: smooth; }
-@view-transition { navigation: auto; }
-::view-transition-old(root) { animation: ace-page-out .12s ease-in both; }
-::view-transition-new(root) { animation: ace-page-in .2s ease-out both; }
-@keyframes ace-page-out { to { opacity: .82; } }
-@keyframes ace-page-in { from { opacity: .78; transform: translateY(3px); } }
 body {
   min-width: 320px;
   color: var(--ace-text);
