@@ -13,14 +13,41 @@ const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KE
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
 const app = express();
+const frontendOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(value => value.trim()).filter(Boolean);
+if (process.env.NODE_ENV === 'production' && !frontendOrigins.length) {
+  throw new Error('FRONTEND_ORIGIN is required in production');
+}
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN?.split(',').map(value => value.trim()) || true }));
+app.use(cors({
+  origin(origin, callback) {
+    // Browser requests must come from an explicitly configured frontend. A
+    // request without an Origin header is a non-browser/server request.
+    if (!origin || frontendOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Origin is not allowed'));
+  }
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 const fail = (res, status, message) => res.status(status).json({ error: message });
 const query = async builder => { const { data, error } = await builder; if (error) throw error; return data; };
 const isUuid = value => /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value || '');
+const isDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const optionalText = (value, maximum = 500) => {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') return undefined;
+  const text = value.trim();
+  return text.length <= maximum ? (text || null) : undefined;
+};
+const requireText = (value, field, maximum = 160) => {
+  const text = optionalText(value, maximum);
+  if (!text) throw Object.assign(new Error(`${field} is required and must be at most ${maximum} characters`), { status: 400, expose: true });
+  return text;
+};
+const optionalUuid = value => value === undefined || value === null || value === '' ? null : (isUuid(value) ? value : undefined);
+app.param('id', (req, res, next, id) => isUuid(id) ? next() : fail(res, 400, 'Invalid record ID'));
+app.param('projectId', (req, res, next, id) => isUuid(id) ? next() : fail(res, 400, 'Invalid project ID'));
 const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
 const isAllowedCompanyEmail = email => !allowedDomains.length || allowedDomains.some(domain => email.endsWith(`@${domain}`));
 
@@ -35,7 +62,9 @@ async function authenticate(req, res, next) {
     next();
   } catch { return fail(res, 403, 'User profile is not available'); }
 }
-const adminOnly = (req, res, next) => req.profile.role === 'ADMIN' ? next() : fail(res, 403, 'Administrator access required');
+const adminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profile.status === 'ACTIVE'
+  ? next()
+  : fail(res, 403, 'Active administrator access required');
 const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() : fail(res, 403, 'Your account is awaiting approval');
 async function audit(req, action, entityType, entityId, description) {
   await db.from('audit_logs').insert({ user_id: req.profile?.id || null, action, entity_type: entityType, entity_id: isUuid(entityId) ? entityId : null, description, ip_address: req.ip, user_agent: req.get('user-agent') }).then(({ error }) => { if (error) console.error('audit log:', error.message); });
@@ -70,9 +99,12 @@ app.post('/v1/access-requests', authenticate, async (req, res, next) => { try {
   ]);
   if (active) return fail(res, 409, 'You already have a request awaiting review.');
   if (profileRecent.length >= 2 || ipRecent.length >= 5) return fail(res, 429, 'Too many access requests. Please wait 10 minutes before trying again.');
+  const requestedDepartment = optionalText(req.body.department, 160);
+  const message = optionalText(req.body.message, 1000);
+  if (requestedDepartment === undefined || message === undefined) return fail(res, 400, 'Request text exceeds the allowed length');
   const request = await query(db.from('access_requests').insert({
     profile_id: req.profile.id, email, full_name: req.profile.full_name || req.authUser.user_metadata?.full_name || '',
-    requested_department: req.body.department?.trim() || null, message: req.body.message?.trim() || null,
+    requested_department: requestedDepartment, message,
     requested_role: 'USER', request_ip: req.ip, expires_at: new Date(now.getTime() + 2 * 60 * 1000).toISOString()
   }).select().single());
   await audit(req, 'REQUEST_ACCESS', 'ACCESS_REQUEST', request.id, 'Requested account approval');
@@ -92,20 +124,22 @@ app.patch('/v1/access-requests/:id', authenticate, adminOnly, async (req, res, n
   if (new Date(request.expires_at).getTime() <= Date.now()) return fail(res, 410, 'This request expired after two minutes.');
   if (!request.profile_id) return fail(res, 409, 'This legacy request is not linked to a Google account.');
   const status = decision === 'APPROVE' ? 'ACTIVE' : 'DENIED';
-  if (decision === 'APPROVE') await query(db.from('profiles').update({ status, role, department_id: req.body.departmentId || null }).eq('id', request.profile_id).select().single());
+  const departmentId = optionalUuid(req.body.departmentId);
+  if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
+  if (decision === 'APPROVE') await query(db.from('profiles').update({ status, role, department_id: departmentId }).eq('id', request.profile_id).select().single());
   const reviewed = await query(db.from('access_requests').update({ status, reviewed_at: new Date().toISOString(), reviewed_by_user_id: req.profile.id }).eq('id', request.id).select().single());
   await audit(req, decision === 'APPROVE' ? 'APPROVE_ACCESS_REQUEST' : 'DENY_ACCESS_REQUEST', 'ACCESS_REQUEST', request.id, `${decision === 'APPROVE' ? 'Approved' : 'Denied'} ${request.email}`);
   res.json(reviewed);
 } catch (error) { next(error); } });
 
 app.get('/v1/departments', authenticate, async (_, res, next) => { try { res.json(await query(db.from('departments').select('*').order('name'))); } catch (error) { next(error); } });
-app.post('/v1/departments', authenticate, adminOnly, async (req, res, next) => { try { const { name, description } = req.body; if (!name?.trim()) return fail(res, 400, 'Department name is required'); const item = await query(db.from('departments').insert({ name: name.trim(), description: description?.trim() || null }).select().single()); await audit(req, 'CREATE', 'DEPARTMENT', item.id, `Created department ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
-app.patch('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('departments').update(req.body).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'DEPARTMENT', item.id, `Updated department ${item.name}`); res.json(item); } catch (error) { next(error); } });
+app.post('/v1/departments', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Department name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('departments').insert({ name, description }).select().single()); await audit(req, 'CREATE', 'DEPARTMENT', item.id, `Created department ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
+app.patch('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Department name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable department fields supplied'); const item = await query(db.from('departments').update(changes).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'DEPARTMENT', item.id, `Updated department ${item.name}`); res.json(item); } catch (error) { next(error); } });
 app.delete('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('departments').delete().eq('id', req.params.id).select().single()); await audit(req, 'DELETE', 'DEPARTMENT', item.id, `Deleted department ${item.name}`); res.json(item); } catch (error) { next(error); } });
 
 app.get('/v1/projects', authenticate, async (_, res, next) => { try { res.json(await query(db.from('projects').select('*').order('name'))); } catch (error) { next(error); } });
-app.post('/v1/projects', authenticate, adminOnly, async (req, res, next) => { try { const { name, description } = req.body; if (!name?.trim()) return fail(res, 400, 'Project name is required'); const item = await query(db.from('projects').insert({ name: name.trim(), description: description?.trim() || null }).select().single()); await audit(req, 'CREATE', 'PROJECT', item.id, `Created project ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
-app.patch('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('projects').update(req.body).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'PROJECT', item.id, `Updated project ${item.name}`); res.json(item); } catch (error) { next(error); } });
+app.post('/v1/projects', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Project name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('projects').insert({ name, description }).select().single()); await audit(req, 'CREATE', 'PROJECT', item.id, `Created project ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
+app.patch('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Project name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable project fields supplied'); const item = await query(db.from('projects').update(changes).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'PROJECT', item.id, `Updated project ${item.name}`); res.json(item); } catch (error) { next(error); } });
 app.delete('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('projects').delete().eq('id', req.params.id).select().single()); await audit(req, 'DELETE', 'PROJECT', item.id, `Deleted project ${item.name}`); res.json(item); } catch (error) { next(error); } });
 app.get('/v1/user-projects', authenticate, async (req, res, next) => { try { let request = db.from('user_projects').select('*'); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
 app.put('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('user_projects').upsert({ user_id: req.params.id, project_id: req.params.projectId }).select().single()); await audit(req, 'ASSIGN_PROJECT', 'PROFILE', req.params.id, `Assigned project ${req.params.projectId}`); res.json(item); } catch (error) { next(error); } });
@@ -130,7 +164,9 @@ app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) 
   res.json(profile);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/department', authenticate, adminOnly, async (req, res, next) => { try {
-  const profile = await query(db.from('profiles').update({ department_id: req.body.departmentId || null }).eq('id', req.params.id).select().single());
+  const departmentId = optionalUuid(req.body.departmentId);
+  if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
+  const profile = await query(db.from('profiles').update({ department_id: departmentId }).eq('id', req.params.id).select().single());
   await audit(req, 'ASSIGN_DEPARTMENT', 'PROFILE', profile.id, `Updated department for ${profile.email}`);
   res.json(profile);
 } catch (error) { next(error); } });
@@ -157,7 +193,7 @@ app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, nex
 app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try {
   const email = req.body.email?.trim().toLowerCase();
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
-  if (!email) return fail(res, 400, 'Email is required');
+  if (!email || !emailPattern.test(email) || email.length > 254) return fail(res, 400, 'A valid email is required');
   if (!isAllowedCompanyEmail(email)) return fail(res, 400, 'Use an approved company email address.');
   const duplicate = await query(db.from('invitations').select('id').eq('email', email).eq('status', 'PENDING').gt('expires_at', new Date().toISOString()).maybeSingle());
   if (duplicate) {
@@ -168,7 +204,8 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
     await audit(req, 'INVITE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Activated existing Google profile ${email} as ${role}`);
     return res.json(invitation);
   }
-  const departmentId = req.body.departmentId || null;
+  const departmentId = optionalUuid(req.body.departmentId);
+  if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
   let invitation = await query(db.from('invitations').insert({ invited_by_user_id: req.profile.id, email, role, department_id: departmentId }).select().single());
   // A person may have selected Google before the admin invited them. In that
   // case the auth trigger has already made a PENDING profile, so activate that
@@ -185,15 +222,19 @@ app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { tr
 
 app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try { const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email)').order('clock_in_at', { ascending: false }); request = req.query.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null); if (own) request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
 app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
+  const projectId = optionalUuid(req.body.projectId);
+  const note = optionalText(req.body.note, 2000);
+  if (projectId === undefined) return fail(res, 400, 'Invalid project ID');
+  if (note === undefined) return fail(res, 400, 'Clock-in note must be text up to 2000 characters');
   const open = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('clock_out_at', null).maybeSingle());
   if (open) return fail(res, 409, 'You already have an active time entry');
-  const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: req.body.projectId || null, user_note: req.body.note?.trim() || null }).select().single());
+  const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: projectId, user_note: note }).select().single());
   await audit(req, 'CLOCK_IN', 'TIME_ENTRY', entry.id, 'Started a time entry');
   res.status(201).json(entry);
 } catch (error) { next(error); } });
-app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try { if (!req.body.note?.trim()) return fail(res, 400, 'A clock-out note is required'); let request = db.from('time_entries').update({ clock_out_at: new Date().toISOString(), user_note: req.body.note.trim() }).eq('id', req.params.id).is('clock_out_at', null); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); const entry = await query(request.select().single()); await audit(req, 'CLOCK_OUT', 'TIME_ENTRY', entry.id, 'Completed a time entry'); res.json(entry); } catch (error) { next(error); } });
+app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try { const note = requireText(req.body.note, 'A clock-out note', 2000); let request = db.from('time_entries').update({ clock_out_at: new Date().toISOString(), user_note: note }).eq('id', req.params.id).is('clock_out_at', null); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); const entry = await query(request.select().single()); await audit(req, 'CLOCK_OUT', 'TIME_ENTRY', entry.id, 'Completed a time entry'); res.json(entry); } catch (error) { next(error); } });
 
-app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try { if (!req.body.remark?.trim()) return fail(res, 400, 'Remark is required'); const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: req.body.remark.trim() }).select().single()); await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark'); res.status(201).json(remark); } catch (error) { next(error); } });
+app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try { const remarkText = requireText(req.body.remark, 'Remark', 2000); const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: remarkText }).select().single()); await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark'); res.status(201).json(remark); } catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try { const entry = await query(db.from('time_entries').update({ deleted_at: new Date().toISOString(), deleted_by_user_id: req.profile.id }).eq('id', req.params.id).is('deleted_at', null).select().single()); await audit(req, 'DELETE', 'TIME_ENTRY', entry.id, 'Moved time entry to deleted data'); res.json(entry); } catch (error) { next(error); } });
 app.patch('/v1/time-entries/:id/restore', authenticate, adminOnly, async (req, res, next) => { try { const entry = await query(db.from('time_entries').update({ deleted_at: null, deleted_by_user_id: null }).eq('id', req.params.id).not('deleted_at', 'is', null).select().single()); await audit(req, 'RESTORE', 'TIME_ENTRY', entry.id, 'Restored time entry'); res.json(entry); } catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id/permanent', authenticate, adminOnly, async (req, res, next) => { try {
@@ -202,9 +243,27 @@ app.delete('/v1/time-entries/:id/permanent', authenticate, adminOnly, async (req
   res.json(entry);
 } catch (error) { next(error); } });
 
-app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try { const { reportType = 'TEAM_PERFORMANCE', dateFrom, dateTo, filters = {} } = req.body; if (!dateFrom || !dateTo) return fail(res, 400, 'dateFrom and dateTo are required'); let entries = db.from('time_entries').select('id', { count: 'exact', head: true }).gte('clock_in_at', `${dateFrom}T00:00:00Z`).lte('clock_in_at', `${dateTo}T23:59:59Z`); if (filters.projectId) entries = entries.eq('project_id', filters.projectId); if (filters.userId) entries = entries.eq('user_id', filters.userId); const { count, error } = await entries; if (error) throw error; const report = await query(db.from('reports').insert({ created_by_user_id: req.profile.id, report_type: reportType, date_from: dateFrom, date_to: dateTo, filters, total_records: count || 0 }).select().single()); await audit(req, 'GENERATE_REPORT', 'REPORT', report.id, `Generated ${reportType} report`); res.status(201).json(report); } catch (error) { next(error); } });
+app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try {
+  const { reportType = 'TEAM_PERFORMANCE', dateFrom, dateTo, filters = {} } = req.body;
+  const allowedReportTypes = ['DAILY', 'WEEKLY', 'MONTHLY', 'CUSTOM', 'TEAM_PERFORMANCE'];
+  if (!allowedReportTypes.includes(reportType) || !isDate(dateFrom) || !isDate(dateTo) || dateFrom > dateTo) return fail(res, 400, 'A valid report type and date range are required');
+  if (!filters || typeof filters !== 'object' || Array.isArray(filters)) return fail(res, 400, 'Report filters must be an object');
+  const projectId = optionalUuid(filters.projectId);
+  const userId = optionalUuid(filters.userId);
+  const departmentId = optionalUuid(filters.departmentId);
+  if ([projectId, userId, departmentId].includes(undefined)) return fail(res, 400, 'Invalid report filter ID');
+  const safeFilters = { ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(departmentId ? { departmentId } : {}) };
+  let entries = db.from('time_entries').select('id', { count: 'exact', head: true }).gte('clock_in_at', `${dateFrom}T00:00:00Z`).lte('clock_in_at', `${dateTo}T23:59:59Z`);
+  if (projectId) entries = entries.eq('project_id', projectId);
+  if (userId) entries = entries.eq('user_id', userId);
+  const { count, error } = await entries;
+  if (error) throw error;
+  const report = await query(db.from('reports').insert({ created_by_user_id: req.profile.id, report_type: reportType, date_from: dateFrom, date_to: dateTo, filters: safeFilters, total_records: count || 0 }).select().single());
+  await audit(req, 'GENERATE_REPORT', 'REPORT', report.id, `Generated ${reportType} report`);
+  res.status(201).json(report);
+} catch (error) { next(error); } });
 app.get('/v1/reports', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('reports').select('*, profiles!reports_created_by_user_id_fkey(full_name), report_exports(*)').order('generated_at', { ascending: false }))); } catch (error) { next(error); } });
-app.post('/v1/reports/:id/exports', authenticate, adminOnly, async (req, res, next) => { try { const { fileName, fileType = 'PDF', fileUrl = null } = req.body; if (!fileName) return fail(res, 400, 'fileName is required'); const item = await query(db.from('report_exports').insert({ report_id: req.params.id, exported_by_user_id: req.profile.id, file_name: fileName, file_type: fileType, file_url: fileUrl }).select().single()); await audit(req, 'EXPORT_REPORT', 'REPORT', req.params.id, `Exported ${fileType} report`); res.status(201).json(item); } catch (error) { next(error); } });
+app.post('/v1/reports/:id/exports', authenticate, adminOnly, async (req, res, next) => { try { const fileName = requireText(req.body.fileName, 'File name', 255); const fileType = req.body.fileType || 'PDF'; const fileUrl = optionalText(req.body.fileUrl, 2048); if (!['CSV', 'XLSX', 'PDF'].includes(fileType) || fileUrl === undefined) return fail(res, 400, 'Invalid export details'); const item = await query(db.from('report_exports').insert({ report_id: req.params.id, exported_by_user_id: req.profile.id, file_name: fileName, file_type: fileType, file_url: fileUrl }).select().single()); await audit(req, 'EXPORT_REPORT', 'REPORT', req.params.id, `Exported ${fileType} report`); res.status(201).json(item); } catch (error) { next(error); } });
 app.delete('/v1/reports/:id', authenticate, adminOnly, async (req, res, next) => { try {
   const report = await query(db.from('reports').delete().eq('id', req.params.id).select().single());
   await audit(req, 'DELETE_REPORT', 'REPORT', report.id, `Deleted generated ${report.report_type} report`);
@@ -212,5 +271,10 @@ app.delete('/v1/reports/:id', authenticate, adminOnly, async (req, res, next) =>
 } catch (error) { next(error); } });
 app.get('/v1/audit-logs', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('audit_logs').select('*, profiles(full_name,email)').order('created_at', { ascending: false }).limit(250))); } catch (error) { next(error); } });
 
-app.use((error, _, res, __) => { console.error(error); fail(res, error.code === '23505' ? 409 : 500, error.message || 'Unexpected server error'); });
+app.use((error, _, res, __) => {
+  console.error(error);
+  if (error?.status && error.expose) return fail(res, error.status, error.message);
+  if (error?.code === '23505') return fail(res, 409, 'A record with that value already exists');
+  fail(res, 500, 'Unexpected server error');
+});
 app.listen(process.env.PORT || 3000, () => console.log(`ACE API listening on ${process.env.PORT || 3000}`));

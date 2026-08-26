@@ -30,6 +30,7 @@ const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
+const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 
 // Live data is supplied exclusively by the Render API and Supabase.
 async function loadDatabase() {
@@ -108,9 +109,6 @@ async function initApp() {
         localStorage.removeItem('ace_current_user');
         localStorage.removeItem('ace_current_session');
     }
-    try { initializeAppShell(); }
-    catch (error) { console.error('Could not mount the application navigation.', error); }
-
     if (isPublicRoute()) {
         await resumePublicSession();
         initializeNavigation();
@@ -125,8 +123,26 @@ async function initApp() {
         return;
     }
 
-    const loaded = await loadDatabaseWhenServiceIsReady();
+    let loaded;
+    try {
+        loaded = await loadDatabaseWhenServiceIsReady();
+    } catch (error) {
+        // Static files on Vercel can be requested directly, but protected page
+        // content must never be mounted unless the Render API confirms a valid
+        // Supabase session.  A missing, expired, or disallowed session belongs
+        // on the sign-in page instead of briefly exposing a dashboard shell.
+        if (error?.status === 401 || error?.status === 403) {
+            localStorage.removeItem('ace_current_user');
+            localStorage.removeItem('ace_current_session');
+            sessionStorage.removeItem('ace_login_audited');
+            window.location.replace('login.html');
+            return;
+        }
+        throw error;
+    }
     if (loaded) {
+        try { initializeAppShell(); }
+        catch (error) { console.error('Could not mount the application navigation.', error); }
         startPresenceHeartbeat();
         initializeNavigation();
         initializeModals();
@@ -310,7 +326,7 @@ function initializeAppShell() {
     ];
     const groups = isAdmin ? adminGroups : employeeGroups;
     const user = AppState.currentUser || { FullName: isAdmin ? 'ACE Administrator' : 'ACE Employee', Role: isAdmin ? 'ADMIN' : 'USER' };
-    const initials = user.FullName.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
+    const initials = String(user.FullName || '').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
     const links = groups.map(([groupLabel, items]) => `<section class="shell-nav-group" aria-label="${groupLabel}"><p class="shell-nav-label">${groupLabel}</p>${items.map(([href, iconName, label]) => {
         const active = file === href || (file === 'admin-management.html' && new URLSearchParams(location.search).get('view') === href.replace('.html', '').replace('admin-time-entries', 'entries').replace('audit-logs', 'audit'));
         return `<a class="shell-link${active ? ' active' : ''}" href="${href}" title="${label}">${icon(iconName)}<span class="shell-label">${label}</span></a>`;
@@ -325,7 +341,7 @@ function initializeAppShell() {
     }
     const sidebar = document.createElement('aside');
     sidebar.className = 'app-sidebar';
-    sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${initials}</span><span class="shell-user"><strong>${user.FullName}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">Profile &amp; settings</a><button type="button" role="menuitem" data-account-logout>Sign out</button></div></div>`;
+    sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">Profile &amp; settings</a><button type="button" role="menuitem" data-account-logout>Sign out</button></div></div>`;
     const overlay = document.createElement('button');
     overlay.className = 'shell-overlay'; overlay.type = 'button'; overlay.setAttribute('aria-label', 'Close navigation');
     const mobileToggle = document.createElement('button');
@@ -1218,7 +1234,7 @@ function renderGeneratedReport(report, options = {}) {
     const teamStatus = [['Clocked in', clockedIn, 'is-active'], ['Available', available, ''], ['Pending approval', pending, '']];
     const teamTotal = Math.max(clockedIn + available + pending, 1);
     const teamActivityChart = `<div class="print-team-activity"><div class="print-team-ring" style="--team-ratio:${Math.round(clockedIn / Math.max(reportTeam.length, 1) * 100)}"><strong>${clockedIn}</strong><span>clocked in</span></div><div class="print-team-status">${teamStatus.map(([label, count, active]) => `<div><span><i class="${active}"></i>${label}</span><b>${count}</b><em style="width:${Math.round(count / teamTotal * 100)}%"></em></div>`).join('')}</div></div>`;
-    reportElement.innerHTML = `<header class="print-report-header"><div><span>ACE OUTSOURCE SOLUTIONS</span><h1>${report.ReportType || 'CUSTOM'} TIME REPORT</h1><p>${report.DateFrom || 'Beginning'} — ${report.DateTo || 'Today'}</p></div><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></header><section class="print-report-meta"><div><span>Generated by</span><strong>${creator?.FullName || 'ACE Administrator'}</strong></div><div><span>Generated</span><strong>${new Date(report.GeneratedAt).toLocaleString()}</strong></div><div><span>Filters</span><strong>${filterSummary}</strong></div></section><section class="print-report-stats"><div><span>Total tracked</span><strong>${formatDuration(totalSeconds)}</strong></div><div><span>Time entries</span><strong>${entries.length}</strong></div><div><span>Team members</span><strong>${uniqueUsers}</strong></div><div><span>Average entry</span><strong>${completed.length ? formatDuration(Math.round(totalSeconds / completed.length)) : '0h 0m'}</strong></div></section><section class="print-report-charts"><div class="print-chart-panel"><h2>Tracked hours by day</h2><div class="print-daily-chart">${daily.length ? daily.map(([date, seconds]) => `<div class="print-day-column"><span class="print-day-value">${formatDuration(seconds)}</span><div class="print-day-bar" style="height:${Math.max(5, Math.round(seconds / maxDaily * 100))}%"></div><small>${new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></div>`).join('') : '<p class="analytics-empty">No completed entries in this range.</p>'}</div></div><div class="print-chart-panel"><h2>Hours by project</h2><div class="print-project-chart">${projects.length ? projects.map(([name, seconds]) => `<div class="print-project-row"><span>${name}</span><div><i style="width:${Math.max(4, Math.round(seconds / maxProject * 100))}%"></i></div><strong>${formatDuration(seconds)}</strong></div>`).join('') : '<p class="analytics-empty">No project activity in this range.</p>'}</div></div><div class="print-chart-panel print-team-chart"><h2>Team activity</h2>${teamActivityChart}</div></section><section class="print-report-table"><h2>Time entry details</h2><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Duration</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = AppState.projects.find(item => item.ProjectId === entry.ProjectId); return `<tr><td>${user?.FullName || 'Unknown'}</td><td>${project?.ProjectName || 'Unassigned'}</td><td>${new Date(entry.ClockInAt).toLocaleString()}</td><td>${entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="5">No entries match this report.</td></tr>'}</tbody></table></section><footer class="print-report-footer"><span>Internal company report</span><span>Report #${report.ReportId}</span></footer>`;
+    reportElement.innerHTML = `<header class="print-report-header"><div><span>ACE OUTSOURCE SOLUTIONS</span><h1>${escapeHtml(report.ReportType || 'CUSTOM')} TIME REPORT</h1><p>${escapeHtml(report.DateFrom || 'Beginning')} — ${escapeHtml(report.DateTo || 'Today')}</p></div><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></header><section class="print-report-meta"><div><span>Generated by</span><strong>${escapeHtml(creator?.FullName || 'ACE Administrator')}</strong></div><div><span>Generated</span><strong>${new Date(report.GeneratedAt).toLocaleString()}</strong></div><div><span>Filters</span><strong>${escapeHtml(filterSummary)}</strong></div></section><section class="print-report-stats"><div><span>Total tracked</span><strong>${formatDuration(totalSeconds)}</strong></div><div><span>Time entries</span><strong>${entries.length}</strong></div><div><span>Team members</span><strong>${uniqueUsers}</strong></div><div><span>Average entry</span><strong>${completed.length ? formatDuration(Math.round(totalSeconds / completed.length)) : '0h 0m'}</strong></div></section><section class="print-report-charts"><div class="print-chart-panel"><h2>Tracked hours by day</h2><div class="print-daily-chart">${daily.length ? daily.map(([date, seconds]) => `<div class="print-day-column"><span class="print-day-value">${formatDuration(seconds)}</span><div class="print-day-bar" style="height:${Math.max(5, Math.round(seconds / maxDaily * 100))}%"></div><small>${new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></div>`).join('') : '<p class="analytics-empty">No completed entries in this range.</p>'}</div></div><div class="print-chart-panel"><h2>Hours by project</h2><div class="print-project-chart">${projects.length ? projects.map(([name, seconds]) => `<div class="print-project-row"><span>${escapeHtml(name)}</span><div><i style="width:${Math.max(4, Math.round(seconds / maxProject * 100))}%"></i></div><strong>${formatDuration(seconds)}</strong></div>`).join('') : '<p class="analytics-empty">No project activity in this range.</p>'}</div></div><div class="print-chart-panel print-team-chart"><h2>Team activity</h2>${teamActivityChart}</div></section><section class="print-report-table"><h2>Time entry details</h2><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Duration</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = AppState.projects.find(item => item.ProjectId === entry.ProjectId); return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project?.ProjectName || 'Unassigned')}</td><td>${new Date(entry.ClockInAt).toLocaleString()}</td><td>${entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="5">No entries match this report.</td></tr>'}</tbody></table></section><footer class="print-report-footer"><span>Internal company report</span><span>Report #${escapeHtml(report.ReportId)}</span></footer>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 
@@ -1460,9 +1476,9 @@ function loadUserDashboard() {
         const projects = userProjects.map(up => AppState.projects.find(p => p.ProjectId === up.ProjectId)).filter(Boolean);
         
         myProjects.innerHTML = projects.length ? projects.map(project => `
-            <button class="project-card project-card-action" type="button" data-project-id="${project.ProjectId}" aria-label="View ${project.ProjectName} details">
-                <h3>${project.ProjectName}</h3>
-                <p>${project.Description || 'No description'}</p>
+            <button class="project-card project-card-action" type="button" data-project-id="${project.ProjectId}" aria-label="View ${escapeHtml(project.ProjectName)} details">
+                <h3>${escapeHtml(project.ProjectName)}</h3>
+                <p>${escapeHtml(project.Description || 'No description')}</p>
             </button>
         `).join('') : emptyState('No projects assigned', 'Project assignment is optional. Your administrator can add you to a project when needed.');
         myProjects.querySelectorAll('.project-card-action').forEach(card => {
@@ -1507,8 +1523,8 @@ function loadUserDashboard() {
             const admin = AppState.users.find(u => u.UserId === remark.AdminUserId);
             return `
                 <div class="remark-item">
-                    <strong>${admin?.FullName || 'Admin'}</strong>
-                    <p>${remark.Remark}</p>
+                    <strong>${escapeHtml(admin?.FullName || 'Admin')}</strong>
+                    <p>${escapeHtml(remark.Remark)}</p>
                     <small>${new Date(remark.CreatedAt).toLocaleString()}</small>
                 </div>
             `;
@@ -1753,7 +1769,7 @@ function renderAdminAnalytics(days = 7) {
     });
     const projects = [...projectTotals.entries()].sort((a, b) => b[1] - a[1]);
     const largestProject = Math.max(...projects.map(([, seconds]) => seconds), 1);
-    projectChart.innerHTML = projects.length ? projects.map(([name, seconds]) => `<div class="allocation-row"><span class="allocation-name" title="${name}">${name}</span><div class="allocation-track" aria-hidden="true"><div class="allocation-fill" style="width:${Math.max(4, Math.round(seconds / largestProject * 100))}%"></div></div><span class="allocation-hours">${formatDuration(seconds)}</span></div>`).join('') : '<div class="analytics-empty">No tracked project hours in this period.</div>';
+    projectChart.innerHTML = projects.length ? projects.map(([name, seconds]) => `<div class="allocation-row"><span class="allocation-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span><div class="allocation-track" aria-hidden="true"><div class="allocation-fill" style="width:${Math.max(4, Math.round(seconds / largestProject * 100))}%"></div></div><span class="allocation-hours">${formatDuration(seconds)}</span></div>`).join('') : '<div class="analytics-empty">No tracked project hours in this period.</div>';
 
     const activeTeam = AppState.users.filter(user => user.Role === 'USER' && user.Status === 'ACTIVE' && (!selectedDepartmentId || Number(user.DepartmentId) === selectedDepartmentId) && (!selectedEmployeeId || Number(user.UserId) === selectedEmployeeId));
     const clockedInIds = new Set(AppState.timeEntries.filter(entry => !entry.ClockOutAt).map(entry => entry.UserId));
@@ -1823,8 +1839,8 @@ function loadAdminDashboard() {
             
             return `
                 <tr>
-                    <td>${user?.FullName || 'Unknown'}</td>
-                    <td>${project?.ProjectName || 'None'}</td>
+                    <td>${escapeHtml(user?.FullName || 'Unknown')}</td>
+                    <td>${escapeHtml(project?.ProjectName || 'None')}</td>
                     <td>${clockIn.toLocaleTimeString()}</td>
                     <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
                     <td>${duration}</td>
@@ -1845,9 +1861,9 @@ function loadAdminDashboard() {
         pendingUsers.innerHTML = pending.length ? pending.map(user => {
             return `
                 <tr>
-                    <td>${user.FullName}</td>
-                    <td>${user.Email}</td>
-                    <td>${AppState.departments.find(d => d.DepartmentId === user.DepartmentId)?.DepartmentName || 'None'}</td>
+                    <td>${escapeHtml(user.FullName)}</td>
+                    <td>${escapeHtml(user.Email)}</td>
+                    <td>${escapeHtml(AppState.departments.find(d => d.DepartmentId === user.DepartmentId)?.DepartmentName || 'None')}</td>
                     <td>${new Date(user.CreatedAt).toLocaleDateString()}</td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="approveUser(${user.UserId})">Approve</button>
@@ -1864,7 +1880,7 @@ function loadTimeEntries() {
     if (filterProject) {
         const assignedIds = new Set(AppState.userProjects.filter(item => item.UserId === AppState.currentUser?.UserId && item.IsActive).map(item => item.ProjectId));
         const assignedProjects = AppState.projects.filter(project => assignedIds.has(project.ProjectId) && project.IsActive !== false);
-        filterProject.innerHTML = '<option value="">All projects</option>' + assignedProjects.map(project => `<option value="${project.ProjectId}">${project.ProjectName}</option>`).join('');
+        filterProject.innerHTML = '<option value="">All projects</option>' + assignedProjects.map(project => `<option value="${project.ProjectId}">${escapeHtml(project.ProjectName)}</option>`).join('');
     }
     const timeEntriesList = document.getElementById('timeEntriesList');
     if (timeEntriesList) {
@@ -1892,8 +1908,8 @@ function loadTimeEntries() {
                     <td>${clockIn.toLocaleTimeString()}</td>
                     <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
                     <td>${duration}</td>
-                    <td>${project?.ProjectName || 'None'}</td>
-                    <td>${entry.UserNote || 'No note'}</td>
+                    <td>${escapeHtml(project?.ProjectName || 'None')}</td>
+                    <td>${escapeHtml(entry.UserNote || 'No note')}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
                     <td>${remarks.length > 0 ? `${remarks.length} remark(s)` : 'None'}</td>
                     <td>
@@ -1915,7 +1931,7 @@ function loadReportsList() {
                     <td>${report.ReportId}</td>
                     <td>${report.ReportType}</td>
                     <td>${report.DateFrom} to ${report.DateTo}</td>
-                    <td>${user?.FullName || 'Unknown'}</td>
+                    <td>${escapeHtml(user?.FullName || 'Unknown')}</td>
                     <td>${new Date(report.GeneratedAt).toLocaleString()}</td>
                     <td>${report.TotalRecords}</td>
                     <td>
@@ -1956,7 +1972,7 @@ function populateDepartmentSelect(selectId) {
     if (select) {
         const placeholder = selectId.startsWith('filter') ? 'All departments' : 'Select department';
         select.innerHTML = `<option value="">${placeholder}</option>` +
-            AppState.departments.map(d => `<option value="${d.DepartmentId}">${d.DepartmentName}</option>`).join('');
+            AppState.departments.map(d => `<option value="${d.DepartmentId}">${escapeHtml(d.DepartmentName)}</option>`).join('');
     }
 }
 
@@ -1969,7 +1985,7 @@ function populateProjectSelect(selectId) {
             projects = projects.filter(project => assignedIds.has(project.ProjectId));
         }
         const placeholder = selectId.startsWith('filter') ? 'All projects' : 'No project';
-        select.innerHTML = `<option value="">${placeholder}</option>` + projects.map(p => `<option value="${p.ProjectId}">${p.ProjectName}</option>`).join('');
+        select.innerHTML = `<option value="">${placeholder}</option>` + projects.map(p => `<option value="${p.ProjectId}">${escapeHtml(p.ProjectName)}</option>`).join('');
     }
 }
 
@@ -1977,7 +1993,7 @@ function populateUserSelect(selectId) {
     const select = document.getElementById(selectId);
     if (select) {
         select.innerHTML = '<option value="">All Users</option>' + 
-            AppState.users.map(u => `<option value="${u.UserId}">${u.FullName}</option>`).join('');
+            AppState.users.map(u => `<option value="${u.UserId}">${escapeHtml(u.FullName)}</option>`).join('');
     }
 }
 
@@ -2040,12 +2056,12 @@ function viewTimeEntry(entryId) {
             
             entryDetails.innerHTML = `
                 <div class="entry-info">
-                    <p><strong>User:</strong> ${user?.FullName || 'Unknown'}</p>
-                    <p><strong>Project:</strong> ${project?.ProjectName || 'None'}</p>
+                    <p><strong>User:</strong> ${escapeHtml(user?.FullName || 'Unknown')}</p>
+                    <p><strong>Project:</strong> ${escapeHtml(project?.ProjectName || 'None')}</p>
                     <p><strong>Clock In:</strong> ${new Date(entry.ClockInAt).toLocaleString()}</p>
                     <p><strong>Clock Out:</strong> ${entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active'}</p>
                     <p><strong>Duration:</strong> ${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</p>
-                    <p><strong>Note:</strong> ${entry.UserNote || 'No note'}</p>
+                    <p><strong>Note:</strong> ${escapeHtml(entry.UserNote || 'No note')}</p>
                 </div>
             `;
         }
@@ -2057,8 +2073,8 @@ function viewTimeEntry(entryId) {
                 const admin = AppState.users.find(u => u.UserId === remark.AdminUserId);
                 return `
                     <div class="remark-item">
-                        <strong>${admin?.FullName || 'Admin'}</strong>
-                        <p>${remark.Remark}</p>
+                        <strong>${escapeHtml(admin?.FullName || 'Admin')}</strong>
+                        <p>${escapeHtml(remark.Remark)}</p>
                         <small>${new Date(remark.CreatedAt).toLocaleString()}</small>
                     </div>
                 `;
@@ -2153,7 +2169,7 @@ function showToast(message, type = 'info') {
     toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
     toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
     toast.innerHTML = `
-        <div class="toast-message"><strong>${labels[type] || labels.info}</strong><span>${message}</span></div>
+        <div class="toast-message"><strong>${labels[type] || labels.info}</strong><span>${escapeHtml(message)}</span></div>
         <button class="toast-close" type="button" aria-label="Dismiss notification">${suppliedIconMarkup('x')}</button>
     `;
 
@@ -2177,11 +2193,11 @@ function viewProject(projectId) {
     const entries = AppState.timeEntries.filter(item => item.UserId === AppState.currentUser?.UserId && item.ProjectId === projectId);
     const seconds = entries.reduce((total, entry) => total + Number(entry.DurationSeconds || 0), 0);
     content.innerHTML = `
-        <p><strong>Project</strong>${project.ProjectName}</p>
+        <p><strong>Project</strong>${escapeHtml(project.ProjectName)}</p>
         <p><strong>Status</strong>${project.IsActive ? 'Active' : 'Inactive'}</p>
         <p><strong>Assigned</strong>${assignment ? new Date(assignment.AssignedAt).toLocaleDateString() : 'Not assigned'}</p>
         <p><strong>Tracked time</strong>${formatDuration(seconds)}</p>
-        <p class="detail-wide"><strong>Description</strong>${project.Description || 'No description provided.'}</p>`;
+        <p class="detail-wide"><strong>Description</strong>${escapeHtml(project.Description || 'No description provided.')}</p>`;
     openModal('projectDetailsModal');
 }
 
