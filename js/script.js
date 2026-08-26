@@ -851,13 +851,17 @@ async function handleLogin(e) {
     } catch (error) { hideSpinner(); showToast(error.message || 'Unable to sign in', 'error'); }
 }
 
-function handleGoogleLogin() {
+async function handleGoogleLogin() {
     showSpinner();
-    
-    setTimeout(() => {
+    try {
+        if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
+        const auth = await window.ACEAuth.client();
+        const { error } = await auth.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/login` } });
+        if (error) throw error;
+    } catch (error) {
         hideSpinner();
-        showToast('Google login will be available with backend integration', 'info');
-    }, 1000);
+        showToast(error.message || 'Unable to start Google sign-in', 'error');
+    }
 }
 
 function handleLogout() {
