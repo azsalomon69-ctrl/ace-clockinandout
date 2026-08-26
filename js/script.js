@@ -127,9 +127,20 @@ async function resumePublicSession() {
     AppState.isAuthenticated = true;
     localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
     if (AppState.currentUser.Status === 'ACTIVE') {
+        await recordLoginOnce();
         window.location.replace(AppState.currentUser.Role === 'ADMIN' ? 'admin-dashboard.html' : 'user-dashboard.html');
     } else {
         document.body.dataset.openAccessRequest = 'true';
+    }
+}
+
+async function recordLoginOnce() {
+    if (sessionStorage.getItem('ace_login_audited') === 'true' || !window.ACEAuth) return;
+    try {
+        await window.ACEAuth.request('/v1/auth/session-start', { method: 'POST' });
+        sessionStorage.setItem('ace_login_audited', 'true');
+    } catch (error) {
+        console.warn('Could not record login audit event.', error);
     }
 }
 
@@ -824,6 +835,7 @@ async function handleLogin(e) {
         AppState.currentUser = user;
         AppState.isAuthenticated = true;
         localStorage.setItem('ace_current_user', JSON.stringify(user));
+        await recordLoginOnce();
         hideSpinner();
         showToast('Login successful', 'success');
         window.location.href = user.Role === 'ADMIN' ? 'admin-dashboard.html' : 'user-dashboard.html';
@@ -866,6 +878,7 @@ async function performLogout() {
     closeModal('logoutConfirmModal');
     try {
         if (window.ACEAuth) {
+            await window.ACEAuth.request('/v1/auth/session-end', { method: 'POST' }).catch(() => {});
             const auth = await window.ACEAuth.client();
             const { error } = await auth.auth.signOut();
             if (error) throw error;
@@ -880,6 +893,7 @@ async function performLogout() {
     
     localStorage.removeItem('ace_current_user');
     localStorage.removeItem('ace_current_session');
+    sessionStorage.removeItem('ace_login_audited');
     
     showToast('Logged out successfully', 'success');
     

@@ -43,7 +43,15 @@ async function audit(req, action, entityType, entityId, description) {
 
 app.get('/health', (_, res) => res.json({ ok: true, service: 'ace-clock-api' }));
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
-app.get('/v1/me', authenticate, async (req, res, next) => { try { await audit(req, 'LOGIN', 'PROFILE', req.profile.id, 'Session validated'); res.json({ profile: req.profile }); } catch (error) { next(error); } });
+app.get('/v1/me', authenticate, (req, res) => res.json({ profile: req.profile }));
+app.post('/v1/auth/session-start', authenticate, async (req, res, next) => { try {
+  await audit(req, 'LOGIN', 'PROFILE', req.profile.id, 'Signed in successfully');
+  res.status(204).end();
+} catch (error) { next(error); } });
+app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
+  await audit(req, 'LOGOUT', 'PROFILE', req.profile.id, 'Signed out successfully');
+  res.status(204).end();
+} catch (error) { next(error); } });
 app.post('/v1/access-requests', authenticate, async (req, res, next) => { try {
   const email = req.profile.email.trim().toLowerCase();
   if (!isAllowedCompanyEmail(email)) return fail(res, 403, 'Use an approved company email address to request access.');
@@ -120,6 +128,13 @@ app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next
   }
   const profile = await query(db.from('profiles').update({ status: 'DENIED' }).eq('id', target.id).select().single());
   await audit(req, 'REMOVE_USER', 'PROFILE', profile.id, `Removed user ${profile.email}`);
+  res.json(profile);
+} catch (error) { next(error); } });
+app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, next) => { try {
+  const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
+  if (target.status !== 'DENIED') return fail(res, 409, 'Only removed users can be restored.');
+  const profile = await query(db.from('profiles').update({ status: 'ACTIVE' }).eq('id', target.id).select().single());
+  await audit(req, 'RESTORE_USER', 'PROFILE', profile.id, `Restored user ${profile.email}`);
   res.json(profile);
 } catch (error) { next(error); } });
 
