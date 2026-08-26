@@ -1,52 +1,21 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administration · ACE Outsource Solutions</title>
-    <link rel="stylesheet" href="css/app.css?v=single-css-js-1">
   <script>
-    const legacyView = new URLSearchParams(location.search).get('view') || 'users';
-    const legacyRoutes = { users: 'users.html', invitations: 'invitations.html', departments: 'departments.html', projects: 'projects.html', entries: 'admin-time-entries.html', audit: 'audit-logs.html' };
-    location.replace(legacyRoutes[legacyView] || 'users.html');
+    const view = new URLSearchParams(location.search).get('view') || 'users';
+    const routes = {
+      users: 'users.html',
+      invitations: 'invitations.html',
+      departments: 'departments.html',
+      projects: 'projects.html',
+      entries: 'admin-time-entries.html',
+      audit: 'audit-logs.html'
+    };
+    location.replace(routes[view] || routes.users);
   </script>
 </head>
-<body>
-  <nav class="navbar"><div class="nav-container"><a class="nav-brand" href="admin-dashboard.html" aria-label="ACE Outsource Solutions"><span class="nav-title">ACE Outsource Solutions</span></a><div class="nav-links"><a class="nav-link" href="admin-dashboard.html">Overview</a><a class="nav-link active" href="admin-management.html?view=users">Administration</a><a class="nav-link" href="reports.html">Reports</a><button class="btn btn-outline btn-sm" id="logoutBtn">Log out</button></div></div></nav>
-  <main class="main-content admin-dashboard"><div class="dashboard-container">
-    <aside class="sidebar"><div class="sidebar-menu">
-      <a class="sidebar-link" href="admin-dashboard.html">⌂ <span>Overview</span></a>
-      <a class="sidebar-link" href="admin-management.html?view=users">◉ <span>Users</span></a>
-      <a class="sidebar-link" href="admin-management.html?view=invitations">✉ <span>Invitations</span></a>
-      <a class="sidebar-link" href="admin-management.html?view=departments">▦ <span>Departments</span></a>
-      <a class="sidebar-link" href="admin-management.html?view=projects">▱ <span>Projects</span></a>
-      <a class="sidebar-link" href="admin-management.html?view=entries">◷ <span>Time entries</span></a>
-      <a class="sidebar-link" href="reports.html">▥ <span>Reports</span></a>
-      <a class="sidebar-link" href="admin-management.html?view=audit">◌ <span>Audit log</span></a>
-    </div></aside>
-    <section class="dashboard-content management-page">
-      <div class="dashboard-header"><div><p class="eyebrow">ADMINISTRATION</p><h1 class="dashboard-title" id="pageTitle">User management</h1><p id="pageDescription">Review access and keep your team directory current.</p></div><button class="btn btn-primary" id="actionButton">Add user</button></div>
-      <div class="stats-grid" id="managementStats"></div>
-      <div class="table-container"><div class="table-header"><h2 id="tableTitle">People</h2><input class="form-input table-search" placeholder="Search this view" aria-label="Search"></div><div class="table-responsive"><table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table></div></div>
-    </section>
-  </div></main>
-  <div id="toastContainer" class="toast-container"></div><div id="loadingSpinner" class="spinner-overlay" style="display: none;"><div class="spinner"></div></div>
-  <script src="js/api-config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-auth.js"></script>
-    <script src="js/sidebar.js?v=admin-role-fix-1"></script>
-    <script src="js/script.js?v=logout-fix-1"></script><script>
-    const data={
-      users:{title:'User management',description:'Approve access, assign roles, and maintain employee records.',action:'Invite user',stats:[['7','Team members'],['5','Active users'],['1','Pending review']],head:['Name','Role','Department','Status','Action'],rows:[['ACE Administrator','Admin','—','Active','Manage'],['ACE Employee','Employee','—','Active','Manage'],['John Doe','Employee','Engineering','Active','Manage'],['Bob Wilson','Employee','—','Pending','Review']]},
-      invitations:{title:'Invitations',description:'Invite a new team member and track their response.',action:'Send invitation',stats:[['3','Pending'],['12','Accepted'],['1','Expires today']],head:['Email','Invited by','Sent','Status','Action'],rows:[['maria@ace.com','ACE Administrator','Today','Pending','Resend'],['ben@ace.com','ACE Administrator','Aug 22','Pending','Cancel'],['sam@ace.com','ACE Administrator','Aug 19','Accepted','View']]},
-      departments:{title:'Departments',description:'Organize employees by department. Department assignment is optional.',action:'Add department',stats:[['4','Active departments'],['5','Assigned employees'],['2','Unassigned']],head:['Department','Description','Members','Status','Action'],rows:[['Engineering','Product and platform delivery','2','Active','Edit'],['Human Resources','People operations','1','Active','Edit'],['Operations','Client support and delivery','2','Active','Edit']]},
-      projects:{title:'Projects',description:'Manage projects available for optional time-entry assignment.',action:'Add project',stats:[['5','Active projects'],['6','Employee assignments'],['1','Unassigned employee']],head:['Project','Description','Assigned people','Status','Action'],rows:[['ACE Platform','Core time tracking platform','3','Active','Edit'],['Client Success','Client support workflow','2','Active','Edit'],['Internal Operations','Internal business work','1','Active','Edit']]},
-      entries:{title:'All time entries',description:'Review clocking activity and add internal admin remarks when needed.',action:'Export entries',stats:[['42h 30m','Logged this week'],['5','Clocked in today'],['3','Open entries']],head:['Employee','Project','Clock in','Clock out','Action'],rows:[['ACE Employee','—','Aug 24, 8:04 AM','—','Add remark'],['John Doe','ACE Platform','Aug 23, 8:31 AM','Aug 23, 5:12 PM','View'],['Alice Brown','Client Success','Aug 23, 8:12 AM','Aug 23, 5:03 PM','View']]},
-      audit:{title:'Audit log',description:'A read-only history of important actions in the system.',action:'Export audit log',stats:[['86','Events this week'],['14','Sign-ins'],['3','Reports exported']],head:['When','Actor','Action','Details','Record'],rows:[['Aug 24, 8:04 AM','ACE Employee','CLOCK_IN','Started a new time entry','#104'],['Aug 24, 8:01 AM','ACE Administrator','LOGIN','Signed in','#6'],['Aug 23, 5:12 PM','John Doe','CLOCK_OUT','Completed time entry','#103']]}
-    };
-    const view=new URLSearchParams(location.search).get('view')||'users',v=data[view]||data.users;
-    document.title=v.title+' · ACE Outsource Solutions';pageTitle.textContent=v.title;pageDescription.textContent=v.description;actionButton.textContent=v.action;tableTitle.textContent=v.title;
-    managementStats.innerHTML=v.stats.map(x=>`<div class="stat-card"><div class="stat-info"><div class="stat-number">${x[0]}</div><div class="stat-label">${x[1]}</div></div></div>`).join('');
-    tableHead.innerHTML='<tr>'+v.head.map(x=>`<th>${x}</th>`).join('')+'</tr>';tableBody.innerHTML=v.rows.map(r=>'<tr>'+r.map((x,i)=>`<td>${i===3?'<span class="status-badge status-active">'+x+'</span>':x}</td>`).join('')+'</tr>').join('');
-    document.querySelectorAll('.sidebar-link').forEach(a=>{if(a.href===location.href)a.classList.add('active')});actionButton.onclick=()=>showToast(v.action+' is ready for the Node.js and MongoDB phase.','info');
-  </script>
-</body></html>
+<body></body>
+</html>

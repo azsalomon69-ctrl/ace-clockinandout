@@ -656,59 +656,9 @@ function initializeHomePreview() {
     const button = document.getElementById('homePreviewClockButton');
     if (!button || button.dataset.bound) return;
     button.dataset.bound = 'true';
-
     button.addEventListener('click', () => {
-        const actionCount = Number(button.dataset.actionCount || 0);
-        if (actionCount >= 4 || button.dataset.clickLocked === 'true') {
-            openHomeSpamWarning();
-            return;
-        }
-        button.dataset.clickLocked = 'true';
-        button.dataset.actionCount = String(actionCount + 1);
-        window.setTimeout(() => { button.dataset.clickLocked = 'false'; }, 900);
-        const isClockedIn = button.getAttribute('aria-pressed') === 'true';
-        const label = button.querySelector('span');
-        const icon = button.querySelector('img');
-        button.setAttribute('aria-pressed', String(!isClockedIn));
-        button.classList.toggle('is-clocked-in', !isClockedIn);
-        if (label) label.textContent = isClockedIn ? 'Clock in for today' : 'Clock out for today';
-        if (icon) icon.src = `assets/icons/${isClockedIn ? 'timer' : 'log-out'}.svg`;
-        burstHomePreviewConfetti(button);
-        showToast(isClockedIn ? 'Preview session clocked out.' : 'Preview session clocked in.', 'success');
+        window.location.assign('login');
     });
-}
-
-function openHomeSpamWarning() {
-    let modal = document.getElementById('homeSpamWarningModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'homeSpamWarningModal';
-        modal.className = 'modal';
-        modal.setAttribute('role', 'dialog');
-        modal.setAttribute('aria-modal', 'true');
-        modal.setAttribute('aria-labelledby', 'homeSpamWarningTitle');
-        modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="homeSpamWarningTitle">Hey, stop spamming!</h3><button class="modal-close" type="button" aria-label="Close">${suppliedIconMarkup('x')}</button></div><div class="modal-body"><p class="modal-description">Don’t play with that too much, okay?</p></div></div>`;
-        document.body.appendChild(modal);
-        modal.querySelector('.modal-close').addEventListener('click', () => closeModal('homeSpamWarningModal'));
-    }
-    if (!modal.classList.contains('active')) openModal('homeSpamWarningModal');
-}
-
-function burstHomePreviewConfetti(target) {
-    const burst = document.createElement('span');
-    burst.className = 'preview-confetti';
-    burst.setAttribute('aria-hidden', 'true');
-    const colors = ['#08a2c2', '#1769d6', '#62e4c7', '#ffffff', '#f7c948'];
-    for (let index = 0; index < 18; index += 1) {
-        const piece = document.createElement('i');
-        piece.style.setProperty('--confetti-x', `${Math.round((Math.random() - .5) * 180)}px`);
-        piece.style.setProperty('--confetti-y', `${Math.round(-30 - Math.random() * 110)}px`);
-        piece.style.setProperty('--confetti-rotate', `${Math.round(Math.random() * 360)}deg`);
-        piece.style.backgroundColor = colors[index % colors.length];
-        burst.appendChild(piece);
-    }
-    target.appendChild(burst);
-    window.setTimeout(() => burst.remove(), 780);
 }
 
 function closeModal(modalId) {
@@ -728,19 +678,6 @@ function initializeForms() {
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     }
-
-    document.querySelectorAll('.demo-account').forEach(button => {
-        button.addEventListener('click', () => {
-            const emailInput = document.getElementById('email');
-            const passwordInput = document.getElementById('password');
-            if (!emailInput || !passwordInput) return;
-            emailInput.value = button.dataset.demoEmail || '';
-            passwordInput.value = button.dataset.demoPassword || '';
-            document.querySelectorAll('.demo-account').forEach(item => item.classList.toggle('selected', item === button));
-            emailInput.focus();
-            showToast(`${button.querySelector('strong')?.textContent || 'Demo'} account ready to sign in.`, 'info');
-        });
-    });
 
     // Google login
     const googleLoginBtn = document.getElementById('googleLoginBtn');
