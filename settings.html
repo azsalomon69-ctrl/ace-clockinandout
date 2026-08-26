@@ -59,16 +59,6 @@
                         <label for="fullName" class="form-label">Full Name</label>
                         <input type="text" id="fullName" class="form-input" value="" required>
                     </div>
-                    <div class="form-group">
-                        <label for="email" class="form-label">Email Address</label>
-                        <input type="email" id="email" class="form-input" value="" disabled>
-                        <small class="form-help">Email cannot be changed</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="department" class="form-label">Department</label>
-                        <input type="text" id="department" class="form-input" value="" disabled>
-                        <small class="form-help">Department is managed by administrator</small>
-                    </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                         <button type="button" class="btn btn-secondary" id="cancelProfileBtn">Cancel</button>
@@ -142,8 +132,9 @@
                 <form id="securityForm" class="settings-form">
                     <div class="security-section">
                         <h3 class="security-title">Password</h3>
+                        <p class="security-description">Set a password for email sign-in, or change your existing password. If you use Google only, leave Current Password empty when creating your first password.</p>
                         <div class="form-group">
-                            <label for="currentPassword" class="form-label">Current Password</label>
+                            <label for="currentPassword" class="form-label">Current Password <span aria-hidden="true">(optional for first password)</span></label>
                             <div class="input-group">
                                 <input type="password" id="currentPassword" class="form-input" placeholder="Enter current password">
                                 <button type="button" class="password-toggle">
@@ -177,20 +168,6 @@
                                     </svg>
                                 </button>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="security-section">
-                        <h3 class="security-title">Two-Factor Authentication</h3>
-                        <div class="security-option">
-                            <div class="security-info">
-                                <h3 class="security-option-title">Enable 2FA</h3>
-                                <p class="security-description">Add an extra layer of security to your account</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="enable2FA" aria-label="Enable two-factor authentication">
-                                <span class="toggle-slider"></span>
-                            </label>
                         </div>
                     </div>
 
@@ -287,6 +264,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-auth.js"></script>
     <script src="js/sidebar.js?v=admin-role-fix-1"></script>
-    <script src="js/script.js?v=scheduled-clock-1"></script>
+    <script src="js/script.js?v=settings-password-1"></script>
 </body>
 </html>
