@@ -113,8 +113,24 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
   if (!email) return fail(res, 400, 'Email is required');
   if (!isAllowedCompanyEmail(email)) return fail(res, 400, 'Use an approved company email address.');
   const duplicate = await query(db.from('invitations').select('id').eq('email', email).eq('status', 'PENDING').gt('expires_at', new Date().toISOString()).maybeSingle());
-  if (duplicate) return fail(res, 409, 'This email already has an active invitation.');
-  const invitation = await query(db.from('invitations').insert({ invited_by_user_id: req.profile.id, email, role, department_id: req.body.departmentId || null }).select().single());
+  if (duplicate) {
+    const existingProfile = await query(db.from('profiles').select('id').eq('email', email).maybeSingle());
+    if (!existingProfile) return fail(res, 409, 'This email already has an active invitation.');
+    await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: req.body.departmentId || null }).eq('id', existingProfile.id).select().single());
+    const invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', duplicate.id).select().single());
+    await audit(req, 'INVITE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Activated existing Google profile ${email} as ${role}`);
+    return res.json(invitation);
+  }
+  const departmentId = req.body.departmentId || null;
+  let invitation = await query(db.from('invitations').insert({ invited_by_user_id: req.profile.id, email, role, department_id: departmentId }).select().single());
+  // A person may have selected Google before the admin invited them. In that
+  // case the auth trigger has already made a PENDING profile, so activate that
+  // exact existing profile instead of waiting for a second account creation.
+  const existingProfile = await query(db.from('profiles').select('id').eq('email', email).maybeSingle());
+  if (existingProfile) {
+    await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: departmentId }).eq('id', existingProfile.id).select().single());
+    invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', invitation.id).select().single());
+  }
   await audit(req, 'INVITE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Pre-authorized ${email} as ${role}`);
   res.status(201).json(invitation);
 } catch (error) { next(error); } });
