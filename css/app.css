@@ -1389,7 +1389,6 @@ a:hover {
 }
 
 /* ACE visual refresh */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap');
 h1, h2, h3, h4, h5, h6, .nav-title, .btn { font-family: 'Montserrat', Arial, sans-serif; }
 body { color: #16394d; background: #f5fafc; }
 .navbar { border-bottom: 1px solid #d9edf2; box-shadow: 0 2px 14px rgba(8, 79, 103, .07); }
