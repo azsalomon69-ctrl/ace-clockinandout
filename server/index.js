@@ -259,7 +259,6 @@ app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, 
 app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try {
   const email = req.body.email?.trim().toLowerCase();
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
-  assertInvitationEmailConfigured();
   if (!email || !emailPattern.test(email) || email.length > 254) return fail(res, 400, 'A valid email is required');
   if (!isAllowedCompanyEmail(email)) return fail(res, 400, 'Use an approved company email address.');
   const duplicate = await query(db.from('invitations').select('id').eq('email', email).eq('status', 'PENDING').gt('expires_at', new Date().toISOString()).maybeSingle());
@@ -268,9 +267,8 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
     if (!existingProfile) return fail(res, 409, 'This email already has an active invitation.');
     await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: req.body.departmentId || null }).eq('id', existingProfile.id).select().single());
     const invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', duplicate.id).select().single());
-    await sendInvitationEmail({ email, role });
-    await audit(req, 'INVITE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Activated existing Google profile ${email} as ${role} and sent an access email`);
-    return res.json({ ...invitation, email_sent: true });
+    await audit(req, 'PREAUTHORIZE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Activated existing Google profile ${email} as ${role}`);
+    return res.json({ ...invitation, email_sent: false });
   }
   const departmentId = optionalUuid(req.body.departmentId);
   if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
@@ -283,14 +281,8 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
     await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: departmentId }).eq('id', existingProfile.id).select().single());
     invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', invitation.id).select().single());
   }
-  try {
-    await sendInvitationEmail({ email, role });
-  } catch (error) {
-    if (!existingProfile) await query(db.from('invitations').delete().eq('id', invitation.id));
-    throw error;
-  }
-  await audit(req, 'INVITE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Pre-authorized ${email} as ${role} and sent an access email`);
-  res.status(201).json({ ...invitation, email_sent: true });
+  await audit(req, 'PREAUTHORIZE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Pre-authorized ${email} as ${role}`);
+  res.status(201).json({ ...invitation, email_sent: false });
 } catch (error) { next(error); } });
 app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)').order('invited_at', { ascending: false }))); } catch (error) { next(error); } });
 

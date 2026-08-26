@@ -59,8 +59,6 @@ Do not commit `.env` or Supabase secret keys.
    - `SUPABASE_SECRET_KEY`
    - `SUPABASE_PUBLISHABLE_KEY`
    - `FRONTEND_ORIGIN` — your Vercel URL, for example `https://ace-clock.vercel.app`
-   - `INVITE_REDIRECT_URL` — your frontend login URL
-   - `RESEND_API_KEY` and `RESEND_FROM_EMAIL` — required to send branded invitation emails. The sender address must use a domain verified in Resend.
 3. Deploy, then confirm `https://YOUR-RENDER-SERVICE.onrender.com/health` returns `{ "ok": true }`.
 
 ## Deploy the frontend to Vercel
