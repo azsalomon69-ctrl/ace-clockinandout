@@ -72,6 +72,7 @@ async function initApp() {
         renderInitialSkeletons();
         applyStoredAppearance();
         checkAuthState();
+        redirectAuthenticatedPublicRoute();
     } catch (error) {
         console.warn('Recovered from a saved interface preference.', error);
         localStorage.removeItem('ace_current_user');
@@ -95,6 +96,13 @@ async function initApp() {
         document.body.classList.remove('app-shell-pending');
         document.querySelector('.app-shell-skeleton')?.remove();
     });
+}
+
+function redirectAuthenticatedPublicRoute() {
+    const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
+    const isPublicRoute = !routeName || routeName === 'index.html' || routeName === 'login.html' || routeName === 'index' || routeName === 'login';
+    if (!isPublicRoute || AppState.currentUser?.Status !== 'ACTIVE') return;
+    window.location.replace(AppState.currentUser.Role === 'ADMIN' ? 'admin-dashboard.html' : 'user-dashboard.html');
 }
 
 function applyStoredAppearance() {
