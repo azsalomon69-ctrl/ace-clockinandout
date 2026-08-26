@@ -94,6 +94,18 @@ app.patch('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) =>
 
 app.get('/v1/users', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('profiles').select('*, departments(name)').order('created_at', { ascending: false }))); } catch (error) { next(error); } });
 app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try { if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED'); const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single()); await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`); res.json(profile); } catch (error) { next(error); } });
+app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next) => { try {
+  if (req.params.id === req.profile.id) return fail(res, 400, 'You cannot remove your own administrator account.');
+  const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
+  if (target.status === 'DENIED') return fail(res, 409, 'This user has already been removed.');
+  if (target.role === 'ADMIN') {
+    const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE'));
+    if (admins.length <= 1) return fail(res, 400, 'At least one active administrator must remain.');
+  }
+  const profile = await query(db.from('profiles').update({ status: 'DENIED' }).eq('id', target.id).select().single());
+  await audit(req, 'REMOVE_USER', 'PROFILE', profile.id, `Removed user ${profile.email}`);
+  res.json(profile);
+} catch (error) { next(error); } });
 
 app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try {
   const email = req.body.email?.trim().toLowerCase();

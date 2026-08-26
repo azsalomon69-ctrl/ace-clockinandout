@@ -37,7 +37,7 @@ const icon = (name, className = 'ui-icon') => '<img class="' + className + '" sr
 async function applyLiveData(key, view) {
   if (key === 'users') {
     const items = await liveRequest('/v1/users');
-    view.records = items.map(item => ({ id: item.id, cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || 'Unassigned', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] }));
+    view.records = items.map(item => ({ id: item.id, cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || 'Unassigned', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : item.status === 'ACTIVE' ? 'Remove' : 'View'] }));
     view.stats = [[items.length, 'Team members', 'users'], [items.filter(item => item.status === 'ACTIVE').length, 'Active users', 'check'], [items.filter(item => item.status === 'PENDING').length, 'Pending review', 'circle-alert']];
   } else if (key === 'invitations') {
     const items = await liveRequest('/v1/invitations');
@@ -68,8 +68,9 @@ function status(value) {
 }
 function action(label, index, key) {
   if (key === 'audit') return '<span class="record-reference">' + esc(label) + '</span>';
-  const iconName = /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
-  return '<button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button>';
+  const iconName = /remove/i.test(label) ? 'trash' : /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
+  const style = /remove/i.test(label) ? 'btn-danger' : 'btn-outline';
+  return '<button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button>';
 }
 function formField(label, type, placeholder, value, index) {
   const id = 'adminField' + index;
@@ -93,6 +94,7 @@ function modal(view, primary, record) {
   const edit = !primary && ['departments', 'projects'].includes(key);
   const remark = !primary && key === 'entries';
   const review = !primary && key === 'users' && /^review$/i.test(label);
+  const remove = !primary && key === 'users' && /^remove$/i.test(label);
   const fields = remark ? [['Administrator remark', 'textarea', 'Add a clear internal remark for this time entry']]
     : primary && ['users', 'invitations'].includes(key) ? [['Work email', 'email', 'name@example.com'], ['Role', 'select', 'USER']]
       : (primary || edit) && key === 'departments' ? [['Department name', 'text', 'e.g. Client Services'], ['Description', 'textarea', 'What does this department handle?']]
@@ -101,8 +103,15 @@ function modal(view, primary, record) {
   node.querySelector('.modal-title').textContent = primary ? view.action : label + ' ' + view.title.toLowerCase();
   const summary = record ? '<div class="detail-summary"><strong>' + esc(record.cells[0]) + '</strong><p>' + record.cells.slice(1, -1).map(esc).join(' · ') + '</p></div>' : '';
   if (!fields.length) {
-    node.querySelector('.modal-body').innerHTML = summary + '<div class="form-actions"><button class="btn btn-primary admin-modal-cancel" type="button">' + icon('check') + 'Done</button></div>';
-    node.querySelector('.admin-modal-cancel').addEventListener('click', () => closeModal('adminActionModal')); openModal('adminActionModal'); return;
+    node.querySelector('.modal-body').innerHTML = summary + (remove ? '<p class="modal-description">Removing this user immediately blocks access but preserves their time records and audit history.</p><div class="form-actions"><button class="btn btn-danger admin-remove-user" type="button">' + icon('trash') + 'Remove user</button><button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div>' : '<div class="form-actions"><button class="btn btn-primary admin-modal-cancel" type="button">' + icon('check') + 'Done</button></div>');
+    node.querySelector('.admin-modal-cancel').addEventListener('click', () => closeModal('adminActionModal'));
+    node.querySelector('.admin-remove-user')?.addEventListener('click', async () => {
+      try {
+        await liveRequest('/v1/users/' + record.id + '/remove', { method: 'PATCH' });
+        closeModal('adminActionModal'); showToast('User access removed.', 'success'); window.setTimeout(() => window.location.reload(), 350);
+      } catch (error) { showToast(error.message || 'Could not remove user.', 'error'); }
+    });
+    openModal('adminActionModal'); return;
   }
   const buttonLabel = remark ? 'Add remark' : review ? 'Save decision' : primary ? view.action : 'Save changes';
   node.querySelector('.modal-body').innerHTML = summary + '<form id="adminActionForm">' + fields.map((field, index) => formField(field[0], field[1], field[2], edit ? record.cells[index] : '', index)).join('') + '<div class="form-actions"><button class="btn btn-primary" type="submit">' + icon('check') + buttonLabel + '</button><button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div></form>';
