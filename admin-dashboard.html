@@ -7,100 +7,10 @@
 <link rel="stylesheet" href="css/app.css?v=single-css-js-1">
 </head>
 <body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div>
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <svg class="nav-logo" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                <span class="nav-title">ACE Clock In/Out</span>
-            </div>
-            <div class="nav-links">
-                <a href="admin-dashboard.html" class="nav-link active">Dashboard</a>
-                <a href="admin-management.html?view=users" class="nav-link">Users</a>
-                <a href="admin-management.html?view=departments" class="nav-link">Departments</a>
-                <a href="admin-management.html?view=projects" class="nav-link">Projects</a>
-                <a href="reports.html" class="nav-link">Reports</a>
-                <a href="admin-management.html?view=audit" class="nav-link">Audit Log</a>
-                <button class="btn btn-outline btn-sm" id="logoutBtn">Logout</button>
-            </div>
-        </div>
-    </nav>
 
     <!-- Main Content -->
     <main class="main-content admin-dashboard">
         <div class="dashboard-container">
-            <!-- Sidebar -->
-            <aside class="sidebar">
-                <div class="sidebar-menu">
-                    <a href="admin-dashboard.html" class="sidebar-link active">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
-                            <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
-                            <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
-                            <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                        Dashboard
-                    </a>
-                    <a href="admin-management.html?view=users" class="sidebar-link">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="9" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
-                            <path d="M3 21V19C3 16.7909 4.79086 15 7 15H11C13.2091 15 15 16.7909 15 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <circle cx="17" cy="9" r="3" stroke="currentColor" stroke-width="2"/>
-                            <path d="M17 14V16M17 16V18M17 16H19M17 16H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        User Management
-                    </a>
-                    <a href="admin-management.html?view=invitations" class="sidebar-link">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4 4H20C21.1046 4 22 4.89543 22 6V18C22 19.1046 21.1046 20 20 20H4C2.89543 20 2 19.1046 2 18V6C2 4.89543 2.89543 4 4 4Z" stroke="currentColor" stroke-width="2"/>
-                            <path d="M22 6L12 13L2 6" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                        Invitations
-                    </a>
-                    <a href="admin-management.html?view=departments" class="sidebar-link">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M3 21H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <path d="M5 21V7L12 3L19 7V21" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                            <path d="M9 21V15H15V21" stroke="currentColor" stroke-width="2"/>
-                            <path d="M9 11H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Departments
-                    </a>
-                    <a href="admin-management.html?view=projects" class="sidebar-link">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4 7H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <path d="M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <path d="M4 17H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <rect x="2" y="3" width="20" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                        Projects
-                    </a>
-                    <a href="admin-management.html?view=entries" class="sidebar-link">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                            <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Time Entries
-                    </a>
-                    <a href="reports.html" class="sidebar-link">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4 20V10M10 20V4M16 20V12M22 20H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Reports
-                    </a>
-                    <a href="admin-management.html?view=audit" class="sidebar-link">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                            <path d="M12 2C6.47715 2 2 6.47715 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Audit Logs
-                    </a>
-                </div>
-            </aside>
 
             <!-- Dashboard Content -->
             <div class="dashboard-content">
@@ -307,27 +217,6 @@
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-container">
-            <div class="footer-section">
-                <h4 class="footer-title">ACE Clock In/Out</h4>
-                <p class="footer-text">Admin Dashboard</p>
-            </div>
-            <div class="footer-section">
-                <h4 class="footer-title">Quick Links</h4>
-                <ul class="footer-links">
-                    <li><a href="admin-dashboard.html">Dashboard</a></li>
-                    <li><a href="#" id="footerUsersLink">Users</a></li>
-                    <li><a href="#" id="footerReportsLink">Reports</a></li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy; 2024 ACE Clock In/Out System. All rights reserved.</p>
-        </div>
-    </footer>
-
     <!-- Invite User Modal -->
     <div id="inviteUserModal" class="modal">
         <div class="modal-content">
@@ -412,7 +301,7 @@
         <div class="spinner"></div>
     </div>
 
-<script src="js/sidebar.js?v=sidebar-route-fix-1"></script>
-    <script src="js/script.js?v=sidebar-route-fix-1"></script>
+<script src="js/sidebar.js?v=sidebar-route-fix-2"></script>
+    <script src="js/script.js?v=sidebar-route-fix-2"></script>
 </body>
 </html>
