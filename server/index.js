@@ -293,23 +293,28 @@ app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, 
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
   if (target.status !== 'DENIED') return fail(res, 409, 'Only archived users can be permanently deleted.');
 
-  // A hard deletion must never break attendance, reports, invitations, or
-  // administrator remarks that reference the profile. Those accounts remain
-  // safely archived instead of destroying historical business data.
+  // A hard deletion must never break attendance, access history, reports,
+  // chat records, invitations, or administrator remarks. Accounts connected
+  // to any company record remain safely archived instead.
   const dependencyChecks = await Promise.all([
     query(db.from('time_entries').select('id').eq('user_id', target.id).limit(1)),
     query(db.from('admin_remarks').select('id').eq('admin_user_id', target.id).limit(1)),
     query(db.from('invitations').select('id').eq('invited_by_user_id', target.id).limit(1)),
     query(db.from('reports').select('id').eq('created_by_user_id', target.id).limit(1)),
     query(db.from('report_exports').select('id').eq('exported_by_user_id', target.id).limit(1)),
-    query(db.from('access_requests').select('id').eq('reviewed_by_user_id', target.id).limit(1))
+    query(db.from('access_requests').select('id').eq('reviewed_by_user_id', target.id).limit(1)),
+    query(db.from('access_requests').select('id').eq('profile_id', target.id).limit(1)),
+    query(db.from('employee_messages').select('id').or(`sender_id.eq.${target.id},recipient_id.eq.${target.id}`).limit(1))
   ]);
   if (dependencyChecks.some(records => records.length)) {
-    return fail(res, 409, 'This user has historical company records and must remain archived.');
+    return fail(res, 409, 'This account has company history and must remain archived. Restore it if access should be returned.');
   }
 
-  const { error } = await db.auth.admin.deleteUser(target.id);
-  if (error) throw error;
+  const { error } = await db.auth.admin.deleteUser(target.id, false);
+  if (error) {
+    console.error('permanent user deletion:', error.message);
+    return fail(res, 409, 'This account could not be deleted permanently. Keep it archived to preserve its records.');
+  }
   await audit(req, 'PERMANENT_DELETE_USER', 'PROFILE', target.id, `Permanently deleted archived user ${target.email}`);
   res.status(204).end();
 } catch (error) { next(error); } });
@@ -399,6 +404,7 @@ app.use((error, _, res, __) => {
   console.error(error);
   if (error?.status && error.expose) return fail(res, error.status, error.message);
   if (error?.code === '23505') return fail(res, 409, 'A record with that value already exists');
+  if (error?.code === '23503') return fail(res, 409, 'This record is connected to company history and must remain archived');
   fail(res, 500, 'Unexpected server error');
 });
 app.listen(process.env.PORT || 3000, () => console.log(`ACE API listening on ${process.env.PORT || 3000}`));
