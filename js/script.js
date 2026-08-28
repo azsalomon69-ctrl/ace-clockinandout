@@ -431,7 +431,7 @@ function initializeAppShell() {
     const isSpecialAdmin = isAdmin && AppState.currentUser?.Email?.toLowerCase() === 'azsalomon69@gmail.com';
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'users', 'Deleted users'], ['invitations.html', 'mail', 'Invitations'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
+        ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['invitations.html', 'mail', 'Invitations'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
         ['Work', [['projects.html', 'folder', 'Projects'], ['admin-time-entries.html', 'clock', 'Time entries'], ['deleted-time-entries.html', 'clock', 'Deleted time entries']]],
         ['Insights', [['reports.html', 'chart', 'Reports']]],
         ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]

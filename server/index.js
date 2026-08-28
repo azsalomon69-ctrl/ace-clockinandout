@@ -278,7 +278,7 @@ app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next
     if (admins.length <= 1) return fail(res, 400, 'At least one active administrator must remain.');
   }
   const profile = await query(db.from('profiles').update({ status: 'DENIED' }).eq('id', target.id).select().single());
-  await audit(req, 'REMOVE_USER', 'PROFILE', profile.id, `Removed user ${profile.email}`);
+  await audit(req, 'ARCHIVE_USER', 'PROFILE', profile.id, `Archived user ${profile.email}`);
   res.json(profile);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, next) => { try {

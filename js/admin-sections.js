@@ -103,18 +103,18 @@ function modal(view, primary, record) {
   node.querySelector('.modal-title').textContent = primary ? view.action : label + ' ' + view.title.toLowerCase();
   const summary = record ? '<div class="detail-summary"><strong>' + esc(record.cells[0]) + '</strong><p>' + record.cells.slice(1, -1).map(esc).join(' · ') + '</p></div>' : '';
   if (!fields.length) {
-    node.querySelector('.modal-body').innerHTML = summary + (remove ? '<p class="modal-description">Removing this user immediately blocks access but preserves their time records and audit history.</p><div class="form-actions"><button class="btn btn-danger admin-remove-user" type="button">' + icon('trash') + 'Remove user</button><button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div>' : '<div class="form-actions"><button class="btn btn-primary admin-modal-cancel" type="button">' + icon('check') + 'Done</button></div>');
+    node.querySelector('.modal-body').innerHTML = summary + (remove ? '<p class="modal-description">Archiving immediately blocks access while preserving time records and audit history.</p><div class="form-actions"><button class="btn btn-danger admin-remove-user" type="button">' + icon('folder') + 'Archive user</button><button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div>' : '<div class="form-actions"><button class="btn btn-primary admin-modal-cancel" type="button">' + icon('check') + 'Done</button></div>');
     node.querySelector('.admin-modal-cancel').addEventListener('click', () => closeModal('adminActionModal'));
     node.querySelector('.admin-remove-user')?.addEventListener('click', async () => {
       try {
         await liveRequest('/v1/users/' + record.id + '/remove', { method: 'PATCH' });
         closeModal('adminActionModal'); showToast('User access removed.', 'success'); window.setTimeout(() => window.location.reload(), 350);
-      } catch (error) { showToast(error.message || 'Could not remove user.', 'error'); }
+      } catch (error) { showToast(error.message || 'Could not archive user.', 'error'); }
     });
     openModal('adminActionModal'); return;
   }
   const buttonLabel = remark ? 'Add remark' : review ? 'Save decision' : manage ? 'Save role' : primary ? view.action : 'Save changes';
-  node.querySelector('.modal-body').innerHTML = summary + '<form id="adminActionForm">' + fields.map((field, index) => formField(field[0], field[1], field[2], edit ? record.cells[index] : manage ? (index === 0 ? record.cells[2] : index === 1 ? record.cells[3] : '') : '', index)).join('') + '<div class="form-actions"><button class="btn btn-primary" type="submit">' + icon('check') + buttonLabel + '</button>' + (manage ? '<button class="btn btn-danger admin-remove-user" type="button">' + icon('trash') + 'Remove user</button>' : '') + (deleteRecord ? '<button class="btn btn-danger admin-delete-record" type="button">' + icon('trash') + 'Delete</button>' : '') + '<button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div></form>';
+  node.querySelector('.modal-body').innerHTML = summary + '<form id="adminActionForm">' + fields.map((field, index) => formField(field[0], field[1], field[2], edit ? record.cells[index] : manage ? (index === 0 ? record.cells[2] : index === 1 ? record.cells[3] : '') : '', index)).join('') + '<div class="form-actions"><button class="btn btn-primary" type="submit">' + icon('check') + buttonLabel + '</button>' + (manage ? '<button class="btn btn-danger admin-remove-user" type="button">' + icon('folder') + 'Archive user</button>' : '') + (deleteRecord ? '<button class="btn btn-danger admin-delete-record" type="button">' + icon('trash') + 'Delete</button>' : '') + '<button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div></form>';
   const employeePicker = node.querySelector('#adminField2Add');
   if (employeePicker) {
     const search = document.getElementById('adminField2');
@@ -141,8 +141,8 @@ function modal(view, primary, record) {
   }
   node.querySelector('.admin-modal-cancel').addEventListener('click', () => closeModal('adminActionModal'));
   node.querySelector('.admin-remove-user')?.addEventListener('click', async () => {
-    try { await liveRequest('/v1/users/' + record.id + '/remove', { method: 'PATCH' }); closeModal('adminActionModal'); showToast('User moved to Deleted users.', 'success'); window.setTimeout(() => window.location.reload(), 350); }
-    catch (error) { showToast(error.message || 'Could not remove user.', 'error'); }
+    try { await liveRequest('/v1/users/' + record.id + '/remove', { method: 'PATCH' }); closeModal('adminActionModal'); showToast('User moved to Archived users.', 'success'); window.setTimeout(() => window.location.reload(), 350); }
+    catch (error) { showToast(error.message || 'Could not archive user.', 'error'); }
   });
   node.querySelector('.admin-delete-record')?.addEventListener('click', async () => {
     try {
