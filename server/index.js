@@ -277,6 +277,8 @@ app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next
     const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE'));
     if (admins.length <= 1) return fail(res, 400, 'At least one active administrator must remain.');
   }
+  const { error: banError } = await db.auth.admin.updateUserById(target.id, { ban_duration: '876000h' });
+  if (banError) return fail(res, 502, 'The account was not archived because sign-in could not be disabled.');
   const profile = await query(db.from('profiles').update({ status: 'DENIED' }).eq('id', target.id).select().single());
   await audit(req, 'ARCHIVE_USER', 'PROFILE', profile.id, `Archived user ${profile.email}`);
   res.json(profile);
@@ -284,41 +286,12 @@ app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next
 app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, next) => { try {
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
   if (target.status !== 'DENIED') return fail(res, 409, 'Only removed users can be restored.');
+  const { error: unbanError } = await db.auth.admin.updateUserById(target.id, { ban_duration: 'none' });
+  if (unbanError) return fail(res, 502, 'The account could not be restored because sign-in could not be enabled.');
   const profile = await query(db.from('profiles').update({ status: 'ACTIVE' }).eq('id', target.id).select().single());
   await audit(req, 'RESTORE_USER', 'PROFILE', profile.id, `Restored user ${profile.email}`);
   res.json(profile);
 } catch (error) { next(error); } });
-app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, next) => { try {
-  if (req.params.id === req.profile.id) return fail(res, 400, 'You cannot permanently delete your own administrator account.');
-  const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
-  if (target.status !== 'DENIED') return fail(res, 409, 'Only archived users can be permanently deleted.');
-
-  // A hard deletion must never break attendance, access history, reports,
-  // chat records, invitations, or administrator remarks. Accounts connected
-  // to any company record remain safely archived instead.
-  const dependencyChecks = await Promise.all([
-    query(db.from('time_entries').select('id').eq('user_id', target.id).limit(1)),
-    query(db.from('admin_remarks').select('id').eq('admin_user_id', target.id).limit(1)),
-    query(db.from('invitations').select('id').eq('invited_by_user_id', target.id).limit(1)),
-    query(db.from('reports').select('id').eq('created_by_user_id', target.id).limit(1)),
-    query(db.from('report_exports').select('id').eq('exported_by_user_id', target.id).limit(1)),
-    query(db.from('access_requests').select('id').eq('reviewed_by_user_id', target.id).limit(1)),
-    query(db.from('access_requests').select('id').eq('profile_id', target.id).limit(1)),
-    query(db.from('employee_messages').select('id').or(`sender_id.eq.${target.id},recipient_id.eq.${target.id}`).limit(1))
-  ]);
-  if (dependencyChecks.some(records => records.length)) {
-    return fail(res, 409, 'This account has company history and must remain archived. Restore it if access should be returned.');
-  }
-
-  const { error } = await db.auth.admin.deleteUser(target.id, false);
-  if (error) {
-    console.error('permanent user deletion:', error.message);
-    return fail(res, 409, 'This account could not be deleted permanently. Keep it archived to preserve its records.');
-  }
-  await audit(req, 'PERMANENT_DELETE_USER', 'PROFILE', target.id, `Permanently deleted archived user ${target.email}`);
-  res.status(204).end();
-} catch (error) { next(error); } });
-
 app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try {
   const email = req.body.email?.trim().toLowerCase();
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
