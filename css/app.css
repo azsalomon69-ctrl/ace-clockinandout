@@ -1985,6 +1985,20 @@ body:not(.has-app-shell) .nav-link.active { background: var(--ace-sky); color: v
 .remark-item small { color: #78919a; }
 
 /* Employee workspace hierarchy: current shift first, supporting work second. */
+.user-dashboard .dashboard-container { max-width: 1320px !important; }
+.employee-dashboard-intro { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin: 0 0 30px; padding-bottom: 22px; border-bottom: 1px solid var(--ace-line); }
+.employee-dashboard-intro h1 { margin: 0 0 9px; color: var(--ace-navy); font: 750 clamp(1.8rem,3vw,2.55rem)/1.1 'Montserrat',Arial,sans-serif; letter-spacing: -.045em; }
+.employee-dashboard-intro > div > p:last-child { max-width: 580px; margin: 0; color: var(--ace-muted); font-size: .92rem; line-height: 1.6; }
+.employee-dashboard-date { flex: 0 0 auto; max-width: 180px; color: #557681; font: 700 .74rem/1.45 'Montserrat',Arial,sans-serif; text-align: right; }
+.employee-status-panel { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(150px,.42fr) minmax(190px,.42fr); gap: 28px; align-items: center; margin-bottom: 34px; padding: clamp(27px,4vw,46px); color: #fff; background: var(--ace-navy); border: 1px solid var(--ace-navy); border-radius: 16px; box-shadow: 0 18px 38px rgba(7,59,76,.15); transition: border-color .2s ease, background-color .2s ease; }
+.employee-status-panel[data-state="active"] { border-color: #167f8d; background: #073f4c; }
+.employee-status-copy h2 { max-width: 480px; margin: 0 0 9px; color: #fff; font: 750 clamp(1.45rem,2.6vw,2rem)/1.13 'Montserrat',Arial,sans-serif; letter-spacing: -.035em; }
+.employee-status-copy > p:last-child { max-width: 520px; margin: 0; color: #c4e0e5; font-size: .85rem; line-height: 1.6; }
+.employee-status-panel .status-indicator { margin: 0 0 14px; }.employee-status-panel .status-text { color: #dff2f5; }
+.employee-session-detail { display: grid; gap: 6px; align-content: center; min-height: 112px; padding: 6px 26px; border-right: 1px solid rgba(209,239,244,.18); border-left: 1px solid rgba(209,239,244,.18); }
+.employee-session-detail span { color: #aacbd1; font: 700 .64rem 'Montserrat',Arial,sans-serif; letter-spacing: .1em; text-transform: uppercase; }.employee-session-detail strong { color: #fff; font: 750 1.28rem 'Montserrat',Arial,sans-serif; letter-spacing: -.03em; }.employee-session-detail small { color: #c4e0e5; font-size: .76rem; }
+.employee-status-panel .clock-actions { min-width: 0; }.employee-status-panel .clock-actions .btn { min-height: 54px; border-radius: 9px; }.employee-status-panel .clock-actions .btn-danger { background: #d74f59; border-color: #d74f59; }
+.employee-session-facts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin: 4px 0 0; padding: 19px 0 0; border-top: 1px solid rgba(209,239,244,.18); }.employee-session-facts div { min-width: 0; }.employee-session-facts dt { margin-bottom: 5px; color: #aacbd1; font: 700 .62rem 'Montserrat',Arial,sans-serif; letter-spacing: .1em; text-transform: uppercase; }.employee-session-facts dd { overflow: hidden; margin: 0; color: #fff; font: 700 .84rem 'Montserrat',Arial,sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .employee-eyebrow, .employee-section-kicker, .clock-kicker { margin: 0 0 7px; color: var(--ace-cyan-dark); font: 750 .65rem 'Montserrat', Arial, sans-serif; letter-spacing: .13em; text-transform: uppercase; }
 .employee-eyebrow { margin-bottom: 9px; }
 .clock-kicker { color: rgba(255,255,255,.7); }
@@ -1996,12 +2010,13 @@ body:not(.has-app-shell) .nav-link.active { background: var(--ace-sky); color: v
 .employee-section-heading > p { max-width: 270px; margin: 0; color: var(--ace-muted); font-size: .75rem; line-height: 1.45; text-align: right; }
 .employee-section-kicker { margin-bottom: 5px; }
 .user-dashboard .employee-stats-section .stats-grid { margin: 0; }
+.user-dashboard .employee-summary-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
 .user-dashboard .employee-work-grid { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(320px,.9fr); gap: 18px; align-items: start; margin-bottom: 18px; }
 .user-dashboard .employee-work-grid :is(.recent-activity-section,.projects-section) { min-height: 100%; margin: 0; }
 .user-dashboard .projects-section .projects-grid { grid-template-columns: 1fr; gap: 9px; }
 .user-dashboard .projects-section .project-card { min-height: 0; padding: 16px; text-align: left; }
 .user-dashboard .recent-activity-section .btn-block { margin-top: 14px; }
-.employee-remarks-section { margin-bottom: 0 !important; }
+.employee-activity-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
 .user-dashboard .clock-card { position: relative; overflow: hidden; min-height: 268px; }
 .user-dashboard .clock-card .clock-actions .btn { min-height: 58px; font-size: .95rem; }
 .user-dashboard .clock-card .clock-info { padding-top: 8px; }
@@ -2009,8 +2024,11 @@ body:not(.has-app-shell) .nav-link.active { background: var(--ace-sky); color: v
 .time-entries-page .time-entries-header { align-items: flex-end; margin-bottom: 24px; }
 .time-entries-page .current-session-card { border-color: #9edbe5; }
 html[data-theme="dark"] .user-dashboard .clock-card { background: var(--ace-surface-nav) !important; border-color: var(--ace-border-strong) !important; }
+html[data-theme="dark"] .employee-dashboard-intro { border-color: var(--ace-border); } html[data-theme="dark"] .employee-dashboard-intro h1 { color: var(--ace-text-primary); } html[data-theme="dark"] .employee-dashboard-intro > div > p:last-child, html[data-theme="dark"] .employee-dashboard-date { color: var(--ace-text-secondary); } html[data-theme="dark"] .employee-status-panel { background: var(--ace-surface-nav); border-color: var(--ace-border-strong); box-shadow: none; }
 html[data-theme="dark"] .employee-section-heading > p, html[data-theme="dark"] .time-entries-heading > p:last-child { color: var(--ace-text-secondary); }
 html[data-theme="dark"] .clock-kicker { color: var(--ace-text-tertiary); }
+@media (max-width: 900px) { .employee-status-panel { grid-template-columns: minmax(0,1fr) minmax(180px,.5fr); }.employee-status-panel .clock-actions { grid-column: 1 / -1; }.employee-session-facts { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .employee-dashboard-intro { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 22px; padding-bottom: 18px; }.employee-dashboard-date { max-width: none; text-align: left; }.employee-status-panel { grid-template-columns: 1fr; gap: 22px; margin-bottom: 27px; padding: 25px 21px; border-radius: 13px; }.employee-session-detail { min-height: 0; padding: 17px 0; border-right: 0; border-left: 0; border-top: 1px solid rgba(209,239,244,.18); border-bottom: 1px solid rgba(209,239,244,.18); }.employee-status-panel .clock-actions .btn { width: 100%; }.employee-session-facts { grid-template-columns: 1fr 1fr; gap: 16px; }.employee-session-facts div:last-child { grid-column: 1 / -1; }.user-dashboard .employee-summary-grid { grid-template-columns: 1fr; }.user-dashboard .employee-summary-grid .stat-card { min-height: 96px; } }
 
 /* Time entries */
 .time-entries-header { align-items: center; }

@@ -1037,10 +1037,12 @@ async function handleRequestAccess(e) {
 // Clock In/Out Handlers
 async function handleClockIn(e) {
     e.preventDefault();
-    
+    const submitButton = e.currentTarget.querySelector('button[type="submit"]');
+    if (submitButton?.disabled) return;
     const projectId = document.getElementById('clockInProject')?.value;
     const note = document.getElementById('clockInNote')?.value;
     try {
+        setActionBusy(submitButton, true, 'Clocking in…');
         const entry = await window.ACEAuth.request('/v1/time-entries/clock-in', { method: 'POST', body: JSON.stringify({ projectId: projectId || null, note: note || null }) });
         AppState.currentSession = timeEntryRecord(entry);
         AppState.timeEntries.unshift(AppState.currentSession);
@@ -1048,14 +1050,17 @@ async function handleClockIn(e) {
         closeModal('clockInModal'); startTimer(); updateUI(); loadPageSpecificData();
         showToast('Clocked in successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
+    finally { setActionBusy(submitButton, false); }
 }
 
 async function handleClockOut(e) {
     e.preventDefault();
-    
+    const submitButton = e.currentTarget.querySelector('button[type="submit"]');
+    if (submitButton?.disabled) return;
     const note = document.getElementById('clockOutNote')?.value;
     if (!AppState.currentSession) return;
     try {
+        setActionBusy(submitButton, true, 'Clocking out…');
         const entry = await window.ACEAuth.request(`/v1/time-entries/${AppState.currentSession.TimeEntryId}/clock-out`, { method: 'POST', body: JSON.stringify({ note: note || '' }) });
         const saved = timeEntryRecord(entry);
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
@@ -1063,6 +1068,13 @@ async function handleClockOut(e) {
         stopTimer(); closeModal('clockOutModal'); updateUI(); loadPageSpecificData();
         showToast('Clocked out successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
+    finally { setActionBusy(submitButton, false); }
+}
+
+function setActionBusy(button, busy, label = '') {
+    if (!button) return;
+    if (busy) { button.dataset.label = button.textContent.trim(); button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = label; }
+    else { button.disabled = false; button.removeAttribute('aria-busy'); if (button.dataset.label) button.textContent = button.dataset.label; }
 }
 
 function startTimer() {
@@ -1299,11 +1311,39 @@ function updateUI() {
         
         if (AppState.isClockedIn) {
             statusDot?.classList.add('active');
-            if (statusText) statusText.textContent = 'Clocked In';
+            if (statusText) statusText.textContent = 'Working now';
         } else {
             statusDot?.classList.remove('active');
-            if (statusText) statusText.textContent = 'Not Clocked In';
+            if (statusText) statusText.textContent = 'Clocked out';
         }
+    }
+
+    const statusPanel = document.getElementById('employeeStatusPanel');
+    const shiftTitle = document.getElementById('currentShiftTitle');
+    const shiftDescription = document.getElementById('currentShiftDescription');
+    const sessionLabel = document.getElementById('employeeSessionLabel');
+    const sessionTime = document.getElementById('clockedInAt');
+    const sessionFacts = document.getElementById('employeeSessionFacts');
+    const sessionStarted = document.getElementById('sessionStartedAt');
+    const sessionProject = document.getElementById('sessionProjectName');
+    if (statusPanel) statusPanel.dataset.state = AppState.isClockedIn ? 'active' : 'idle';
+    if (AppState.isClockedIn && AppState.clockInTime) {
+        if (shiftTitle) shiftTitle.textContent = 'Your shift is in progress.';
+        if (shiftDescription) shiftDescription.textContent = 'Your live session is running. Clock out when you have finished your work.';
+        if (sessionLabel) sessionLabel.textContent = 'Clocked in at';
+        if (sessionTime) sessionTime.textContent = AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        if (sessionFacts) sessionFacts.hidden = false;
+        if (sessionStarted) sessionStarted.textContent = AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        if (sessionProject) {
+            const project = AppState.projects.find(item => item.ProjectId === AppState.currentSession?.ProjectId);
+            sessionProject.textContent = project?.ProjectName || 'No project';
+        }
+    } else {
+        if (shiftTitle) shiftTitle.textContent = 'Ready when you are.';
+        if (shiftDescription) shiftDescription.textContent = 'Start a work session when you are ready to begin tracking time.';
+        if (sessionLabel) sessionLabel.textContent = 'Current local time';
+        if (sessionTime) sessionTime.textContent = 'No active session';
+        if (sessionFacts) sessionFacts.hidden = true;
     }
     
     // Update clock buttons
@@ -1348,11 +1388,6 @@ function updateUI() {
         }
     }
     
-    // Update clocked in time
-    const clockedInAt = document.getElementById('clockedInAt');
-    if (clockedInAt && AppState.clockInTime) {
-        clockedInAt.textContent = AppState.clockInTime.toLocaleTimeString();
-    }
 }
 
 // Clock
@@ -1442,8 +1477,7 @@ function loadUserDashboard() {
     const dashboardStats = {
         todayHours: formatDuration(todaySeconds),
         weekHours: formatDuration(weekSeconds),
-        monthHours: formatDuration(monthSeconds),
-        totalEntries: userEntriesForStats.length
+        monthHours: formatDuration(monthSeconds)
     };
     Object.entries(dashboardStats).forEach(([id, value]) => {
         const node = document.getElementById(id);
@@ -1463,7 +1497,7 @@ function loadUserDashboard() {
             </button>
         `).join('') : emptyState('No projects assigned', 'Project assignment is optional. Your administrator can add you to a project when needed.');
         myProjects.querySelectorAll('.project-card-action').forEach(card => {
-            card.addEventListener('click', () => viewProject(Number(card.dataset.projectId)));
+            card.addEventListener('click', () => viewProject(card.dataset.projectId));
         });
     }
     
@@ -1472,13 +1506,13 @@ function loadUserDashboard() {
     if (recentActivity) {
         const userEntries = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId).slice(0, 5);
         
-        recentActivity.innerHTML = userEntries.length ? userEntries.map(entry => {
+        recentActivity.innerHTML = userEntries.length ? `<ol class="employee-activity-list">${userEntries.map(entry => {
             const clockIn = new Date(entry.ClockInAt);
             const clockOut = entry.ClockOutAt ? new Date(entry.ClockOutAt) : null;
             const duration = entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active';
             
             return `
-                <div class="activity-item">
+                <li class="activity-item">
                     <div class="activity-date">
                         <strong>${clockIn.toLocaleDateString()}</strong>
                     </div>
@@ -1488,28 +1522,9 @@ function loadUserDashboard() {
                     <div class="activity-duration">
                         ${duration}
                     </div>
-                </div>
+                </li>
             `;
-        }).join('') : emptyState('No activity yet', 'Clock in when you are ready to begin your first tracked work session.', 'Clock in', '#');
-    }
-    
-    // Populate admin remarks
-    const recentRemarks = document.getElementById('recentRemarks');
-    if (recentRemarks) {
-        const userEntries = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId);
-        const entryIds = userEntries.map(te => te.TimeEntryId);
-        const remarks = AppState.adminRemarks.filter(ar => entryIds.includes(ar.TimeEntryId)).slice(0, 5);
-        
-        recentRemarks.innerHTML = remarks.length ? remarks.map(remark => {
-            const admin = AppState.users.find(u => u.UserId === remark.AdminUserId);
-            return `
-                <div class="remark-item">
-                    <strong>${escapeHtml(admin?.FullName || 'Admin')}</strong>
-                    <p>${escapeHtml(remark.Remark)}</p>
-                    <small>${new Date(remark.CreatedAt).toLocaleString()}</small>
-                </div>
-            `;
-        }).join('') : emptyState('No admin remarks', 'Remarks from administrators will appear here when they add context to one of your entries.');
+        }).join('')}</ol>` : emptyState('No sessions yet', 'Clock in when you are ready to begin your first tracked work session.', 'Clock in', '#');
     }
 }
 
