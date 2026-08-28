@@ -27,13 +27,6 @@
                     </svg>
                     Profile
                 </button>
-                <button class="settings-tab" id="notificationsTab">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 8C18 4.68629 15.3137 2 12 2C8.68629 2 6 4.68629 6 8V16L4 18V20H20V18L18 16V8Z" stroke="currentColor" stroke-width="2"/>
-                        <path d="M9 21H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                    Notifications
-                </button>
                 <button class="settings-tab" id="securityTab">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 2L4 6V12C4 15.866 7.13401 19 12 22C16.866 19 20 15.866 20 12V6L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -63,66 +56,6 @@
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                         <button type="button" class="btn btn-secondary" id="cancelProfileBtn">Cancel</button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Notification Settings -->
-            <div class="settings-section" id="notificationSettings" style="display: none;">
-                <h2 class="section-title">Notification Preferences</h2>
-                <form id="notificationForm" class="settings-form">
-                    <div class="notification-option">
-                        <div class="notification-info">
-                            <h3 class="notification-title">Email Notifications</h3>
-                            <p class="notification-description">Receive email notifications for important events</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="emailNotifications" aria-label="Email notifications" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="notification-option">
-                        <div class="notification-info">
-                            <h3 class="notification-title">Clock In Reminders</h3>
-                            <p class="notification-description">Get reminded to clock in at your scheduled time</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="clockInReminders" aria-label="Clock in reminders" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="notification-option">
-                        <div class="notification-info">
-                            <h3 class="notification-title">Clock Out Reminders</h3>
-                            <p class="notification-description">Get reminded to clock out at the end of your shift</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="clockOutReminders" aria-label="Clock out reminders" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="notification-option">
-                        <div class="notification-info">
-                            <h3 class="notification-title">Weekly Summary</h3>
-                            <p class="notification-description">Receive a weekly summary of your time entries</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="weeklySummary" aria-label="Weekly summary">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="notification-option">
-                        <div class="notification-info">
-                            <h3 class="notification-title">Admin Remarks</h3>
-                            <p class="notification-description">Get notified when an admin adds a remark to your time entry</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="adminRemarksNotification" aria-label="Admin remarks notifications" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Save Preferences</button>
                     </div>
                 </form>
             </div>

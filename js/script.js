@@ -8,7 +8,6 @@ const AppState = {
     isAuthenticated: false,
     isClockedIn: false,
     currentSession: null,
-    notificationTimers: [],
     presenceInterval: null,
     presenceVisibilityHandler: null,
     onlineCountInterval: null,
@@ -765,7 +764,6 @@ function initializeModals() {
             
             const sectionMap = {
                 'profileTab': 'profileSettings',
-                'notificationsTab': 'notificationSettings',
                 'securityTab': 'securitySettings',
                 'appearanceTab': 'appearanceSettings'
             };
@@ -865,12 +863,6 @@ function initializeForms() {
     const profileForm = document.getElementById('profileForm');
     if (profileForm) {
         profileForm.addEventListener('submit', handleProfileUpdate);
-    }
-
-    // Notification form
-    const notificationForm = document.getElementById('notificationForm');
-    if (notificationForm) {
-        notificationForm.addEventListener('submit', handleNotificationUpdate);
     }
 
     // Appearance form
@@ -1068,22 +1060,9 @@ async function handleClockOut(e) {
         const saved = timeEntryRecord(entry);
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
         AppState.isClockedIn = false; AppState.currentSession = null; AppState.clockInTime = null;
-        clearSessionNotifications();
         stopTimer(); closeModal('clockOutModal'); updateUI(); loadPageSpecificData();
         showToast('Clocked out successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
-}
-
-async function sendWorkNotification(title, body) {
-    showToast(body, 'info');
-    if (!('Notification' in window)) return;
-    if (Notification.permission === 'default') await Notification.requestPermission();
-    if (Notification.permission === 'granted') new Notification(title, { body, icon: 'assets/images/ace-logo.png' });
-}
-
-function clearSessionNotifications() {
-    AppState.notificationTimers.forEach(timer => window.clearTimeout(timer));
-    AppState.notificationTimers = [];
 }
 
 function startTimer() {
@@ -1288,14 +1267,6 @@ function handleProfileUpdate(e) {
         document.querySelectorAll('#userName, .shell-user strong').forEach(node => { node.textContent = fullName; });
     }
     showToast('Profile updated successfully', 'success');
-}
-
-function handleNotificationUpdate(e) {
-    e.preventDefault();
-    const preferences = {};
-    e.currentTarget.querySelectorAll('input[type="checkbox"]').forEach(input => { preferences[input.id] = input.checked; });
-    localStorage.setItem('ace_notification_preferences', JSON.stringify(preferences));
-    showToast('Notification preferences saved', 'success');
 }
 
 function handleAppearanceUpdate(e) {
