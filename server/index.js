@@ -195,6 +195,7 @@ app.delete('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (
 app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   let request = db.from('profiles').select('*, departments(name)').order('created_at', { ascending: false });
   request = req.query.removed === 'true' ? request.eq('status', 'DENIED') : request.neq('status', 'DENIED');
+  request = request.is('permanently_deleted_at', null);
   res.json(await query(request));
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/contacts', authenticate, employeeOnly, async (req, res, next) => { try {
@@ -291,6 +292,14 @@ app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, nex
   const profile = await query(db.from('profiles').update({ status: 'ACTIVE' }).eq('id', target.id).select().single());
   await audit(req, 'RESTORE_USER', 'PROFILE', profile.id, `Restored user ${profile.email}`);
   res.json(profile);
+} catch (error) { next(error); } });
+app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, next) => { try {
+  if (req.params.id === req.profile.id) return fail(res, 400, 'You cannot permanently delete your own administrator account.');
+  const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
+  if (target.status !== 'DENIED') return fail(res, 409, 'Only archived users can be permanently deleted.');
+  await query(db.rpc('permanently_remove_archived_login', { target_user_id: target.id }));
+  await audit(req, 'PERMANENT_DELETE_USER', 'PROFILE', target.id, `Permanently deleted archived user ${target.email}`);
+  res.status(204).end();
 } catch (error) { next(error); } });
 app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try {
   const email = req.body.email?.trim().toLowerCase();
