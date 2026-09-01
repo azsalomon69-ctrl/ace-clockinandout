@@ -1666,6 +1666,27 @@ body {
   .employee-chat-compose input { min-height: 44px; padding: 10px 12px; font-size: 16px; }
   .employee-chat-compose button { min-width: 64px; min-height: 44px; padding: 0 13px; }
 }
+/* Messenger-inspired phone view: conversations are selected from a full chat list. */
+.employee-chat-back { display: none; }
+@media (max-width: 640px) {
+  .employee-chat-panel > header strong { font-size: 1.05rem; }
+  .employee-chat-layout { display: block; height: calc(100% - 58px); }
+  .employee-chat-layout > aside { display: flex; flex-direction: column; height: 100%; overflow: hidden; padding: 14px 12px; background: #fff; border: 0; }
+  .employee-chat-layout > aside > p { display: block; margin: 0 4px 10px; color: var(--ace-ink); font: 800 1.3rem 'Montserrat', Arial, sans-serif; letter-spacing: -.02em; text-transform: none; }
+  .employee-chat-contacts { display: block; height: auto; overflow-y: auto; overflow-x: hidden; scroll-snap-type: none; }
+  .employee-chat-contact { position: relative; width: 100%; min-width: 0; min-height: 68px; grid-template-columns: 46px minmax(0, 1fr) auto; justify-items: stretch; gap: 11px; padding: 10px 8px; border-radius: 10px; }
+  .employee-chat-contact > span { width: 46px; height: 46px; font-size: .9rem; background: #e6f5f7; border: 0; }
+  .employee-chat-contact strong { align-self: center; max-width: none; font-size: .88rem; text-align: left; }
+  .employee-chat-contact.active { background: #e8f7f9; border-color: transparent; }
+  .employee-chat-contact-badge { position: static; align-self: center; margin: 0; }
+  .employee-chat-thread { display: none; height: 100%; }
+  .employee-chat.employee-chat-chatting .employee-chat-layout > aside { display: none; }
+  .employee-chat.employee-chat-chatting .employee-chat-thread { display: flex; }
+  .employee-chat-thread-head { display: flex; align-items: center; gap: 10px; padding: 11px 12px; }
+  .employee-chat-thread-head > div { min-width: 0; }
+  .employee-chat-thread-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .employee-chat-back { width: 38px; height: 38px; display: grid; flex: 0 0 38px; place-items: center; padding: 0 0 3px; color: var(--ace-ink); background: #edf7f8; border: 0; border-radius: 50%; font-size: 30px; line-height: 1; cursor: pointer; }
+}
 .chat-log-page { max-width: 1120px; margin: 0 auto; }.chat-log-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--ace-line); }.chat-log-header h1 { margin: 0 0 7px; }.chat-log-header p { margin: 0; }.chat-log-panel { background: #fff; border: 1px solid var(--ace-line); border-radius: 12px; }.chat-log-list { display: grid; }.chat-log-entry { padding: 16px 20px; border-bottom: 1px solid var(--ace-line); }.chat-log-entry:last-child { border-bottom: 0; }.chat-log-entry-head { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; color: var(--ace-ink); font-size: .8rem; }.chat-log-entry-head span,.chat-log-entry-head time { color: var(--ace-muted); }.chat-log-entry-head time { margin-left: auto; font-size: .7rem; }.chat-log-entry p { margin: 8px 0 0; color: var(--ace-text); white-space: pre-wrap; }.chat-log-entry small { color: var(--ace-muted); font-size: .7rem; }.chat-log-deleted { color: var(--ace-muted) !important; font-style: italic; }.chat-log-empty { padding: 32px; margin: 0; color: var(--ace-muted); text-align: center; }
 @media (max-width: 640px) { .chat-log-header { align-items: stretch; flex-direction: column; }.chat-log-header .btn { width: 100%; }.chat-log-entry-head time { width: 100%; margin-left: 0; } }
 h1, h2, h3, h4, h5, h6, .btn, .shell-label, .nav-link {
@@ -3063,6 +3084,10 @@ html:not([data-theme="dark"]) .shell-avatar { color: #0b7894; background: #fff; 
 html:not([data-theme="dark"]) .shell-account:hover, html:not([data-theme="dark"]) .shell-account[aria-expanded="true"] { background: #e8f6f8; border-color: #cfe5e9; }
 html:not([data-theme="dark"]) .shell-account-menu { background: #fff; border-color: #cfe5e9; box-shadow: 0 10px 24px rgba(7,59,76,.12); }
 html:not([data-theme="dark"]) .shell-account-menu :is(a,button) { color: #244d59; } html:not([data-theme="dark"]) .shell-account-menu :is(a,button):hover { background: #e8f6f8; } html:not([data-theme="dark"]) .shell-account-menu button { color: #b4233c; }
+
+/* Keep the phone navigation control legible in dark mode. */
+html[data-theme="dark"] .shell-mobile-toggle { color: #fff; background: var(--ace-surface-nav); border-color: var(--ace-border-strong); box-shadow: 0 6px 18px rgba(0,0,0,.34); }
+html[data-theme="dark"] .shell-mobile-toggle .shell-icon { filter: brightness(0) invert(1) !important; opacity: 1; }
 
 /* Theme selection is a labelled decision, not an ambiguous colour swatch. */
 .theme-option { position: relative; display: grid; gap: 10px; padding: 10px; border: 1px solid var(--ace-line); border-radius: 10px; transition: background-color .16s ease, border-color .16s ease; }
