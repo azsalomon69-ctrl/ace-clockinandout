@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard · ACE Outsource Solutions</title>
-<link rel="stylesheet" href="css/app.css?v=employee-dashboard-2">
+<link rel="stylesheet" href="css/app.css?v=remarks-sidebar-fix-1">
 </head>
 <body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div>
 
@@ -108,6 +108,11 @@
                 <button class="btn btn-outline btn-block" id="viewAllEntriesBtn">
                     View All Time Entries
                 </button>
+            </section>
+
+            <section class="admin-remarks-section" aria-labelledby="dashboardRemarksTitle">
+                <div class="employee-section-heading"><div><p class="employee-section-kicker">ADMINISTRATOR NOTES</p><h2 class="section-title" id="dashboardRemarksTitle">Remarks on your time entries</h2></div><p>Updates from your administrators.</p></div>
+                <div class="remarks-list" id="dashboardRemarks"></div>
             </section>
 
             <!-- Projects Section -->
@@ -220,6 +225,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-auth.js"></script>
     <script src="js/sidebar.js?v=admin-role-fix-1"></script>
-    <script src="js/script.js?v=employee-dashboard-2"></script>
+    <script src="js/script.js?v=remarks-sidebar-fix-1"></script>
 </body>
 </html>

@@ -116,6 +116,10 @@ const specialAdminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req
 async function audit(req, action, entityType, entityId, description) {
   await db.from('audit_logs').insert({ user_id: req.profile?.id || null, action, entity_type: entityType, entity_id: isUuid(entityId) ? entityId : null, description, ip_address: req.ip, user_agent: req.get('user-agent') }).then(({ error }) => { if (error) console.error('audit log:', error.message); });
 }
+function clockingDevice(req) {
+  const userAgent = req.get('user-agent') || '';
+  return /Android|iPhone|iPad|iPod|Mobile|Windows Phone|IEMobile|Opera Mini/i.test(userAgent) ? 'mobile' : 'pc web';
+}
 
 app.get('/health', (_, res) => res.json({ ok: true, service: 'ace-clock-api' }));
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
@@ -332,6 +336,17 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
 app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)').order('invited_at', { ascending: false }))); } catch (error) { next(error); } });
 
 app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try { const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email)').order('clock_in_at', { ascending: false }); request = req.query.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null); if (own) request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
+app.get('/v1/admin-remarks', authenticate, activeOnly, async (req, res, next) => { try {
+  let visibleEntryIds = null;
+  if (req.profile.role !== 'ADMIN') {
+    const entries = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('deleted_at', null));
+    visibleEntryIds = entries.map(entry => entry.id);
+    if (!visibleEntryIds.length) return res.json([]);
+  }
+  let request = db.from('admin_remarks').select('*, profiles!admin_remarks_admin_user_id_fkey(full_name,email)').order('created_at', { ascending: false });
+  if (visibleEntryIds) request = request.in('time_entry_id', visibleEntryIds);
+  res.json(await query(request));
+} catch (error) { next(error); } });
 app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
   const projectId = optionalUuid(req.body.projectId);
   const note = optionalText(req.body.note, 2000);
@@ -340,10 +355,11 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
   const open = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('clock_out_at', null).maybeSingle());
   if (open) return fail(res, 409, 'You already have an active time entry');
   const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: projectId, user_note: note }).select().single());
-  await audit(req, 'CLOCK_IN', 'TIME_ENTRY', entry.id, 'Started a time entry');
+  const device = clockingDevice(req);
+  await audit(req, `CLOCK_IN (${device})`, 'TIME_ENTRY', entry.id, `Started a time entry from ${device}`);
   res.status(201).json(entry);
 } catch (error) { next(error); } });
-app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try { const note = requireText(req.body.note, 'A clock-out note', 2000); let request = db.from('time_entries').update({ clock_out_at: new Date().toISOString(), user_note: note }).eq('id', req.params.id).is('clock_out_at', null); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); const entry = await query(request.select().single()); await audit(req, 'CLOCK_OUT', 'TIME_ENTRY', entry.id, 'Completed a time entry'); res.json(entry); } catch (error) { next(error); } });
+app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try { const note = requireText(req.body.note, 'A clock-out note', 2000); let request = db.from('time_entries').update({ clock_out_at: new Date().toISOString(), user_note: note }).eq('id', req.params.id).is('clock_out_at', null); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); const entry = await query(request.select().single()); const device = clockingDevice(req); await audit(req, `CLOCK_OUT (${device})`, 'TIME_ENTRY', entry.id, `Completed a time entry from ${device}`); res.json(entry); } catch (error) { next(error); } });
 
 app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try { const remarkText = requireText(req.body.remark, 'Remark', 2000); const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: remarkText }).select().single()); await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark'); res.status(201).json(remark); } catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try { const entry = await query(db.from('time_entries').update({ deleted_at: new Date().toISOString(), deleted_by_user_id: req.profile.id }).eq('id', req.params.id).is('deleted_at', null).select().single()); await audit(req, 'DELETE', 'TIME_ENTRY', entry.id, 'Moved time entry to deleted data'); res.json(entry); } catch (error) { next(error); } });

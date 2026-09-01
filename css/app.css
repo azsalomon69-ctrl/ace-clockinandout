@@ -3033,7 +3033,7 @@ html:not([data-theme="dark"]) .shell-brand, html:not([data-theme="dark"]) .shell
 html:not([data-theme="dark"]) .shell-brand a > img { filter: none; }
 html:not([data-theme="dark"]) .shell-nav-label { color: #68828a; }
 html:not([data-theme="dark"]) .shell-link { color: #496771; }
-html:not([data-theme="dark"]) .shell-link .shell-icon, html:not([data-theme="dark"]) .shell-collapse .shell-icon { filter: none; }
+html:not([data-theme="dark"]) .shell-link .shell-icon, html:not([data-theme="dark"]) .shell-collapse .shell-icon, html:not([data-theme="dark"]) .shell-mobile-toggle .shell-icon { filter: none; }
 html:not([data-theme="dark"]) .shell-link:hover { color: #113b49; background: #e8f6f8; }
 html:not([data-theme="dark"]) .shell-link.active { color: #113b49; background: #dff2f5; box-shadow: inset 2px 0 0 #08a2c2; }
 html:not([data-theme="dark"]) .shell-user strong { color: #113b49; } html:not([data-theme="dark"]) .shell-user span { color: #5f7a84; }

@@ -29,6 +29,7 @@ const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: i
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
+const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 
@@ -39,15 +40,17 @@ async function loadDatabase() {
     AppState.currentUser = profileRecord(profile);
     AppState.isAuthenticated = true;
     localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
-    const [departments, projects, entries, userProjects] = await Promise.all([
+    const [departments, projects, entries, userProjects, remarks] = await Promise.all([
         window.ACEAuth.request('/v1/departments'),
         window.ACEAuth.request('/v1/projects'),
         window.ACEAuth.request(`/v1/time-entries${AppState.currentUser.Role === 'ADMIN' ? '' : '?mine=true'}`),
-        window.ACEAuth.request('/v1/user-projects')
+        window.ACEAuth.request('/v1/user-projects'),
+        window.ACEAuth.request('/v1/admin-remarks')
     ]);
     AppState.departments = departments.map(departmentRecord);
     AppState.projects = projects.map(projectRecord);
     AppState.timeEntries = entries.map(timeEntryRecord);
+    AppState.adminRemarks = remarks.map(adminRemarkRecord);
     AppState.userProjects = userProjects.map(item => ({ UserId: item.user_id, ProjectId: item.project_id, AssignedAt: item.assigned_at, IsActive: true }));
     if (AppState.currentUser.Role === 'ADMIN') {
         const [users, invitations, reports, auditLogs] = await Promise.all([
@@ -1526,6 +1529,17 @@ function loadUserDashboard() {
             `;
         }).join('')}</ol>` : emptyState('No sessions yet', 'Clock in when you are ready to begin your first tracked work session.', 'Clock in', '#');
     }
+
+    const dashboardRemarks = document.getElementById('dashboardRemarks');
+    if (dashboardRemarks) {
+        const entryById = new Map(AppState.timeEntries.map(entry => [entry.TimeEntryId, entry]));
+        const remarks = AppState.adminRemarks.slice(0, 5);
+        dashboardRemarks.innerHTML = remarks.length ? remarks.map(remark => {
+            const entry = entryById.get(remark.TimeEntryId);
+            const session = entry ? new Date(entry.ClockInAt).toLocaleDateString() : 'Time entry';
+            return `<article class="remark-item"><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${escapeHtml(session)} · ${new Date(remark.CreatedAt).toLocaleString()}</small></article>`;
+        }).join('') : '<p class="empty-state">No administrator remarks yet.</p>';
+    }
 }
 
 function analyticsDateValue(date) {
@@ -1846,6 +1860,7 @@ function loadAdminDashboard() {
             const clockIn = new Date(entry.ClockInAt);
             const clockOut = entry.ClockOutAt ? new Date(entry.ClockOutAt) : null;
             const duration = entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active';
+            const remarks = AppState.adminRemarks.filter(remark => remark.TimeEntryId === entry.TimeEntryId);
             
             return `
                 <tr>
@@ -1855,12 +1870,13 @@ function loadAdminDashboard() {
                     <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
                     <td>${duration}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
+                    <td>${remarks.length ? `${remarks.length} remark${remarks.length === 1 ? '' : 's'}` : '—'}</td>
                     <td>
                         <button class="btn btn-sm btn-outline" onclick="viewTimeEntry('${entry.TimeEntryId}')">View</button>
                     </td>
                 </tr>
             `;
-        }).join('') : `<tr><td colspan="7">${emptyState('No time entries', 'Completed and active sessions will appear here.')}</td></tr>`;
+        }).join('') : `<tr><td colspan="8">${emptyState('No time entries', 'Completed and active sessions will appear here.')}</td></tr>`;
     }
     
     // Populate pending users
@@ -2105,7 +2121,7 @@ function viewTimeEntry(entryId) {
                 const admin = AppState.users.find(u => u.UserId === remark.AdminUserId);
                 return `
                     <div class="remark-item">
-                        <strong>${escapeHtml(admin?.FullName || 'Admin')}</strong>
+                        <strong>${escapeHtml(remark.AdminName || admin?.FullName || 'Admin')}</strong>
                         <p>${escapeHtml(remark.Remark)}</p>
                         <small>${new Date(remark.CreatedAt).toLocaleString()}</small>
                     </div>

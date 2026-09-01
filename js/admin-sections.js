@@ -9,7 +9,7 @@ const ADMIN_SECTION_CONFIG = {
   invitations: { title: 'Pre-authorized access', description: 'Authorize a Google account as an employee or administrator before its first sign-in.', action: 'Authorize account', actionIcon: 'user-plus', columns: ['Email', 'Authorized by', 'Created', 'Expires', 'Status', 'Action'] },
   departments: { title: 'Departments', description: 'Organize employees by department. Assignments remain optional.', action: 'Add department', actionIcon: 'building', columns: ['Department', 'Description', 'Created', 'Status', 'Action'] },
   projects: { title: 'Projects', description: 'Manage projects available for optional time-entry assignment.', action: 'Add project', actionIcon: 'folder', columns: ['Project', 'Description', 'Created', 'Status', 'Action'] },
-  entries: { title: 'Time entries', description: 'Review company clocking activity and add internal administrator remarks.', action: 'Export entries', actionIcon: 'download', columns: ['Employee', 'Project', 'Clock in', 'Clock out', 'Duration', 'Action'] },
+  entries: { title: 'Time entries', description: 'Review company clocking activity and add internal administrator remarks.', action: 'Export entries', actionIcon: 'download', columns: ['Employee', 'Project', 'Clock in', 'Clock out', 'Duration', 'Remarks', 'Action'] },
   audit: { title: 'Audit log', description: 'Review the append-only record of important actions across the system.', columns: ['When', 'Actor', 'Action', 'Entity', 'Description', 'Record'] }
 };
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
@@ -36,10 +36,16 @@ async function applyLiveData(key, view) {
     view.records = items.map(item => ({ id: item.id, cells: [item.name, item.description || '—', date(item.created_at), item.is_active ? 'Active' : 'Inactive', 'Edit'] }));
     view.stats = [[items.length, 'Total ' + key, key === 'projects' ? 'folder' : 'building'], [items.filter(item => item.is_active).length, 'Active ' + key, 'check']];
   } else if (key === 'entries') {
-    const items = await liveRequest('/v1/time-entries');
+    const [items, remarks] = await Promise.all([liveRequest('/v1/time-entries'), liveRequest('/v1/admin-remarks')]);
+    const remarksByEntry = new Map();
+    remarks.forEach(remark => {
+      const list = remarksByEntry.get(remark.time_entry_id) || [];
+      list.push(remark.remark);
+      remarksByEntry.set(remark.time_entry_id, list);
+    });
     const now = Date.now();
     const total = items.reduce((sum, item) => sum + (item.duration_seconds || (!item.clock_out_at ? Math.max(0, Math.floor((now - new Date(item.clock_in_at).getTime()) / 1000)) : 0)), 0);
-    view.records = items.map(item => ({ id: item.id, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || 'Unassigned', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : 'Running', 'Add remark'] }));
+    view.records = items.map(item => ({ id: item.id, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || 'Unassigned', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : 'Running', (remarksByEntry.get(item.id) || []).join(' · ') || '—', 'Add remark'] }));
     view.stats = [[duration(total), 'Tracked time', 'timer'], [items.filter(item => !item.clock_out_at).length, 'Open entries', 'circle-alert'], [items.length, 'Time entries', 'check']];
   } else if (key === 'audit') {
     const items = await liveRequest('/v1/audit-logs');
