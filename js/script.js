@@ -359,6 +359,8 @@ function initializeEmployeeChat() {
     const badge = chat.querySelector('.employee-chat-badge');
     let selectedId = null;
     let selectedName = '';
+    let contactsLoaded = false;
+    const unreadByContact = new Map();
     const formatTime = value => new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     const loadMessages = async () => {
         if (!selectedId) return;
@@ -394,8 +396,19 @@ function initializeEmployeeChat() {
         try {
             const people = await window.ACEAuth.request('/v1/employee-chat/contacts');
             const totalUnread = people.reduce((total, person) => total + (person.unread_count || 0), 0);
+            if (contactsLoaded) {
+                people.forEach(person => {
+                    const unread = person.unread_count || 0;
+                    if (unread > (unreadByContact.get(person.id) || 0)) {
+                        showToast(`${person.full_name || person.email} sent you a message.`, 'info');
+                    }
+                });
+            }
+            unreadByContact.clear();
+            people.forEach(person => unreadByContact.set(person.id, person.unread_count || 0));
+            contactsLoaded = true;
             badge.hidden = !totalUnread; badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
-            contacts.innerHTML = people.length ? people.map(person => `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(person.full_name || person.email)}" type="button"><span>${escapeHtml((person.full_name || person.email).slice(0, 1).toUpperCase())}</span><strong>${escapeHtml(person.full_name || person.email)}</strong>${person.unread_count ? `<b class="employee-chat-contact-badge">${person.unread_count > 99 ? '99+' : person.unread_count}</b>` : ''}</button>`).join('') : '<div class="employee-chat-empty">No other active employees yet.</div>';
+            contacts.innerHTML = people.length ? people.map(person => `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(person.full_name || person.email)}" type="button"><span>${escapeHtml((person.full_name || person.email).slice(0, 1).toUpperCase())}</span><strong>${escapeHtml(person.full_name || person.email)}</strong>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(person.full_name || person.email)}"></b>` : ''}</button>`).join('') : '<div class="employee-chat-empty">No other active employees yet.</div>';
             contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.id; selectedName = button.dataset.name; chat.classList.add('employee-chat-chatting'); loadContacts(); loadMessages(); }));
         } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
     };
