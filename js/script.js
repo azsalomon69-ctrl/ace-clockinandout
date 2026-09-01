@@ -415,7 +415,7 @@ function initializeAppShell() {
     // Normalize both forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
     const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'audit-logs.html', 'chat-log.html'];
-    const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'settings.html'];
+    const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
     const isEmployee = employeeFiles.includes(file) && !isAdmin;
@@ -429,7 +429,7 @@ function initializeAppShell() {
         return;
     }
 
-    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', chart: 'chart-column-big', audit: 'brick-wall-shield', settings: 'settings', logout: 'log-out', chevron: 'chevron-left' };
+    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', chart: 'chart-column-big', audit: 'brick-wall-shield', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
     const icon = name => suppliedIconMarkup(icons[name], 'shell-icon');
     const isSpecialAdmin = isAdmin && AppState.currentUser?.Email?.toLowerCase() === 'azsalomon69@gmail.com';
     const adminGroups = [
@@ -441,7 +441,7 @@ function initializeAppShell() {
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['Work', [['time-entries.html', 'clock', 'My time entries']]],
+        ['Work', [['time-entries.html', 'clock', 'My time entries'], ['remarks.html', 'remarks', 'Remarks']]],
         ['Account', [['settings.html', 'settings', 'Settings']]]
     ];
     const groups = isAdmin ? adminGroups : employeeGroups;
@@ -1273,15 +1273,23 @@ function renderGeneratedReport(report, options = {}) {
 }
 
 // Settings Handlers
-function handleProfileUpdate(e) {
+async function handleProfileUpdate(e) {
     e.preventDefault();
     const fullName = document.getElementById('fullName')?.value.trim();
-    if (fullName && AppState.currentUser) {
-        AppState.currentUser.FullName = fullName;
+    if (!fullName || !AppState.currentUser) return;
+    const submitButton = document.querySelector('#profileForm button[type="submit"]');
+    try {
+        setActionBusy(submitButton, true, 'Saving…');
+        const { profile } = await window.ACEAuth.request('/v1/me', { method: 'PATCH', body: JSON.stringify({ fullName }) });
+        AppState.currentUser = profileRecord(profile);
         localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
         document.querySelectorAll('#userName, .shell-user strong').forEach(node => { node.textContent = fullName; });
+        showToast('Profile updated successfully', 'success');
+    } catch (error) {
+        showToast(error.message || 'Could not update your profile.', 'error');
+    } finally {
+        setActionBusy(submitButton, false);
     }
-    showToast('Profile updated successfully', 'success');
 }
 
 function handleAppearanceUpdate(e) {
@@ -1451,6 +1459,10 @@ function loadPageSpecificData() {
     // Time Entries
     if (page === 'time-entries.html') {
         loadTimeEntries();
+    }
+
+    if (page === 'remarks.html') {
+        loadRemarksPage();
     }
     
     // Reports
@@ -1937,7 +1949,7 @@ function loadTimeEntries() {
                     <td>${escapeHtml(project?.ProjectName || 'None')}</td>
                     <td>${escapeHtml(entry.UserNote || 'No note')}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
-                    <td>${remarks.length > 0 ? `${remarks.length} remark(s)` : 'None'}</td>
+                    <td>${remarks.length ? remarks.map(remark => `<div class="time-entry-remark"><strong>${escapeHtml(remark.AdminName)}</strong><br>${escapeHtml(remark.Remark)}</div>`).join('') : '—'}</td>
                     <td>
                         <button class="btn btn-sm btn-outline" onclick="viewTimeEntry('${entry.TimeEntryId}')">View</button>
                     </td>
@@ -1945,6 +1957,19 @@ function loadTimeEntries() {
             `;
         }).join('') : `<tr><td colspan="9">${emptyState('No time entries found', 'Your tracked sessions will appear here. Start by clocking in.', 'Clock in', '#')}</td></tr>`;
     }
+}
+
+function loadRemarksPage() {
+    const list = document.getElementById('remarksPageList');
+    if (!list) return;
+    const entryById = new Map(AppState.timeEntries.map(entry => [entry.TimeEntryId, entry]));
+    const remarks = AppState.adminRemarks;
+    list.innerHTML = remarks.length ? remarks.map(remark => {
+        const entry = entryById.get(remark.TimeEntryId);
+        const entryDate = entry ? new Date(entry.ClockInAt).toLocaleString() : 'Related time entry';
+        const project = entry?.ProjectId ? AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName : null;
+        return `<article class="remark-item"><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${escapeHtml(project || 'No project')} · Time entry: ${escapeHtml(entryDate)} · Added ${new Date(remark.CreatedAt).toLocaleString()}</small></article>`;
+    }).join('') : '<p class="empty-state">No administrator remarks yet.</p>';
 }
 
 function updateOnlineUserCount() {
