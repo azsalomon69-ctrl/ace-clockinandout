@@ -14,7 +14,7 @@ The database model is in [supabase/schema.sql](supabase/schema.sql). It implemen
 
 1. Install Node.js 20 or newer.
 2. Copy `.env.example` to `.env` and enter your Supabase project URL, publishable key, and **secret key**.
-3. In Supabase SQL Editor, run `supabase/schema.sql` once.
+3. In Supabase SQL Editor, run `supabase/schema.sql` once. If Google sign-in shows “Database error saving new user”, run `supabase/auth-profile-trigger-fix.sql` once to repair the Auth profile trigger.
 4. Run `npm install` and then `npm run dev`.
 5. Serve the frontend files with a local static server. Configure `FRONTEND_ORIGIN` with that server's address.
 
