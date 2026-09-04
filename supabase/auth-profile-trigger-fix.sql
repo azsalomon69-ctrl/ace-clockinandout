@@ -37,36 +37,52 @@ declare
   invitation_role public.user_role;
   invitation_department_id uuid;
 begin
-  select id, role, department_id
-    into invitation_id, invitation_role, invitation_department_id
-  from public.invitations
-  where lower(email) = lower(new.email)
-    and status = 'PENDING'
-    and expires_at > now()
-  order by invited_at desc
-  limit 1;
-
+  -- Always create the base profile first. An invitation lookup must never
+  -- prevent Auth from saving a newly created Google user.
   insert into public.profiles (
-    id, email, full_name, profile_picture_url, role, status, department_id
+    id, email, full_name, role, status
   ) values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name', ''),
-    new.raw_user_meta_data ->> 'avatar_url',
-    coalesce(invitation_role, 'USER'::public.user_role),
-    case when invitation_id is null then 'PENDING'::public.user_status else 'ACTIVE'::public.user_status end,
-    invitation_department_id
+    'USER'::public.user_role,
+    'PENDING'::public.user_status
   ) on conflict (id) do nothing;
 
-  if invitation_id is not null then
-    update public.invitations
-    set status = 'ACCEPTED', accepted_at = now()
-    where id = invitation_id;
-  end if;
+  begin
+    select id, role, department_id
+      into invitation_id, invitation_role, invitation_department_id
+    from public.invitations
+    where lower(email) = lower(new.email)
+      and status = 'PENDING'
+      and expires_at > now()
+    order by invited_at desc
+    limit 1;
+
+    if invitation_id is not null then
+      update public.profiles
+      set role = invitation_role,
+          status = 'ACTIVE'::public.user_status,
+          department_id = invitation_department_id,
+          profile_picture_url = new.raw_user_meta_data ->> 'avatar_url'
+      where id = new.id;
+
+      update public.invitations
+      set status = 'ACCEPTED', accepted_at = now()
+      where id = invitation_id;
+    end if;
+  exception when others then
+    -- The profile above remains saved even if legacy invitation data is bad.
+    raise warning 'Could not apply invitation for new Auth user: %', sqlerrm;
+  end;
 
   return new;
 end;
 $$;
+
+-- Auth invokes this as a privileged trigger. Make the SQL Editor owner
+-- explicit so the security-definer function can write application tables.
+alter function public.create_profile_for_auth_user() owner to postgres;
 
 drop trigger if exists auth_user_profile on auth.users;
 create trigger auth_user_profile
