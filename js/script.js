@@ -1572,11 +1572,13 @@ function loadPageSpecificData() {
     // User Dashboard
     if (page === 'user-dashboard.html') {
         loadUserDashboard();
+        loadTimeLeaderboard('employeeLeaderboard', 'employeeLeaderboardRank');
     }
     
     // Admin Dashboard
     if (page === 'admin-dashboard.html') {
         loadAdminDashboard();
+        loadTimeLeaderboard('adminLeaderboard', 'adminLeaderboardRank');
     }
     
     // Time Entries
@@ -1674,6 +1676,24 @@ function loadUserDashboard() {
             const session = entry ? new Date(entry.ClockInAt).toLocaleDateString() : 'Time entry';
             return `<article class="remark-item"><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${escapeHtml(session)} · ${new Date(remark.CreatedAt).toLocaleString()}</small></article>`;
         }).join('') : '<p class="empty-state">No administrator remarks yet.</p>';
+    }
+}
+
+async function loadTimeLeaderboard(listId, rankId) {
+    const list = document.getElementById(listId);
+    const rank = document.getElementById(rankId);
+    if (!list || !window.ACEAuth) return;
+    try {
+        const data = await window.ACEAuth.request('/v1/time-leaderboard');
+        if (rank) rank.textContent = AppState.currentUser?.Role === 'ADMIN' ? 'Ranked by completed worked time.' : `Your team rank: #${data.my_rank} of ${data.total_people}`;
+        list.innerHTML = data.leaders.length ? data.leaders.map((person, index) => {
+            const initials = (person.full_name || '?').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
+            const isMe = person.id === AppState.currentUser?.UserId;
+            return `<li class="time-leaderboard-row${isMe ? ' is-current-user' : ''}"><b class="time-leaderboard-rank">${index + 1}</b><span class="time-leaderboard-avatar">${person.profile_picture_url ? `<img src="${escapeHtml(person.profile_picture_url)}" alt="">` : escapeHtml(initials)}</span><strong>${escapeHtml(person.full_name || 'Team member')}${isMe ? ' <small>You</small>' : ''}</strong><span>${formatDuration(person.tracked_seconds)}</span></li>`;
+        }).join('') : '<li class="time-leaderboard-empty">No completed work sessions yet.</li>';
+    } catch {
+        if (rank) rank.textContent = 'Leaderboard is unavailable right now.';
+        list.innerHTML = '<li class="time-leaderboard-empty">Unable to load rankings.</li>';
     }
 }
 
