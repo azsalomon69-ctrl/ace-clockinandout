@@ -15,7 +15,7 @@ const ADMIN_SECTION_CONFIG = {
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const date = value => value ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const time = value => value ? new Date(value).toLocaleString() : '—';
-const duration = seconds => Math.floor((seconds || 0) / 3600) + 'h ' + Math.floor(((seconds || 0) % 3600) / 60) + 'm';
+const duration = seconds => { const safe = Math.max(0, Number(seconds) || 0); return String(Math.floor(safe / 3600)).padStart(2, '0') + ':' + String(Math.floor((safe % 3600) / 60)).padStart(2, '0') + ':' + String(safe % 60).padStart(2, '0'); };
 const icon = (name, className = 'ui-icon') => '<img class="' + className + '" src="assets/icons/' + name + '.svg" alt="" aria-hidden="true">';
 
 async function applyLiveData(key, view) {
@@ -46,7 +46,7 @@ async function applyLiveData(key, view) {
     const now = Date.now();
     const liveWorkedSeconds = item => Math.max(0, Math.floor((now - new Date(item.clock_in_at).getTime()) / 1000) - (item.break_seconds || 0) - (item.break_started_at ? Math.max(0, Math.floor((now - new Date(item.break_started_at).getTime()) / 1000)) : 0));
     const total = items.reduce((sum, item) => sum + (item.duration_seconds || (!item.clock_out_at ? liveWorkedSeconds(item) : 0)), 0);
-    view.records = items.map(item => ({ id: item.id, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || 'Unassigned', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : 'Running', item.break_seconds ? duration(item.break_seconds) + (item.break_started_at ? ' + active' : '') : item.break_started_at ? 'Active' : '—', (remarksByEntry.get(item.id) || []).join(' · ') || '—', 'Add remark'] }));
+    view.records = items.map(item => { const activeBreakSeconds = item.break_started_at ? Math.max(0, Math.floor((now - new Date(item.break_started_at).getTime()) / 1000)) : 0; const totalBreakSeconds = (item.break_seconds || 0) + activeBreakSeconds; return { id: item.id, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || 'Unassigned', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : duration(liveWorkedSeconds(item)), totalBreakSeconds ? duration(totalBreakSeconds) + (item.break_started_at ? ' (active)' : '') : '00:00:00', (remarksByEntry.get(item.id) || []).join(' · ') || '—', 'Add remark'] }; });
     view.stats = [[duration(total), 'Tracked time', 'timer'], [items.filter(item => !item.clock_out_at).length, 'Open entries', 'circle-alert'], [items.length, 'Time entries', 'check']];
   } else if (key === 'audit') {
     const items = await liveRequest('/v1/audit-logs');

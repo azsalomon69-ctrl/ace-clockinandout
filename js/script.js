@@ -1139,10 +1139,10 @@ async function handleBreakToggle(event) {
         AppState.currentSession = saved;
         AppState.isOnBreak = Boolean(saved.BreakStartedAt);
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
-        updateUI(); updateTimerDisplay();
+        updateTimerDisplay();
         showToast(AppState.isOnBreak ? 'Break started. Work timer is paused.' : 'Break ended. Work timer resumed.', 'success');
     } catch (error) { showToast(error.message || 'Unable to update break status.', 'error'); }
-    finally { setActionBusy(button, false); }
+    finally { setActionBusy(button, false); updateUI(); }
 }
 
 function setActionBusy(button, busy, label = '') {
@@ -1184,6 +1184,10 @@ function updateTimerDisplay() {
     timerElements.forEach(el => {
         if (el) el.textContent = timeString;
     });
+    const totalBreakSeconds = (AppState.currentSession?.BreakSeconds || 0) + activeBreakSeconds;
+    document.querySelectorAll('#currentBreakDuration').forEach(el => { el.textContent = formatClockDuration(totalBreakSeconds); });
+    const sessionStateTime = document.getElementById('sessionStateTime');
+    if (sessionStateTime && AppState.isOnBreak) sessionStateTime.textContent = formatClockDuration(totalBreakSeconds);
 }
 
 function showClockOutSummary() {
@@ -1406,7 +1410,8 @@ function updateUI() {
     const shiftTitle = document.getElementById('currentShiftTitle');
     const shiftDescription = document.getElementById('currentShiftDescription');
     const sessionLabel = document.getElementById('employeeSessionLabel');
-    const sessionTime = document.getElementById('clockedInAt');
+    const sessionTime = document.getElementById('sessionStateTime');
+    const sessionDetailTime = document.getElementById('clockedInAt');
     const sessionFacts = document.getElementById('employeeSessionFacts');
     const sessionStarted = document.getElementById('sessionStartedAt');
     const sessionProject = document.getElementById('sessionProjectName');
@@ -1414,19 +1419,23 @@ function updateUI() {
     if (AppState.isClockedIn && AppState.clockInTime) {
         if (shiftTitle) shiftTitle.textContent = AppState.isOnBreak ? 'You are on a break.' : 'Your shift is in progress.';
         if (shiftDescription) shiftDescription.textContent = AppState.isOnBreak ? 'Your work timer is paused until you end your break.' : 'Your live session is running. Clock out when you have finished your work.';
-        if (sessionLabel) sessionLabel.textContent = AppState.isOnBreak ? 'Break started at' : 'Clocked in at';
-        if (sessionTime) sessionTime.textContent = AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        if (sessionLabel) sessionLabel.textContent = AppState.isOnBreak ? 'Current break' : 'Clocked in at';
+        if (sessionTime) sessionTime.textContent = AppState.isOnBreak ? formatClockDuration((AppState.currentSession?.BreakSeconds || 0) + Math.max(0, Math.floor((Date.now() - new Date(AppState.currentSession.BreakStartedAt)) / 1000))) : AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        if (sessionDetailTime) sessionDetailTime.textContent = AppState.isOnBreak ? `Break began ${new Date(AppState.currentSession.BreakStartedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Active work session';
         if (sessionFacts) sessionFacts.hidden = false;
         if (sessionStarted) sessionStarted.textContent = AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         if (sessionProject) {
             const project = AppState.projects.find(item => item.ProjectId === AppState.currentSession?.ProjectId);
             sessionProject.textContent = project?.ProjectName || 'No project';
         }
+        const breakDuration = document.getElementById('currentBreakDuration');
+        if (breakDuration) breakDuration.textContent = formatClockDuration((AppState.currentSession?.BreakSeconds || 0) + (AppState.currentSession?.BreakStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(AppState.currentSession.BreakStartedAt)) / 1000)) : 0));
     } else {
         if (shiftTitle) shiftTitle.textContent = 'Ready when you are.';
         if (shiftDescription) shiftDescription.textContent = 'Start a work session when you are ready to begin tracking time.';
         if (sessionLabel) sessionLabel.textContent = 'Current local time';
         if (sessionTime) sessionTime.textContent = 'No active session';
+        if (sessionDetailTime) sessionDetailTime.textContent = 'No active session';
         if (sessionFacts) sessionFacts.hidden = true;
     }
     
@@ -2176,6 +2185,14 @@ function applyFilters() {
         if (matches) visible += 1;
     });
     showToast(`${visible} result${visible === 1 ? '' : 's'} matched the selected filters.`, 'success');
+}
+
+function formatClockDuration(seconds) {
+    const safeSeconds = Math.max(0, Number(seconds) || 0);
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+    const remainder = safeSeconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
 }
 
 function clearFilters() {

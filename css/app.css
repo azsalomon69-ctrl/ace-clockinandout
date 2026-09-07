@@ -2038,6 +2038,8 @@ body:not(.has-app-shell) .nav-link.active { background: var(--ace-sky); color: v
 .employee-status-panel[data-state="active"] { border-color: #167f8d; background: #073f4c; }
 .employee-status-panel[data-state="break"] { border-color: #b98522; background: #4b3511; }
 .employee-status-panel[data-state="break"] .status-dot { background: #ffd36a; box-shadow: 0 0 0 5px rgba(255,211,106,.12); }
+.employee-status-panel[data-state="break"] { border-color: #b98522; background: #4b3511; }
+.employee-status-panel[data-state="break"] .status-dot { background: #ffd36a; box-shadow: 0 0 0 5px rgba(255,211,106,.12); }
 .employee-status-copy h2 { max-width: 480px; margin: 0 0 9px; color: #fff; font: 750 clamp(1.45rem,2.6vw,2rem)/1.13 'Montserrat',Arial,sans-serif; letter-spacing: -.035em; }
 .employee-status-copy > p:last-child { max-width: 520px; margin: 0; color: #c4e0e5; font-size: .85rem; line-height: 1.6; }
 .employee-status-panel .status-indicator { margin: 0 0 14px; }.employee-status-panel .status-text { color: #dff2f5; }
