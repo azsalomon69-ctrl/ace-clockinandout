@@ -1561,11 +1561,28 @@ html[data-theme="dark"] .profile-photo-feedback.is-error { color: #ff9ba9; }
 .time-leaderboard-row strong small { margin-left: 4px; color: #16839a; font-size: .67rem; }
 .time-leaderboard-row > span:last-child { color: #0b5365; font: 800 .76rem 'Montserrat', Arial, sans-serif; white-space: nowrap; }
 .time-leaderboard-empty { padding: 18px; color: var(--ace-muted); font-size: .8rem; text-align: center; }
+.time-leaderboard-note { margin: 10px 0 0; color: var(--ace-muted); font-size: .67rem; text-align: right; }
 html[data-theme="dark"] .time-leaderboard-row { background: var(--ace-surface-raised); border-color: var(--ace-border); }
 html[data-theme="dark"] .time-leaderboard-row.is-current-user { background: #143d46; border-color: #286875; }
 html[data-theme="dark"] .time-leaderboard-row strong, html[data-theme="dark"] .time-leaderboard-row > span:last-child { color: var(--ace-text-primary); }
 html[data-theme="dark"] .time-leaderboard-avatar { color: #bceef3; background: var(--ace-surface-input); }
 @media (max-width: 640px) { .time-leaderboard-row { grid-template-columns: 24px 36px minmax(0,1fr) auto; gap: 8px; padding: 8px; } .time-leaderboard-avatar { width: 36px; height: 36px; } .time-leaderboard-row strong { font-size: .75rem; } .time-leaderboard-row > span:last-child { font-size: .7rem; } }
+
+/* Keep the dashboard analytics concise so team progress remains above the fold. */
+@media (min-width: 901px) {
+  .admin-dashboard .hours-chart { height: 178px; padding-top: 12px; }
+  .admin-dashboard .hours-trend-card { min-height: 290px; }
+  .admin-dashboard .project-allocation-card { grid-column: 1; min-height: 186px; }
+  .admin-dashboard .project-allocation-card .analytics-card-header { min-height: 42px; }
+  .admin-dashboard .project-allocation { gap: 10px; }
+  .admin-dashboard .time-leaderboard-card { grid-column: 2; min-height: 186px; padding: 18px; }
+  .admin-dashboard .time-leaderboard-card .analytics-card-header { min-height: 34px; }
+  .admin-dashboard .time-leaderboard-card .analytics-card-header strong { font-size: 1.05rem; }
+  .admin-dashboard .time-leaderboard-row { grid-template-columns: 20px 30px minmax(0,1fr) auto; min-height: 29px; gap: 7px; padding: 4px 5px; border-radius: 8px; }
+  .admin-dashboard .time-leaderboard-avatar { width: 28px; height: 28px; font-size: .6rem; }
+  .admin-dashboard .time-leaderboard-row strong, .admin-dashboard .time-leaderboard-row > span:last-child { font-size: .66rem; }
+  .admin-dashboard .time-leaderboard-row strong small { font-size: .56rem; }
+}
 .shell-user { min-width: 0; display: flex; flex-direction: column; }
 .shell-user strong { overflow: hidden; text-overflow: ellipsis; color: var(--ace-ink); font-size: .82rem; white-space: nowrap; }
 .shell-user span { color: #66858e; font-size: .72rem; }

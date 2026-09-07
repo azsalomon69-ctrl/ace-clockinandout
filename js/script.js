@@ -1685,7 +1685,7 @@ async function loadTimeLeaderboard(listId, rankId) {
     if (!list || !window.ACEAuth) return;
     try {
         const data = await window.ACEAuth.request('/v1/time-leaderboard');
-        if (rank) rank.textContent = AppState.currentUser?.Role === 'ADMIN' ? 'Ranked by completed worked time.' : `Your team rank: #${data.my_rank} of ${data.total_people}`;
+        if (rank) rank.textContent = AppState.currentUser?.Role === 'ADMIN' ? 'Top five by completed worked time.' : `Your team rank: #${data.my_rank} of ${data.total_people}`;
         list.innerHTML = data.leaders.length ? data.leaders.map((person, index) => {
             const initials = (person.full_name || '?').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
             const isMe = person.id === AppState.currentUser?.UserId;
