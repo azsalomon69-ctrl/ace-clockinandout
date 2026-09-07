@@ -23,6 +23,8 @@ const AppState = {
     auditLogs: [],
     userProjects: [],
     adminRemarks: [],
+    recentEntriesPage: 1,
+    recentEntriesPageSize: 3,
     database: null
 };
 
@@ -2065,9 +2067,17 @@ function loadAdminDashboard() {
     // Populate recent time entries
     const recentTimeEntries = document.getElementById('recentTimeEntries');
     if (recentTimeEntries) {
-        const entries = AppState.timeEntries.slice(0, 10);
-        
-        recentTimeEntries.innerHTML = entries.length ? entries.map(entry => {
+        const entries = AppState.timeEntries;
+        const controls = document.getElementById('recentEntriesControls');
+        const pageSize = document.getElementById('recentEntriesPageSize');
+        const pagination = document.getElementById('recentEntriesPagination');
+        const renderRecentEntries = () => {
+            const size = AppState.recentEntriesPageSize;
+            const totalPages = Math.max(1, Math.ceil(entries.length / size));
+            AppState.recentEntriesPage = Math.min(Math.max(1, AppState.recentEntriesPage), totalPages);
+            const start = (AppState.recentEntriesPage - 1) * size;
+            const pageEntries = entries.slice(start, start + size);
+            recentTimeEntries.innerHTML = pageEntries.length ? pageEntries.map(entry => {
             const user = AppState.users.find(u => u.UserId === entry.UserId);
             const project = entry.ProjectId ? AppState.projects.find(p => p.ProjectId === entry.ProjectId) : null;
             const clockIn = new Date(entry.ClockInAt);
@@ -2091,15 +2101,26 @@ function loadAdminDashboard() {
                     </td>
                 </tr>
             `;
-        }).join('') : `<tr><td colspan="9">${emptyState('No time entries', 'Completed and active sessions will appear here.')}</td></tr>`;
-        recentTimeEntries.querySelectorAll('.admin-recent-entry-toggle').forEach(button => {
+            }).join('') : `<tr><td colspan="9">${emptyState('No time entries', 'Completed and active sessions will appear here.')}</td></tr>`;
+            if (controls) controls.hidden = entries.length <= 3;
+            if (pageSize) pageSize.value = String(size);
+            if (pagination) {
+                const firstVisiblePage = Math.max(1, Math.min(AppState.recentEntriesPage - 1, totalPages - 2));
+                const pages = Array.from({ length: Math.min(3, totalPages) }, (_, index) => firstVisiblePage + index);
+                pagination.innerHTML = totalPages > 1 ? `<button type="button" data-recent-page="${AppState.recentEntriesPage - 1}" ${AppState.recentEntriesPage === 1 ? 'disabled' : ''} aria-label="Previous page">‹</button>${pages.map(page => `<button type="button" data-recent-page="${page}" class="${page === AppState.recentEntriesPage ? 'active' : ''}" aria-label="Page ${page}" aria-current="${page === AppState.recentEntriesPage ? 'page' : 'false'}">${page}</button>`).join('')}<button type="button" data-recent-page="${AppState.recentEntriesPage + 1}" ${AppState.recentEntriesPage === totalPages ? 'disabled' : ''} aria-label="Next page">›</button>` : '';
+                pagination.querySelectorAll('[data-recent-page]').forEach(button => button.addEventListener('click', () => { AppState.recentEntriesPage = Number(button.dataset.recentPage); renderRecentEntries(); }));
+            }
+            recentTimeEntries.querySelectorAll('.admin-recent-entry-toggle').forEach(button => {
             button.addEventListener('click', () => {
                 const row = button.closest('.admin-recent-entry-row');
                 const expanded = row.classList.toggle('is-expanded');
                 button.setAttribute('aria-expanded', String(expanded));
                 button.textContent = expanded ? 'Hide details' : 'Details';
             });
-        });
+            });
+        };
+        pageSize?.addEventListener('change', () => { AppState.recentEntriesPageSize = Number(pageSize.value); AppState.recentEntriesPage = 1; renderRecentEntries(); });
+        renderRecentEntries();
     }
     
     // Populate pending users

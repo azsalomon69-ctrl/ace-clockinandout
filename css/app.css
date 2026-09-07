@@ -3780,6 +3780,13 @@ html[data-theme="dark"] .employee-chat-message-row .employee-chat-actions { colo
 .ace-action-dialog { z-index: 10100; }
 .ace-action-dialog .ace-action-dialog-input[hidden] { display: none !important; }
 
+.recent-entries-size { display: inline-flex; align-items: center; gap: 7px; color: var(--ace-muted); font-size: .75rem; font-weight: 700; }
+.recent-entries-size select { min-height: 34px; padding: 5px 26px 5px 9px; color: var(--ace-ink); background: var(--ace-surface); border: 1px solid var(--ace-line); border-radius: 8px; font: inherit; }
+@media (max-width: 640px) {
+  .admin-dashboard .admin-pagination { align-items: stretch; flex-direction: column; gap: 10px; padding: 14px; }
+  .admin-dashboard .admin-pagination .pagination { justify-content: flex-end; }
+}
+
 /* Administrator tables use compact summaries on phones. Full records remain
    one tap away, so reviewing a busy team does not become a wall of cards. */
 .admin-recent-entry-toggle, .admin-mobile-details-toggle { display: none; }
