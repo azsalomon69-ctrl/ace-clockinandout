@@ -85,11 +85,13 @@ create table public.time_entries (
   project_id uuid references public.projects(id) on delete set null,
   clock_in_at timestamptz not null default now(),
   clock_out_at timestamptz,
+  break_started_at timestamptz,
+  break_seconds integer not null default 0 check (break_seconds >= 0),
   planned_end_at timestamptz,
   user_note text,
   duration_seconds integer generated always as (
     case when clock_out_at is null then null
-    else greatest(0, extract(epoch from (clock_out_at - clock_in_at))::integer) end
+    else greatest(0, extract(epoch from (clock_out_at - clock_in_at))::integer - break_seconds) end
   ) stored,
   deleted_at timestamptz,
   deleted_by_user_id uuid references public.profiles(id) on delete set null,

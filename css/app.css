@@ -2036,6 +2036,8 @@ body:not(.has-app-shell) .nav-link.active { background: var(--ace-sky); color: v
 .employee-dashboard-date { flex: 0 0 auto; max-width: 180px; color: #557681; font: 700 .74rem/1.45 'Montserrat',Arial,sans-serif; text-align: right; }
 .employee-status-panel { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(150px,.42fr) minmax(190px,.42fr); gap: 28px; align-items: center; margin-bottom: 34px; padding: clamp(27px,4vw,46px); color: #fff; background: var(--ace-navy); border: 1px solid var(--ace-navy); border-radius: 16px; box-shadow: 0 18px 38px rgba(7,59,76,.15); transition: border-color .2s ease, background-color .2s ease; }
 .employee-status-panel[data-state="active"] { border-color: #167f8d; background: #073f4c; }
+.employee-status-panel[data-state="break"] { border-color: #b98522; background: #4b3511; }
+.employee-status-panel[data-state="break"] .status-dot { background: #ffd36a; box-shadow: 0 0 0 5px rgba(255,211,106,.12); }
 .employee-status-copy h2 { max-width: 480px; margin: 0 0 9px; color: #fff; font: 750 clamp(1.45rem,2.6vw,2rem)/1.13 'Montserrat',Arial,sans-serif; letter-spacing: -.035em; }
 .employee-status-copy > p:last-child { max-width: 520px; margin: 0; color: #c4e0e5; font-size: .85rem; line-height: 1.6; }
 .employee-status-panel .status-indicator { margin: 0 0 14px; }.employee-status-panel .status-text { color: #dff2f5; }

@@ -381,7 +381,31 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
   await audit(req, `CLOCK_IN (${device})`, 'TIME_ENTRY', entry.id, `Started a time entry from ${device}`);
   res.status(201).json(entry);
 } catch (error) { next(error); } });
-app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try { const note = requireText(req.body.note, 'A clock-out note', 2000); let request = db.from('time_entries').update({ clock_out_at: new Date().toISOString(), user_note: note }).eq('id', req.params.id).is('clock_out_at', null); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); const entry = await query(request.select().single()); const device = clockingDevice(req); await audit(req, `CLOCK_OUT (${device})`, 'TIME_ENTRY', entry.id, `Completed a time entry from ${device}`); res.json(entry); } catch (error) { next(error); } });
+app.post('/v1/time-entries/:id/break/start', authenticate, activeOnly, async (req, res, next) => { try {
+  let request = db.from('time_entries').update({ break_started_at: new Date().toISOString() }).eq('id', req.params.id).is('clock_out_at', null).is('break_started_at', null);
+  if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id);
+  const entry = await query(request.select().single());
+  await audit(req, 'BREAK_START', 'TIME_ENTRY', entry.id, 'Started a work break');
+  res.json(entry);
+} catch (error) { next(error); } });
+app.post('/v1/time-entries/:id/break/end', authenticate, activeOnly, async (req, res, next) => { try {
+  let request = db.from('time_entries').select('id,user_id,break_started_at,break_seconds').eq('id', req.params.id).is('clock_out_at', null).not('break_started_at', 'is', null);
+  if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id);
+  const current = await query(request.single());
+  const additionalSeconds = Math.max(0, Math.floor((Date.now() - new Date(current.break_started_at).getTime()) / 1000));
+  const entry = await query(db.from('time_entries').update({ break_started_at: null, break_seconds: (current.break_seconds || 0) + additionalSeconds }).eq('id', current.id).select().single());
+  await audit(req, 'BREAK_END', 'TIME_ENTRY', entry.id, `Ended a work break (${additionalSeconds} seconds)`);
+  res.json(entry);
+} catch (error) { next(error); } });
+app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try {
+  const note = requireText(req.body.note, 'A clock-out note', 2000);
+  let currentRequest = db.from('time_entries').select('id,user_id,break_started_at,break_seconds').eq('id', req.params.id).is('clock_out_at', null);
+  if (req.profile.role !== 'ADMIN') currentRequest = currentRequest.eq('user_id', req.profile.id);
+  const current = await query(currentRequest.single());
+  const breakSeconds = (current.break_seconds || 0) + (current.break_started_at ? Math.max(0, Math.floor((Date.now() - new Date(current.break_started_at).getTime()) / 1000)) : 0);
+  const entry = await query(db.from('time_entries').update({ clock_out_at: new Date().toISOString(), user_note: note, break_started_at: null, break_seconds: breakSeconds }).eq('id', current.id).select().single());
+  const device = clockingDevice(req); await audit(req, `CLOCK_OUT (${device})`, 'TIME_ENTRY', entry.id, `Completed a time entry from ${device}`); res.json(entry);
+} catch (error) { next(error); } });
 
 app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try { const remarkText = requireText(req.body.remark, 'Remark', 2000); const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: remarkText }).select().single()); await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark'); res.status(201).json(remark); } catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try { const entry = await query(db.from('time_entries').update({ deleted_at: new Date().toISOString(), deleted_by_user_id: req.profile.id }).eq('id', req.params.id).is('deleted_at', null).select().single()); await audit(req, 'DELETE', 'TIME_ENTRY', entry.id, 'Moved time entry to deleted data'); res.json(entry); } catch (error) { next(error); } });

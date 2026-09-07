@@ -7,6 +7,7 @@ const AppState = {
     currentUser: null,
     isAuthenticated: false,
     isClockedIn: false,
+    isOnBreak: false,
     currentSession: null,
     presenceInterval: null,
     presenceVisibilityHandler: null,
@@ -28,7 +29,7 @@ const AppState = {
 const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, Role: item.role, Status: item.status, DepartmentId: item.department_id, LastSeenAt: item.last_seen_at, CreatedAt: item.created_at });
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
-const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
+const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, BreakStartedAt: item.break_started_at, BreakSeconds: item.break_seconds || 0, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
@@ -71,6 +72,7 @@ async function loadDatabase() {
     );
     AppState.currentSession = active || null;
     AppState.isClockedIn = Boolean(active);
+    AppState.isOnBreak = Boolean(active?.BreakStartedAt);
     AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
     if (active) startTimer();
     return true;
@@ -772,6 +774,9 @@ function initializeModals() {
         });
     }
 
+    const breakButton = document.querySelectorAll('[data-break-toggle]');
+    breakButton.forEach(button => button.addEventListener('click', handleBreakToggle));
+
     initializeHomePreview();
 
     // Dashboard and legacy footer shortcuts must behave like their matching
@@ -1097,6 +1102,7 @@ async function handleClockIn(e) {
         AppState.currentSession = timeEntryRecord(entry);
         AppState.timeEntries.unshift(AppState.currentSession);
         AppState.isClockedIn = true; AppState.clockInTime = new Date(AppState.currentSession.ClockInAt);
+        AppState.isOnBreak = false;
         closeModal('clockInModal'); startTimer(); updateUI(); loadPageSpecificData();
         showToast('Clocked in successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
@@ -1115,10 +1121,28 @@ async function handleClockOut(e) {
         const saved = timeEntryRecord(entry);
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
         AppState.isClockedIn = false; AppState.currentSession = null; AppState.clockInTime = null;
+        AppState.isOnBreak = false;
         stopTimer(); closeModal('clockOutModal'); updateUI(); loadPageSpecificData();
         showToast('Clocked out successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
     finally { setActionBusy(submitButton, false); }
+}
+
+async function handleBreakToggle(event) {
+    if (!AppState.currentSession) return;
+    const button = event.currentTarget;
+    try {
+        setActionBusy(button, true, AppState.isOnBreak ? 'Ending break…' : 'Starting break…');
+        const action = AppState.isOnBreak ? 'end' : 'start';
+        const entry = await window.ACEAuth.request(`/v1/time-entries/${AppState.currentSession.TimeEntryId}/break/${action}`, { method: 'POST' });
+        const saved = timeEntryRecord(entry);
+        AppState.currentSession = saved;
+        AppState.isOnBreak = Boolean(saved.BreakStartedAt);
+        AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
+        updateUI(); updateTimerDisplay();
+        showToast(AppState.isOnBreak ? 'Break started. Work timer is paused.' : 'Break ended. Work timer resumed.', 'success');
+    } catch (error) { showToast(error.message || 'Unable to update break status.', 'error'); }
+    finally { setActionBusy(button, false); }
 }
 
 function setActionBusy(button, busy, label = '') {
@@ -1148,7 +1172,8 @@ function updateTimerDisplay() {
     if (!AppState.isClockedIn || !AppState.clockInTime) return;
     
     const now = new Date();
-    const duration = Math.floor((now - AppState.clockInTime) / 1000);
+    const activeBreakSeconds = AppState.currentSession?.BreakStartedAt ? Math.max(0, Math.floor((now - new Date(AppState.currentSession.BreakStartedAt)) / 1000)) : 0;
+    const duration = Math.max(0, Math.floor((now - AppState.clockInTime) / 1000) - (AppState.currentSession?.BreakSeconds || 0) - activeBreakSeconds);
     const hours = Math.floor(duration / 3600);
     const minutes = Math.floor((duration % 3600) / 60);
     const seconds = duration % 60;
@@ -1166,7 +1191,8 @@ function showClockOutSummary() {
     
     const clockInTime = new Date(AppState.currentSession.ClockInAt);
     const now = new Date();
-    const duration = Math.floor((now - clockInTime) / 1000);
+    const activeBreakSeconds = AppState.currentSession?.BreakStartedAt ? Math.max(0, Math.floor((now - new Date(AppState.currentSession.BreakStartedAt)) / 1000)) : 0;
+    const duration = Math.max(0, Math.floor((now - clockInTime) / 1000) - (AppState.currentSession?.BreakSeconds || 0) - activeBreakSeconds);
     const hours = Math.floor(duration / 3600);
     const minutes = Math.floor((duration % 3600) / 60);
     const seconds = duration % 60;
@@ -1369,7 +1395,7 @@ function updateUI() {
         
         if (AppState.isClockedIn) {
             statusDot?.classList.add('active');
-            if (statusText) statusText.textContent = 'Working now';
+            if (statusText) statusText.textContent = AppState.isOnBreak ? 'On break' : 'Working now';
         } else {
             statusDot?.classList.remove('active');
             if (statusText) statusText.textContent = 'Clocked out';
@@ -1384,11 +1410,11 @@ function updateUI() {
     const sessionFacts = document.getElementById('employeeSessionFacts');
     const sessionStarted = document.getElementById('sessionStartedAt');
     const sessionProject = document.getElementById('sessionProjectName');
-    if (statusPanel) statusPanel.dataset.state = AppState.isClockedIn ? 'active' : 'idle';
+    if (statusPanel) statusPanel.dataset.state = AppState.isOnBreak ? 'break' : (AppState.isClockedIn ? 'active' : 'idle');
     if (AppState.isClockedIn && AppState.clockInTime) {
-        if (shiftTitle) shiftTitle.textContent = 'Your shift is in progress.';
-        if (shiftDescription) shiftDescription.textContent = 'Your live session is running. Clock out when you have finished your work.';
-        if (sessionLabel) sessionLabel.textContent = 'Clocked in at';
+        if (shiftTitle) shiftTitle.textContent = AppState.isOnBreak ? 'You are on a break.' : 'Your shift is in progress.';
+        if (shiftDescription) shiftDescription.textContent = AppState.isOnBreak ? 'Your work timer is paused until you end your break.' : 'Your live session is running. Clock out when you have finished your work.';
+        if (sessionLabel) sessionLabel.textContent = AppState.isOnBreak ? 'Break started at' : 'Clocked in at';
         if (sessionTime) sessionTime.textContent = AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         if (sessionFacts) sessionFacts.hidden = false;
         if (sessionStarted) sessionStarted.textContent = AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -1409,17 +1435,20 @@ function updateUI() {
     const clockOutBtn = document.getElementById('mainClockOutBtn');
     const clockInBtnAlt = document.getElementById('clockInBtn');
     const clockOutBtnAlt = document.getElementById('clockOutBtn');
+    const breakButtons = document.querySelectorAll('[data-break-toggle]');
     
     if (AppState.isClockedIn) {
         if (clockInBtn) clockInBtn.style.display = 'none';
         if (clockOutBtn) clockOutBtn.style.display = 'inline-flex';
         if (clockInBtnAlt) clockInBtnAlt.style.display = 'none';
         if (clockOutBtnAlt) clockOutBtnAlt.style.display = 'inline-flex';
+        breakButtons.forEach(button => { button.style.display = 'inline-flex'; button.textContent = AppState.isOnBreak ? 'End Break' : 'Start Break'; });
     } else {
         if (clockInBtn) clockInBtn.style.display = 'inline-flex';
         if (clockOutBtn) clockOutBtn.style.display = 'none';
         if (clockInBtnAlt) clockInBtnAlt.style.display = 'inline-flex';
         if (clockOutBtnAlt) clockOutBtnAlt.style.display = 'none';
+        breakButtons.forEach(button => { button.style.display = 'none'; });
     }
     
     // Update current session card
@@ -1469,6 +1498,8 @@ function updateClock() {
             hour: '2-digit', minute: '2-digit', second: '2-digit'
         });
     }
+    const workDurationLabel = document.getElementById('workDurationLabel');
+    if (workDurationLabel) workDurationLabel.textContent = AppState.isOnBreak ? 'Worked (paused)' : 'Worked';
     
     // Update date
     const currentDateElement = document.getElementById('currentDate');
@@ -1928,6 +1959,7 @@ function loadAdminDashboard() {
                     <td>${clockIn.toLocaleTimeString()}</td>
                     <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
                     <td>${duration}</td>
+                    <td>${entry.BreakSeconds ? formatDuration(entry.BreakSeconds) : '—'}${entry.BreakStartedAt ? ' (active)' : ''}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
                     <td>${remarks.length ? `${remarks.length} remark${remarks.length === 1 ? '' : 's'}` : '—'}</td>
                     <td>
@@ -2002,7 +2034,7 @@ function loadTimeEntries() {
                     </td>
                 </tr>
             `;
-        }).join('') : `<tr><td colspan="9">${emptyState('No time entries found', 'Your tracked sessions will appear here. Start by clocking in.', 'Clock in', '#')}</td></tr>`;
+        }).join('') : `<tr><td colspan="10">${emptyState('No time entries found', 'Your tracked sessions will appear here. Start by clocking in.', 'Clock in', '#')}</td></tr>`;
     }
 }
 
@@ -2180,7 +2212,8 @@ function viewTimeEntry(entryId) {
                     <p><strong>Project:</strong> ${escapeHtml(project?.ProjectName || 'None')}</p>
                     <p><strong>Clock In:</strong> ${new Date(entry.ClockInAt).toLocaleString()}</p>
                     <p><strong>Clock Out:</strong> ${entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active'}</p>
-                    <p><strong>Duration:</strong> ${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</p>
+                    <p><strong>Worked:</strong> ${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</p>
+                    <p><strong>Break time:</strong> ${entry.BreakSeconds ? formatDuration(entry.BreakSeconds) : 'None'}${entry.BreakStartedAt ? ' (currently on break)' : ''}</p>
                     <p><strong>Note:</strong> ${escapeHtml(entry.UserNote || 'No note')}</p>
                 </div>
             `;

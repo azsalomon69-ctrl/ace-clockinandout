@@ -9,7 +9,7 @@ const ADMIN_SECTION_CONFIG = {
   invitations: { title: 'Pre-authorized access', description: 'Authorize a Google account as an employee or administrator before its first sign-in.', action: 'Authorize account', actionIcon: 'user-plus', columns: ['Email', 'Authorized by', 'Created', 'Expires', 'Status', 'Action'] },
   departments: { title: 'Departments', description: 'Organize employees by department. Assignments remain optional.', action: 'Add department', actionIcon: 'building', columns: ['Department', 'Description', 'Created', 'Status', 'Action'] },
   projects: { title: 'Projects', description: 'Manage projects available for optional time-entry assignment.', action: 'Add project', actionIcon: 'folder', columns: ['Project', 'Description', 'Created', 'Status', 'Action'] },
-  entries: { title: 'Time entries', description: 'Review company clocking activity and add internal administrator remarks.', action: 'Export entries', actionIcon: 'download', columns: ['Employee', 'Project', 'Clock in', 'Clock out', 'Duration', 'Remarks', 'Action'] },
+  entries: { title: 'Time entries', description: 'Review company clocking activity, recorded break time, and internal administrator remarks.', action: 'Export entries', actionIcon: 'download', columns: ['Employee', 'Project', 'Clock in', 'Clock out', 'Worked', 'Break', 'Remarks', 'Action'] },
   audit: { title: 'Audit log', description: 'Review the append-only record of important actions across the system.', columns: ['When', 'Actor', 'Action', 'Entity', 'Description', 'Record'] }
 };
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
@@ -44,8 +44,9 @@ async function applyLiveData(key, view) {
       remarksByEntry.set(remark.time_entry_id, list);
     });
     const now = Date.now();
-    const total = items.reduce((sum, item) => sum + (item.duration_seconds || (!item.clock_out_at ? Math.max(0, Math.floor((now - new Date(item.clock_in_at).getTime()) / 1000)) : 0)), 0);
-    view.records = items.map(item => ({ id: item.id, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || 'Unassigned', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : 'Running', (remarksByEntry.get(item.id) || []).join(' · ') || '—', 'Add remark'] }));
+    const liveWorkedSeconds = item => Math.max(0, Math.floor((now - new Date(item.clock_in_at).getTime()) / 1000) - (item.break_seconds || 0) - (item.break_started_at ? Math.max(0, Math.floor((now - new Date(item.break_started_at).getTime()) / 1000)) : 0));
+    const total = items.reduce((sum, item) => sum + (item.duration_seconds || (!item.clock_out_at ? liveWorkedSeconds(item) : 0)), 0);
+    view.records = items.map(item => ({ id: item.id, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || 'Unassigned', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : 'Running', item.break_seconds ? duration(item.break_seconds) + (item.break_started_at ? ' + active' : '') : item.break_started_at ? 'Active' : '—', (remarksByEntry.get(item.id) || []).join(' · ') || '—', 'Add remark'] }));
     view.stats = [[duration(total), 'Tracked time', 'timer'], [items.filter(item => !item.clock_out_at).length, 'Open entries', 'circle-alert'], [items.length, 'Time entries', 'check']];
   } else if (key === 'audit') {
     const items = await liveRequest('/v1/audit-logs');
@@ -182,7 +183,7 @@ function modal(view, primary, record) {
   openModal('adminActionModal');
 }
 function downloadCsv(records) {
-  const rows = [['Employee', 'Project', 'Clock in', 'Clock out', 'Duration'], ...records.map(record => record.cells.slice(0, 5))];
+  const rows = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked', 'Break'], ...records.map(record => record.cells.slice(0, 6))];
   const csv = rows.map(row => row.map(cell => '"' + String(cell).replaceAll('"', '""') + '"').join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a'); link.href = url; link.download = 'ace-time-entries.csv'; link.click(); URL.revokeObjectURL(url);
