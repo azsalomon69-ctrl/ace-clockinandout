@@ -3394,3 +3394,32 @@ html[data-theme="dark"] :is(.filters-section, .analytics-toolbar, .dashboard-sec
   border-color: #203f47 !important;
   box-shadow: 7px 7px 15px rgba(0, 0, 0, .26), -4px -4px 11px rgba(72, 116, 126, .07) !important;
 }
+
+/* Contrast audit: explicit text roles prevent light-theme component rules from
+   leaking into menus, labels, and utility copy in the dark palette. */
+html[data-theme="dark"] .shell-account-menu :is(a, button) { color: #d9ecef !important; }
+html[data-theme="dark"] .shell-account-menu button { color: #ffb9c3 !important; }
+html[data-theme="dark"] .shell-account-menu :is(a, button):hover { color: #fff !important; background: rgba(104, 192, 205, .14) !important; }
+html[data-theme="dark"] :is(.form-label, .filter-label, .detail-label, .record-reference,
+  .help-content > h4, .faq-answer p, .toast-message span, .quick-access-heading small,
+  .demo-account small, .session-summary .summary-label, .preview-heading span,
+  .preview-summary small, .activity-meta, .remark-meta, .empty-state, .modal-empty-state) {
+  color: var(--ace-text-secondary) !important;
+}
+html[data-theme="dark"] :is(.detail-value, .session-summary .summary-value, .quick-access-heading span,
+  .demo-account strong, .preview-heading strong, .preview-summary strong, .detail-summary strong,
+  .faq-question, .settings-tab.active, .project-card-action, .modal-close) {
+  color: var(--ace-text-primary) !important;
+}
+html[data-theme="dark"] :is(.text-link, .path-link, .project-card-action, .record-reference a) {
+  color: var(--ace-accent-hover) !important;
+}
+html[data-theme="dark"] :is(.text-link, .path-link, .project-card-action, .record-reference a):hover {
+  color: #b7f2fa !important;
+}
+html[data-theme="dark"] :is(.modal .form-checkbox, .notification-option, .security-option,
+  .settings-tab, .faq-question, .pagination button, .analytics-calendar-weekdays) {
+  color: var(--ace-text-secondary) !important;
+}
+html[data-theme="dark"] :is(.status-indicator, .status-text, .shell-user strong) { color: var(--ace-text-primary) !important; }
+html[data-theme="dark"] :is(.shell-user span, .form-input::placeholder, .form-textarea::placeholder) { color: var(--ace-text-tertiary) !important; }
