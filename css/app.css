@@ -3774,6 +3774,12 @@ html[data-theme="dark"] .employee-chat-message-row .employee-chat-actions { colo
   .employee-chat-message-row { max-width: 88%; }
 }
 
+/* Dialogs must always sit above the persistent chat workspace. The form-group
+   rule elsewhere is intentionally overridden so confirmation dialogs never
+   expose the edit-only input field. */
+.ace-action-dialog { z-index: 10100; }
+.ace-action-dialog .ace-action-dialog-input[hidden] { display: none !important; }
+
 /* Administrator tables use compact summaries on phones. Full records remain
    one tap away, so reviewing a busy team does not become a wall of cards. */
 .admin-recent-entry-toggle, .admin-mobile-details-toggle { display: none; }
