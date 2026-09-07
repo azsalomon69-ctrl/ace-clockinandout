@@ -374,16 +374,18 @@ function initializeEmployeeChat() {
     const chat = document.createElement('section');
     chat.id = 'employeeChat';
     chat.className = 'employee-chat';
-    chat.innerHTML = `<button class="employee-chat-launcher" type="button" aria-expanded="false" aria-controls="employeeChatPanel"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Chat</span><b class="employee-chat-badge" hidden>0</b></button><div class="employee-chat-panel" id="employeeChatPanel" hidden><header><strong>Team chat</strong><button type="button" class="employee-chat-close" aria-label="Close chat">×</button></header><div class="employee-chat-layout"><aside><p>Chats</p><div class="employee-chat-contacts"></div></aside><section class="employee-chat-thread"><div class="employee-chat-empty">Choose a teammate to start a private chat.</div></section></div></div>`;
+    chat.innerHTML = `<button class="employee-chat-launcher" type="button" aria-expanded="false" aria-controls="employeeChatPanel"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Chat</span><b class="employee-chat-badge" hidden>0</b></button><div class="employee-chat-panel" id="employeeChatPanel" hidden><header><strong>Team chat</strong><button type="button" class="employee-chat-close" aria-label="Close chat">×</button></header><div class="employee-chat-layout"><aside><p>Chats</p><label class="employee-chat-search"><span class="sr-only">Search teammates</span><input type="search" placeholder="Search teammates" autocomplete="off"></label><div class="employee-chat-contacts"></div></aside><section class="employee-chat-thread"><div class="employee-chat-empty">Choose a teammate to start a private chat.</div></section></div></div>`;
     document.body.appendChild(chat);
     const launcher = chat.querySelector('.employee-chat-launcher');
     const panel = chat.querySelector('.employee-chat-panel');
     const contacts = chat.querySelector('.employee-chat-contacts');
+    const contactSearch = chat.querySelector('.employee-chat-search input');
     const thread = chat.querySelector('.employee-chat-thread');
     const badge = chat.querySelector('.employee-chat-badge');
     let selectedId = null;
     let selectedName = '';
     let contactsLoaded = false;
+    let allContacts = [];
     const unreadByContact = new Map();
     const formatTime = value => new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     const loadMessages = async () => {
@@ -416,6 +418,12 @@ function initializeEmployeeChat() {
             }));
         } catch (error) { thread.innerHTML = `<div class="employee-chat-empty">${escapeHtml(error.message || 'Unable to load this conversation.')}</div>`; }
     };
+    const renderContacts = () => {
+        const query = contactSearch.value.trim().toLowerCase();
+        const people = allContacts.filter(person => `${person.full_name || ''} ${person.email || ''}`.toLowerCase().includes(query));
+        contacts.innerHTML = people.length ? people.map(person => `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(person.full_name || person.email)}" type="button"><span>${escapeHtml((person.full_name || person.email).slice(0, 1).toUpperCase())}</span><strong>${escapeHtml(person.full_name || person.email)}</strong>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(person.full_name || person.email)}"></b>` : ''}</button>`).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
+        contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.id; selectedName = button.dataset.name; chat.classList.add('employee-chat-chatting'); renderContacts(); loadMessages(); }));
+    };
     const loadContacts = async () => {
         try {
             const people = await window.ACEAuth.request('/v1/employee-chat/contacts');
@@ -432,10 +440,11 @@ function initializeEmployeeChat() {
             people.forEach(person => unreadByContact.set(person.id, person.unread_count || 0));
             contactsLoaded = true;
             badge.hidden = !totalUnread; badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
-            contacts.innerHTML = people.length ? people.map(person => `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(person.full_name || person.email)}" type="button"><span>${escapeHtml((person.full_name || person.email).slice(0, 1).toUpperCase())}</span><strong>${escapeHtml(person.full_name || person.email)}</strong>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(person.full_name || person.email)}"></b>` : ''}</button>`).join('') : '<div class="employee-chat-empty">No other active teammates yet.</div>';
-            contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.id; selectedName = button.dataset.name; chat.classList.add('employee-chat-chatting'); loadContacts(); loadMessages(); }));
+            allContacts = people;
+            renderContacts();
         } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
     };
+    contactSearch.addEventListener('input', renderContacts);
     const openChat = open => { panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); if (open) { chat.classList.remove('employee-chat-chatting'); loadContacts(); } };
     launcher.addEventListener('click', () => openChat(panel.hidden));
     chat.querySelector('.employee-chat-close').addEventListener('click', () => openChat(false));
