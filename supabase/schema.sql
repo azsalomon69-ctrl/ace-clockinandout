@@ -20,6 +20,7 @@ create table public.profiles (
   email text not null,
   full_name text not null default '',
   profile_picture_url text,
+  profile_picture_public_id text,
   role public.user_role not null default 'USER',
   status public.user_status not null default 'PENDING',
   department_id uuid references public.departments(id) on delete set null,

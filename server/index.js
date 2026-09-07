@@ -4,6 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { createClient } from '@supabase/supabase-js';
+import { v2 as cloudinary } from 'cloudinary';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_KEY'];
 const missing = required.filter(name => !process.env[name]);
@@ -12,6 +13,8 @@ if (missing.length) throw new Error(`Missing required environment variable(s): $
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
+const cloudinaryConfigured = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].every(key => Boolean(process.env[key]));
+if (cloudinaryConfigured) cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET, secure: true });
 const app = express();
 const frontendOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(value => value.trim()).filter(Boolean);
 if (process.env.NODE_ENV === 'production' && !frontendOrigins.length) {
@@ -142,6 +145,26 @@ app.patch('/v1/me', authenticate, activeOnly, async (req, res, next) => { try {
   await audit(req, 'UPDATE_PROFILE', 'PROFILE', profile.id, 'Updated profile name');
   res.json({ profile });
 } catch (error) { next(error); } });
+app.post('/v1/me/avatar-upload', authenticate, activeOnly, async (req, res, next) => { try {
+  if (!cloudinaryConfigured) return fail(res, 503, 'Profile photo uploads are not configured yet');
+  const contentType = String(req.body.contentType || '');
+  const contentLength = Number(req.body.contentLength);
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType) || !Number.isFinite(contentLength) || contentLength < 1 || contentLength > 5 * 1024 * 1024) return fail(res, 400, 'Choose a JPG, PNG, or WebP photo under 5 MB');
+  const timestamp = Math.floor(Date.now() / 1000);
+  const publicId = `ace-profiles/${req.profile.id}/${crypto.randomUUID()}`;
+  const signature = cloudinary.utils.api_sign_request({ public_id: publicId, timestamp }, process.env.CLOUDINARY_API_SECRET);
+  res.json({ uploadUrl: `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`, apiKey: process.env.CLOUDINARY_API_KEY, timestamp, signature, publicId });
+} catch (error) { next(error); } });
+app.post('/v1/me/avatar-complete', authenticate, activeOnly, async (req, res, next) => { try {
+  if (!cloudinaryConfigured) return fail(res, 503, 'Profile photo uploads are not configured yet');
+  const publicId = requireText(req.body.publicId, 'Upload ID', 300);
+  if (!publicId.startsWith(`ace-profiles/${req.profile.id}/`)) return fail(res, 403, 'That upload does not belong to your account');
+  const asset = await cloudinary.api.resource(publicId, { resource_type: 'image' });
+  const profile = await query(db.from('profiles').update({ profile_picture_url: asset.secure_url, profile_picture_public_id: publicId }).eq('id', req.profile.id).select().single());
+  if (req.profile.profile_picture_public_id) await cloudinary.uploader.destroy(req.profile.profile_picture_public_id, { invalidate: true, resource_type: 'image' }).catch(() => {});
+  await audit(req, 'UPDATE_PROFILE_PHOTO', 'PROFILE', profile.id, 'Updated profile photo');
+  res.json({ profile });
+} catch (error) { next(error); } });
 app.post('/v1/auth/session-start', authenticate, async (req, res, next) => { try {
   await query(db.from('profiles').update({ last_login_at: new Date().toISOString(), last_seen_at: new Date().toISOString() }).eq('id', req.profile.id).select().single());
   await audit(req, 'LOGIN', 'PROFILE', req.profile.id, 'Signed in successfully');
@@ -222,7 +245,7 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
   const [contacts, unread] = await Promise.all([
-    query(db.from('profiles').select('id,full_name,email,role,last_seen_at').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name')),
+    query(db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name')),
     query(db.from('employee_messages').select('sender_id').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null))
   ]);
   const unreadCounts = unread.reduce((counts, message) => ({ ...counts, [message.sender_id]: (counts[message.sender_id] || 0) + 1 }), {});

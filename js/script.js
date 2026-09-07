@@ -26,7 +26,7 @@ const AppState = {
     database: null
 };
 
-const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, Role: item.role, Status: item.status, DepartmentId: item.department_id, LastSeenAt: item.last_seen_at, CreatedAt: item.created_at });
+const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, LastSeenAt: item.last_seen_at, CreatedAt: item.created_at });
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, BreakStartedAt: item.break_started_at, BreakSeconds: item.break_seconds || 0, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
@@ -387,6 +387,7 @@ function initializeEmployeeChat() {
     let selectedId = null;
     let selectedName = '';
     let selectedOnline = false;
+    let selectedPictureUrl = '';
     let contactsLoaded = false;
     let allContacts = [];
     const unreadByContact = new Map();
@@ -395,7 +396,7 @@ function initializeEmployeeChat() {
         if (!selectedId) return;
         try {
             const messages = await window.ACEAuth.request(`/v1/employee-chat/messages/${selectedId}`);
-            thread.innerHTML = `<div class="employee-chat-thread-head"><button class="employee-chat-back" type="button" aria-label="Back to chats">‹</button><span class="employee-chat-avatar">${escapeHtml(selectedName.slice(0, 1).toUpperCase())}</span><div><strong>${escapeHtml(selectedName)}</strong><span class="employee-chat-presence${selectedOnline ? ' is-online' : ''}">${selectedOnline ? 'Online now' : 'Offline'}</span></div></div><div class="employee-chat-messages">${messages.map(message => { const mine = message.sender_id === AppState.currentUser.UserId; const deleted = Boolean(message.deleted_at); return `<div class="employee-chat-message${mine ? ' mine' : ''}${deleted ? ' deleted' : ''}"><span>${deleted ? 'This message was deleted.' : escapeHtml(message.body)}</span>${!deleted && message.edited_at ? '<em>edited</em>' : ''}<time>${formatTime(message.created_at)}</time>${mine && !deleted ? `<div class="employee-chat-actions"><button type="button" data-chat-edit="${message.id}" data-chat-body="${escapeHtml(message.body)}">Edit</button><button type="button" data-chat-delete="${message.id}">Delete</button></div>` : ''}</div>`; }).join('')}</div><form class="employee-chat-compose"><input maxlength="2000" aria-label="Message ${escapeHtml(selectedName)}" placeholder="Write a message…" required><button type="submit">Send</button></form>`;
+            thread.innerHTML = `<div class="employee-chat-thread-head"><button class="employee-chat-back" type="button" aria-label="Back to chats">‹</button><span class="employee-chat-avatar">${selectedPictureUrl ? `<img src="${escapeHtml(selectedPictureUrl)}" alt="">` : escapeHtml(selectedName.slice(0, 1).toUpperCase())}</span><div><strong>${escapeHtml(selectedName)}</strong><span class="employee-chat-presence${selectedOnline ? ' is-online' : ''}">${selectedOnline ? 'Online now' : 'Offline'}</span></div></div><div class="employee-chat-messages">${messages.map(message => { const mine = message.sender_id === AppState.currentUser.UserId; const deleted = Boolean(message.deleted_at); return `<div class="employee-chat-message${mine ? ' mine' : ''}${deleted ? ' deleted' : ''}"><span>${deleted ? 'This message was deleted.' : escapeHtml(message.body)}</span>${!deleted && message.edited_at ? '<em>edited</em>' : ''}<time>${formatTime(message.created_at)}</time>${mine && !deleted ? `<div class="employee-chat-actions"><button type="button" data-chat-edit="${message.id}" data-chat-body="${escapeHtml(message.body)}">Edit</button><button type="button" data-chat-delete="${message.id}">Delete</button></div>` : ''}</div>`; }).join('')}</div><form class="employee-chat-compose"><input maxlength="2000" aria-label="Message ${escapeHtml(selectedName)}" placeholder="Write a message…" required><button type="submit">Send</button></form>`;
             const messagesBox = thread.querySelector('.employee-chat-messages');
             if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight;
             thread.querySelector('.employee-chat-back')?.addEventListener('click', () => chat.classList.remove('employee-chat-chatting'));
@@ -424,8 +425,8 @@ function initializeEmployeeChat() {
     const renderContacts = () => {
         const query = contactSearch.value.trim().toLowerCase();
         const people = allContacts.filter(person => `${person.full_name || ''} ${person.email || ''}`.toLowerCase().includes(query));
-        contacts.innerHTML = people.length ? people.map(person => { const online = Boolean(person.last_seen_at && Date.now() - new Date(person.last_seen_at).getTime() < 2 * 60 * 1000); return `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(person.full_name || person.email)}" data-online="${online}" type="button"><span class="employee-chat-avatar">${escapeHtml((person.full_name || person.email).slice(0, 1).toUpperCase())}<i class="employee-chat-online-dot${online ? ' is-online' : ''}"></i></span><div><strong>${escapeHtml(person.full_name || person.email)}</strong><small>${online ? 'Online' : 'Offline'}</small></div>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(person.full_name || person.email)}"></b>` : ''}</button>`; }).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
-        contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.id; selectedName = button.dataset.name; selectedOnline = button.dataset.online === 'true'; chat.classList.add('employee-chat-chatting'); renderContacts(); loadMessages(); }));
+        contacts.innerHTML = people.length ? people.map(person => { const online = Boolean(person.last_seen_at && Date.now() - new Date(person.last_seen_at).getTime() < 2 * 60 * 1000); return `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(person.full_name || person.email)}" data-picture="${escapeHtml(person.profile_picture_url || '')}" data-online="${online}" type="button"><span class="employee-chat-avatar">${person.profile_picture_url ? `<img src="${escapeHtml(person.profile_picture_url)}" alt="">` : escapeHtml((person.full_name || person.email).slice(0, 1).toUpperCase())}<i class="employee-chat-online-dot${online ? ' is-online' : ''}"></i></span><div><strong>${escapeHtml(person.full_name || person.email)}</strong><small>${online ? 'Online' : 'Offline'}</small></div>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(person.full_name || person.email)}"></b>` : ''}</button>`; }).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
+        contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.id; selectedName = button.dataset.name; selectedPictureUrl = button.dataset.picture; selectedOnline = button.dataset.online === 'true'; chat.classList.add('employee-chat-chatting'); renderContacts(); loadMessages(); }));
     };
     const loadContacts = async () => {
         try {
@@ -445,7 +446,7 @@ function initializeEmployeeChat() {
             badge.hidden = !totalUnread; badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
             allContacts = people;
             const selectedContact = people.find(person => person.id === selectedId);
-            if (selectedContact) selectedOnline = Boolean(selectedContact.last_seen_at && Date.now() - new Date(selectedContact.last_seen_at).getTime() < 2 * 60 * 1000);
+            if (selectedContact) { selectedOnline = Boolean(selectedContact.last_seen_at && Date.now() - new Date(selectedContact.last_seen_at).getTime() < 2 * 60 * 1000); selectedPictureUrl = selectedContact.profile_picture_url || ''; }
             renderContacts();
         } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
     };
@@ -513,7 +514,7 @@ function initializeAppShell() {
     }
     const sidebar = document.createElement('aside');
     sidebar.className = 'app-sidebar';
-    sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">Profile &amp; settings</a><button type="button" role="menuitem" data-account-logout>Sign out</button></div></div>`;
+    sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">Profile &amp; settings</a><button type="button" role="menuitem" data-account-logout>Sign out</button></div></div>`;
     const overlay = document.createElement('button');
     overlay.className = 'shell-overlay'; overlay.type = 'button'; overlay.setAttribute('aria-label', 'Close navigation');
     const mobileToggle = document.createElement('button');
@@ -1360,6 +1361,16 @@ async function handleProfileUpdate(e) {
     const submitButton = document.querySelector('#profileForm button[type="submit"]');
     try {
         setActionBusy(submitButton, true, 'Saving…');
+        const photo = document.getElementById('profilePhoto')?.files?.[0];
+        if (photo) {
+            const upload = await window.ACEAuth.request('/v1/me/avatar-upload', { method: 'POST', body: JSON.stringify({ contentType: photo.type, contentLength: photo.size }) });
+            const uploadBody = new FormData();
+            uploadBody.append('file', photo); uploadBody.append('api_key', upload.apiKey); uploadBody.append('timestamp', upload.timestamp); uploadBody.append('signature', upload.signature); uploadBody.append('public_id', upload.publicId);
+            const uploadResponse = await fetch(upload.uploadUrl, { method: 'POST', body: uploadBody });
+            if (!uploadResponse.ok) throw new Error('Could not upload your profile photo');
+            const completed = await window.ACEAuth.request('/v1/me/avatar-complete', { method: 'POST', body: JSON.stringify({ publicId: upload.publicId }) });
+            AppState.currentUser = profileRecord(completed.profile);
+        }
         const { profile } = await window.ACEAuth.request('/v1/me', { method: 'PATCH', body: JSON.stringify({ fullName }) });
         AppState.currentUser = profileRecord(profile);
         localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
