@@ -54,9 +54,14 @@ create table public.invitations (
   status public.invitation_status not null default 'PENDING',
   invited_at timestamptz not null default now(),
   expires_at timestamptz not null default now() + interval '7 days',
-  accepted_at timestamptz,
-  unique (email, status)
+  accepted_at timestamptz
 );
+-- An email may have historical accepted invitations, but only one active
+-- invitation may be pending at a time. This permits reinviting someone whose
+-- previous Google login was permanently removed.
+create unique index invitations_one_pending_email_idx
+  on public.invitations(email)
+  where status = 'PENDING';
 
 create table public.access_requests (
   id uuid primary key default gen_random_uuid(),

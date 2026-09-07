@@ -25,6 +25,13 @@ alter table public.invitations
   alter column expires_at set default now() + interval '7 days',
   alter column expires_at set not null;
 
+-- Historical accepted invitations must not block a former employee from
+-- receiving a new invitation after their Google login was permanently removed.
+alter table public.invitations drop constraint if exists invitations_email_status_key;
+create unique index if not exists invitations_one_pending_email_idx
+  on public.invitations(email)
+  where status = 'PENDING';
+
 create or replace function public.create_profile_for_auth_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare invitation_id uuid; invitation_role public.user_role; invitation_department_id uuid;
