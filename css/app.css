@@ -3203,3 +3203,80 @@ html[data-theme="dark"] .theme-preview.system-theme { background: linear-gradien
 @keyframes ace-toast-in { from { opacity: 0; transform: translateX(20px) scale(.98); } to { opacity: 1; transform: translateX(0) scale(1); } }
 @keyframes ace-toast-out { to { opacity: 0; transform: translateX(14px) scale(.98); } }
 @keyframes ace-date-select { from { transform: scale(.72); } to { transform: scale(1); } }
+
+/* Soft-neumorphic finish: a tactile, low-contrast surface system that keeps
+   the existing ACE palette and focus treatment accessible. */
+:root {
+  --neo-surface: #edf6f8;
+  --neo-light: #ffffff;
+  --neo-shadow-dark: rgba(44, 93, 108, .16);
+  --neo-shadow-light: rgba(255, 255, 255, .94);
+  --neo-raised: 9px 9px 18px var(--neo-shadow-dark), -8px -8px 17px var(--neo-shadow-light);
+  --neo-raised-sm: 5px 5px 11px rgba(44, 93, 108, .13), -5px -5px 11px var(--neo-shadow-light);
+  --neo-inset: inset 4px 4px 9px rgba(44, 93, 108, .13), inset -4px -4px 9px rgba(255, 255, 255, .86);
+}
+
+body, .has-app-shell .main-content { background: var(--neo-surface); }
+
+:is(.card, .feature-card, .step-card, .stat-card, .summary-card, .project-card,
+    .settings-section, .filters-section, .dashboard-section, .recent-activity-section,
+    .projects-section, .admin-remarks-section, .time-entries-list-section,
+    .report-preview-section, .current-session-card, .table-container, .login-card,
+    .toast, .faq-item, .activity-item, .remark-item, .session-item, .theme-preview,
+    .quick-access, .demo-account) {
+  background: var(--neo-surface);
+  border-color: rgba(255, 255, 255, .78);
+  box-shadow: var(--neo-raised);
+}
+
+:is(.stat-card, .summary-card, .feature-card, .step-card, .project-card, .quick-access,
+    .demo-account, .settings-tab, .project-card-action):hover {
+  box-shadow: 12px 12px 24px rgba(44, 93, 108, .18), -9px -9px 19px var(--neo-shadow-light);
+}
+
+:is(.form-input, .form-select, .form-textarea, .table-search) {
+  background-color: var(--neo-surface);
+  border-color: rgba(255, 255, 255, .82);
+  box-shadow: var(--neo-inset);
+}
+
+:is(.form-input, .form-select, .form-textarea, .table-search):focus {
+  background-color: #f7fcfd;
+  border-color: rgba(8, 162, 194, .55);
+  box-shadow: var(--neo-inset), 0 0 0 3px rgba(8, 162, 194, .13);
+}
+
+.btn {
+  border-color: rgba(255, 255, 255, .72);
+  box-shadow: var(--neo-raised-sm);
+}
+.btn:hover { box-shadow: 7px 7px 13px rgba(44, 93, 108, .17), -6px -6px 13px var(--neo-shadow-light); }
+.btn:active { box-shadow: var(--neo-inset); }
+.btn-primary, .btn-secondary { box-shadow: 6px 6px 13px rgba(3, 98, 124, .26), -4px -4px 10px rgba(255, 255, 255, .68); }
+.btn-danger { box-shadow: 6px 6px 13px rgba(188, 55, 66, .2), -4px -4px 10px rgba(255, 255, 255, .68); }
+
+:is(.stat-icon, .summary-icon, .feature-icon, .login-icon, .path-icon) {
+  box-shadow: var(--neo-raised-sm);
+  border-color: rgba(255, 255, 255, .75);
+}
+
+.table-container { overflow: hidden; }
+.table-header, .table thead, .table tbody tr, .modal-header { background: var(--neo-surface); }
+.table-header { box-shadow: inset 0 -1px rgba(100, 148, 160, .16); }
+.table tbody tr:hover { background: #f5fcfd !important; }
+.modal-content { background: var(--neo-surface); border-color: rgba(255, 255, 255, .78); box-shadow: 18px 18px 38px rgba(4, 42, 53, .27), -8px -8px 20px rgba(255, 255, 255, .45); }
+.sidebar:not(.app-sidebar), .navbar { background: var(--neo-surface); border-color: rgba(255, 255, 255, .8); box-shadow: var(--neo-raised-sm); }
+
+html[data-theme="dark"] {
+  --neo-surface: var(--ace-surface);
+  --neo-light: rgba(49, 74, 84, .58);
+  --neo-shadow-dark: rgba(0, 0, 0, .38);
+  --neo-shadow-light: rgba(74, 107, 119, .18);
+}
+html[data-theme="dark"] :is(.card, .feature-card, .step-card, .stat-card, .summary-card,
+  .project-card, .settings-section, .filters-section, .dashboard-section,
+  .recent-activity-section, .projects-section, .admin-remarks-section,
+  .time-entries-list-section, .report-preview-section, .current-session-card,
+  .table-container, .login-card, .toast, .faq-item, .activity-item, .remark-item,
+  .session-item, .theme-preview, .quick-access, .demo-account) { box-shadow: 8px 8px 18px var(--neo-shadow-dark), -5px -5px 14px var(--neo-shadow-light); }
+html[data-theme="dark"] :is(.form-input, .form-select, .form-textarea, .table-search) { box-shadow: var(--neo-inset); }

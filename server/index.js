@@ -294,7 +294,7 @@ app.patch('/v1/users/:id/department', authenticate, adminOnly, async (req, res, 
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next) => { try {
   if (req.params.id === req.profile.id) return fail(res, 400, 'You cannot remove your own administrator account.');
-  const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
+  const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
   if (target.status === 'DENIED') return fail(res, 409, 'This user has already been removed.');
   if (target.role === 'ADMIN') {
     const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE'));
@@ -307,7 +307,7 @@ app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next
   res.json(profile);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, next) => { try {
-  const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
+  const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
   if (target.status !== 'DENIED') return fail(res, 409, 'Only removed users can be restored.');
   const { error: unbanError } = await db.auth.admin.updateUserById(target.id, { ban_duration: 'none' });
   if (unbanError) return fail(res, 502, 'The account could not be restored because sign-in could not be enabled.');
