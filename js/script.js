@@ -410,13 +410,13 @@ function initializeEmployeeChat() {
                 catch (error) { showToast(error.message || 'Unable to send chat message.', 'error'); input.disabled = false; }
             });
             thread.querySelectorAll('[data-chat-edit]').forEach(button => button.addEventListener('click', async () => {
-                const body = window.prompt('Edit message', button.dataset.chatBody)?.trim();
+                const body = (await window.ACEUI.prompt({ title: 'Edit message', label: 'Message', value: button.dataset.chatBody, confirmLabel: 'Save changes' }))?.trim();
                 if (!body) return;
                 try { await window.ACEAuth.request(`/v1/employee-chat/messages/${button.dataset.chatEdit}`, { method: 'PATCH', body: JSON.stringify({ body }) }); await loadMessages(); }
                 catch (error) { showToast(error.message || 'Unable to edit chat message.', 'error'); }
             }));
             thread.querySelectorAll('[data-chat-delete]').forEach(button => button.addEventListener('click', async () => {
-                if (!window.confirm('Delete this message?')) return;
+                if (!await window.ACEUI.confirm({ title: 'Delete message?', message: 'This removes the message from the conversation for everyone.', confirmLabel: 'Delete message', danger: true })) return;
                 try { await window.ACEAuth.request(`/v1/employee-chat/messages/${button.dataset.chatDelete}`, { method: 'DELETE' }); await loadMessages(); }
                 catch (error) { showToast(error.message || 'Unable to delete chat message.', 'error'); }
             }));
@@ -880,6 +880,64 @@ function closeModal(modalId) {
         modal._trigger?.focus?.();
     }
 }
+
+// Shared application dialogs replace browser-native confirm and prompt windows.
+// They are promise-based so every destructive action gets the same accessible UI.
+function ensureAceDialog() {
+    let modal = document.getElementById('aceActionDialog');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'aceActionDialog';
+    modal.className = 'modal ace-action-dialog';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = '<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="aceActionDialogTitle"><div class="modal-header"><h3 class="modal-title" id="aceActionDialogTitle"></h3><button class="modal-close" type="button" aria-label="Close">×</button></div><div class="modal-body"><p class="modal-description"></p><div class="form-group ace-action-dialog-input" hidden><label class="form-label" for="aceActionDialogInput"></label><input class="form-input" id="aceActionDialogInput" maxlength="2000"></div></div><div class="modal-footer"><button class="btn btn-outline ace-action-cancel" type="button">Cancel</button><button class="btn btn-primary ace-action-confirm" type="button">Confirm</button></div></div>';
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function showAceDialog(options = {}) {
+    return new Promise(resolve => {
+        const modal = ensureAceDialog();
+        const title = modal.querySelector('.modal-title');
+        const description = modal.querySelector('.modal-description');
+        const inputWrap = modal.querySelector('.ace-action-dialog-input');
+        const inputLabel = inputWrap.querySelector('label');
+        const input = inputWrap.querySelector('input');
+        const confirmButton = modal.querySelector('.ace-action-confirm');
+        const cancelButton = modal.querySelector('.ace-action-cancel');
+        const closeButton = modal.querySelector('.modal-close');
+        const hasInput = Boolean(options.input);
+        title.textContent = options.title || 'Please confirm';
+        description.textContent = options.message || '';
+        description.hidden = !options.message;
+        inputWrap.hidden = !hasInput;
+        inputLabel.textContent = options.label || 'Value';
+        input.value = options.value || '';
+        input.placeholder = options.placeholder || '';
+        confirmButton.textContent = options.confirmLabel || 'Confirm';
+        confirmButton.className = 'btn ' + (options.danger ? 'btn-danger' : 'btn-primary') + ' ace-action-confirm';
+        const finish = value => {
+            modal.removeEventListener('click', onBackdrop);
+            closeButton.onclick = null; cancelButton.onclick = null; confirmButton.onclick = null;
+            input.onkeydown = null; modal.onkeydown = null;
+            closeModal('aceActionDialog');
+            resolve(value);
+        };
+        const onBackdrop = event => { if (event.target === modal) finish(null); };
+        modal.addEventListener('click', onBackdrop);
+        closeButton.onclick = () => finish(null);
+        cancelButton.onclick = () => finish(null);
+        confirmButton.onclick = () => finish(hasInput ? input.value : true);
+        input.onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); finish(input.value); } };
+        modal.onkeydown = event => { if (event.key === 'Escape') { event.preventDefault(); finish(null); } };
+        openModal('aceActionDialog');
+    });
+}
+
+window.ACEUI = {
+    confirm: options => showAceDialog(options),
+    prompt: options => showAceDialog({ ...options, input: true })
+};
 
 // Forms
 function initializeForms() {
@@ -2356,7 +2414,7 @@ function viewReport(reportId) {
 
 async function deleteReport(reportId) {
     const report = AppState.reports.find(item => item.ReportId === reportId);
-    if (!report || !window.confirm('Delete this generated report from the ACE report library? This cannot be undone.')) return;
+    if (!report || !await window.ACEUI.confirm({ title: 'Delete generated report?', message: 'This removes the report from the ACE report library and cannot be undone.', confirmLabel: 'Delete report', danger: true })) return;
     try {
         await window.ACEAuth.request(`/v1/reports/${reportId}`, { method: 'DELETE' });
         AppState.reports = AppState.reports.filter(item => item.ReportId !== reportId);

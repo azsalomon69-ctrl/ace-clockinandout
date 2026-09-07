@@ -205,7 +205,7 @@ async function renderAdminSection() {
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, records[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
       const record = records[Number(button.dataset.row)];
-      if (!record || !window.confirm('Move this time entry to Deleted time entries? You can restore it later.')) return;
+      if (!record || !await window.ACEUI.confirm({ title: 'Move time entry to Deleted?', message: 'You can restore it later from Deleted time entries.', confirmLabel: 'Move to Deleted', danger: true })) return;
       try {
         await liveRequest('/v1/time-entries/' + record.id, { method: 'DELETE' });
         showToast('Time entry moved to Deleted time entries.', 'success');

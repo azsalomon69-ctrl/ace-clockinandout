@@ -10,7 +10,7 @@ async function loadDeletedTimeEntries() {
       catch (error) { showToast(error.message || 'Could not restore time entry.', 'error'); }
     }));
     body.querySelectorAll('.permanent-delete-entry').forEach(button => button.addEventListener('click', async () => {
-      if (!window.confirm('Permanently delete this time entry? This cannot be restored.')) return;
+      if (!await window.ACEUI.confirm({ title: 'Delete time entry?', message: 'This permanently removes the time entry and cannot be restored.', confirmLabel: 'Delete permanently', danger: true })) return;
       try { await window.ACEAuth.request('/v1/time-entries/' + button.dataset.id + '/permanent', { method: 'DELETE' }); showToast('Time entry permanently deleted.', 'success'); loadDeletedTimeEntries(); }
       catch (error) { showToast(error.message || 'Could not permanently delete time entry.', 'error'); }
     }));

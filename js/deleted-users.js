@@ -9,7 +9,7 @@ async function loadDeletedUsers() {
       catch (error) { showToast(error.message || 'Could not restore user.', 'error'); }
     }));
     body.querySelectorAll('.permanent-delete-user').forEach(button => button.addEventListener('click', async () => {
-      if (!window.confirm('Permanently remove this person\'s Google login? Their time entries, remarks, reports, and audit history will be kept. This cannot be undone.')) return;
+      if (!await window.ACEUI.confirm({ title: 'Delete Google login?', message: 'Their time entries, remarks, reports, and audit history will be kept. This cannot be undone.', confirmLabel: 'Delete login', danger: true })) return;
       try { await window.ACEAuth.request('/v1/users/' + button.dataset.id + '/permanent', { method: 'DELETE' }); showToast('Google login removed; company records were kept.', 'success'); loadDeletedUsers(); }
       catch (error) { showToast(error.message || 'Could not permanently delete this user.', 'error'); }
     }));
