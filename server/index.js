@@ -384,14 +384,16 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
 app.post('/v1/time-entries/:id/break/start', authenticate, activeOnly, async (req, res, next) => { try {
   let request = db.from('time_entries').update({ break_started_at: new Date().toISOString() }).eq('id', req.params.id).is('clock_out_at', null).is('break_started_at', null);
   if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id);
-  const entry = await query(request.select().single());
+  const entry = await query(request.select().maybeSingle());
+  if (!entry) return fail(res, 409, 'This break cannot be started because the shift is not active');
   await audit(req, 'BREAK_START', 'TIME_ENTRY', entry.id, 'Started a work break');
   res.json(entry);
 } catch (error) { next(error); } });
 app.post('/v1/time-entries/:id/break/end', authenticate, activeOnly, async (req, res, next) => { try {
   let request = db.from('time_entries').select('id,user_id,break_started_at,break_seconds').eq('id', req.params.id).is('clock_out_at', null).not('break_started_at', 'is', null);
   if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id);
-  const current = await query(request.single());
+  const current = await query(request.maybeSingle());
+  if (!current) return fail(res, 409, 'There is no active break to end for this shift');
   const additionalSeconds = Math.max(0, Math.floor((Date.now() - new Date(current.break_started_at).getTime()) / 1000));
   const entry = await query(db.from('time_entries').update({ break_started_at: null, break_seconds: (current.break_seconds || 0) + additionalSeconds }).eq('id', current.id).select().single());
   await audit(req, 'BREAK_END', 'TIME_ENTRY', entry.id, `Ended a work break (${additionalSeconds} seconds)`);
@@ -401,7 +403,8 @@ app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req,
   const note = requireText(req.body.note, 'A clock-out note', 2000);
   let currentRequest = db.from('time_entries').select('id,user_id,break_started_at,break_seconds').eq('id', req.params.id).is('clock_out_at', null);
   if (req.profile.role !== 'ADMIN') currentRequest = currentRequest.eq('user_id', req.profile.id);
-  const current = await query(currentRequest.single());
+  const current = await query(currentRequest.maybeSingle());
+  if (!current) return fail(res, 409, 'This shift is already clocked out or unavailable');
   const breakSeconds = (current.break_seconds || 0) + (current.break_started_at ? Math.max(0, Math.floor((Date.now() - new Date(current.break_started_at).getTime()) / 1000)) : 0);
   const entry = await query(db.from('time_entries').update({ clock_out_at: new Date().toISOString(), user_note: note, break_started_at: null, break_seconds: breakSeconds }).eq('id', current.id).select().single());
   const device = clockingDevice(req); await audit(req, `CLOCK_OUT (${device})`, 'TIME_ENTRY', entry.id, `Completed a time entry from ${device}`); res.json(entry);
