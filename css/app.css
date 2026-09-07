@@ -2731,6 +2731,34 @@ html[data-font-size="large"] body { font-size: 16px; }
   .report-preview-actions { bottom: -12px; }
 }
 
+/* Compact employee phone layout: the next action comes first, while the
+   supporting session information stays available when a shift is active. */
+.time-entry-details-toggle { display: none; }
+@media (max-width: 640px) {
+  .has-app-shell .main-content, .has-app-shell.shell-collapsed .main-content { padding-top: 14px; }
+  .user-dashboard .employee-dashboard-intro { padding: 64px 18px 14px; margin-bottom: 16px; }
+  .user-dashboard .employee-status-panel[data-state="idle"] { gap: 14px; padding: 20px 18px; margin-bottom: 22px; }
+  .user-dashboard .employee-status-panel[data-state="idle"] .employee-status-copy h2 { margin-bottom: 0; font-size: 1.28rem; }
+  .user-dashboard .employee-status-panel[data-state="idle"] .employee-status-copy > p:last-child,
+  .user-dashboard .employee-status-panel[data-state="idle"] .employee-session-detail { display: none; }
+  .employee-session-facts[hidden] { display: none !important; }
+  .user-dashboard .employee-status-panel[data-state="idle"] .clock-actions .btn { min-height: 52px; }
+
+  .time-entries-page .table-container .table tr.time-entry-row { padding: 0; overflow: hidden; }
+  .time-entries-page .table-container .table tr.time-entry-row td { display: none; min-height: 0; padding: 0; }
+  .time-entries-page .table-container .table tr.time-entry-row td:nth-child(1),
+  .time-entries-page .table-container .table tr.time-entry-row td:nth-child(6),
+  .time-entries-page .table-container .table tr.time-entry-row td:last-child { display: grid; padding: 11px 14px; }
+  .time-entries-page .table-container .table tr.time-entry-row td:nth-child(1) { border-bottom: 1px solid var(--ace-line); }
+  .time-entries-page .table-container .table tr.time-entry-row td:last-child { display: flex; justify-content: flex-end; padding-top: 0; }
+  .time-entries-page .table-container .table tr.time-entry-row td:last-child::before { display: none; }
+  .time-entries-page .desktop-entry-view { display: none; }
+  .time-entries-page .time-entry-details-toggle { display: inline-flex; min-height: 34px; border-radius: 9px; }
+  .time-entries-page .table-container .table tr.time-entry-row.is-expanded td { display: grid; padding: 7px 14px; }
+  .time-entries-page .table-container .table tr.time-entry-row.is-expanded td:last-child { display: flex; justify-content: flex-end; padding: 10px 14px 12px; }
+  .time-entries-page .table-container .table tr.time-entry-row.is-expanded td:nth-child(1) { padding-top: 12px; }
+}
+
 @media print {
   @page { size: A4 portrait; margin: 10mm; }
   html, body { width: 210mm; min-height: 297mm; margin: 0; background: #fff !important; }
@@ -3715,4 +3743,67 @@ html[data-theme="dark"] .employee-chat-thread-head .employee-chat-presence.is-on
   .employee-chat-contact > span.employee-chat-avatar { width: 42px; height: 42px; font-size: .8rem; }
   .employee-chat-contact > div strong { font-size: .82rem; }
   .employee-chat-thread-head .employee-chat-avatar { display: grid; }
+}
+
+/* Final phone overrides: these follow the shared shell rules intentionally. */
+@media (max-width: 640px) {
+  .has-app-shell .main-content, .has-app-shell.shell-collapsed .main-content { padding-top: 14px; }
+  .user-dashboard .employee-dashboard-intro { padding: 64px 18px 14px; margin-bottom: 16px; }
+  .user-dashboard .employee-status-panel[data-state="idle"] { gap: 14px; padding: 20px 18px; margin-bottom: 22px; }
+  .user-dashboard .employee-status-panel[data-state="idle"] .employee-status-copy h2 { margin-bottom: 0; font-size: 1.28rem; }
+  .user-dashboard .employee-status-panel[data-state="idle"] .employee-status-copy > p:last-child,
+  .user-dashboard .employee-status-panel[data-state="idle"] .employee-session-detail { display: none; }
+  .employee-session-facts[hidden] { display: none !important; }
+  .user-dashboard .employee-status-panel[data-state="idle"] .clock-actions .btn { min-height: 52px; }
+}
+
+/* Administrator tables use compact summaries on phones. Full records remain
+   one tap away, so reviewing a busy team does not become a wall of cards. */
+.admin-recent-entry-toggle, .admin-mobile-details-toggle { display: none; }
+.admin-user-identity { display: inline-flex; align-items: center; gap: 10px; }
+.admin-user-avatar { width: 34px; height: 34px; display: grid; flex: 0 0 34px; place-items: center; overflow: hidden; color: var(--ace-cyan); background: #e8f5f7; border: 1px solid var(--ace-line); border-radius: 50%; font: 700 .72rem 'Montserrat', Arial, sans-serif; }
+.admin-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 640px) {
+  .admin-dashboard .dashboard-section { overflow: hidden; }
+  .admin-dashboard .dashboard-section > .table-container .table tr.admin-recent-entry-row { padding: 0; overflow: hidden; }
+  .admin-dashboard .dashboard-section > .table-container .table tr.admin-recent-entry-row td { display: none; min-height: 0; padding: 0; }
+  .admin-dashboard .dashboard-section > .table-container .table tr.admin-recent-entry-row td:nth-child(1),
+  .admin-dashboard .dashboard-section > .table-container .table tr.admin-recent-entry-row td:nth-child(2),
+  .admin-dashboard .dashboard-section > .table-container .table tr.admin-recent-entry-row td:nth-child(3),
+  .admin-dashboard .dashboard-section > .table-container .table tr.admin-recent-entry-row td:last-child { display: grid; padding: 10px 14px; }
+  .admin-dashboard .dashboard-section > .table-container .table tr.admin-recent-entry-row td:last-child { display: flex; justify-content: flex-end; padding-top: 0; }
+  .admin-dashboard .dashboard-section > .table-container .table tr.admin-recent-entry-row td:last-child::before { display: none; }
+  .admin-dashboard .admin-recent-entry-view { display: none; }
+  .admin-dashboard .admin-recent-entry-toggle { display: inline-flex; min-height: 34px; border-radius: 9px; }
+  .admin-dashboard .dashboard-section > .table-container .table tr.admin-recent-entry-row.is-expanded td { display: grid; padding: 7px 14px; }
+  .admin-dashboard .dashboard-section > .table-container .table tr.admin-recent-entry-row.is-expanded td:last-child { display: flex; justify-content: flex-end; padding: 10px 14px 12px; }
+
+  body[data-admin-view="entries"] .admin-section-page .table { min-width: 0; }
+  body[data-admin-view="users"] .admin-section-page .table { min-width: 0; }
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row,
+  body[data-admin-view="users"] .admin-section-page .table tr.admin-collapsible-row { padding: 0; overflow: hidden; }
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row td,
+  body[data-admin-view="users"] .admin-section-page .table tr.admin-collapsible-row td { display: none; min-height: 0; padding: 0; }
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row td:nth-child(1),
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row td:nth-child(2),
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row td:nth-child(3),
+  body[data-admin-view="users"] .admin-section-page .table tr.admin-collapsible-row td:nth-child(1),
+  body[data-admin-view="users"] .admin-section-page .table tr.admin-collapsible-row td:last-child,
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row td:last-child { display: grid; padding: 10px 14px; }
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row td:last-child,
+  body[data-admin-view="users"] .admin-section-page .table tr.admin-collapsible-row td:last-child { display: flex; justify-content: flex-end; }
+  body[data-admin-view="entries"] .admin-section-page .admin-row-action,
+  body[data-admin-view="entries"] .admin-section-page .admin-delete-entry,
+  body[data-admin-view="users"] .admin-section-page .admin-row-action { display: none; }
+  body[data-admin-view="entries"] .admin-section-page .admin-mobile-details-toggle,
+  body[data-admin-view="users"] .admin-section-page .admin-mobile-details-toggle { display: inline-flex; min-height: 34px; border-radius: 9px; }
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row.is-expanded td,
+  body[data-admin-view="users"] .admin-section-page .table tr.admin-collapsible-row.is-expanded td { display: grid; padding: 7px 14px; }
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row.is-expanded td:last-child,
+  body[data-admin-view="users"] .admin-section-page .table tr.admin-collapsible-row.is-expanded td:last-child { display: flex; padding: 10px 14px 12px; }
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row.is-expanded .admin-row-action,
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row.is-expanded .admin-delete-entry,
+  body[data-admin-view="users"] .admin-section-page .table tr.admin-collapsible-row.is-expanded .admin-row-action { display: inline-flex; }
+  body[data-admin-view="entries"] .admin-section-page .table tr.admin-collapsible-row.is-expanded .admin-mobile-details-toggle,
+  body[data-admin-view="users"] .admin-section-page .table tr.admin-collapsible-row.is-expanded .admin-mobile-details-toggle { display: none; }
 }

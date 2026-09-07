@@ -2018,7 +2018,7 @@ function loadAdminDashboard() {
             const remarks = AppState.adminRemarks.filter(remark => remark.TimeEntryId === entry.TimeEntryId);
             
             return `
-                <tr>
+                <tr class="admin-recent-entry-row">
                     <td>${escapeHtml(user?.FullName || 'Unknown')}</td>
                     <td>${escapeHtml(project?.ProjectName || 'None')}</td>
                     <td>${clockIn.toLocaleTimeString()}</td>
@@ -2028,11 +2028,20 @@ function loadAdminDashboard() {
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
                     <td>${remarks.length ? `${remarks.length} remark${remarks.length === 1 ? '' : 's'}` : '—'}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline" onclick="viewTimeEntry('${entry.TimeEntryId}')">View</button>
+                        <button class="btn btn-sm btn-outline admin-recent-entry-view" onclick="viewTimeEntry('${entry.TimeEntryId}')">View</button>
+                        <button class="btn btn-sm btn-outline admin-recent-entry-toggle" type="button" aria-expanded="false">Details</button>
                     </td>
                 </tr>
             `;
-        }).join('') : `<tr><td colspan="8">${emptyState('No time entries', 'Completed and active sessions will appear here.')}</td></tr>`;
+        }).join('') : `<tr><td colspan="9">${emptyState('No time entries', 'Completed and active sessions will appear here.')}</td></tr>`;
+        recentTimeEntries.querySelectorAll('.admin-recent-entry-toggle').forEach(button => {
+            button.addEventListener('click', () => {
+                const row = button.closest('.admin-recent-entry-row');
+                const expanded = row.classList.toggle('is-expanded');
+                button.setAttribute('aria-expanded', String(expanded));
+                button.textContent = expanded ? 'Hide details' : 'Details';
+            });
+        });
     }
     
     // Populate pending users
@@ -2085,21 +2094,32 @@ function loadTimeEntries() {
             const remarks = AppState.adminRemarks.filter(ar => ar.TimeEntryId === entry.TimeEntryId);
             
             return `
-                <tr data-date="${clockIn.toISOString().slice(0, 10)}" data-project="${entry.ProjectId || ''}" data-status="${clockOut ? 'COMPLETED' : 'ACTIVE'}">
+                <tr class="time-entry-row" data-date="${clockIn.toISOString().slice(0, 10)}" data-project="${entry.ProjectId || ''}" data-status="${clockOut ? 'COMPLETED' : 'ACTIVE'}">
                     <td>${clockIn.toLocaleDateString()}</td>
                     <td>${clockIn.toLocaleTimeString()}</td>
                     <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
                     <td>${duration}</td>
+                    <td>${entry.BreakSeconds ? formatDuration(entry.BreakSeconds) : 'None'}${entry.BreakStartedAt ? ' (active)' : ''}</td>
                     <td>${escapeHtml(project?.ProjectName || 'None')}</td>
                     <td>${escapeHtml(entry.UserNote || 'No note')}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
                     <td>${remarks.length ? remarks.map(remark => `<div class="time-entry-remark"><strong>${escapeHtml(remark.AdminName)}</strong><br>${escapeHtml(remark.Remark)}</div>`).join('') : '—'}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline" onclick="viewTimeEntry('${entry.TimeEntryId}')">View</button>
+                        <button class="btn btn-sm btn-outline desktop-entry-view" onclick="viewTimeEntry('${entry.TimeEntryId}')">View</button>
+                        <button class="btn btn-sm btn-outline time-entry-details-toggle" type="button" aria-expanded="false">Details</button>
                     </td>
                 </tr>
             `;
         }).join('') : `<tr><td colspan="10">${emptyState('No time entries found', 'Your tracked sessions will appear here. Start by clocking in.', 'Clock in', '#')}</td></tr>`;
+
+        timeEntriesList.querySelectorAll('.time-entry-details-toggle').forEach(button => {
+            button.addEventListener('click', () => {
+                const row = button.closest('.time-entry-row');
+                const expanded = row.classList.toggle('is-expanded');
+                button.setAttribute('aria-expanded', String(expanded));
+                button.textContent = expanded ? 'Hide details' : 'Details';
+            });
+        });
     }
 }
 

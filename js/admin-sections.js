@@ -24,7 +24,7 @@ async function applyLiveData(key, view) {
     const onlineAfter = Date.now() - 2 * 60 * 1000;
     view.records = items.map(item => {
       const online = item.last_seen_at && new Date(item.last_seen_at).getTime() >= onlineAfter;
-      return { id: item.id, cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || 'Unassigned', online ? 'Online' : 'Offline', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
+      return { id: item.id, avatarUrl: item.profile_picture_url || '', cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || 'Unassigned', online ? 'Online' : 'Offline', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
     });
     view.stats = [[items.length, 'Team members', 'users'], [items.filter(item => item.status === 'ACTIVE').length, 'Active users', 'check'], [items.filter(item => item.status === 'PENDING').length, 'Pending review', 'circle-alert']];
   } else if (key === 'invitations') {
@@ -63,10 +63,10 @@ function status(value) {
 }
 function action(label, index, key) {
   if (key === 'audit') return '<span class="record-reference">' + esc(label) + '</span>';
-  if (key === 'entries') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Add remark</button><button class="btn btn-sm btn-danger admin-delete-entry" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button></div>';
+  if (key === 'entries') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Add remark</button><button class="btn btn-sm btn-danger admin-delete-entry" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
   const iconName = /remove/i.test(label) ? 'trash' : /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
   const style = /remove/i.test(label) ? 'btn-danger' : 'btn-outline';
-  return '<button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button>';
+  return '<div class="table-actions"><button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button>' + (key === 'users' ? '<button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button>' : '') + '</div>';
 }
 function formField(label, type, placeholder, value, index) {
   const id = 'adminField' + index;
@@ -201,7 +201,7 @@ async function renderAdminSection() {
   document.getElementById('sectionTableHead').innerHTML = '<tr>' + view.columns.map(column => '<th>' + esc(column) + '</th>').join('') + '</tr>';
   const body = document.getElementById('sectionTableBody');
   const draw = records => {
-    body.innerHTML = records.length ? records.map((record, rowIndex) => '<tr>' + record.cells.map((cell, index) => '<td>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key) : status(cell)) + '</td>').join('') + '</tr>').join('') : '<tr><td colspan="' + view.columns.length + '">No ' + view.title.toLowerCase() + ' found.</td></tr>';
+    body.innerHTML = records.length ? records.map((record, rowIndex) => '<tr class="' + (key === 'entries' || key === 'users' ? 'admin-collapsible-row' : '') + '">' + record.cells.map((cell, index) => '<td>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key) : key === 'users' && index === 0 ? '<span class="admin-user-identity"><span class="admin-user-avatar">' + (record.avatarUrl ? '<img src="' + esc(record.avatarUrl) + '" alt="">' : esc(String(cell).trim().slice(0, 1).toUpperCase())) + '</span><strong>' + esc(cell) + '</strong></span>' : status(cell)) + '</td>').join('') + '</tr>').join('') : '<tr><td colspan="' + view.columns.length + '">No ' + view.title.toLowerCase() + ' found.</td></tr>';
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, records[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
       const record = records[Number(button.dataset.row)];
@@ -213,6 +213,12 @@ async function renderAdminSection() {
       } catch (error) {
         showToast(error.message || 'Could not delete this time entry.', 'error');
       }
+    }));
+    body.querySelectorAll('.admin-mobile-details-toggle').forEach(button => button.addEventListener('click', () => {
+      const row = button.closest('.admin-collapsible-row');
+      const expanded = row?.classList.toggle('is-expanded');
+      button.setAttribute('aria-expanded', String(expanded));
+      button.textContent = expanded ? 'Hide details' : 'Details';
     }));
   };
   draw(view.records);
