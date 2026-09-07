@@ -3755,6 +3755,23 @@ html[data-theme="dark"] .employee-chat-thread-head .employee-chat-presence.is-on
   .user-dashboard .employee-status-panel[data-state="idle"] .employee-session-detail { display: none; }
   .employee-session-facts[hidden] { display: none !important; }
   .user-dashboard .employee-status-panel[data-state="idle"] .clock-actions .btn { min-height: 52px; }
+
+  .admin-dashboard .project-allocation-card { min-height: 0; }
+  .admin-dashboard .allocation-row { grid-template-columns: minmax(0, 1fr) minmax(76px, 1.25fr) max-content; gap: 8px; }
+  .admin-dashboard .allocation-name { font-size: .68rem; }
+  .admin-dashboard .allocation-hours { font-size: .65rem; white-space: nowrap; }
+}
+
+/* Message controls are deliberately outside the bubble, keeping chat text and
+   timestamps uncluttered while retaining clear access to sender actions. */
+.employee-chat-message-row { align-self: flex-start; max-width: 74%; display: flex; flex-direction: column; }
+.employee-chat-message-row.mine { align-self: flex-end; align-items: flex-end; }
+.employee-chat-message-row .employee-chat-message { max-width: 100%; }
+.employee-chat-message-row .employee-chat-actions { align-self: flex-end; margin-top: 4px; padding: 0 4px; color: var(--ace-cyan-dark); }
+.employee-chat-message-row .employee-chat-actions button { color: inherit; font-weight: 650; }
+html[data-theme="dark"] .employee-chat-message-row .employee-chat-actions { color: #8bdae6; }
+@media (max-width: 640px) {
+  .employee-chat-message-row { max-width: 88%; }
 }
 
 /* Administrator tables use compact summaries on phones. Full records remain
