@@ -3793,6 +3793,7 @@ html[data-theme="dark"] .employee-chat-message-row .employee-chat-actions { colo
 
 /* The chat launcher is a clear utility control, not a neumorphic surface. */
 .employee-chat-launcher { background: #0b9fbb; border: 2px solid #fff; box-shadow: 0 10px 24px rgba(2, 104, 126, .28); }
+.employee-chat-launcher .shell-icon { width: 25px; height: 25px; filter: brightness(0) invert(1) !important; opacity: 1; }
 .employee-chat-launcher:hover { transform: translateY(-2px); background: #078ca6; box-shadow: 0 14px 28px rgba(2, 104, 126, .34); }
 .employee-chat-launcher:active { transform: translateY(0) scale(.98); box-shadow: 0 6px 14px rgba(2, 104, 126, .25); }
 html[data-theme="dark"] .employee-chat-launcher { background: #0b849d; border-color: #d9f7fb; box-shadow: 0 10px 24px rgba(0, 0, 0, .38); }
