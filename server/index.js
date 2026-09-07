@@ -121,7 +121,19 @@ function clockingDevice(req) {
   return /Android|iPhone|iPad|iPod|Mobile|Windows Phone|IEMobile|Opera Mini/i.test(userAgent) ? 'mobile' : 'pc web';
 }
 
-app.get('/health', (_, res) => res.json({ ok: true, service: 'ace-clock-api' }));
+// Render uses this endpoint to decide whether this instance can actually
+// serve requests.  A process-only check hides broken Supabase credentials or
+// a paused/unreachable database, then the UI fails later with opaque errors.
+app.get('/health', async (_, res) => {
+  try {
+    const { error } = await db.from('profiles').select('id', { head: true, count: 'exact' }).limit(1);
+    if (error) throw error;
+    res.json({ ok: true, service: 'ace-clock-api', database: 'connected' });
+  } catch (error) {
+    console.error('health check database error:', error.message);
+    res.status(503).json({ ok: false, service: 'ace-clock-api', database: 'unavailable' });
+  }
+});
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
 app.get('/v1/me', authenticate, (req, res) => res.json({ profile: req.profile }));
 app.patch('/v1/me', authenticate, activeOnly, async (req, res, next) => { try {

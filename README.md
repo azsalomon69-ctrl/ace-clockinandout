@@ -14,14 +14,14 @@ The database model is in [supabase/schema.sql](supabase/schema.sql). It implemen
 
 1. Install Node.js 20 or newer.
 2. Copy `.env.example` to `.env` and enter your Supabase project URL, publishable key, and **secret key**.
-3. In Supabase SQL Editor, run `supabase/schema.sql` once. If Google sign-in shows “Database error saving new user”, run `supabase/auth-profile-trigger-fix.sql` once to repair the Auth profile trigger.
+3. In Supabase SQL Editor, run `supabase/schema.sql` once. For an existing project created from an earlier version, run `supabase/current-production-upgrade.sql` once afterward. If Google sign-in shows “Database error saving new user”, run `supabase/auth-profile-trigger-fix.sql` once to repair the Auth profile trigger.
 4. Run `npm install` and then `npm run dev`.
 5. Serve the frontend files with a local static server. Configure `FRONTEND_ORIGIN` with that server's address.
 
 ## Supabase setup
 
 1. Create a new Supabase project.
-2. Run `supabase/schema.sql` in SQL Editor.
+2. Run `supabase/schema.sql` in SQL Editor. If the project already existed before this version, run `supabase/current-production-upgrade.sql` afterward instead of re-running the base schema.
 3. Under **Authentication → Providers**, enable Google if Google sign-in is required.
 4. Add your Vercel production URL and local development URL under **Authentication → URL Configuration**.
 5. Copy the Project URL, publishable key, and a server-only `sb_secret_...` key into Render. Do not put the secret key in Vercel or any browser JavaScript.
