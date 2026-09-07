@@ -3508,3 +3508,62 @@ html[data-theme="dark"] :is(.shell-user span, .form-input::placeholder, .form-te
   .user-dashboard .projects-grid { grid-template-columns: 1fr; gap: 11px; }
   html[data-theme="dark"] .user-dashboard .employee-dashboard-intro { background: #122326 !important; border-color: #203f47 !important; }
 }
+
+/* Chat workspace: tactile controls, a calmer message rhythm, and stronger
+   separation between people, conversation, and the compose action. */
+.employee-chat-launcher {
+  background: #e8f5f7; border-color: rgba(255,255,255,.92);
+  box-shadow: 8px 8px 18px rgba(34,79,91,.24), -6px -6px 14px #fff;
+}
+.employee-chat-launcher .shell-icon { filter: none; }
+.employee-chat-launcher:hover { transform: translateY(-2px) scale(1.03); box-shadow: 10px 10px 22px rgba(34,79,91,.27), -7px -7px 16px #fff; }
+.employee-chat-launcher:active { transform: scale(.97); box-shadow: var(--neo-inset); }
+.employee-chat-panel { border-color: rgba(255,255,255,.86); border-radius: 22px; background: var(--neo-surface); box-shadow: 18px 18px 38px rgba(23,65,76,.25), -9px -9px 20px rgba(255,255,255,.74); }
+.employee-chat-panel > header { height: 68px; padding: 0 22px; color: var(--ace-navy); background: var(--neo-surface); border-bottom: 1px solid rgba(99,151,163,.16); }
+.employee-chat-panel > header strong { font-size: .95rem; }
+.employee-chat-close { width: 38px; height: 38px; color: var(--ace-navy); background: var(--neo-surface); border: 1px solid rgba(255,255,255,.86); border-radius: 12px; box-shadow: var(--neo-raised-sm); font-size: 25px; }
+.employee-chat-close:hover { box-shadow: var(--neo-inset); }
+.employee-chat-layout { height: calc(100% - 68px); }
+.employee-chat-layout > aside { padding: 17px 11px; background: #e8f3f5; border-right-color: rgba(93,145,157,.18); }
+.employee-chat-layout > aside > p { margin: 0 10px 12px; color: #587680; font-size: .61rem; }
+.employee-chat-contact { min-height: 56px; margin-bottom: 6px; padding: 10px; border: 1px solid transparent; border-radius: 13px; }
+.employee-chat-contact:hover { background: #f0fafb; border-color: rgba(255,255,255,.86); box-shadow: var(--neo-raised-sm); }
+.employee-chat-contact.active { background: #e1f2f5; border-color: rgba(255,255,255,.9); box-shadow: var(--neo-inset); }
+.employee-chat-contact > span { box-shadow: var(--neo-raised-sm); border-color: rgba(255,255,255,.85); }
+.employee-chat-thread-head { padding: 15px 20px; background: var(--neo-surface); border-bottom-color: rgba(99,151,163,.16); }
+.employee-chat-thread-head strong { color: var(--ace-navy); font-size: .86rem; }
+.employee-chat-messages { gap: 13px; padding: 19px; background: #f3fafb; }
+.employee-chat-message { max-width: 74%; padding: 11px 13px; background: #e5f1f3; border: 1px solid rgba(255,255,255,.78); border-radius: 15px 15px 15px 4px; box-shadow: 4px 4px 9px rgba(44,93,108,.11), -3px -3px 8px rgba(255,255,255,.72); line-height: 1.45; }
+.employee-chat-message.mine { background: #0b9fbb; border-color: rgba(255,255,255,.25); border-radius: 15px 15px 4px 15px; box-shadow: 5px 5px 10px rgba(2,104,126,.2); }
+.employee-chat-message.deleted { background: #edf4f5; border-style: dashed; box-shadow: none; }
+.employee-chat-compose { gap: 10px; padding: 13px 15px; background: var(--neo-surface); border-top-color: rgba(99,151,163,.16); }
+.employee-chat-compose input { min-height: 44px; padding: 10px 13px; background: #e6f1f3; border-color: rgba(255,255,255,.85); border-radius: 13px; box-shadow: var(--neo-inset); }
+.employee-chat-compose input:focus { background: #f2fafb; border-color: rgba(8,162,194,.55); box-shadow: var(--neo-inset), 0 0 0 3px rgba(8,162,194,.12); }
+.employee-chat-compose button { min-width: 76px; min-height: 44px; padding: 0 16px; background: #0b9fbb; border: 1px solid rgba(255,255,255,.3); border-radius: 13px; box-shadow: 5px 5px 11px rgba(2,104,126,.22); }
+.employee-chat-compose button:hover { background: #078ca6; }
+
+html[data-theme="dark"] .employee-chat-launcher { background: #123b46; border-color: rgba(117,198,211,.16); box-shadow: 7px 7px 16px rgba(0,0,0,.36), -4px -4px 10px rgba(86,158,171,.1); }
+html[data-theme="dark"] .employee-chat-launcher .shell-icon { filter: brightness(0) invert(1); }
+html[data-theme="dark"] .employee-chat-panel { background: #162a2e; border-color: #25464f; box-shadow: 16px 16px 34px rgba(0,0,0,.42), -6px -6px 14px rgba(70,125,136,.09); }
+html[data-theme="dark"] .employee-chat-panel > header, html[data-theme="dark"] .employee-chat-thread-head, html[data-theme="dark"] .employee-chat-compose { background: #162a2e; border-color: #25464f; }
+html[data-theme="dark"] .employee-chat-panel > header strong, html[data-theme="dark"] .employee-chat-thread-head strong { color: var(--ace-text-primary); }
+html[data-theme="dark"] .employee-chat-close { color: var(--ace-text-primary); background: #1a3338; border-color: #2c515a; box-shadow: 4px 4px 9px rgba(0,0,0,.3), -2px -2px 7px rgba(80,146,158,.09); }
+html[data-theme="dark"] .employee-chat-layout > aside, html[data-theme="dark"] .employee-chat-messages { background: #102226; border-color: #25464f; }
+html[data-theme="dark"] .employee-chat-contact:hover { background: #19363d; border-color: #2b515a; box-shadow: 4px 4px 9px rgba(0,0,0,.28), -2px -2px 7px rgba(80,146,158,.08); }
+html[data-theme="dark"] .employee-chat-contact.active { background: #173f49; border-color: #2d606b; box-shadow: inset 3px 3px 7px rgba(0,0,0,.32), inset -2px -2px 6px rgba(80,146,158,.08); }
+html[data-theme="dark"] .employee-chat-message { background: #1c353a; border-color: #294b53; box-shadow: 4px 4px 8px rgba(0,0,0,.24), -2px -2px 6px rgba(78,142,153,.07); }
+html[data-theme="dark"] .employee-chat-message.mine { background: #0b849d; border-color: #159db5; }
+html[data-theme="dark"] .employee-chat-compose input { color: var(--ace-text-primary); background: #102226; border-color: #28515b; box-shadow: var(--neo-inset); }
+
+@media (max-width: 640px) {
+  .employee-chat-panel { border-radius: 20px; }
+  .employee-chat-panel > header { height: 64px; padding: 0 16px; }
+  .employee-chat-layout { height: calc(100% - 64px); }
+  .employee-chat-layout > aside { padding: 14px 12px; }
+  .employee-chat-contact { min-height: 70px; margin-bottom: 8px; padding: 11px 10px; }
+  .employee-chat-contact > span { width: 46px; height: 46px; }
+  .employee-chat-messages { padding: 15px 12px; }
+  .employee-chat-message { max-width: 88%; font-size: .84rem; }
+  .employee-chat-compose { padding: 11px 12px calc(11px + env(safe-area-inset-bottom)); }
+  .employee-chat-compose button { min-width: 68px; padding-inline: 12px; }
+}

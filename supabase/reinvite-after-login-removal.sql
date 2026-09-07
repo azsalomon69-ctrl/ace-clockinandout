@@ -4,6 +4,12 @@
 
 alter table public.invitations drop constraint if exists invitations_email_status_key;
 
+-- Historical pending rows may already be past their expiry time. They must
+-- not reserve an email once the replacement invitation rule is enabled.
+update public.invitations
+set status = 'EXPIRED'
+where status = 'PENDING' and expires_at <= now();
+
 create unique index if not exists invitations_one_pending_email_idx
   on public.invitations(email)
   where status = 'PENDING';

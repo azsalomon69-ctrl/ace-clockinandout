@@ -28,6 +28,7 @@ alter table public.invitations
 -- Historical accepted invitations must not block a former employee from
 -- receiving a new invitation after their Google login was permanently removed.
 alter table public.invitations drop constraint if exists invitations_email_status_key;
+update public.invitations set status = 'EXPIRED' where status = 'PENDING' and expires_at <= now();
 create unique index if not exists invitations_one_pending_email_idx
   on public.invitations(email)
   where status = 'PENDING';
@@ -79,6 +80,9 @@ create index if not exists profiles_permanently_deleted_at_idx
 
 -- Preserve company records when an Auth login is permanently removed.
 alter table public.profiles drop constraint if exists profiles_id_fkey;
+-- A preserved historical profile may have the same email as a later Google
+-- sign-in. Auth identities are unique by id; email must not block the new one.
+alter table public.profiles drop constraint if exists profiles_email_key;
 
 create or replace function public.permanently_remove_archived_login(target_user_id uuid)
 returns void

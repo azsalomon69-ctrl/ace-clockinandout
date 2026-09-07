@@ -220,34 +220,34 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   request = request.is('permanently_deleted_at', null);
   res.json(await query(request));
 } catch (error) { next(error); } });
-app.get('/v1/employee-chat/contacts', authenticate, employeeOnly, async (req, res, next) => { try {
+app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
   const [contacts, unread] = await Promise.all([
-    query(db.from('profiles').select('id,full_name,email,last_seen_at').eq('role', 'USER').eq('status', 'ACTIVE').neq('id', req.profile.id).order('full_name')),
+    query(db.from('profiles').select('id,full_name,email,role,last_seen_at').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name')),
     query(db.from('employee_messages').select('sender_id').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null))
   ]);
   const unreadCounts = unread.reduce((counts, message) => ({ ...counts, [message.sender_id]: (counts[message.sender_id] || 0) + 1 }), {});
   res.json(contacts.map(contact => ({ ...contact, unread_count: unreadCounts[contact.id] || 0 })));
 } catch (error) { next(error); } });
-app.get('/v1/employee-chat/messages/:userId', authenticate, employeeOnly, async (req, res, next) => { try {
+app.get('/v1/employee-chat/messages/:userId', authenticate, activeOnly, async (req, res, next) => { try {
   const otherUserId = optionalUuid(req.params.userId);
-  if (!otherUserId) return fail(res, 400, 'A valid employee ID is required');
-  const contact = await query(db.from('profiles').select('id').eq('id', otherUserId).eq('role', 'USER').eq('status', 'ACTIVE').maybeSingle());
-  if (!contact) return fail(res, 404, 'Employee is not available for chat');
+  if (!otherUserId) return fail(res, 400, 'A valid contact ID is required');
+  const contact = await query(db.from('profiles').select('id').eq('id', otherUserId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
+  if (!contact) return fail(res, 404, 'Contact is not available for chat');
   const messages = await query(db.from('employee_messages').select('*').or(`and(sender_id.eq.${req.profile.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${req.profile.id})`).order('created_at').limit(200));
   await query(db.from('employee_messages').update({ read_at: new Date().toISOString() }).eq('sender_id', otherUserId).eq('recipient_id', req.profile.id).is('read_at', null));
   res.json(messages);
 } catch (error) { next(error); } });
-app.post('/v1/employee-chat/messages', authenticate, employeeOnly, async (req, res, next) => { try {
+app.post('/v1/employee-chat/messages', authenticate, activeOnly, async (req, res, next) => { try {
   const recipientId = optionalUuid(req.body.recipientId);
   const body = optionalText(req.body.body, 2000);
   if (!recipientId || !body) return fail(res, 400, 'A recipient and message are required');
   if (recipientId === req.profile.id) return fail(res, 400, 'You cannot message yourself');
-  const recipient = await query(db.from('profiles').select('id').eq('id', recipientId).eq('role', 'USER').eq('status', 'ACTIVE').maybeSingle());
-  if (!recipient) return fail(res, 404, 'Employee is not available for chat');
+  const recipient = await query(db.from('profiles').select('id').eq('id', recipientId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
+  if (!recipient) return fail(res, 404, 'Contact is not available for chat');
   const message = await query(db.from('employee_messages').insert({ sender_id: req.profile.id, recipient_id: recipientId, body }).select().single());
   res.status(201).json(message);
 } catch (error) { next(error); } });
-app.patch('/v1/employee-chat/messages/:messageId', authenticate, employeeOnly, async (req, res, next) => { try {
+app.patch('/v1/employee-chat/messages/:messageId', authenticate, activeOnly, async (req, res, next) => { try {
   const messageId = optionalUuid(req.params.messageId);
   const body = optionalText(req.body.body, 2000);
   if (!messageId || !body) return fail(res, 400, 'A valid message is required');
@@ -255,7 +255,7 @@ app.patch('/v1/employee-chat/messages/:messageId', authenticate, employeeOnly, a
   if (!message) return fail(res, 404, 'Message is not available to edit');
   res.json(message);
 } catch (error) { next(error); } });
-app.delete('/v1/employee-chat/messages/:messageId', authenticate, employeeOnly, async (req, res, next) => { try {
+app.delete('/v1/employee-chat/messages/:messageId', authenticate, activeOnly, async (req, res, next) => { try {
   const messageId = optionalUuid(req.params.messageId);
   if (!messageId) return fail(res, 400, 'A valid message ID is required');
   // Keep the original body for the restricted administrator log. The employee
@@ -328,7 +328,8 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
   if (!email || !emailPattern.test(email) || email.length > 254) return fail(res, 400, 'A valid email is required');
   if (!isAllowedCompanyEmail(email)) return fail(res, 400, 'Use an approved company email address.');
-  const duplicate = await query(db.from('invitations').select('id').eq('email', email).eq('status', 'PENDING').gt('expires_at', new Date().toISOString()).maybeSingle());
+  const now = new Date().toISOString();
+  const duplicate = await query(db.from('invitations').select('id').eq('email', email).eq('status', 'PENDING').gt('expires_at', now).maybeSingle());
   if (duplicate) {
     const existingProfile = await query(db.from('profiles').select('id').eq('email', email).is('permanently_deleted_at', null).maybeSingle());
     if (!existingProfile) return fail(res, 409, 'This email already has an active invitation.');
@@ -337,6 +338,9 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
     await audit(req, 'PREAUTHORIZE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Activated existing Google profile ${email} as ${role}`);
     return res.json({ ...invitation, email_sent: false });
   }
+  // Expired invitations are historical records, not an active reservation of
+  // the email. Clear their PENDING state before making a replacement.
+  await query(db.from('invitations').update({ status: 'EXPIRED' }).eq('email', email).eq('status', 'PENDING').lte('expires_at', now).select('id'));
   const departmentId = optionalUuid(req.body.departmentId);
   if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
   let invitation = await query(db.from('invitations').insert({ invited_by_user_id: req.profile.id, email, role, department_id: departmentId }).select().single());

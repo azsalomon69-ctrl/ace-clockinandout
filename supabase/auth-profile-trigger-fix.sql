@@ -4,6 +4,11 @@
 
 begin;
 
+-- Older installations sometimes made profile email unique. That prevents a
+-- new Google Auth identity from being created when a permanently removed
+-- login's historical profile is intentionally retained.
+alter table public.profiles drop constraint if exists profiles_email_key;
+
 -- Older installations may be missing fields introduced by the invitation flow.
 alter table public.profiles
   add column if not exists profile_picture_url text,

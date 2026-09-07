@@ -370,11 +370,11 @@ function installPageFadeNavigation() {
 }
 
 function initializeEmployeeChat() {
-    if (AppState.currentUser?.Role !== 'USER' || document.getElementById('employeeChat')) return;
+    if (AppState.currentUser?.Status !== 'ACTIVE' || document.getElementById('employeeChat')) return;
     const chat = document.createElement('section');
     chat.id = 'employeeChat';
     chat.className = 'employee-chat';
-    chat.innerHTML = `<button class="employee-chat-launcher" type="button" aria-expanded="false" aria-controls="employeeChatPanel"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Chat</span><b class="employee-chat-badge" hidden>0</b></button><div class="employee-chat-panel" id="employeeChatPanel" hidden><header><strong>Employee chat</strong><button type="button" class="employee-chat-close" aria-label="Close chat">×</button></header><div class="employee-chat-layout"><aside><p>Chats</p><div class="employee-chat-contacts"></div></aside><section class="employee-chat-thread"><div class="employee-chat-empty">Choose an employee to start a private chat.</div></section></div></div>`;
+    chat.innerHTML = `<button class="employee-chat-launcher" type="button" aria-expanded="false" aria-controls="employeeChatPanel"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Chat</span><b class="employee-chat-badge" hidden>0</b></button><div class="employee-chat-panel" id="employeeChatPanel" hidden><header><strong>Team chat</strong><button type="button" class="employee-chat-close" aria-label="Close chat">×</button></header><div class="employee-chat-layout"><aside><p>Chats</p><div class="employee-chat-contacts"></div></aside><section class="employee-chat-thread"><div class="employee-chat-empty">Choose a teammate to start a private chat.</div></section></div></div>`;
     document.body.appendChild(chat);
     const launcher = chat.querySelector('.employee-chat-launcher');
     const panel = chat.querySelector('.employee-chat-panel');
@@ -432,7 +432,7 @@ function initializeEmployeeChat() {
             people.forEach(person => unreadByContact.set(person.id, person.unread_count || 0));
             contactsLoaded = true;
             badge.hidden = !totalUnread; badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
-            contacts.innerHTML = people.length ? people.map(person => `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(person.full_name || person.email)}" type="button"><span>${escapeHtml((person.full_name || person.email).slice(0, 1).toUpperCase())}</span><strong>${escapeHtml(person.full_name || person.email)}</strong>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(person.full_name || person.email)}"></b>` : ''}</button>`).join('') : '<div class="employee-chat-empty">No other active employees yet.</div>';
+            contacts.innerHTML = people.length ? people.map(person => `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(person.full_name || person.email)}" type="button"><span>${escapeHtml((person.full_name || person.email).slice(0, 1).toUpperCase())}</span><strong>${escapeHtml(person.full_name || person.email)}</strong>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(person.full_name || person.email)}"></b>` : ''}</button>`).join('') : '<div class="employee-chat-empty">No other active teammates yet.</div>';
             contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.id; selectedName = button.dataset.name; chat.classList.add('employee-chat-chatting'); loadContacts(); loadMessages(); }));
         } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
     };
