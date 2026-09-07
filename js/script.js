@@ -2087,7 +2087,7 @@ function loadAdminDashboard() {
             
             return `
                 <tr class="admin-recent-entry-row">
-                    <td>${escapeHtml(user?.FullName || 'Unknown')}</td>
+                    <td><span class="admin-entry-user"><span class="admin-entry-avatar">${user?.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml((user?.FullName || 'Unknown').trim().slice(0, 1).toUpperCase())}</span><strong>${escapeHtml(user?.FullName || 'Unknown')}</strong></span></td>
                     <td>${escapeHtml(project?.ProjectName || 'None')}</td>
                     <td>${clockIn.toLocaleTimeString()}</td>
                     <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
