@@ -153,6 +153,7 @@ async function initApp() {
         updateUI();
         startClock();
         loadPageSpecificData();
+        initializeResponsiveTables();
         initializeUXEnhancements();
         initializeEmployeeChat();
     }
@@ -161,6 +162,29 @@ async function initApp() {
         document.body.classList.remove('app-shell-pending');
         document.querySelector('.app-shell-skeleton')?.remove();
     });
+}
+
+// Tables stay semantic on desktop, then become labelled record cards on phones.
+// This avoids clipped columns without duplicating data markup for every page.
+function initializeResponsiveTables() {
+    const labelCells = root => {
+        root.querySelectorAll('table').forEach(table => {
+            const labels = Array.from(table.querySelectorAll('thead th')).map(header => header.textContent.trim());
+            if (!labels.length) return;
+            table.querySelectorAll('tbody tr').forEach(row => {
+                Array.from(row.children).forEach((cell, index) => {
+                    if (cell.tagName === 'TD' && !cell.hasAttribute('colspan')) cell.dataset.label = labels[index] || '';
+                });
+            });
+        });
+    };
+    labelCells(document);
+    const observer = new MutationObserver(records => {
+        records.forEach(record => record.addedNodes.forEach(node => {
+            if (node.nodeType === Node.ELEMENT_NODE) labelCells(node.closest?.('table') || node);
+        }));
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
 }
 
 function isPublicRoute() {
