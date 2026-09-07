@@ -923,6 +923,28 @@ function initializeForms() {
     if (profileForm) {
         profileForm.addEventListener('submit', handleProfileUpdate);
     }
+    const profilePhoto = document.getElementById('profilePhoto');
+    const profilePhotoFeedback = document.getElementById('profilePhotoFeedback');
+    if (profilePhoto && profilePhotoFeedback) {
+        profilePhoto.addEventListener('change', () => {
+            const file = profilePhoto.files?.[0];
+            if (!file) { profilePhotoFeedback.textContent = ''; profilePhotoFeedback.className = 'profile-photo-feedback'; return; }
+            const isSupported = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+            const isWithinLimit = file.size <= 5 * 1024 * 1024;
+            if (!isSupported) {
+                profilePhoto.value = '';
+                profilePhotoFeedback.textContent = 'Choose an image only: JPG, PNG, or WebP. Videos are not supported.';
+                profilePhotoFeedback.className = 'profile-photo-feedback is-error';
+            } else if (!isWithinLimit) {
+                profilePhoto.value = '';
+                profilePhotoFeedback.textContent = `This file is ${(file.size / 1024 / 1024).toFixed(1)} MB. Choose an image under 5 MB.`;
+                profilePhotoFeedback.className = 'profile-photo-feedback is-error';
+            } else {
+                profilePhotoFeedback.textContent = `${file.name} is ${(file.size / 1024 / 1024).toFixed(1)} MB — ready to upload.`;
+                profilePhotoFeedback.className = 'profile-photo-feedback is-success';
+            }
+        });
+    }
 
     // Appearance form
     const appearanceForm = document.getElementById('appearanceForm');

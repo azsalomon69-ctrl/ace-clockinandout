@@ -52,7 +52,8 @@
                     <div class="form-group">
                         <label for="profilePhoto" class="form-label">Profile photo</label>
                         <input type="file" id="profilePhoto" class="form-input" accept="image/jpeg,image/png,image/webp">
-                        <small>JPG, PNG, or WebP · maximum 5 MB</small>
+                        <small class="profile-photo-help"><strong>Maximum file size: 5 MB.</strong> JPG, PNG, or WebP only.</small>
+                        <p class="profile-photo-feedback" id="profilePhotoFeedback" aria-live="polite"></p>
                     </div>
                     <div class="form-group">
                         <label for="fullName" class="form-label">Full Name</label>

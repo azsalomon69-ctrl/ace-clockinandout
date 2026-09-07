@@ -1540,6 +1540,15 @@ body { background: #f7fcfd; color: var(--ace-ink); }
 .shell-account { min-height: 86px; display: grid; grid-template-columns: 38px minmax(0,1fr) 34px; align-items: center; gap: 10px; padding: 16px 14px; border-top: 1px solid var(--ace-line); }
 .shell-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--ace-ink); color: #fff; font: 700 .78rem 'Montserrat', Arial, sans-serif; }
 .shell-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.profile-photo-help { display: block; margin-top: 7px; color: var(--ace-muted); font-size: .75rem; }
+.profile-photo-help strong { color: var(--ace-ink); }
+.profile-photo-feedback { min-height: 1.2em; margin: 7px 0 0; font-size: .76rem; }
+.profile-photo-feedback.is-success { color: #16834f; }
+.profile-photo-feedback.is-error { color: #c7354d; }
+html[data-theme="dark"] .profile-photo-help { color: var(--ace-text-secondary); }
+html[data-theme="dark"] .profile-photo-help strong { color: var(--ace-text-primary); }
+html[data-theme="dark"] .profile-photo-feedback.is-success { color: #74dca5; }
+html[data-theme="dark"] .profile-photo-feedback.is-error { color: #ff9ba9; }
 .shell-user { min-width: 0; display: flex; flex-direction: column; }
 .shell-user strong { overflow: hidden; text-overflow: ellipsis; color: var(--ace-ink); font-size: .82rem; white-space: nowrap; }
 .shell-user span { color: #66858e; font-size: .72rem; }
