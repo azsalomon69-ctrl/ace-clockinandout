@@ -3479,3 +3479,32 @@ html[data-theme="dark"] :is(.shell-user span, .form-input::placeholder, .form-te
   html[data-theme="dark"] .table-container .table tr { background: var(--ace-surface) !important; border-color: var(--ace-border); box-shadow: 5px 5px 11px rgba(0,0,0,.26), -3px -3px 8px rgba(76,121,130,.08); }
   html[data-theme="dark"] .table-container .table td::before { color: var(--ace-text-tertiary); }
 }
+
+/* Employee dashboard gets its own phone rhythm: the clock action remains the
+   primary decision, with session facts and personal work grouped beneath it. */
+@media (max-width: 640px) {
+  .user-dashboard .employee-dashboard-intro {
+    min-height: 0; padding: 70px 18px 18px; gap: 12px; border-radius: 18px;
+  }
+  .user-dashboard .employee-dashboard-intro h1 { font-size: 1.45rem; line-height: 1.18; }
+  .user-dashboard .employee-dashboard-intro > div > p:last-child { font-size: .76rem; line-height: 1.45; }
+  .user-dashboard .employee-dashboard-date { padding: 7px 10px; font-size: .68rem; }
+  .user-dashboard .employee-status-panel { gap: 18px; padding: 22px 18px; border-radius: 18px; }
+  .user-dashboard .employee-status-copy h2 { font-size: 1.25rem; }
+  .user-dashboard .employee-session-detail { min-height: 0; padding: 15px 0; text-align: left; }
+  .user-dashboard .employee-session-detail strong { font-size: 2rem; }
+  .user-dashboard .clock-actions .btn { min-height: 58px; border-radius: 14px; font-size: .95rem; }
+  .user-dashboard .employee-session-facts { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .user-dashboard .employee-session-facts div { min-height: 70px; padding: 11px; border-radius: 11px; }
+  .user-dashboard .employee-session-facts div:last-child { grid-column: 1 / -1; }
+  .user-dashboard .employee-summary-grid { grid-template-columns: 1fr; gap: 10px; }
+  .user-dashboard .employee-summary-grid .stat-card { min-height: 78px; grid-template-columns: 38px minmax(0,1fr); padding: 13px 14px; }
+  .user-dashboard .employee-summary-grid .stat-icon { width: 38px; height: 38px; }
+  .user-dashboard .employee-work-grid { gap: 16px; }
+  .user-dashboard :is(.recent-activity-section, .admin-remarks-section, .projects-section) { padding: 18px 16px; border-radius: 18px; }
+  .user-dashboard .employee-section-heading { margin-bottom: 15px; }
+  .user-dashboard .employee-section-heading .section-title { font-size: 1.08rem; }
+  .user-dashboard .activity-list, .user-dashboard .remarks-list { gap: 10px; }
+  .user-dashboard .projects-grid { grid-template-columns: 1fr; gap: 11px; }
+  html[data-theme="dark"] .user-dashboard .employee-dashboard-intro { background: #122326 !important; border-color: #203f47 !important; }
+}
