@@ -3578,6 +3578,7 @@ html[data-theme="dark"] .employee-chat-search input { color: var(--ace-text-prim
 html[data-theme="dark"] .employee-chat-search input::placeholder { color: #90adb3; opacity: 1; }
 
 @media (max-width: 640px) {
+  .shell-mobile-open .employee-chat { display: none; }
   .employee-chat-panel { position: fixed; inset: auto 12px calc(76px + env(safe-area-inset-bottom)) auto; width: calc(100vw - 24px); height: min(52dvh, 420px); min-height: 300px; border-radius: 18px; }
   .employee-chat-panel > header { height: 56px; }
   .employee-chat-layout { height: calc(100% - 56px); }
