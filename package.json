@@ -8,6 +8,7 @@
     "start": "node server/index.js",
     "seed:admin": "node scripts/seed-admin.js",
     "build": "node scripts/build-frontend.js",
+    "test:security": "node scripts/security-regression-check.js",
     "preview:build": "npx serve dist"
   },
   "engines": {

@@ -5,18 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administration · ACE Outsource Solutions</title>
-  <script>
-    const view = new URLSearchParams(location.search).get('view') || 'users';
-    const routes = {
-      users: 'users.html',
-      invitations: 'invitations.html',
-      departments: 'departments.html',
-      projects: 'projects.html',
-      entries: 'admin-time-entries.html',
-      audit: 'audit-logs.html'
-    };
-    location.replace(routes[view] || routes.users);
-  </script>
+  <script src="js/admin-management-redirect.js"></script>
 </head>
 <body></body>
 </html>

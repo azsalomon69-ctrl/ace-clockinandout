@@ -22,14 +22,30 @@ const frontendOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(value
 if (process.env.NODE_ENV === 'production' && !frontendOrigins.length) {
   throw new Error('FRONTEND_ORIGIN is required in production');
 }
-app.use(helmet());
+// This service is an API, not an embeddable document.  Keep the header policy
+// explicit so API responses cannot be framed or interpreted as active content.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'none'"],
+      frameAncestors: ["'none'"]
+    }
+  },
+  crossOriginResourcePolicy: false
+}));
 app.use(cors({
   origin(origin, callback) {
     // Browser requests must come from an explicitly configured frontend. A
     // request without an Origin header is a non-browser/server request.
     if (!origin || frontendOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Origin is not allowed'));
-  }
+  },
+  credentials: false,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Authorization', 'Content-Type'],
+  maxAge: 600
 }));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
@@ -53,6 +69,13 @@ const sensitiveActionLimiter = rateLimit({
 app.use('/v1', apiLimiter);
 app.use('/v1/access-requests', sensitiveActionLimiter);
 app.use('/v1/invitations', sensitiveActionLimiter);
+app.use('/v1/auth/config', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many configuration requests. Please try again later.' }
+}));
 
 const smtpUser = process.env.SMTP_USER?.trim();
 // Google displays app passwords in grouped blocks. Whitespace is not part of
@@ -121,7 +144,7 @@ async function authenticate(req, res, next) {
   const { data: { user }, error } = await db.auth.getUser(token);
   if (error || !user) return fail(res, 401, 'Invalid or expired session');
   try {
-    req.profile = await query(db.from('profiles').select('*').eq('id', user.id).single());
+    req.profile = await query(db.from('profiles').select('*').eq('id', user.id).is('permanently_deleted_at', null).single());
     req.authUser = user;
     next();
   } catch { return fail(res, 403, 'User profile is not available'); }
@@ -409,12 +432,14 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
   if (!email || !emailPattern.test(email) || email.length > 254) return fail(res, 400, 'A valid email is required');
   if (!isAllowedCompanyEmail(email)) return fail(res, 400, 'Use an approved company email address.');
+  const departmentId = optionalUuid(req.body.departmentId);
+  if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
   const now = new Date().toISOString();
   const duplicate = await query(db.from('invitations').select('id').eq('email', email).eq('status', 'PENDING').gt('expires_at', now).maybeSingle());
   if (duplicate) {
     const existingProfile = await query(db.from('profiles').select('id').eq('email', email).is('permanently_deleted_at', null).maybeSingle());
     if (!existingProfile) return fail(res, 409, 'This email already has an active invitation.');
-    await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: req.body.departmentId || null }).eq('id', existingProfile.id).select().single());
+    await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: departmentId }).eq('id', existingProfile.id).select().single());
     const invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', duplicate.id).select().single());
     await audit(req, 'PREAUTHORIZE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Activated existing Google profile ${email} as ${role}`);
     let emailSent = false;
@@ -426,8 +451,6 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
   // Expired invitations are historical records, not an active reservation of
   // the email. Clear their PENDING state before making a replacement.
   await query(db.from('invitations').update({ status: 'EXPIRED' }).eq('email', email).eq('status', 'PENDING').lte('expires_at', now).select('id'));
-  const departmentId = optionalUuid(req.body.departmentId);
-  if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
   let invitation = await query(db.from('invitations').insert({ invited_by_user_id: req.profile.id, email, role, department_id: departmentId }).select().single());
   // A person may have selected Google before the admin invited them. In that
   // case the auth trigger has already made a PENDING profile, so activate that
@@ -586,7 +609,12 @@ app.delete('/v1/reports/:id', authenticate, adminOnly, async (req, res, next) =>
 app.get('/v1/audit-logs', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('audit_logs').select('*, profiles(full_name,email)').order('created_at', { ascending: false }).limit(250))); } catch (error) { next(error); } });
 
 app.use((error, _, res, __) => {
-  console.error(error);
+  // Keep diagnostics server-side. Never return database/provider details,
+  // paths, or request data to a browser.
+  console.error(error?.message || error);
+  if (error?.message === 'Origin is not allowed') return fail(res, 403, 'Origin is not allowed');
+  if (error?.type === 'entity.parse.failed') return fail(res, 400, 'Request body must contain valid JSON');
+  if (error?.type === 'entity.too.large') return fail(res, 413, 'Request body is too large');
   if (error?.status && error.expose) return fail(res, error.status, error.message);
   if (error?.code === '23505') return fail(res, 409, 'A record with that value already exists');
   if (error?.code === '23503') return fail(res, 409, 'This record is connected to company history and must remain archived');
