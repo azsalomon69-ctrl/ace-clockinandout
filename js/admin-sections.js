@@ -235,7 +235,21 @@ async function renderAdminSection() {
   const search = document.getElementById('sectionSearch'); const count = document.getElementById('sectionResultCount') || document.createElement('span');
   count.id = 'sectionResultCount'; count.className = 'result-count'; search.insertAdjacentElement('beforebegin', count);
   const setCount = records => { count.textContent = records.length + ' record' + (records.length === 1 ? '' : 's'); }; setCount(view.records);
+  let departmentFilter = null; let roleFilter = null;
+  if (key === 'users') {
+    const departments = [...new Set(view.records.map(record => record.cells[3]))].sort((a, b) => a.localeCompare(b));
+    const filters = document.createElement('div'); filters.className = 'admin-user-filters';
+    filters.innerHTML = '<label>Department<select class="form-select" id="userDepartmentFilter"><option value="">All departments</option>' + departments.map(department => '<option value="' + esc(department) + '">' + esc(department) + '</option>').join('') + '</select></label><label>Account type<select class="form-select" id="userRoleFilter"><option value="">All accounts</option><option value="Employee">Employees</option><option value="Admin">Administrators</option></select></label>';
+    search.insertAdjacentElement('beforebegin', filters);
+    departmentFilter = filters.querySelector('#userDepartmentFilter'); roleFilter = filters.querySelector('#userRoleFilter');
+  }
+  const applyFilters = () => {
+    const term = search.value.trim().toLowerCase();
+    const records = view.records.filter(record => (!term || record.cells.join(' ').toLowerCase().includes(term)) && (!departmentFilter?.value || record.cells[3] === departmentFilter.value) && (!roleFilter?.value || record.cells[2] === roleFilter.value));
+    draw(records); setCount(records);
+  };
   actionButton.addEventListener('click', () => /export/i.test(view.action) ? downloadCsv(view.records) : modal(view, true));
-  search.addEventListener('input', event => { const term = event.target.value.trim().toLowerCase(); const records = view.records.filter(record => record.cells.join(' ').toLowerCase().includes(term)); draw(records); setCount(records); });
+  search.addEventListener('input', applyFilters);
+  departmentFilter?.addEventListener('change', applyFilters); roleFilter?.addEventListener('change', applyFilters);
 }
 document.addEventListener('DOMContentLoaded', renderAdminSection);

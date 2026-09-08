@@ -3783,6 +3783,7 @@ html[data-theme="dark"] .employee-chat-message-row .employee-chat-actions { colo
 
 .recent-entries-size { display: inline-flex; align-items: center; gap: 7px; color: var(--ace-muted); font-size: .75rem; font-weight: 700; }
 .recent-entries-size select { min-height: 34px; padding: 5px 26px 5px 9px; color: var(--ace-ink); background: var(--ace-surface); border: 1px solid var(--ace-line); border-radius: 8px; font: inherit; }
+.admin-user-filters { display: flex; align-items: end; gap: 9px; }.admin-user-filters label { display: grid; gap: 4px; color: var(--ace-muted); font: 750 .62rem 'Montserrat',Arial,sans-serif; letter-spacing: .06em; text-transform: uppercase; }.admin-user-filters .form-select { min-width: 145px; min-height: 40px; font: 700 .76rem 'Open Sans',Arial,sans-serif; letter-spacing: 0; text-transform: none; }
 .admin-entry-user { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
 .admin-entry-user strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-entry-avatar { width: 32px; height: 32px; display: grid; flex: 0 0 32px; place-items: center; overflow: hidden; color: var(--ace-cyan-dark); background: var(--ace-sky); border: 1px solid var(--ace-line); border-radius: 50%; font: 700 .7rem 'Montserrat', Arial, sans-serif; }
@@ -3790,6 +3791,7 @@ html[data-theme="dark"] .employee-chat-message-row .employee-chat-actions { colo
 @media (max-width: 640px) {
   .admin-dashboard .admin-pagination { align-items: stretch; flex-direction: column; gap: 10px; padding: 14px; }
   .admin-dashboard .admin-pagination .pagination { justify-content: flex-end; }
+  .admin-user-filters { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }.admin-user-filters .form-select { width: 100%; min-width: 0; }
 }
 
 /* The chat launcher is a clear utility control, not a neumorphic surface. */
