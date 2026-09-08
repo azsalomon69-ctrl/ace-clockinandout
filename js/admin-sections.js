@@ -6,7 +6,7 @@ async function liveRequest(path, options = {}) {
 // This is interface copy only. All records and counts are live Render/Supabase data.
 const ADMIN_SECTION_CONFIG = {
   users: { title: 'Users', description: 'Approve access, assign roles, and maintain employee records.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Name', 'Email', 'Role', 'Department', 'Presence', 'Status', 'Action'] },
-  invitations: { title: 'Pre-authorized access', description: 'Authorize a Google account as an employee or administrator before its first sign-in.', action: 'Authorize account', actionIcon: 'user-plus', columns: ['Email', 'Authorized by', 'Created', 'Expires', 'Status', 'Action'] },
+  invitations: { title: 'Pre-authorized access', description: 'Invite an employee or administrator before their first sign-in.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Email', 'Authorized by', 'Created', 'Expires', 'Status', 'Action'] },
   departments: { title: 'Departments', description: 'Organize employees by department. Assignments remain optional.', action: 'Add department', actionIcon: 'building', columns: ['Department', 'Description', 'Created', 'Status', 'Action'] },
   projects: { title: 'Projects', description: 'Manage projects available for optional time-entry assignment.', action: 'Add project', actionIcon: 'folder', columns: ['Project', 'Description', 'Created', 'Status', 'Action'] },
   entries: { title: 'Time entries', description: 'Review company clocking activity, recorded break time, and internal administrator remarks.', action: 'Export entries', actionIcon: 'download', columns: ['Employee', 'Project', 'Clock in', 'Clock out', 'Worked', 'Break', 'Remarks', 'Action'] },

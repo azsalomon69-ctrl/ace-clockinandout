@@ -1315,8 +1315,13 @@ async function handleInviteUser(e) {
     
     try {
         const invitation = await window.ACEAuth.request('/v1/invitations', { method: 'POST', body: JSON.stringify({ email, departmentId: departmentId || null, role: role || 'USER' }) });
-        AppState.invitations.unshift(invitation); closeModal('inviteUserModal'); document.getElementById('inviteUserForm').reset();
-        showToast(email + ' is pre-authorized. Ask them to sign in with that Google account.', 'success');
+        if (Array.isArray(AppState.invitations)) AppState.invitations.unshift(invitation);
+        closeModal('inviteUserModal');
+        document.getElementById('inviteUserForm').reset();
+        const emailMessage = invitation.email_sent
+            ? `${email} was added and the onboarding email was sent.`
+            : `${email} was added, but the email was not sent. ${invitation.email_issue || 'Check the Render email settings.'}`;
+        showToast(emailMessage, invitation.email_sent ? 'success' : 'warning');
     } catch (error) { showToast(error.message || 'Unable to pre-authorize this account', 'error'); }
 }
 

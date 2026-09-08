@@ -64,6 +64,7 @@ const sendInvitationEmail = async ({ email, role, invitedBy }) => {
 const invitationMailIssue = error => {
   if (!smtpConfigured) return 'Email delivery is not configured on Render.';
   if (error?.code === 'EAUTH') return 'Gmail rejected the sender sign-in. Check SMTP_USER and SMTP_APP_PASSWORD in Render.';
+  if (error?.code === 'EENVELOPE') return 'Gmail rejected SMTP_FROM. Use the same Gmail address as SMTP_USER.';
   if (['ECONNECTION', 'ETIMEDOUT', 'ENOTFOUND'].includes(error?.code)) return 'Render could not reach Gmail. Check the Render service logs.';
   return 'The email service could not send this invitation. Check the Render service logs.';
 };
