@@ -31,10 +31,11 @@ const AppState = {
 const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, LastSeenAt: item.last_seen_at, CreatedAt: item.created_at });
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
-const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, BreakStartedAt: item.break_started_at, BreakSeconds: item.break_seconds || 0, UserNote: item.user_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
+const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, BreakStartedAt: item.break_started_at, BreakSeconds: item.break_seconds || 0, UserNote: item.user_note, FinalNote: item.final_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+const reportDate = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
 // Live data is supplied exclusively by the Render API and Supabase.
 async function loadDatabase() {
@@ -1413,36 +1414,8 @@ function renderGeneratedReport(report, options = {}) {
     modal.dataset.reportId = report.ReportId || '';
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
-    const completed = entries.filter(entry => Number(entry.DurationSeconds) > 0);
-    const totalSeconds = completed.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    const uniqueUsers = new Set(entries.map(entry => entry.UserId)).size;
-    const dailyTotals = new Map();
-    const projectTotals = new Map();
-    completed.forEach(entry => {
-        const date = new Date(entry.ClockInAt).toISOString().slice(0, 10);
-        dailyTotals.set(date, (dailyTotals.get(date) || 0) + Number(entry.DurationSeconds || 0));
-        const project = entry.ProjectId ? AppState.projects.find(item => item.ProjectId === entry.ProjectId) : null;
-        const projectName = project?.ProjectName || 'Unassigned';
-        projectTotals.set(projectName, (projectTotals.get(projectName) || 0) + Number(entry.DurationSeconds || 0));
-    });
-    const daily = [...dailyTotals.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-    const projects = [...projectTotals.entries()].sort((a, b) => b[1] - a[1]);
-    const maxDaily = Math.max(...daily.map(([, seconds]) => seconds), 1);
-    const maxProject = Math.max(...projects.map(([, seconds]) => seconds), 1);
-    const creator = AppState.users.find(user => user.UserId === report.CreatedByUserId) || AppState.currentUser;
-    const department = AppState.departments.find(item => Number(item.DepartmentId) === Number(report.Filters?.departmentId));
-    const projectFilter = AppState.projects.find(item => Number(item.ProjectId) === Number(report.Filters?.projectId));
-    const userFilter = AppState.users.find(item => Number(item.UserId) === Number(report.Filters?.userId));
-    const filterSummary = [department?.DepartmentName, projectFilter?.ProjectName, userFilter?.FullName].filter(Boolean).join(' · ') || 'All departments, projects, and users';
-    const reportTeam = AppState.users.filter(user => user.Role === 'USER' && user.Status === 'ACTIVE' && (!report.Filters?.departmentId || Number(user.DepartmentId) === Number(report.Filters.departmentId)) && (!report.Filters?.userId || Number(user.UserId) === Number(report.Filters.userId)));
-    const clockedInIds = new Set(AppState.timeEntries.filter(entry => !entry.ClockOutAt).map(entry => Number(entry.UserId)));
-    const clockedIn = reportTeam.filter(user => clockedInIds.has(Number(user.UserId))).length;
-    const available = Math.max(reportTeam.length - clockedIn, 0);
-    const pending = AppState.users.filter(user => user.Status === 'PENDING' && (!report.Filters?.departmentId || Number(user.DepartmentId) === Number(report.Filters.departmentId))).length;
-    const teamStatus = [['Clocked in', clockedIn, 'is-active'], ['Available', available, ''], ['Pending approval', pending, '']];
-    const teamTotal = Math.max(clockedIn + available + pending, 1);
-    const teamActivityChart = `<div class="print-team-activity"><div class="print-team-ring" style="--team-ratio:${Math.round(clockedIn / Math.max(reportTeam.length, 1) * 100)}"><strong>${clockedIn}</strong><span>clocked in</span></div><div class="print-team-status">${teamStatus.map(([label, count, active]) => `<div><span><i class="${active}"></i>${label}</span><b>${count}</b><em style="width:${Math.round(count / teamTotal * 100)}%"></em></div>`).join('')}</div></div>`;
-    reportElement.innerHTML = `<header class="print-report-header"><div><span>ACE OUTSOURCE SOLUTIONS</span><h1>${escapeHtml(report.ReportType || 'CUSTOM')} TIME REPORT</h1><p>${escapeHtml(report.DateFrom || 'Beginning')} — ${escapeHtml(report.DateTo || 'Today')}</p></div><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></header><section class="print-report-meta"><div><span>Generated by</span><strong>${escapeHtml(creator?.FullName || 'ACE Administrator')}</strong></div><div><span>Generated</span><strong>${new Date(report.GeneratedAt).toLocaleString()}</strong></div><div><span>Filters</span><strong>${escapeHtml(filterSummary)}</strong></div></section><section class="print-report-stats"><div><span>Total tracked</span><strong>${formatDuration(totalSeconds)}</strong></div><div><span>Time entries</span><strong>${entries.length}</strong></div><div><span>Team members</span><strong>${uniqueUsers}</strong></div><div><span>Average entry</span><strong>${completed.length ? formatDuration(Math.round(totalSeconds / completed.length)) : '0h 0m'}</strong></div></section><section class="print-report-charts"><div class="print-chart-panel"><h2>Tracked hours by day</h2><div class="print-daily-chart">${daily.length ? daily.map(([date, seconds]) => `<div class="print-day-column"><span class="print-day-value">${formatDuration(seconds)}</span><div class="print-day-bar" style="height:${Math.max(5, Math.round(seconds / maxDaily * 100))}%"></div><small>${new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small></div>`).join('') : '<p class="analytics-empty">No completed entries in this range.</p>'}</div></div><div class="print-chart-panel"><h2>Hours by project</h2><div class="print-project-chart">${projects.length ? projects.map(([name, seconds]) => `<div class="print-project-row"><span>${escapeHtml(name)}</span><div><i style="width:${Math.max(4, Math.round(seconds / maxProject * 100))}%"></i></div><strong>${formatDuration(seconds)}</strong></div>`).join('') : '<p class="analytics-empty">No project activity in this range.</p>'}</div></div><div class="print-chart-panel print-team-chart"><h2>Team activity</h2>${teamActivityChart}</div></section><section class="print-report-table"><h2>Time entry details</h2><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Duration</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = AppState.projects.find(item => item.ProjectId === entry.ProjectId); return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project?.ProjectName || 'Unassigned')}</td><td>${new Date(entry.ClockInAt).toLocaleString()}</td><td>${entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="5">No entries match this report.</td></tr>'}</tbody></table></section><footer class="print-report-footer"><span>Internal company report</span><span>Report #${escapeHtml(report.ReportId)}</span></footer>`;
+    const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
+    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Break</th><th>Note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${new Date(entry.ClockInAt).toLocaleString()}</td><td>${entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${formatDuration(entry.BreakSeconds || 0)}</td><td>${escapeHtml(entry.UserNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 
@@ -2285,7 +2258,7 @@ function loadReportsList() {
                 <tr data-type="${report.ReportType}" data-from="${report.DateFrom}" data-to="${report.DateTo}" data-user="${report.CreatedByUserId}" data-department="${report.Filters?.departmentId || ''}" data-project="${report.Filters?.projectId || ''}">
                     <td>${report.ReportId}</td>
                     <td>${report.ReportType}</td>
-                    <td>${report.DateFrom} to ${report.DateTo}</td>
+                    <td>${reportDate(report.DateFrom)} to ${reportDate(report.DateTo)}</td>
                     <td>${escapeHtml(user?.FullName || 'Unknown')}</td>
                     <td>${new Date(report.GeneratedAt).toLocaleString()}</td>
                     <td>${report.TotalRecords}</td>
@@ -2502,37 +2475,21 @@ function loadExcelLibrary() {
 }
 function reportWorkbookData(report) {
     const entries = filterEntriesForReport(report);
-    const completed = entries.filter(entry => Number(entry.DurationSeconds) > 0);
-    const totalSeconds = completed.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    const summary = [
-        ['ACE Outsource Solutions — Time Report'],
-        ['Report ID', report.ReportId],
-        ['Report type', report.ReportType || 'CUSTOM'],
-        ['Date from', report.DateFrom || 'Beginning'],
-        ['Date to', report.DateTo || 'Today'],
-        ['Generated', new Date(report.GeneratedAt || Date.now()).toLocaleString()],
-        [],
-        ['Total tracked seconds', totalSeconds],
-        ['Total tracked time', formatDuration(totalSeconds)],
-        ['Time entries', entries.length],
-        ['Completed entries', completed.length],
-        ['Team members', new Set(entries.map(entry => entry.UserId)).size]
-    ];
-    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Break seconds', 'Break time', 'Status']];
+    const timeEntries = [['Employee', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Break seconds', 'Break time', 'Note', 'Status']];
     entries.forEach(entry => {
         const user = AppState.users.find(item => item.UserId === entry.UserId);
-        const project = AppState.projects.find(item => item.ProjectId === entry.ProjectId);
         const workedSeconds = Number(entry.DurationSeconds || 0);
         const breakSeconds = Number(entry.BreakSeconds || 0);
         timeEntries.push([
-            user?.FullName || 'Unknown', project?.ProjectName || 'Unassigned',
-            entry.ClockInAt ? new Date(entry.ClockInAt).toLocaleString() : '',
+            user?.FullName || 'Unknown', entry.ClockInAt ? new Date(entry.ClockInAt).toLocaleString() : '',
             entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active',
             workedSeconds, formatDuration(workedSeconds), breakSeconds, formatDuration(breakSeconds),
-            entry.ClockOutAt ? 'Completed' : 'Active'
+            entry.UserNote || '', entry.ClockOutAt ? 'Completed' : 'Active'
         ]);
     });
-    return { summary, timeEntries };
+    const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
+    timeEntries.push(['Total worked', '', '', totalSeconds, formatDuration(totalSeconds), '', '', '', '']);
+    return timeEntries;
 }
 async function exportExcelReport(reportId) {
     const selected = reportId ? AppState.reports.find(report => String(report.ReportId) === String(reportId)) : null;
@@ -2542,13 +2499,10 @@ async function exportExcelReport(reportId) {
     };
     try {
         const XLSX = await loadExcelLibrary();
-        const { summary, timeEntries } = reportWorkbookData(report);
+        const timeEntries = reportWorkbookData(report);
         const workbook = XLSX.utils.book_new();
-        const summarySheet = XLSX.utils.aoa_to_sheet(summary);
-        summarySheet['!cols'] = [{ wch: 25 }, { wch: 34 }];
         const entriesSheet = XLSX.utils.aoa_to_sheet(timeEntries);
-        entriesSheet['!cols'] = [{ wch: 26 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 15 }, { wch: 16 }, { wch: 13 }];
-        XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+        entriesSheet['!cols'] = [{ wch: 26 }, { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 15 }, { wch: 16 }, { wch: 26 }, { wch: 13 }];
         XLSX.utils.book_append_sheet(workbook, entriesSheet, 'Time Entries');
         XLSX.writeFile(workbook, `ace-time-report-${String(report.ReportId).toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xlsx`, { compression: true });
         showToast('Excel report downloaded.', 'success');

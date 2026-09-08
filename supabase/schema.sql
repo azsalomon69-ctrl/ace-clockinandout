@@ -90,6 +90,7 @@ create table public.time_entries (
   break_seconds integer not null default 0 check (break_seconds >= 0),
   planned_end_at timestamptz,
   user_note text,
+  final_note text,
   duration_seconds integer generated always as (
     case when clock_out_at is null then null
     else greatest(0, extract(epoch from (clock_out_at - clock_in_at))::integer - break_seconds) end
@@ -97,7 +98,9 @@ create table public.time_entries (
   deleted_at timestamptz,
   deleted_by_user_id uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
-  constraint clock_out_after_clock_in check (clock_out_at is null or clock_out_at >= clock_in_at)
+  constraint clock_out_after_clock_in check (clock_out_at is null or clock_out_at >= clock_in_at),
+  constraint time_entries_user_note_length check (user_note is null or char_length(user_note) <= 50),
+  constraint time_entries_final_note_length check (final_note is null or char_length(final_note) <= 50)
 );
 create unique index one_open_entry_per_user on public.time_entries(user_id) where clock_out_at is null;
 create index time_entries_user_clock_in_idx on public.time_entries(user_id, clock_in_at desc);

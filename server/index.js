@@ -428,9 +428,9 @@ app.get('/v1/admin-remarks', authenticate, activeOnly, async (req, res, next) =>
 } catch (error) { next(error); } });
 app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
   const projectId = optionalUuid(req.body.projectId);
-  const note = optionalText(req.body.note, 2000);
+  const note = optionalText(req.body.note, 50);
   if (projectId === undefined) return fail(res, 400, 'Invalid project ID');
-  if (note === undefined) return fail(res, 400, 'Clock-in note must be text up to 2000 characters');
+  if (note === undefined) return fail(res, 400, 'Clock-in note must be text up to 50 characters');
   const open = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('clock_out_at', null).maybeSingle());
   if (open) return fail(res, 409, 'You already have an active time entry');
   const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: projectId, user_note: note }).select().single());
@@ -457,13 +457,13 @@ app.post('/v1/time-entries/:id/break/end', authenticate, activeOnly, async (req,
   res.json(entry);
 } catch (error) { next(error); } });
 app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try {
-  const note = requireText(req.body.note, 'A clock-out note', 2000);
+  const note = requireText(req.body.note, 'A clock-out note', 50);
   let currentRequest = db.from('time_entries').select('id,user_id,break_started_at,break_seconds').eq('id', req.params.id).is('clock_out_at', null);
   if (req.profile.role !== 'ADMIN') currentRequest = currentRequest.eq('user_id', req.profile.id);
   const current = await query(currentRequest.maybeSingle());
   if (!current) return fail(res, 409, 'This shift is already clocked out or unavailable');
   const breakSeconds = (current.break_seconds || 0) + (current.break_started_at ? Math.max(0, Math.floor((Date.now() - new Date(current.break_started_at).getTime()) / 1000)) : 0);
-  const entry = await query(db.from('time_entries').update({ clock_out_at: new Date().toISOString(), user_note: note, break_started_at: null, break_seconds: breakSeconds }).eq('id', current.id).select().single());
+  const entry = await query(db.from('time_entries').update({ clock_out_at: new Date().toISOString(), final_note: note, break_started_at: null, break_seconds: breakSeconds }).eq('id', current.id).select().single());
   const device = clockingDevice(req); await audit(req, `CLOCK_OUT (${device})`, 'TIME_ENTRY', entry.id, `Completed a time entry from ${device}`); res.json(entry);
 } catch (error) { next(error); } });
 
