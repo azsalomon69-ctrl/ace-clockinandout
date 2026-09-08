@@ -259,17 +259,19 @@ async function renderAdminSection() {
     const employees = [...new Set(view.records.map(record => record.cells[0]))].sort((a, b) => a.localeCompare(b));
     const projects = [...new Set(view.records.map(record => record.cells[1]))].sort((a, b) => a.localeCompare(b));
     const filters = document.createElement('div'); filters.className = 'admin-user-filters admin-entry-filters';
-    filters.innerHTML = '<label>Employee<select class="form-select" id="entryEmployeeFilter"><option value="">All employees</option>' + employees.map(employee => '<option value="' + esc(employee) + '">' + esc(employee) + '</option>').join('') + '</select></label><label>Project<select class="form-select" id="entryProjectFilter"><option value="">All projects</option>' + projects.map(project => '<option value="' + esc(project) + '">' + esc(project) + '</option>').join('') + '</select></label><label>Remarks<select class="form-select" id="entryRemarksFilter"><option value="">All entries</option><option value="with">With remarks</option><option value="without">No remarks</option></select></label>';
+    filters.innerHTML = '<label>Employee<input class="form-input" id="entryEmployeeFilter" type="search" list="entryEmployeeOptions" placeholder="All employees" autocomplete="off"><datalist id="entryEmployeeOptions">' + employees.map(employee => '<option value="' + esc(employee) + '"></option>').join('') + '</datalist></label><label>Project<input class="form-input" id="entryProjectFilter" type="search" list="entryProjectOptions" placeholder="All projects" autocomplete="off"><datalist id="entryProjectOptions">' + projects.map(project => '<option value="' + esc(project) + '"></option>').join('') + '</datalist></label><label>Remarks<select class="form-select" id="entryRemarksFilter"><option value="">All entries</option><option value="with">With remarks</option><option value="without">No remarks</option></select></label>';
     search.insertAdjacentElement('beforebegin', filters);
     employeeFilter = filters.querySelector('#entryEmployeeFilter'); projectFilter = filters.querySelector('#entryProjectFilter'); remarksFilter = filters.querySelector('#entryRemarksFilter');
   }
   const applyFilters = () => {
     const term = search.value.trim().toLowerCase();
-    const records = view.records.filter(record => (!term || record.cells.join(' ').toLowerCase().includes(term)) && (!departmentFilter?.value || record.cells[3] === departmentFilter.value) && (!roleFilter?.value || record.cells[2] === roleFilter.value) && (!employeeFilter?.value || record.cells[0] === employeeFilter.value) && (!projectFilter?.value || record.cells[1] === projectFilter.value) && (!remarksFilter?.value || (remarksFilter.value === 'with' ? Boolean(record.remarks?.length) : !record.remarks?.length)));
+    const employeeTerm = employeeFilter?.value.trim().toLowerCase() || '';
+    const projectTerm = projectFilter?.value.trim().toLowerCase() || '';
+    const records = view.records.filter(record => (!term || record.cells.join(' ').toLowerCase().includes(term)) && (!departmentFilter?.value || record.cells[3] === departmentFilter.value) && (!roleFilter?.value || record.cells[2] === roleFilter.value) && (!employeeTerm || record.cells[0].toLowerCase().includes(employeeTerm)) && (!projectTerm || record.cells[1].toLowerCase().includes(projectTerm)) && (!remarksFilter?.value || (remarksFilter.value === 'with' ? Boolean(record.remarks?.length) : !record.remarks?.length)));
     draw(records); setCount(records);
   };
   actionButton.addEventListener('click', () => /export/i.test(view.action) ? downloadCsv(view.records) : modal(view, true));
   search.addEventListener('input', applyFilters);
-  departmentFilter?.addEventListener('change', applyFilters); roleFilter?.addEventListener('change', applyFilters); employeeFilter?.addEventListener('change', applyFilters); projectFilter?.addEventListener('change', applyFilters); remarksFilter?.addEventListener('change', applyFilters);
+  departmentFilter?.addEventListener('change', applyFilters); roleFilter?.addEventListener('change', applyFilters); employeeFilter?.addEventListener('input', applyFilters); projectFilter?.addEventListener('input', applyFilters); remarksFilter?.addEventListener('change', applyFilters);
 }
 document.addEventListener('DOMContentLoaded', renderAdminSection);
