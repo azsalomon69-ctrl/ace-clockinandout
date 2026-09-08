@@ -486,7 +486,7 @@ function initializeAppShell() {
     // Vercel cleanUrls removes .html while the local static server preserves it.
     // Normalize both forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'audit-logs.html', 'chat-log.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -508,7 +508,7 @@ function initializeAppShell() {
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
         ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['invitations.html', 'mail', 'Invitations'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
         ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['deleted-time-entries.html', 'clock', 'Deleted time entries']]],
-        ['Insights', [['reports.html', 'chart', 'Reports']]],
+        ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'chart', 'Individual reports']]],
         ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
@@ -1410,7 +1410,7 @@ function ensureGeneratedReportModal() {
     modal.querySelectorAll('.modal-close, .report-preview-close').forEach(button => button.addEventListener('click', () => closeModal('generatedReportModal')));
     modal.addEventListener('click', event => { if (event.target === modal) closeModal('generatedReportModal'); });
     modal.querySelector('#printGeneratedReportBtn').addEventListener('click', printGeneratedReport);
-    modal.querySelector('#exportGeneratedReportExcelBtn').addEventListener('click', () => exportReport(modal.dataset.reportId || null, 'XLSX'));
+    modal.querySelector('#exportGeneratedReportExcelBtn').addEventListener('click', () => exportExcelReport(modal._report || modal.dataset.reportId || null));
     return modal;
 }
 
@@ -1435,6 +1435,7 @@ function printGeneratedReport() {
 function renderGeneratedReport(report, options = {}) {
     const modal = ensureGeneratedReportModal();
     modal.dataset.reportId = report.ReportId || '';
+    modal._report = report;
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
@@ -2591,7 +2592,7 @@ function reportWorkbookData(report) {
     return timeEntries;
 }
 async function exportExcelReport(reportId) {
-    const selected = reportId ? AppState.reports.find(report => String(report.ReportId) === String(reportId)) : null;
+    const selected = reportId && typeof reportId === 'object' ? reportId : reportId ? AppState.reports.find(report => String(report.ReportId) === String(reportId)) : null;
     const report = selected || {
         ReportId: 'PREVIEW', CreatedByUserId: AppState.currentUser?.UserId || '', ReportType: 'CUSTOM',
         DateFrom: '', DateTo: '', Filters: {}, GeneratedAt: new Date().toISOString(), TotalRecords: AppState.timeEntries.length
@@ -2645,6 +2646,13 @@ function exportReport(reportId, fileType) {
     showToast(`${fileType} export is unavailable.`, 'warning');
 }
 window.ACEReportActions = {
+    preview({ dateFrom, dateTo, filters = {}, format = 'VIEW' }) {
+        const report = { ReportId: '', CreatedByUserId: AppState.currentUser?.UserId || '', ReportType: 'INDIVIDUAL', DateFrom: dateFrom, DateTo: dateTo, Filters: filters, GeneratedAt: new Date().toISOString(), TotalRecords: 0 };
+        if (format === 'XLSX') return exportExcelReport(report);
+        renderGeneratedReport(report);
+        if (format === 'PDF') window.setTimeout(printGeneratedReport, 80);
+        return report;
+    },
     async generate({ reportType = 'CUSTOM', dateFrom, dateTo, filters = {}, format = 'PDF' }) {
         const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType, dateFrom, dateTo, filters }) });
         const report = reportRecord(saved);
