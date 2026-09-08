@@ -1558,6 +1558,7 @@ html[data-theme="dark"] .profile-photo-feedback.is-error { color: #ff9ba9; }
 .time-leaderboard-avatar { width: 38px; height: 38px; display: grid; place-items: center; overflow: hidden; color: #087f9d; background: #fff; border-radius: 50%; font: 700 .7rem 'Montserrat', Arial, sans-serif; }
 .time-leaderboard-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .time-leaderboard-row strong { overflow: hidden; color: var(--ace-ink); font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+.time-leaderboard-profile-link { min-width: 0; overflow: hidden; color: inherit; text-decoration: none; }.time-leaderboard-profile-link:hover strong, .time-leaderboard-profile-link:focus-visible strong { color: var(--ace-cyan-dark); text-decoration: underline; }.time-leaderboard-profile-link:focus-visible { outline: 2px solid var(--ace-cyan); outline-offset: 3px; border-radius: 4px; }
 .time-leaderboard-row strong small { margin-left: 4px; color: #16839a; font-size: .67rem; }
 .time-leaderboard-row > span:last-child { color: #0b5365; font: 800 .76rem 'Montserrat', Arial, sans-serif; white-space: nowrap; }
 .time-leaderboard-empty { padding: 18px; color: var(--ace-muted); font-size: .8rem; text-align: center; }
