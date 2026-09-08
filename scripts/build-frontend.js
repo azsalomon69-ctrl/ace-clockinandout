@@ -32,7 +32,7 @@ async function buildScripts() {
     sourceMap: false
   });
   if (!core.code) throw new Error('Could not minify the production core bundle');
-  const coreCode = `console.warn("STOP! If you did something we'll know :>");${core.code}`;
+  const coreCode = `console.warn("%cSTOP!%c\\n\\nIf you did something we'll know :>%c ","color:#ff1f1f;font-size:64px;font-weight:900;line-height:1;text-shadow:0 2px 0 #7a0000;","color:#d7d7d7;font-size:16px;font-weight:700;line-height:1.5;","font-size:1px;display:block;width:200px;height:200px;padding:0;background:url('https://media3.giphy.com/media/v1.Y2lkPTZjMDliOTUyam1la3FmeXkzdnV1dHFoZW1nbTV0OWhrNWc1ZXY3MnRjYTc3Y3NoMyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/VbnUQpnihPSIgIXuZv/200w.gif') center/contain no-repeat;");${core.code}`;
   const coreTarget = `assets/js/${sourceHash(coreCode)}.js`;
   await writeFile(path.join(dist, coreTarget), coreCode);
   output.set('js/api-config.js', coreTarget);
