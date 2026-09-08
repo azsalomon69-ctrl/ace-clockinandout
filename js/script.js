@@ -35,7 +35,16 @@ const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, P
 const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
-const reportDate = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+const reportDate = value => {
+    if (!value) return '—';
+    const date = new Date(`${value}T00:00:00`);
+    return `${date.toLocaleDateString('en-US', { month: 'short' })}/${date.getDate()}/${date.getFullYear()}`;
+};
+const reportDateTime = value => {
+    if (!value) return '—';
+    const date = new Date(value);
+    return `${date.toLocaleDateString('en-US', { month: 'short' })}/${date.getDate()}/${date.getFullYear()}, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`;
+};
 
 // Live data is supplied exclusively by the Render API and Supabase.
 async function loadDatabase() {
@@ -1415,7 +1424,7 @@ function renderGeneratedReport(report, options = {}) {
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Break</th><th>Note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${new Date(entry.ClockInAt).toLocaleString()}</td><td>${entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${formatDuration(entry.BreakSeconds || 0)}</td><td>${escapeHtml(entry.UserNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
+    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Break</th><th>Note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${formatDuration(entry.BreakSeconds || 0)}</td><td>${escapeHtml(entry.UserNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 
@@ -2481,8 +2490,8 @@ function reportWorkbookData(report) {
         const workedSeconds = Number(entry.DurationSeconds || 0);
         const breakSeconds = Number(entry.BreakSeconds || 0);
         timeEntries.push([
-            user?.FullName || 'Unknown', entry.ClockInAt ? new Date(entry.ClockInAt).toLocaleString() : '',
-            entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active',
+            user?.FullName || 'Unknown', reportDateTime(entry.ClockInAt),
+            entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active',
             workedSeconds, formatDuration(workedSeconds), breakSeconds, formatDuration(breakSeconds),
             entry.UserNote || '', entry.ClockOutAt ? 'Completed' : 'Active'
         ]);
