@@ -33,8 +33,18 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-const smtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_APP_PASSWORD);
-const mailTransport = smtpConfigured ? nodemailer.createTransport({ service: 'gmail', auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_APP_PASSWORD } }) : null;
+const smtpUser = process.env.SMTP_USER?.trim();
+// Google displays app passwords in grouped blocks. Whitespace is not part of
+// the password, so accepting either the grouped or ungrouped form prevents a
+// common Render configuration mistake.
+const smtpAppPassword = process.env.SMTP_APP_PASSWORD?.replace(/\s/g, '');
+const smtpConfigured = Boolean(smtpUser && smtpAppPassword);
+const mailTransport = smtpConfigured ? nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  auth: { user: smtpUser, pass: smtpAppPassword }
+}) : null;
 const applicationUrl = (frontendOrigins[0] || 'https://ace-clock.vercel.app').replace(/\/$/, '');
 const sendInvitationEmail = async ({ email, role, invitedBy }) => {
   if (!mailTransport) return false;
@@ -43,13 +53,19 @@ const sendInvitationEmail = async ({ email, role, invitedBy }) => {
   const roleName = role === 'ADMIN' ? 'Administrator' : 'Employee';
   const loginUrl = `${applicationUrl}/login`;
   await mailTransport.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    from: process.env.SMTP_FROM || smtpUser,
     to: email,
     subject: 'You are invited to ACE Clock In/Out',
     text: `Hello,\n\n${invitedBy || 'An ACE administrator'} invited you to ACE Clock In/Out as an ${roleName}.\n\nStart here: ${loginUrl}\n\nGetting started:\n1. Sign in with the exact Google email that received this invitation.\n2. Complete your profile settings.\n3. Clock in when you start work.\n4. Start and end breaks from your dashboard.\n5. Clock out when your shift is complete.\n\nACE Outsource Solutions`,
     html: `<main style="max-width:620px;margin:0 auto;padding:32px 24px;font-family:Arial,sans-serif;color:#073b4c;background:#f4fbfc"><section style="overflow:hidden;background:#fff;border:1px solid #cfe7eb;border-radius:18px"><header style="padding:28px 30px;background:#073b4c;color:#fff"><p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:1.2px">ACE OUTSOURCE SOLUTIONS</p><h1 style="margin:0;font-size:26px">You’re invited</h1></header><div style="padding:30px"><p style="margin-top:0;font-size:16px">Hello,</p><p><strong>${inviter}</strong> invited <strong>${recipient}</strong> to ACE Clock In/Out as an <strong>${roleName}</strong>.</p><p style="margin:24px 0"><a href="${loginUrl}" style="display:inline-block;padding:13px 20px;color:#fff;background:#08a2c2;border-radius:8px;font-weight:bold;text-decoration:none">Sign in to ACE Clock</a></p><h2 style="margin:28px 0 12px;font-size:18px">Get started in five steps</h2><ol style="padding-left:22px;line-height:1.7"><li>Sign in with the exact Google email that received this invitation.</li><li>Open <strong>Profile &amp; settings</strong> and complete your account details.</li><li>Choose <strong>Clock In</strong> when you begin work.</li><li>Use <strong>Start Break</strong> and <strong>End Break</strong> to record break time.</li><li>Choose <strong>Clock Out</strong> after your shift, then review your time entries.</li></ol><p style="margin:28px 0 0;color:#587680;font-size:13px">If you cannot sign in, make sure you are using the same Google account this invitation was sent to.</p></div></section></main>`
   });
   return true;
+};
+const invitationMailIssue = error => {
+  if (!smtpConfigured) return 'Email delivery is not configured on Render.';
+  if (error?.code === 'EAUTH') return 'Gmail rejected the sender sign-in. Check SMTP_USER and SMTP_APP_PASSWORD in Render.';
+  if (['ECONNECTION', 'ETIMEDOUT', 'ENOTFOUND'].includes(error?.code)) return 'Render could not reach Gmail. Check the Render service logs.';
+  return 'The email service could not send this invitation. Check the Render service logs.';
 };
 
 const fail = (res, status, message) => res.status(status).json({ error: message });
@@ -352,9 +368,10 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
     const invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', duplicate.id).select().single());
     await audit(req, 'PREAUTHORIZE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Activated existing Google profile ${email} as ${role}`);
     let emailSent = false;
+    let emailIssue = null;
     try { emailSent = await sendInvitationEmail({ email, role, invitedBy: req.profile.full_name || req.profile.email }); }
-    catch (mailError) { console.error('Invitation email delivery failed:', mailError.message); }
-    return res.json({ ...invitation, email_sent: emailSent });
+    catch (mailError) { console.error('Invitation email delivery failed:', mailError.message); emailIssue = invitationMailIssue(mailError); }
+    return res.json({ ...invitation, email_sent: emailSent, email_issue: emailSent ? null : (emailIssue || invitationMailIssue()) });
   }
   // Expired invitations are historical records, not an active reservation of
   // the email. Clear their PENDING state before making a replacement.
@@ -372,9 +389,18 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
   }
   await audit(req, 'PREAUTHORIZE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Pre-authorized ${email} as ${role}`);
   let emailSent = false;
+  let emailIssue = null;
   try { emailSent = await sendInvitationEmail({ email, role, invitedBy: req.profile.full_name || req.profile.email }); }
-  catch (mailError) { console.error('Invitation email delivery failed:', mailError.message); }
-  res.status(201).json({ ...invitation, email_sent: emailSent });
+  catch (mailError) { console.error('Invitation email delivery failed:', mailError.message); emailIssue = invitationMailIssue(mailError); }
+  res.status(201).json({ ...invitation, email_sent: emailSent, email_issue: emailSent ? null : (emailIssue || invitationMailIssue()) });
+} catch (error) { next(error); } });
+app.delete('/v1/invitations/:id', authenticate, adminOnly, async (req, res, next) => { try {
+  const invitation = await query(db.from('invitations').select('*').eq('id', req.params.id).maybeSingle());
+  if (!invitation) return fail(res, 404, 'Invitation not found.');
+  if (invitation.status !== 'PENDING') return fail(res, 409, 'Only pending invitations can be cancelled.');
+  await query(db.from('invitations').delete().eq('id', invitation.id).select().single());
+  await audit(req, 'CANCEL_INVITATION', 'INVITATION', invitation.id, `Cancelled invitation for ${invitation.email}`);
+  res.status(204).end();
 } catch (error) { next(error); } });
 app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)').order('invited_at', { ascending: false }))); } catch (error) { next(error); } });
 

@@ -107,6 +107,7 @@ function modal(view, primary, record) {
   const review = !primary && key === 'users' && /^review$/i.test(label);
   const manage = !primary && key === 'users' && /^manage$/i.test(label);
   const remove = !primary && key === 'users' && /^remove$/i.test(label);
+  const cancelInvitation = !primary && key === 'invitations' && /^view$/i.test(label);
   const deleteRecord = !primary && (key === 'departments' || key === 'projects' || key === 'entries');
   const fields = remark ? [['Administrator remark', 'textarea', 'Add a clear internal remark for this time entry']]
     : primary && ['users', 'invitations'].includes(key) ? [['Work email', 'email', 'name@example.com'], ['Role', 'select', 'USER']]
@@ -116,13 +117,21 @@ function modal(view, primary, record) {
   node.querySelector('.modal-title').textContent = primary ? view.action : label + ' ' + view.title.toLowerCase();
   const summary = record ? '<div class="detail-summary"><strong>' + esc(record.cells[0]) + '</strong><p>' + record.cells.slice(1, -1).map(esc).join(' · ') + '</p></div>' : '';
   if (!fields.length) {
-    node.querySelector('.modal-body').innerHTML = summary + (remove ? '<p class="modal-description">Archiving immediately blocks access while preserving time records and audit history.</p><div class="form-actions"><button class="btn btn-danger admin-remove-user" type="button">' + icon('folder') + 'Archive user</button><button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div>' : '<div class="form-actions"><button class="btn btn-primary admin-modal-cancel" type="button">' + icon('check') + 'Done</button></div>');
+    node.querySelector('.modal-body').innerHTML = summary + (remove ? '<p class="modal-description">Archiving immediately blocks access while preserving time records and audit history.</p><div class="form-actions"><button class="btn btn-danger admin-remove-user" type="button">' + icon('folder') + 'Archive user</button><button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div>' : cancelInvitation ? '<p class="modal-description">Cancelling removes this pending authorization. You can invite this email again whenever you need to.</p><div class="form-actions"><button class="btn btn-danger admin-cancel-invitation" type="button">' + icon('x') + 'Cancel invitation</button><button class="btn btn-outline admin-modal-cancel" type="button">' + icon('check') + 'Done</button></div>' : '<div class="form-actions"><button class="btn btn-primary admin-modal-cancel" type="button">' + icon('check') + 'Done</button></div>');
     node.querySelector('.admin-modal-cancel').addEventListener('click', () => closeModal('adminActionModal'));
     node.querySelector('.admin-remove-user')?.addEventListener('click', async () => {
       try {
         await liveRequest('/v1/users/' + record.id + '/remove', { method: 'PATCH' });
         closeModal('adminActionModal'); showToast('User access removed.', 'success'); window.setTimeout(() => window.location.reload(), 350);
       } catch (error) { showToast(error.message || 'Could not archive user.', 'error'); }
+    });
+    node.querySelector('.admin-cancel-invitation')?.addEventListener('click', async () => {
+      try {
+        await liveRequest('/v1/invitations/' + record.id, { method: 'DELETE' });
+        closeModal('adminActionModal');
+        showToast('Invitation cancelled. This email can be invited again.', 'success');
+        window.setTimeout(() => window.location.reload(), 1200);
+      } catch (error) { showToast(error.message || 'Could not cancel this invitation.', 'error'); }
     });
     openModal('adminActionModal'); return;
   }
@@ -185,8 +194,8 @@ function modal(view, primary, record) {
       }
       else if (review) await liveRequest('/v1/users/' + record.id + '/approval', { method: 'PATCH', body: JSON.stringify({ status: first }) });
       closeModal('adminActionModal');
-      showToast(invitation ? (invitation.email_sent ? 'Invitation and onboarding email sent.' : 'Invitation created, but email delivery needs attention.') : 'Saved to the live database.', invitation && !invitation.email_sent ? 'warning' : 'success');
-      window.setTimeout(() => window.location.reload(), 350);
+      showToast(invitation ? (invitation.email_sent ? 'Invitation and onboarding email sent.' : `Invitation created. ${invitation.email_issue || 'Email delivery needs attention.'}`) : 'Saved to the live database.', invitation && !invitation.email_sent ? 'warning' : 'success');
+      window.setTimeout(() => window.location.reload(), 2600);
     } catch (error) { showToast(error.message || 'Could not save changes.', 'error'); }
   });
   openModal('adminActionModal');
