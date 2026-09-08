@@ -64,8 +64,8 @@ Do not commit `.env` or Supabase secret keys.
 ## Deploy the frontend to Vercel
 
 1. In Vercel, import the same GitHub repository.
-2. Set the framework preset to **Other** and leave the build command empty; this is a static frontend.
-3. Deploy. Vercel uses `vercel.json` for safe response headers.
+2. Set the framework preset to **Other** and set the build command to `npm run build`. Vercel deploys the generated `dist` directory configured in `vercel.json`, not the readable source HTML, CSS, or JavaScript files.
+3. Deploy. The production build minifies HTML, CSS, and JavaScript; uses hashed frontend asset filenames; and deliberately creates no source maps.
 4. Add the deployed Vercel URL to Render's `FRONTEND_ORIGIN` and Supabase Auth redirect URLs.
 
 ## API routes

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "node --watch server/index.js",
     "start": "node server/index.js",
-    "seed:admin": "node scripts/seed-admin.js"
+    "seed:admin": "node scripts/seed-admin.js",
+    "build": "node scripts/build-frontend.js",
+    "preview:build": "npx serve dist"
   },
   "engines": {
     "node": ">=20"
@@ -23,5 +25,10 @@
   },
   "overrides": {
     "qs": "6.16.0"
+  },
+  "devDependencies": {
+    "clean-css": "^5.3.3",
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.51.2"
   }
 }
