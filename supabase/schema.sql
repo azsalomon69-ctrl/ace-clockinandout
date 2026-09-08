@@ -110,6 +110,7 @@ create table public.admin_remarks (
   time_entry_id uuid not null references public.time_entries(id) on delete cascade,
   admin_user_id uuid not null references public.profiles(id),
   remark text not null check (char_length(trim(remark)) > 0),
+  seen_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

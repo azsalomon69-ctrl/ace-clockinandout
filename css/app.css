@@ -1537,6 +1537,7 @@ body { background: #f7fcfd; color: var(--ace-ink); }
 .shell-link { min-height: 46px; display: flex; align-items: center; gap: 13px; padding: 0 14px; border-radius: 8px; color: #315964; font-family: 'Open Sans', Arial, sans-serif; font-size: .91rem; font-weight: 700; white-space: nowrap; }
 .shell-link:hover { color: var(--ace-ink); background: #f2fafc; }
 .shell-link.active { color: var(--ace-ink); background: var(--ace-pale); box-shadow: inset 3px 0 0 var(--ace-cyan); }
+.shell-notification-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; display: inline-grid; place-items: center; border-radius: 999px; background: #dd3850; color: #fff; font: 800 .65rem/1 Arial, sans-serif; }
 .shell-account { min-height: 86px; display: grid; grid-template-columns: 38px minmax(0,1fr) 34px; align-items: center; gap: 10px; padding: 16px 14px; border-top: 1px solid var(--ace-line); }
 .shell-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--ace-ink); color: #fff; font: 700 .78rem 'Montserrat', Arial, sans-serif; }
 .shell-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }

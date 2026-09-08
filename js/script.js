@@ -14,6 +14,7 @@ const AppState = {
     onlineCountInterval: null,
     clockInTime: null,
     timerInterval: null,
+    remarkNotificationInterval: null,
     projects: [],
     departments: [],
     timeEntries: [],
@@ -32,7 +33,7 @@ const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: i
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, BreakStartedAt: item.break_started_at, BreakSeconds: item.break_seconds || 0, UserNote: item.user_note, FinalNote: item.final_note, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
-const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
+const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, SeenAt: item.seen_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 const reportDate = value => {
@@ -170,6 +171,7 @@ async function initApp() {
         initializeResponsiveTables();
         initializeUXEnhancements();
         initializeEmployeeChat();
+        startRemarkNotifications();
     }
     clearInitialSkeletons();
     requestAnimationFrame(() => {
@@ -513,9 +515,11 @@ function initializeAppShell() {
     const groups = isAdmin ? adminGroups : employeeGroups;
     const user = AppState.currentUser || { FullName: isAdmin ? 'ACE Administrator' : 'ACE Employee', Role: isAdmin ? 'ADMIN' : 'USER' };
     const initials = String(user.FullName || '').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
+    const unreadRemarks = !isAdmin ? AppState.adminRemarks.filter(remark => !remark.SeenAt).length : 0;
     const links = groups.map(([groupLabel, items]) => `<section class="shell-nav-group" aria-label="${groupLabel}"><p class="shell-nav-label">${groupLabel}</p>${items.map(([href, iconName, label]) => {
         const active = file === href || (file === 'admin-management.html' && new URLSearchParams(location.search).get('view') === href.replace('.html', '').replace('admin-time-entries', 'entries').replace('audit-logs', 'audit'));
-        return `<a class="shell-link${active ? ' active' : ''}" href="${href}" title="${label}">${icon(iconName)}<span class="shell-label">${label}</span></a>`;
+        const remarkBadge = href === 'remarks.html' && unreadRemarks ? `<b class="shell-notification-badge" aria-label="${unreadRemarks} new administrator remark${unreadRemarks === 1 ? '' : 's'}">${unreadRemarks > 9 ? '9+' : unreadRemarks}</b>` : '';
+        return `<a class="shell-link${active ? ' active' : ''}" href="${href}" title="${label}">${icon(iconName)}<span class="shell-label">${label}</span>${remarkBadge}</a>`;
     }).join('')}</section>`).join('');
 
     document.body.classList.add('has-app-shell');
@@ -1642,6 +1646,7 @@ function loadPageSpecificData() {
 
     if (page === 'remarks.html') {
         loadRemarksPage();
+        void markRemarksRead();
     }
     
     // Reports
@@ -2235,6 +2240,46 @@ function loadRemarksPage() {
         const project = entry?.ProjectId ? AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName : null;
         return `<article class="remark-item"><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${escapeHtml(project || 'No project')} · Time entry: ${escapeHtml(entryDate)} · Added ${new Date(remark.CreatedAt).toLocaleString()}</small></article>`;
     }).join('') : '<p class="empty-state">No administrator remarks yet.</p>';
+}
+
+function updateRemarkNotificationBadge() {
+    const unread = AppState.currentUser?.Role === 'ADMIN' ? 0 : AppState.adminRemarks.filter(remark => !remark.SeenAt).length;
+    document.querySelectorAll('.shell-link[href="remarks.html"]').forEach(link => {
+        let badge = link.querySelector('.shell-notification-badge');
+        if (!unread) { badge?.remove(); return; }
+        if (!badge) { badge = document.createElement('b'); badge.className = 'shell-notification-badge'; link.appendChild(badge); }
+        badge.textContent = unread > 9 ? '9+' : unread;
+        badge.setAttribute('aria-label', `${unread} new administrator remark${unread === 1 ? '' : 's'}`);
+    });
+}
+
+async function markRemarksRead() {
+    if (AppState.currentUser?.Role === 'ADMIN' || !AppState.adminRemarks.some(remark => !remark.SeenAt)) return;
+    try {
+        await window.ACEAuth.request('/v1/admin-remarks/mark-read', { method: 'POST' });
+        const seenAt = new Date().toISOString();
+        AppState.adminRemarks.forEach(remark => { if (!remark.SeenAt) remark.SeenAt = seenAt; });
+        updateRemarkNotificationBadge();
+    } catch (error) { console.warn('Could not mark administrator remarks as read.', error); }
+}
+
+function startRemarkNotifications() {
+    if (AppState.remarkNotificationInterval || AppState.currentUser?.Role === 'ADMIN') return;
+    let initialized = true;
+    const refresh = async () => {
+        try {
+            const remarks = (await window.ACEAuth.request('/v1/admin-remarks')).map(adminRemarkRecord);
+            const hadUnread = AppState.adminRemarks.some(remark => !remark.SeenAt);
+            AppState.adminRemarks = remarks;
+            updateRemarkNotificationBadge();
+            if (!initialized && !hadUnread && remarks.some(remark => !remark.SeenAt)) showToast('An administrator added a remark to one of your time entries.', 'info');
+            initialized = false;
+        } catch (error) { console.warn('Could not refresh administrator remarks.', error); }
+    };
+    updateRemarkNotificationBadge();
+    if (AppState.adminRemarks.some(remark => !remark.SeenAt)) showToast('You have new administrator remarks.', 'info');
+    AppState.remarkNotificationInterval = window.setInterval(refresh, 15000);
+    window.addEventListener('pagehide', () => window.clearInterval(AppState.remarkNotificationInterval), { once: true });
 }
 
 function updateOnlineUserCount() {

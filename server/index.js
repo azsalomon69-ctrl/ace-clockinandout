@@ -435,6 +435,13 @@ app.get('/v1/admin-remarks', authenticate, activeOnly, async (req, res, next) =>
   if (visibleEntryIds) request = request.in('time_entry_id', visibleEntryIds);
   res.json(await query(request));
 } catch (error) { next(error); } });
+app.post('/v1/admin-remarks/mark-read', authenticate, activeOnly, async (req, res, next) => { try {
+  if (req.profile.role === 'ADMIN') return res.json({ marked: 0 });
+  const entries = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id));
+  if (!entries.length) return res.json({ marked: 0 });
+  const marked = await query(db.from('admin_remarks').update({ seen_at: new Date().toISOString() }).in('time_entry_id', entries.map(entry => entry.id)).is('seen_at', null).select('id'));
+  res.json({ marked: marked.length });
+} catch (error) { next(error); } });
 app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
   const projectId = optionalUuid(req.body.projectId);
   const note = optionalText(req.body.note, 50);
