@@ -3145,6 +3145,11 @@ html[data-theme="dark"] :is(.shell-skeleton-title,.shell-skeleton-subtitle,.shel
 .shell-nav { gap: 11px; padding: 12px 10px 14px; align-content: start; overflow-y: auto; }
 .shell-nav-group { display: grid; gap: 2px; }
 .shell-nav-label { margin: 0 0 5px; padding: 0 12px; color: #8eaeb5; font: 700 .61rem 'Montserrat', Arial, sans-serif; letter-spacing: .13em; text-transform: uppercase; }
+.shell-nav-group-toggle { width: 100%; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.shell-nav-group-toggle b { margin-left: auto; font-size: 1rem; line-height: 1; transition: transform .18s ease; }
+.shell-nav-group:not(.is-open) .shell-nav-group-toggle b { transform: rotate(-90deg); }
+.shell-nav-group-items { display: grid; gap: 2px; }
+.shell-nav-group-items[hidden] { display: none; }
 .shell-link { min-height: 39px; gap: 11px; padding: 0 12px; border-radius: 7px; font-size: .79rem; font-weight: 650; }
 .shell-link .shell-icon { width: 18px; height: 18px; flex-basis: 18px; opacity: .8; }
 .shell-link.active { box-shadow: inset 2px 0 0 var(--ace-cyan); }

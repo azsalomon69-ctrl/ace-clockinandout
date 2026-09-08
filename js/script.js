@@ -520,11 +520,11 @@ function initializeAppShell() {
     const user = AppState.currentUser || { FullName: isAdmin ? 'ACE Administrator' : 'ACE Employee', Role: isAdmin ? 'ADMIN' : 'USER' };
     const initials = String(user.FullName || '').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
     const unreadRemarks = !isAdmin ? AppState.adminRemarks.filter(remark => !remark.SeenAt).length : 0;
-    const links = groups.map(([groupLabel, items]) => `<section class="shell-nav-group" aria-label="${groupLabel}"><p class="shell-nav-label">${groupLabel}</p>${items.map(([href, iconName, label]) => {
+    const links = groups.map(([groupLabel, items]) => { const collapsible = groupLabel === 'People' || groupLabel === 'Work'; const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => file === href); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}"><span>${groupLabel}</span><b aria-hidden="true">⌄</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; return `<section class="shell-nav-group${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}<div class="shell-nav-group-items"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
         const active = file === href || (file === 'admin-management.html' && new URLSearchParams(location.search).get('view') === href.replace('.html', '').replace('admin-time-entries', 'entries').replace('audit-logs', 'audit'));
         const remarkBadge = href === 'remarks.html' && unreadRemarks ? `<b class="shell-notification-badge" aria-label="${unreadRemarks} new administrator remark${unreadRemarks === 1 ? '' : 's'}">${unreadRemarks > 9 ? '9+' : unreadRemarks}</b>` : '';
         return `<a class="shell-link${active ? ' active' : ''}" href="${href}" title="${label}">${icon(iconName)}<span class="shell-label">${label}</span>${remarkBadge}</a>`;
-    }).join('')}</section>`).join('');
+    }).join('')}</div></section>`; }).join('');
 
     document.body.classList.add('has-app-shell');
     if (isSharedSettings && isAdmin) {
@@ -550,6 +550,7 @@ function initializeAppShell() {
     };
     setCollapsed(localStorage.getItem('ace_sidebar_collapsed') === '1');
     sidebar.querySelector('.shell-collapse').addEventListener('click', () => setCollapsed(!document.body.classList.contains('shell-collapsed')));
+    sidebar.querySelectorAll('.shell-nav-group-toggle').forEach(button => button.addEventListener('click', () => { const group = button.closest('.shell-nav-group'); const content = group.querySelector('.shell-nav-group-items'); const open = content.hidden; content.hidden = !open; group.classList.toggle('is-open', open); button.setAttribute('aria-expanded', String(open)); localStorage.setItem(group.dataset.groupKey, open ? '1' : '0'); }));
     const setMobileNavigation = open => {
         document.body.classList.toggle('shell-mobile-open', open);
         mobileToggle.setAttribute('aria-expanded', String(open));
