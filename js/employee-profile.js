@@ -1,0 +1,35 @@
+(() => {
+  const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
+  const duration = seconds => { const value = Math.max(0, Number(seconds) || 0); return `${Math.floor(value / 3600)}h ${Math.floor((value % 3600) / 60)}m`; };
+  const clockTime = value => value ? new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Active';
+  const render = async () => {
+    const root = document.getElementById('employeeProfileContent');
+    const id = new URLSearchParams(window.location.search).get('user');
+    if (!id) { root.innerHTML = '<p class="empty-state">Choose an employee from the Users page.</p>'; return; }
+    try {
+      const me = await window.ACEAuth.request('/v1/me');
+      if (me.profile.role !== 'ADMIN') { window.location.replace('user-dashboard.html'); return; }
+      const [users, entries, projects, departments] = await Promise.all([
+        window.ACEAuth.request('/v1/users'), window.ACEAuth.request('/v1/time-entries'),
+        window.ACEAuth.request('/v1/projects'), window.ACEAuth.request('/v1/departments')
+      ]);
+      const person = users.find(item => item.id === id);
+      if (!person) throw new Error('Employee was not found.');
+      const sessions = entries.filter(entry => entry.user_id === id).sort((a, b) => new Date(b.clock_in_at) - new Date(a.clock_in_at));
+      const completed = sessions.filter(entry => entry.clock_out_at);
+      const worked = completed.reduce((sum, entry) => sum + Number(entry.duration_seconds || 0), 0);
+      const breaks = sessions.reduce((sum, entry) => sum + Number(entry.break_seconds || 0), 0);
+      const average = completed.length ? Math.round(worked / completed.length) : 0;
+      const department = departments.find(item => item.id === person.department_id)?.name || 'Unassigned';
+      const projectTotals = new Map();
+      completed.forEach(entry => { const name = projects.find(project => project.id === entry.project_id)?.name || 'Unassigned'; projectTotals.set(name, (projectTotals.get(name) || 0) + Number(entry.duration_seconds || 0)); });
+      const topProjects = [...projectTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+      const maxProject = Math.max(1, ...topProjects.map(([, seconds]) => seconds));
+      const daily = Array.from({ length: 7 }, (_, offset) => { const day = new Date(); day.setHours(0, 0, 0, 0); day.setDate(day.getDate() - (6 - offset)); const seconds = completed.filter(entry => new Date(entry.clock_in_at).toDateString() === day.toDateString()).reduce((sum, entry) => sum + Number(entry.duration_seconds || 0), 0); return { label: day.toLocaleDateString([], { weekday: 'short' }), seconds }; });
+      const maxDaily = Math.max(1, ...daily.map(item => item.seconds));
+      const initial = (person.full_name || person.email || 'E').trim().slice(0, 1).toUpperCase();
+      root.innerHTML = `<header class="employee-profile-header"><a class="btn btn-outline" href="users.html">← Users</a><div class="employee-profile-identity"><span class="employee-profile-avatar">${person.profile_picture_url ? `<img src="${esc(person.profile_picture_url)}" alt="">` : esc(initial)}</span><div><p class="admin-section-kicker">EMPLOYEE PROFILE</p><h1>${esc(person.full_name || 'Unnamed employee')}</h1><p>${esc(person.email)} · ${esc(person.role === 'ADMIN' ? 'Administrator' : 'Employee')} · ${esc(department)}</p></div></div></header><section class="employee-profile-stats"><article><span>Total worked</span><strong>${duration(worked)}</strong><small>Completed sessions</small></article><article><span>Time entries</span><strong>${sessions.length}</strong><small>${sessions.filter(entry => !entry.clock_out_at).length} active</small></article><article><span>Average session</span><strong>${duration(average)}</strong><small>Across completed entries</small></article><article><span>Recorded breaks</span><strong>${duration(breaks)}</strong><small>Break time total</small></article></section><section class="employee-profile-grid"><article class="employee-profile-card"><div class="employee-profile-card-head"><div><span>WEEKLY ACTIVITY</span><h2>Worked time</h2></div><small>Last 7 days</small></div><div class="employee-profile-chart">${daily.map(item => `<div><b>${duration(item.seconds)}</b><i><em style="height:${Math.max(4, Math.round(item.seconds / maxDaily * 100))}%"></em></i><span>${esc(item.label)}</span></div>`).join('')}</div></article><article class="employee-profile-card"><div class="employee-profile-card-head"><div><span>PROJECT ALLOCATION</span><h2>Hours by project</h2></div></div><div class="employee-profile-projects">${topProjects.length ? topProjects.map(([name, seconds]) => `<div><span>${esc(name)}</span><i><em style="width:${Math.max(4, Math.round(seconds / maxProject * 100))}%"></em></i><strong>${duration(seconds)}</strong></div>`).join('') : '<p class="analytics-empty">No completed project time yet.</p>'}</div></article></section><section class="table-container employee-profile-entries"><div class="table-header"><h2>Clock-in history</h2><span>${sessions.length} record${sessions.length === 1 ? '' : 's'}</span></div><div class="table-responsive"><table class="table"><thead><tr><th>Clock in</th><th>Clock out</th><th>Project</th><th>Worked</th><th>Break</th><th>Status</th></tr></thead><tbody>${sessions.length ? sessions.slice(0, 15).map(entry => `<tr><td>${clockTime(entry.clock_in_at)}</td><td>${clockTime(entry.clock_out_at)}</td><td>${esc(projects.find(project => project.id === entry.project_id)?.name || 'Unassigned')}</td><td>${entry.duration_seconds ? duration(entry.duration_seconds) : 'Active'}</td><td>${duration(entry.break_seconds || 0)}${entry.break_started_at ? ' (active)' : ''}</td><td><span class="badge ${entry.clock_out_at ? 'badge-success' : 'badge-warning'}">${entry.clock_out_at ? 'Completed' : 'Active'}</span></td></tr>`).join('') : '<tr><td colspan="6">No clock-in records yet.</td></tr>'}</tbody></table></div></section>`;
+    } catch (error) { root.innerHTML = `<p class="empty-state">${esc(error.message || 'Unable to load this employee profile.')}</p>`; }
+  };
+  document.addEventListener('DOMContentLoaded', render);
+})();

@@ -66,7 +66,7 @@ function action(label, index, key) {
   if (key === 'entries') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Add remark</button><button class="btn btn-sm btn-danger admin-delete-entry" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
   const iconName = /remove/i.test(label) ? 'trash' : /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
   const style = /remove/i.test(label) ? 'btn-danger' : 'btn-outline';
-  return '<div class="table-actions"><button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button>' + (key === 'users' ? '<button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button>' : '') + '</div>';
+  return '<div class="table-actions">' + (key === 'users' ? '<button class="btn btn-sm btn-outline admin-view-employee" type="button" data-row="' + index + '">' + icon('eye') + 'View employee</button>' : '') + '<button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button>' + (key === 'users' ? '<button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button>' : '') + '</div>';
 }
 function formField(label, type, placeholder, value, index) {
   const id = 'adminField' + index;
@@ -203,6 +203,10 @@ async function renderAdminSection() {
   const draw = records => {
     body.innerHTML = records.length ? records.map((record, rowIndex) => '<tr class="' + (key === 'entries' || key === 'users' ? 'admin-collapsible-row' : '') + '">' + record.cells.map((cell, index) => '<td>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key) : key === 'users' && index === 0 ? '<span class="admin-user-identity"><span class="admin-user-avatar">' + (record.avatarUrl ? '<img src="' + esc(record.avatarUrl) + '" alt="">' : esc(String(cell).trim().slice(0, 1).toUpperCase())) + '</span><strong>' + esc(cell) + '</strong></span>' : status(cell)) + '</td>').join('') + '</tr>').join('') : '<tr><td colspan="' + view.columns.length + '">No ' + view.title.toLowerCase() + ' found.</td></tr>';
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, records[Number(button.dataset.row)])));
+    body.querySelectorAll('.admin-view-employee').forEach(button => button.addEventListener('click', () => {
+      const record = records[Number(button.dataset.row)];
+      if (record) window.location.assign('employee-profile.html?user=' + encodeURIComponent(record.id));
+    }));
     body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
       const record = records[Number(button.dataset.row)];
       if (!record || !await window.ACEUI.confirm({ title: 'Move time entry to Deleted?', message: 'You can restore it later from Deleted time entries.', confirmLabel: 'Move to Deleted', danger: true })) return;
