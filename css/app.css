@@ -1538,6 +1538,11 @@ body { background: #f7fcfd; color: var(--ace-ink); }
 .shell-link:hover { color: var(--ace-ink); background: #f2fafc; }
 .shell-link.active { color: var(--ace-ink); background: var(--ace-pale); box-shadow: inset 3px 0 0 var(--ace-cyan); }
 .shell-notification-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; display: inline-grid; place-items: center; border-radius: 999px; background: #dd3850; color: #fff; font: 800 .65rem/1 Arial, sans-serif; }
+.admin-entry-remarks { min-width: 190px; }
+.admin-entry-remark { display: grid; gap: 3px; padding: 7px 0; border-bottom: 1px solid var(--ace-line); }
+.admin-entry-remark:last-child { border-bottom: 0; }
+.admin-entry-remark strong { color: var(--ace-ink); font-size: .72rem; }
+.admin-entry-remark span { color: #52717b; font-size: .76rem; overflow-wrap: anywhere; }
 .shell-account { min-height: 86px; display: grid; grid-template-columns: 38px minmax(0,1fr) 34px; align-items: center; gap: 10px; padding: 16px 14px; border-top: 1px solid var(--ace-line); }
 .shell-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--ace-ink); color: #fff; font: 700 .78rem 'Montserrat', Arial, sans-serif; }
 .shell-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
