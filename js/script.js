@@ -36,6 +36,7 @@ const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, BreakStartedAt: item.break_started_at, BreakSeconds: item.break_seconds || 0, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, SeenAt: item.seen_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
+const employeeTimeEntries = () => AppState.timeEntries.filter(entry => AppState.users.find(user => String(user.UserId) === String(entry.UserId))?.Role === 'USER');
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 const reportDate = value => {
@@ -1858,7 +1859,7 @@ function getAdminAnalyticsFilters(fallbackDays = 7) {
     const dateFromInput = document.getElementById('analyticsDateFrom');
     const dateToInput = document.getElementById('analyticsDateTo');
     const selectedRange = range?.value || String(fallbackDays);
-    const completed = AppState.timeEntries.filter(entry => Number(entry.DurationSeconds) > 0);
+    const completed = employeeTimeEntries().filter(entry => Number(entry.DurationSeconds) > 0);
     const latestTimestamp = completed.length ? Math.max(...completed.map(entry => new Date(entry.ClockInAt).getTime())) : Date.now();
     const periodEnd = new Date(latestTimestamp);
     periodEnd.setHours(23, 59, 59, 999);
@@ -2004,7 +2005,7 @@ function renderAdminAnalytics(days = 7) {
     const selectedProjectId = getAnalyticsProjectId();
     const selectedDepartmentId = getAnalyticsDepartmentId();
     const selectedEmployeeId = getAnalyticsEmployeeId();
-    const completed = AppState.timeEntries.filter(entry => Number(entry.DurationSeconds) > 0);
+    const completed = employeeTimeEntries().filter(entry => Number(entry.DurationSeconds) > 0);
     const { periodStart, periodEnd, days: selectedDays } = getAdminAnalyticsFilters(days);
     const inPeriod = completed.filter(entry => {
         const time = new Date(entry.ClockInAt).getTime();
@@ -2066,10 +2067,10 @@ function renderAdminAnalytics(days = 7) {
     }).join('') : '<div class="analytics-empty">No tracked project hours in this period.</div>';
 
     const activeTeam = AppState.users.filter(user => user.Role === 'USER' && user.Status === 'ACTIVE' && (!selectedDepartmentId || Number(user.DepartmentId) === selectedDepartmentId) && (!selectedEmployeeId || Number(user.UserId) === selectedEmployeeId));
-    const clockedInIds = new Set(AppState.timeEntries.filter(entry => !entry.ClockOutAt).map(entry => entry.UserId));
+    const clockedInIds = new Set(employeeTimeEntries().filter(entry => !entry.ClockOutAt).map(entry => entry.UserId));
     const clockedIn = activeTeam.filter(user => clockedInIds.has(user.UserId)).length;
     const available = Math.max(activeTeam.length - clockedIn, 0);
-    const pending = AppState.users.filter(user => user.Status === 'PENDING').length;
+    const pending = AppState.users.filter(user => user.Role === 'USER' && user.Status === 'PENDING').length;
     const circumference = 2 * Math.PI * 48;
     const ratio = activeTeam.length ? clockedIn / activeTeam.length : 0;
     const teamDetail = `${clockedIn} of ${activeTeam.length} active employees are clocked in (${Math.round(ratio * 100)}%).`;
@@ -2112,7 +2113,7 @@ function loadAdminDashboard() {
     const todayEntries = document.getElementById('todayEntries');
     if (todayEntries) {
         const today = new Date().toDateString();
-        todayEntries.textContent = AppState.timeEntries.filter(te => new Date(te.ClockInAt).toDateString() === today).length;
+        todayEntries.textContent = employeeTimeEntries().filter(te => new Date(te.ClockInAt).toDateString() === today).length;
     }
     
     const pendingApprovals = document.getElementById('pendingApprovals');
