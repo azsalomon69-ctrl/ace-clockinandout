@@ -91,6 +91,8 @@ create table public.time_entries (
   planned_end_at timestamptz,
   user_note text,
   final_note text,
+  stopped_by_user_id uuid references public.profiles(id) on delete set null,
+  stopped_by_at timestamptz,
   duration_seconds integer generated always as (
     case when clock_out_at is null then null
     else greatest(0, extract(epoch from (clock_out_at - clock_in_at))::integer - break_seconds) end
