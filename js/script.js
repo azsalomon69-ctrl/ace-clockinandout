@@ -1337,6 +1337,7 @@ async function handleGenerateReport(e) {
     const departmentId = document.getElementById('reportDepartment')?.value;
     const projectId = document.getElementById('reportProject')?.value;
     const userId = document.getElementById('reportUser')?.value;
+    const exportFormat = document.getElementById('reportExportFormat')?.value === 'XLSX' ? 'XLSX' : 'PDF';
     
     const previewFilters = {
         departmentId: departmentId || null,
@@ -1351,6 +1352,8 @@ async function handleGenerateReport(e) {
         showToast('Report generated from Supabase data.', 'success');
         if (window.location.href.includes('reports.html')) loadReportsList();
         renderGeneratedReport(report);
+        if (exportFormat === 'XLSX') window.setTimeout(() => exportExcelReport(report.ReportId), 80);
+        else window.setTimeout(printGeneratedReport, 80);
     } catch (error) { showToast(error.message || 'Unable to generate report', 'error'); }
 }
 

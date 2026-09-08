@@ -283,7 +283,7 @@
                     <div class="form-group">
                         <label for="reportMonth" class="form-label">Reporting month</label>
                         <input type="month" id="reportMonth" class="form-input" required>
-                        <p class="form-help">Save the completed report as a PDF or Excel workbook after it is generated.</p>
+                        <p class="form-help">Choose the reporting month and file format below.</p>
                     </div>
                     <div class="form-group">
                         <label for="reportDepartment" class="form-label">Department (Optional)</label>
@@ -297,6 +297,13 @@
                         <select id="reportProject" class="form-select">
                             <option value="">All Projects</option>
                             <!-- Projects will be populated here -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportExportFormat" class="form-label">Save report as</label>
+                        <select id="reportExportFormat" class="form-select">
+                            <option value="PDF">PDF</option>
+                            <option value="XLSX">Excel workbook</option>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block">Generate Report</button>
@@ -317,6 +324,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-auth.js"></script>
     <script src="js/sidebar.js?v=admin-role-fix-1"></script>
-    <script src="js/script.js?v=report-excel-1"></script>
+    <script src="js/script.js?v=report-format-choice-1"></script>
 </body>
 </html>
