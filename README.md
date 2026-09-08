@@ -36,6 +36,20 @@ set role = 'ADMIN', status = 'ACTIVE'
 where email = 'your-admin-email@example.com';
 ```
 
+## Staging security integration tests
+
+The automated integration suite is deliberately separate from normal development and production credentials. Create a dedicated staging Supabase project plus isolated `ADMIN` and `USER` accounts, then copy `.env.test.example` to the ignored `.env.test` file and load those values into your terminal.
+
+Run:
+
+```bash
+npm run test:security:integration
+```
+
+The suite uses real HTTP requests to verify that unauthenticated requests receive `401`, a real USER receives `403` for admin reads and mutations, and a real ADMIN succeeds for normal admin reads. It also verifies forged client role claims, invalid bearer tokens, inactive-account denial when an optional inactive fixture is supplied, and optional resource-ID mutation attempts. It never prints access tokens, passwords, cookies, or secrets.
+
+By default it performs only safe reads plus denied-request checks. Set `ACE_TEST_RUN_MUTATIONS=true` only for an isolated staging environment with the supplied fixture IDs; that mode creates a test remark and briefly assigns then removes a test project assignment.
+
 ## GitHub
 
 Create an empty GitHub repository, then run these commands from this folder:
