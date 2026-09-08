@@ -247,7 +247,7 @@ async function renderAdminSection() {
   const search = document.getElementById('sectionSearch'); const count = document.getElementById('sectionResultCount') || document.createElement('span');
   count.id = 'sectionResultCount'; count.className = 'result-count'; search.insertAdjacentElement('beforebegin', count);
   const setCount = records => { count.textContent = records.length + ' record' + (records.length === 1 ? '' : 's'); }; setCount(view.records);
-  let departmentFilter = null; let roleFilter = null;
+  let departmentFilter = null; let roleFilter = null; let employeeFilter = null; let projectFilter = null; let remarksFilter = null;
   if (key === 'users') {
     const departments = [...new Set(view.records.map(record => record.cells[3]))].sort((a, b) => a.localeCompare(b));
     const filters = document.createElement('div'); filters.className = 'admin-user-filters';
@@ -255,13 +255,21 @@ async function renderAdminSection() {
     search.insertAdjacentElement('beforebegin', filters);
     departmentFilter = filters.querySelector('#userDepartmentFilter'); roleFilter = filters.querySelector('#userRoleFilter');
   }
+  if (key === 'entries') {
+    const employees = [...new Set(view.records.map(record => record.cells[0]))].sort((a, b) => a.localeCompare(b));
+    const projects = [...new Set(view.records.map(record => record.cells[1]))].sort((a, b) => a.localeCompare(b));
+    const filters = document.createElement('div'); filters.className = 'admin-user-filters admin-entry-filters';
+    filters.innerHTML = '<label>Employee<select class="form-select" id="entryEmployeeFilter"><option value="">All employees</option>' + employees.map(employee => '<option value="' + esc(employee) + '">' + esc(employee) + '</option>').join('') + '</select></label><label>Project<select class="form-select" id="entryProjectFilter"><option value="">All projects</option>' + projects.map(project => '<option value="' + esc(project) + '">' + esc(project) + '</option>').join('') + '</select></label><label>Remarks<select class="form-select" id="entryRemarksFilter"><option value="">All entries</option><option value="with">With remarks</option><option value="without">No remarks</option></select></label>';
+    search.insertAdjacentElement('beforebegin', filters);
+    employeeFilter = filters.querySelector('#entryEmployeeFilter'); projectFilter = filters.querySelector('#entryProjectFilter'); remarksFilter = filters.querySelector('#entryRemarksFilter');
+  }
   const applyFilters = () => {
     const term = search.value.trim().toLowerCase();
-    const records = view.records.filter(record => (!term || record.cells.join(' ').toLowerCase().includes(term)) && (!departmentFilter?.value || record.cells[3] === departmentFilter.value) && (!roleFilter?.value || record.cells[2] === roleFilter.value));
+    const records = view.records.filter(record => (!term || record.cells.join(' ').toLowerCase().includes(term)) && (!departmentFilter?.value || record.cells[3] === departmentFilter.value) && (!roleFilter?.value || record.cells[2] === roleFilter.value) && (!employeeFilter?.value || record.cells[0] === employeeFilter.value) && (!projectFilter?.value || record.cells[1] === projectFilter.value) && (!remarksFilter?.value || (remarksFilter.value === 'with' ? Boolean(record.remarks?.length) : !record.remarks?.length)));
     draw(records); setCount(records);
   };
   actionButton.addEventListener('click', () => /export/i.test(view.action) ? downloadCsv(view.records) : modal(view, true));
   search.addEventListener('input', applyFilters);
-  departmentFilter?.addEventListener('change', applyFilters); roleFilter?.addEventListener('change', applyFilters);
+  departmentFilter?.addEventListener('change', applyFilters); roleFilter?.addEventListener('change', applyFilters); employeeFilter?.addEventListener('change', applyFilters); projectFilter?.addEventListener('change', applyFilters); remarksFilter?.addEventListener('change', applyFilters);
 }
 document.addEventListener('DOMContentLoaded', renderAdminSection);
