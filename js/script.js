@@ -1630,7 +1630,6 @@ function loadPageSpecificData() {
     // User Dashboard
     if (page === 'user-dashboard.html') {
         loadUserDashboard();
-        loadTimeLeaderboard('employeeLeaderboard', 'employeeLeaderboardRank');
     }
     
     // Admin Dashboard
