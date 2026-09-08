@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
+import nodemailer from 'nodemailer';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_KEY'];
 const missing = required.filter(name => !process.env[name]);
@@ -32,6 +33,25 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
+const smtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_APP_PASSWORD);
+const mailTransport = smtpConfigured ? nodemailer.createTransport({ service: 'gmail', auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_APP_PASSWORD } }) : null;
+const applicationUrl = (frontendOrigins[0] || 'https://ace-clock.vercel.app').replace(/\/$/, '');
+const sendInvitationEmail = async ({ email, role, invitedBy }) => {
+  if (!mailTransport) return false;
+  const recipient = htmlEscape(email);
+  const inviter = htmlEscape(invitedBy || 'an ACE administrator');
+  const roleName = role === 'ADMIN' ? 'Administrator' : 'Employee';
+  const loginUrl = `${applicationUrl}/login`;
+  await mailTransport.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: email,
+    subject: 'You are invited to ACE Clock In/Out',
+    text: `Hello,\n\n${invitedBy || 'An ACE administrator'} invited you to ACE Clock In/Out as an ${roleName}.\n\nStart here: ${loginUrl}\n\nGetting started:\n1. Sign in with the exact Google email that received this invitation.\n2. Complete your profile settings.\n3. Clock in when you start work.\n4. Start and end breaks from your dashboard.\n5. Clock out when your shift is complete.\n\nACE Outsource Solutions`,
+    html: `<main style="max-width:620px;margin:0 auto;padding:32px 24px;font-family:Arial,sans-serif;color:#073b4c;background:#f4fbfc"><section style="overflow:hidden;background:#fff;border:1px solid #cfe7eb;border-radius:18px"><header style="padding:28px 30px;background:#073b4c;color:#fff"><p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:1.2px">ACE OUTSOURCE SOLUTIONS</p><h1 style="margin:0;font-size:26px">You’re invited</h1></header><div style="padding:30px"><p style="margin-top:0;font-size:16px">Hello,</p><p><strong>${inviter}</strong> invited <strong>${recipient}</strong> to ACE Clock In/Out as an <strong>${roleName}</strong>.</p><p style="margin:24px 0"><a href="${loginUrl}" style="display:inline-block;padding:13px 20px;color:#fff;background:#08a2c2;border-radius:8px;font-weight:bold;text-decoration:none">Sign in to ACE Clock</a></p><h2 style="margin:28px 0 12px;font-size:18px">Get started in five steps</h2><ol style="padding-left:22px;line-height:1.7"><li>Sign in with the exact Google email that received this invitation.</li><li>Open <strong>Profile &amp; settings</strong> and complete your account details.</li><li>Choose <strong>Clock In</strong> when you begin work.</li><li>Use <strong>Start Break</strong> and <strong>End Break</strong> to record break time.</li><li>Choose <strong>Clock Out</strong> after your shift, then review your time entries.</li></ol><p style="margin:28px 0 0;color:#587680;font-size:13px">If you cannot sign in, make sure you are using the same Google account this invitation was sent to.</p></div></section></main>`
+  });
+  return true;
+};
+
 const fail = (res, status, message) => res.status(status).json({ error: message });
 const query = async builder => { const { data, error } = await builder; if (error) throw error; return data; };
 const isUuid = value => /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value || '');
@@ -54,46 +74,6 @@ app.param('id', (req, res, next, id) => isUuid(id) ? next() : fail(res, 400, 'In
 app.param('projectId', (req, res, next, id) => isUuid(id) ? next() : fail(res, 400, 'Invalid project ID'));
 const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
 const isAllowedCompanyEmail = email => !allowedDomains.length || allowedDomains.some(domain => email.endsWith(`@${domain}`));
-
-function inviteLoginUrl() {
-  const fallback = frontendOrigins[0] ? `${frontendOrigins[0].replace(/\/$/, '')}/login` : 'http://localhost:5500/login.html';
-  try { return new URL(process.env.INVITE_REDIRECT_URL || fallback).toString(); }
-  catch { throw Object.assign(new Error('INVITE_REDIRECT_URL must be a valid URL'), { status: 503, expose: true }); }
-}
-
-function assertInvitationEmailConfigured() {
-  if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
-    throw Object.assign(new Error('Invitation email is not configured. Ask an administrator to configure the mail sender.'), { status: 503, expose: true });
-  }
-}
-
-async function sendInvitationEmail({ email, role }) {
-  assertInvitationEmailConfigured();
-  const loginUrl = inviteLoginUrl();
-  const logoUrl = new URL('/assets/images/ace-logo-hd-cropped.png', loginUrl).toString();
-  const roleLabel = role === 'ADMIN' ? 'Administrator' : 'Employee';
-  const safeRole = htmlEscape(roleLabel);
-  const safeLoginUrl = htmlEscape(loginUrl);
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'ace-clock-api/1.0'
-    },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL,
-      to: [email],
-      subject: 'You have access to ACE Clock In/Out',
-      html: `<!doctype html><html><body style="margin:0;background:#f3f8f9;font-family:Arial,sans-serif;color:#073646"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #d6e7eb;border-radius:16px;overflow:hidden"><tr><td style="padding:28px 32px 20px;background:#eaf7f9;text-align:center"><img src="${htmlEscape(logoUrl)}" width="108" alt="ACE Outsource Solutions" style="display:inline-block;max-width:108px;height:auto"><p style="margin:18px 0 0;color:#087f9d;font-size:12px;font-weight:700;letter-spacing:1.2px">ACE CLOCK IN / OUT</p></td></tr><tr><td style="padding:30px 32px"><h1 style="margin:0 0 14px;font-size:25px;line-height:1.2">You have been granted access</h1><p style="margin:0 0 18px;font-size:16px;line-height:1.55;color:#34545f">You have been added to the ACE workforce workspace as an <strong>${safeRole}</strong>.</p><p style="margin:0 0 24px;font-size:16px;line-height:1.55;color:#34545f">Use the Google account this email was sent to. No password is required.</p><p style="margin:0 0 26px"><a href="${safeLoginUrl}" style="display:inline-block;padding:13px 20px;background:#08a2c2;border-radius:8px;color:#ffffff;font-weight:700;text-decoration:none">Continue with Google</a></p><p style="margin:0;font-size:13px;line-height:1.5;color:#68818b">If you were not expecting this invitation, you can ignore this email.</p></td></tr></table></td></tr></table></body></html>`,
-      text: `You have been granted ${roleLabel} access to ACE Clock In/Out. Sign in with the Google account ${email} at ${loginUrl}. No password is required.`
-    })
-  });
-  if (!response.ok) {
-    console.error(`Invitation email delivery failed with status ${response.status}`);
-    throw Object.assign(new Error('The account was prepared, but the invitation email could not be delivered. Please try again.'), { status: 502, expose: true });
-  }
-}
 
 async function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
@@ -371,7 +351,10 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
     await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: req.body.departmentId || null }).eq('id', existingProfile.id).select().single());
     const invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', duplicate.id).select().single());
     await audit(req, 'PREAUTHORIZE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Activated existing Google profile ${email} as ${role}`);
-    return res.json({ ...invitation, email_sent: false });
+    let emailSent = false;
+    try { emailSent = await sendInvitationEmail({ email, role, invitedBy: req.profile.full_name || req.profile.email }); }
+    catch (mailError) { console.error('Invitation email delivery failed:', mailError.message); }
+    return res.json({ ...invitation, email_sent: emailSent });
   }
   // Expired invitations are historical records, not an active reservation of
   // the email. Clear their PENDING state before making a replacement.
@@ -388,7 +371,10 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
     invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', invitation.id).select().single());
   }
   await audit(req, 'PREAUTHORIZE_GOOGLE_ACCOUNT', 'INVITATION', invitation.id, `Pre-authorized ${email} as ${role}`);
-  res.status(201).json({ ...invitation, email_sent: false });
+  let emailSent = false;
+  try { emailSent = await sendInvitationEmail({ email, role, invitedBy: req.profile.full_name || req.profile.email }); }
+  catch (mailError) { console.error('Invitation email delivery failed:', mailError.message); }
+  res.status(201).json({ ...invitation, email_sent: emailSent });
 } catch (error) { next(error); } });
 app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)').order('invited_at', { ascending: false }))); } catch (error) { next(error); } });
 

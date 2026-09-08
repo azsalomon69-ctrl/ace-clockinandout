@@ -168,7 +168,8 @@ function modal(view, primary, record) {
     event.preventDefault();
     try {
       const first = document.getElementById('adminField0').value;
-      if (primary && ['users', 'invitations'].includes(key)) await liveRequest('/v1/invitations', { method: 'POST', body: JSON.stringify({ email: first, role: document.getElementById('adminField1').value }) });
+      let invitation;
+      if (primary && ['users', 'invitations'].includes(key)) invitation = await liveRequest('/v1/invitations', { method: 'POST', body: JSON.stringify({ email: first, role: document.getElementById('adminField1').value }) });
       else if (key === 'departments') {
         const userIds = (document.getElementById('adminField2Selected')?.value || '').split(',').filter(Boolean);
         const department = await liveRequest(edit ? '/v1/departments/' + record.id : '/v1/departments', { method: edit ? 'PATCH' : 'POST', body: JSON.stringify({ name: first, description: document.getElementById('adminField1').value }) });
@@ -183,7 +184,9 @@ function modal(view, primary, record) {
         if (projectId) await liveRequest('/v1/users/' + record.id + '/projects/' + projectId, { method: 'PUT' });
       }
       else if (review) await liveRequest('/v1/users/' + record.id + '/approval', { method: 'PATCH', body: JSON.stringify({ status: first }) });
-      closeModal('adminActionModal'); showToast('Saved to the live database.', 'success'); window.setTimeout(() => window.location.reload(), 350);
+      closeModal('adminActionModal');
+      showToast(invitation ? (invitation.email_sent ? 'Invitation and onboarding email sent.' : 'Invitation created, but email delivery needs attention.') : 'Saved to the live database.', invitation && !invitation.email_sent ? 'warning' : 'success');
+      window.setTimeout(() => window.location.reload(), 350);
     } catch (error) { showToast(error.message || 'Could not save changes.', 'error'); }
   });
   openModal('adminActionModal');
