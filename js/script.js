@@ -1881,7 +1881,21 @@ function getAnalyticsEmployeeId() {
     if (!value) return 0;
     const byId = AppState.users.find(user => String(user.UserId) === value);
     const byName = AppState.users.find(user => user.FullName.toLowerCase() === value.toLowerCase());
-    return Number(byId?.UserId || byName?.UserId || 0);
+    return byId?.UserId || byName?.UserId || '';
+}
+
+function getAnalyticsProjectId() {
+    const value = document.getElementById('analyticsProject')?.value.trim() || '';
+    if (!value) return '';
+    const project = AppState.projects.find(item => String(item.ProjectId) === value || item.ProjectName.toLowerCase() === value.toLowerCase());
+    return project?.ProjectId || '';
+}
+
+function getAnalyticsDepartmentId() {
+    const value = document.getElementById('analyticsDepartment')?.value.trim() || '';
+    if (!value) return '';
+    const department = AppState.departments.find(item => String(item.DepartmentId) === value || item.DepartmentName.toLowerCase() === value.toLowerCase());
+    return department?.DepartmentId || '';
 }
 
 function ensureAnalyticsExportModal() {
@@ -1907,8 +1921,6 @@ function openAnalyticsExportModal() {
     openModal(ensureAnalyticsExportModal().id);
 }
 async function generateAdminAnalyticsReport(exportFormat = 'PDF') {
-    const projectFilter = document.getElementById('analyticsProject');
-    const departmentFilter = document.getElementById('analyticsDepartment');
     const range = document.getElementById('dashboardRange');
     const from = document.getElementById('analyticsDateFrom')?.value;
     const to = document.getElementById('analyticsDateTo')?.value;
@@ -1918,7 +1930,7 @@ async function generateAdminAnalyticsReport(exportFormat = 'PDF') {
     }
     const filters = getAdminAnalyticsFilters();
     try {
-        const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType: 'TEAM_PERFORMANCE', dateFrom: toAnalyticsDateValue(filters.periodStart), dateTo: toAnalyticsDateValue(filters.periodEnd), filters: { departmentId: departmentFilter?.value || null, projectId: projectFilter?.value || null, userId: getAnalyticsEmployeeId() || null } }) });
+        const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType: 'TEAM_PERFORMANCE', dateFrom: toAnalyticsDateValue(filters.periodStart), dateTo: toAnalyticsDateValue(filters.periodEnd), filters: { departmentId: getAnalyticsDepartmentId() || null, projectId: getAnalyticsProjectId() || null, userId: getAnalyticsEmployeeId() || null } }) });
         const report = reportRecord(saved);
         AppState.reports.unshift(report);
         if (exportFormat === 'XLSX') {
@@ -1942,24 +1954,24 @@ function renderAdminAnalytics(days = 7) {
     const departmentFilter = document.getElementById('analyticsDepartment');
     const employeeFilter = document.getElementById('analyticsEmployee');
     if (projectFilter && !projectFilter.dataset.bound) {
+        const projectOptions = document.getElementById('analyticsProjectOptions');
         AppState.projects.filter(project => project.IsActive).forEach(project => {
             const option = document.createElement('option');
-            option.value = String(project.ProjectId);
-            option.textContent = project.ProjectName;
-            projectFilter.appendChild(option);
+            option.value = project.ProjectName;
+            projectOptions?.appendChild(option);
         });
         projectFilter.dataset.bound = 'true';
-        projectFilter.addEventListener('change', () => renderAdminAnalytics(days));
+        projectFilter.addEventListener('input', () => renderAdminAnalytics(days));
     }
     if (departmentFilter && !departmentFilter.dataset.bound) {
+        const departmentOptions = document.getElementById('analyticsDepartmentOptions');
         AppState.departments.forEach(department => {
             const option = document.createElement('option');
-            option.value = String(department.DepartmentId);
-            option.textContent = department.DepartmentName;
-            departmentFilter.appendChild(option);
+            option.value = department.DepartmentName;
+            departmentOptions?.appendChild(option);
         });
         departmentFilter.dataset.bound = 'true';
-        departmentFilter.addEventListener('change', () => renderAdminAnalytics(days));
+        departmentFilter.addEventListener('input', () => renderAdminAnalytics(days));
     }
     if (employeeFilter && !employeeFilter.dataset.bound) {
         const employeeOptions = document.getElementById('analyticsEmployeeOptions');
@@ -1971,18 +1983,18 @@ function renderAdminAnalytics(days = 7) {
         employeeFilter.dataset.bound = 'true';
         employeeFilter.addEventListener('input', () => renderAdminAnalytics(days));
     }
-    const selectedProjectId = Number(projectFilter?.value || 0);
-    const selectedDepartmentId = Number(departmentFilter?.value || 0);
+    const selectedProjectId = getAnalyticsProjectId();
+    const selectedDepartmentId = getAnalyticsDepartmentId();
     const selectedEmployeeId = getAnalyticsEmployeeId();
     const completed = AppState.timeEntries.filter(entry => Number(entry.DurationSeconds) > 0);
     const { periodStart, periodEnd, days: selectedDays } = getAdminAnalyticsFilters(days);
     const inPeriod = completed.filter(entry => {
         const time = new Date(entry.ClockInAt).getTime();
-        const user = AppState.users.find(item => Number(item.UserId) === Number(entry.UserId));
+        const user = AppState.users.find(item => String(item.UserId) === String(entry.UserId));
         return time >= periodStart.getTime() && time <= periodEnd.getTime() &&
-            (!selectedProjectId || Number(entry.ProjectId) === selectedProjectId) &&
-            (!selectedDepartmentId || Number(user?.DepartmentId) === selectedDepartmentId) &&
-            (!selectedEmployeeId || Number(entry.UserId) === selectedEmployeeId);
+            (!selectedProjectId || String(entry.ProjectId) === String(selectedProjectId)) &&
+            (!selectedDepartmentId || String(user?.DepartmentId) === String(selectedDepartmentId)) &&
+            (!selectedEmployeeId || String(entry.UserId) === String(selectedEmployeeId));
     });
 
     const bucketCount = selectedDays <= 14 ? selectedDays : 10;
@@ -2002,9 +2014,9 @@ function renderAdminAnalytics(days = 7) {
     const totalSeconds = inPeriod.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
     document.getElementById('analyticsTotalHours').textContent = formatDuration(totalSeconds);
     document.getElementById('analyticsAverage').textContent = `${formatDuration(Math.round(totalSeconds / Math.max(selectedDays, 1)))} average/day`;
-    const selectedProject = AppState.projects.find(project => Number(project.ProjectId) === selectedProjectId);
-    const selectedDepartment = AppState.departments.find(department => Number(department.DepartmentId) === selectedDepartmentId);
-    const selectedEmployee = AppState.users.find(user => Number(user.UserId) === selectedEmployeeId);
+    const selectedProject = AppState.projects.find(project => String(project.ProjectId) === String(selectedProjectId));
+    const selectedDepartment = AppState.departments.find(department => String(department.DepartmentId) === String(selectedDepartmentId));
+    const selectedEmployee = AppState.users.find(user => String(user.UserId) === String(selectedEmployeeId));
     const analyticsDetail = document.getElementById('analyticsDetail');
     if (analyticsDetail) analyticsDetail.textContent = [selectedProject?.ProjectName, selectedDepartment?.DepartmentName, selectedEmployee?.FullName].filter(Boolean).join(' · ') || 'Across all projects, departments, and employees';
     hoursChart.setAttribute('aria-label', `Tracked hours from ${toAnalyticsDateValue(periodStart)} to ${toAnalyticsDateValue(periodEnd)}: ${formatDuration(totalSeconds)}`);
