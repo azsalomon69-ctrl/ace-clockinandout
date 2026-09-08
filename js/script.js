@@ -1377,11 +1377,12 @@ function ensureGeneratedReportModal() {
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-labelledby', 'generatedReportModalTitle');
-    modal.innerHTML = `<div class="modal-content"><div class="modal-header"><div><p class="eyebrow">REPORT PREVIEW</p><h3 class="modal-title" id="generatedReportModalTitle">Time tracking report</h3></div><button class="modal-close" type="button" aria-label="Close">${suppliedIconMarkup('x')}</button></div><div class="modal-body"><article class="printable-report" id="printableReport"></article><div class="report-preview-actions"><button class="btn btn-outline report-preview-close" type="button">${suppliedIconMarkup('x')}Close</button><button class="btn btn-primary" id="printGeneratedReportBtn" type="button">${suppliedIconMarkup('printer')}Save as PDF</button></div></div></div>`;
+    modal.innerHTML = `<div class="modal-content"><div class="modal-header"><div><p class="eyebrow">REPORT PREVIEW</p><h3 class="modal-title" id="generatedReportModalTitle">Time tracking report</h3></div><button class="modal-close" type="button" aria-label="Close">${suppliedIconMarkup('x')}</button></div><div class="modal-body"><article class="printable-report" id="printableReport"></article><div class="report-preview-actions"><button class="btn btn-outline report-preview-close" type="button">${suppliedIconMarkup('x')}Close</button><button class="btn btn-outline" id="exportGeneratedReportExcelBtn" type="button">${suppliedIconMarkup('download')}Save Excel</button><button class="btn btn-primary" id="printGeneratedReportBtn" type="button">${suppliedIconMarkup('printer')}Save as PDF</button></div></div></div>`;
     document.body.appendChild(modal);
     modal.querySelectorAll('.modal-close, .report-preview-close').forEach(button => button.addEventListener('click', () => closeModal('generatedReportModal')));
     modal.addEventListener('click', event => { if (event.target === modal) closeModal('generatedReportModal'); });
     modal.querySelector('#printGeneratedReportBtn').addEventListener('click', printGeneratedReport);
+    modal.querySelector('#exportGeneratedReportExcelBtn').addEventListener('click', () => exportReport(modal.dataset.reportId || null, 'XLSX'));
     return modal;
 }
 
@@ -1405,6 +1406,7 @@ function printGeneratedReport() {
 
 function renderGeneratedReport(report, options = {}) {
     const modal = ensureGeneratedReportModal();
+    modal.dataset.reportId = report.ReportId || '';
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
     const completed = entries.filter(entry => Number(entry.DurationSeconds) > 0);
@@ -2258,6 +2260,7 @@ function loadReportsList() {
                     <td>${new Date(report.GeneratedAt).toLocaleString()}</td>
                     <td>${report.TotalRecords}</td>
                     <td>
+                        <button class="btn btn-sm btn-outline" onclick="exportReport('${report.ReportId}', 'XLSX')">Save Excel</button>
                         <button class="btn btn-sm btn-primary" onclick="exportReport('${report.ReportId}', 'PDF')">Save PDF</button>
                         <button class="btn btn-sm btn-danger" onclick="deleteReport('${report.ReportId}')">Delete</button>
                     </td>
@@ -2453,6 +2456,74 @@ async function deleteReport(reportId) {
     }
 }
 
+let excelLibraryPromise;
+function loadExcelLibrary() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (excelLibraryPromise) return excelLibraryPromise;
+    excelLibraryPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+        script.async = true;
+        script.onload = () => window.XLSX ? resolve(window.XLSX) : reject(new Error('Excel export library did not load.'));
+        script.onerror = () => reject(new Error('Could not load the Excel export library. Check your connection and try again.'));
+        document.head.appendChild(script);
+    });
+    return excelLibraryPromise;
+}
+function reportWorkbookData(report) {
+    const entries = filterEntriesForReport(report);
+    const completed = entries.filter(entry => Number(entry.DurationSeconds) > 0);
+    const totalSeconds = completed.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
+    const summary = [
+        ['ACE Outsource Solutions — Time Report'],
+        ['Report ID', report.ReportId],
+        ['Report type', report.ReportType || 'CUSTOM'],
+        ['Date from', report.DateFrom || 'Beginning'],
+        ['Date to', report.DateTo || 'Today'],
+        ['Generated', new Date(report.GeneratedAt || Date.now()).toLocaleString()],
+        [],
+        ['Total tracked seconds', totalSeconds],
+        ['Total tracked time', formatDuration(totalSeconds)],
+        ['Time entries', entries.length],
+        ['Completed entries', completed.length],
+        ['Team members', new Set(entries.map(entry => entry.UserId)).size]
+    ];
+    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Break seconds', 'Break time', 'Status']];
+    entries.forEach(entry => {
+        const user = AppState.users.find(item => item.UserId === entry.UserId);
+        const project = AppState.projects.find(item => item.ProjectId === entry.ProjectId);
+        const workedSeconds = Number(entry.DurationSeconds || 0);
+        const breakSeconds = Number(entry.BreakSeconds || 0);
+        timeEntries.push([
+            user?.FullName || 'Unknown', project?.ProjectName || 'Unassigned',
+            entry.ClockInAt ? new Date(entry.ClockInAt).toLocaleString() : '',
+            entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active',
+            workedSeconds, formatDuration(workedSeconds), breakSeconds, formatDuration(breakSeconds),
+            entry.ClockOutAt ? 'Completed' : 'Active'
+        ]);
+    });
+    return { summary, timeEntries };
+}
+async function exportExcelReport(reportId) {
+    const selected = reportId ? AppState.reports.find(report => String(report.ReportId) === String(reportId)) : null;
+    const report = selected || {
+        ReportId: 'PREVIEW', CreatedByUserId: AppState.currentUser?.UserId || '', ReportType: 'CUSTOM',
+        DateFrom: '', DateTo: '', Filters: {}, GeneratedAt: new Date().toISOString(), TotalRecords: AppState.timeEntries.length
+    };
+    try {
+        const XLSX = await loadExcelLibrary();
+        const { summary, timeEntries } = reportWorkbookData(report);
+        const workbook = XLSX.utils.book_new();
+        const summarySheet = XLSX.utils.aoa_to_sheet(summary);
+        summarySheet['!cols'] = [{ wch: 25 }, { wch: 34 }];
+        const entriesSheet = XLSX.utils.aoa_to_sheet(timeEntries);
+        entriesSheet['!cols'] = [{ wch: 26 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 15 }, { wch: 16 }, { wch: 13 }];
+        XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+        XLSX.utils.book_append_sheet(workbook, entriesSheet, 'Time Entries');
+        XLSX.writeFile(workbook, `ace-time-report-${String(report.ReportId).toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xlsx`, { compression: true });
+        showToast('Excel report downloaded.', 'success');
+    } catch (error) { showToast(error.message || 'Could not create the Excel report.', 'error'); }
+}
 function exportReport(reportId, fileType) {
     const selected = reportId ? AppState.reports.find(report => report.ReportId === reportId) : null;
     const reports = selected ? [selected] : AppState.reports;
@@ -2487,7 +2558,8 @@ function exportReport(reportId, fileType) {
         showToast('CSV export downloaded.', 'success');
         return;
     }
-    showToast(`${fileType} export is ready in the interface and will generate the final file when the Node.js backend is connected.`, 'info');
+    if (fileType === 'XLSX') { exportExcelReport(reportId); return; }
+    showToast(`${fileType} export is unavailable.`, 'warning');
 }
 
 // Toast Notifications
