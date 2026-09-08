@@ -734,7 +734,7 @@ function initializeModals() {
     if (generateReportBtn) {
         generateReportBtn.addEventListener('click', () => {
             if (document.getElementById('dashboardRange')) {
-                generateAdminAnalyticsReport();
+                openAnalyticsExportModal();
                 return;
             }
             openModal('generateReportModal');
@@ -1896,7 +1896,29 @@ function getAnalyticsEmployeeId() {
     return Number(byId?.UserId || byName?.UserId || 0);
 }
 
-async function generateAdminAnalyticsReport() {
+function ensureAnalyticsExportModal() {
+    let modal = document.getElementById('analyticsExportModal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'analyticsExportModal';
+    modal.className = 'modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'analyticsExportModalTitle');
+    modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="analyticsExportModalTitle">Save report as</h3><button class="modal-close" type="button" aria-label="Close">${suppliedIconMarkup('x')}</button></div><div class="modal-body"><p class="modal-description">Choose the format for the report using the filters currently shown on your dashboard.</p><div class="form-actions"><button class="btn btn-outline analytics-export-choice" type="button" data-format="XLSX">${suppliedIconMarkup('download')}Excel workbook</button><button class="btn btn-primary analytics-export-choice" type="button" data-format="PDF">${suppliedIconMarkup('printer')}PDF</button></div></div></div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('.modal-close').addEventListener('click', () => closeModal('analyticsExportModal'));
+    modal.addEventListener('click', event => { if (event.target === modal) closeModal('analyticsExportModal'); });
+    modal.querySelectorAll('.analytics-export-choice').forEach(button => button.addEventListener('click', () => {
+        closeModal('analyticsExportModal');
+        generateAdminAnalyticsReport(button.dataset.format);
+    }));
+    return modal;
+}
+function openAnalyticsExportModal() {
+    openModal(ensureAnalyticsExportModal().id);
+}
+async function generateAdminAnalyticsReport(exportFormat = 'PDF') {
     const projectFilter = document.getElementById('analyticsProject');
     const departmentFilter = document.getElementById('analyticsDepartment');
     const range = document.getElementById('dashboardRange');
@@ -1911,6 +1933,10 @@ async function generateAdminAnalyticsReport() {
         const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType: 'TEAM_PERFORMANCE', dateFrom: toAnalyticsDateValue(filters.periodStart), dateTo: toAnalyticsDateValue(filters.periodEnd), filters: { departmentId: departmentFilter?.value || null, projectId: projectFilter?.value || null, userId: getAnalyticsEmployeeId() || null } }) });
         const report = reportRecord(saved);
         AppState.reports.unshift(report);
+        if (exportFormat === 'XLSX') {
+            exportExcelReport(report.ReportId);
+            return;
+        }
         renderGeneratedReport(report, { printOnly: true });
         showToast('Your A4 report is ready. Choose “Save as PDF” in the print dialog.', 'success');
         window.setTimeout(printGeneratedReport, 250);
