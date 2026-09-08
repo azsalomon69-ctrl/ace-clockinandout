@@ -124,8 +124,6 @@ async function initApp() {
         applySuppliedIcons();
         renderInitialSkeletons();
         applyStoredAppearance();
-        checkAuthState();
-        redirectAuthenticatedPublicRoute();
     } catch (error) {
         console.warn('Recovered from a saved interface preference.', error);
         localStorage.removeItem('ace_current_user');
@@ -163,8 +161,10 @@ async function initApp() {
         throw error;
     }
     if (loaded) {
-        try { initializeAppShell(); }
+        let shellMounted = true;
+        try { shellMounted = initializeAppShell(); }
         catch (error) { console.error('Could not mount the application navigation.', error); }
+        if (!shellMounted) return;
         startPresenceHeartbeat();
         initializeNavigation();
         initializeModals();
@@ -481,7 +481,7 @@ function initializeEmployeeChat() {
 
 // Shared application shell for every authenticated page.
 function initializeAppShell() {
-    if (document.body.classList.contains('has-app-shell')) return;
+    if (document.body.classList.contains('has-app-shell')) return true;
     const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
     // Vercel cleanUrls removes .html while the local static server preserves it.
     // Normalize both forms before selecting the application shell.
@@ -491,14 +491,14 @@ function initializeAppShell() {
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
     const isEmployee = employeeFiles.includes(file) && !isAdmin;
-    if (!isAdmin && !isEmployee) return;
+    if (!isAdmin && !isEmployee) return true;
     if (AppState.currentUser && isAdmin && AppState.currentUser.Role !== 'ADMIN') {
         window.location.replace('user-dashboard.html');
-        return;
+        return false;
     }
     if (AppState.currentUser && isEmployee && AppState.currentUser.Role === 'ADMIN') {
         window.location.replace('admin-dashboard.html');
-        return;
+        return false;
     }
 
     const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', calendar: 'calendar-days', chart: 'chart-column-big', audit: 'brick-wall-shield', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
@@ -570,6 +570,7 @@ function initializeAppShell() {
     document.addEventListener('click', event => {
         if (!sidebar.contains(event.target)) setAccountMenu(false);
     });
+    return true;
 }
 
 function suppliedIconMarkup(name, className = 'ui-icon') {
@@ -1075,23 +1076,6 @@ function initializeSecondaryActions() {
 }
 
 // Auth Handlers
-function checkAuthState() {
-    const savedUser = localStorage.getItem('ace_current_user');
-    if (savedUser) {
-        AppState.currentUser = JSON.parse(savedUser);
-        AppState.isAuthenticated = true;
-        
-        // Check for active session
-        const savedSession = localStorage.getItem('ace_current_session');
-        if (savedSession) {
-            AppState.currentSession = JSON.parse(savedSession);
-            AppState.isClockedIn = true;
-            AppState.clockInTime = new Date(AppState.currentSession.ClockInAt);
-            startTimer();
-        }
-    }
-}
-
 async function handleGoogleLogin(event) {
     event?.preventDefault();
     showSpinner();

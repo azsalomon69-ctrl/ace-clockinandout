@@ -69,8 +69,7 @@ function action(label, index, key, record) {
   const canViewEmployee = key === 'users' && record?.cells?.[2] === 'Employee';
   const headEmail = 'azsalomon69@gmail.com';
   const headTarget = key === 'users' && record?.email?.toLowerCase() === headEmail;
-  const savedCurrentUser = (() => { try { return JSON.parse(localStorage.getItem('ace_current_user') || 'null'); } catch { return null; } })();
-  const currentEmail = ((typeof AppState !== 'undefined' ? AppState.currentUser?.Email : '') || savedCurrentUser?.Email || '').toLowerCase();
+  const currentEmail = (typeof AppState !== 'undefined' ? AppState.currentUser?.Email : '').toLowerCase();
   const canManage = !headTarget || currentEmail === headEmail;
   return '<div class="table-actions">' + (canViewEmployee ? '<button class="btn btn-sm btn-outline admin-view-employee" type="button" data-row="' + index + '">' + icon('eye') + 'View employee</button>' : '') + (canManage ? '<button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button>' : '<span class="record-reference">Head administrator</span>') + (key === 'users' ? '<button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button>' : '') + '</div>';
 }

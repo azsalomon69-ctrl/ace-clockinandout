@@ -455,7 +455,7 @@ app.delete('/v1/invitations/:id', authenticate, adminOnly, async (req, res, next
 app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)').order('invited_at', { ascending: false }))); } catch (error) { next(error); } });
 
 app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try { const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)').order('clock_in_at', { ascending: false }); request = req.query.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null); if (own) request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
-app.get('/v1/time-leaderboard', authenticate, activeOnly, async (req, res, next) => { try {
+app.get('/v1/time-leaderboard', authenticate, adminOnly, async (req, res, next) => { try {
   const [people, entries] = await Promise.all([
     query(db.from('profiles').select('id,full_name,profile_picture_url,role').eq('status', 'ACTIVE').is('permanently_deleted_at', null)),
     query(db.from('time_entries').select('user_id,duration_seconds').is('deleted_at', null).not('duration_seconds', 'is', null))
