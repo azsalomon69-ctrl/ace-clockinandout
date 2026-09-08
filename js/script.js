@@ -2590,6 +2590,21 @@ function exportReport(reportId, fileType) {
     if (fileType === 'XLSX') { exportExcelReport(reportId); return; }
     showToast(`${fileType} export is unavailable.`, 'warning');
 }
+window.ACEReportActions = {
+    async generate({ reportType = 'CUSTOM', dateFrom, dateTo, filters = {}, format = 'PDF' }) {
+        const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType, dateFrom, dateTo, filters }) });
+        const report = reportRecord(saved);
+        AppState.reports.unshift(report);
+        if (format === 'XLSX') {
+            await exportExcelReport(report.ReportId);
+            return report;
+        }
+        renderGeneratedReport(report, { printOnly: true });
+        showToast('Your A4 report is ready. Choose “Save as PDF” in the print dialog.', 'success');
+        window.setTimeout(printGeneratedReport, 120);
+        return report;
+    }
+};
 
 // Toast Notifications
 function showToast(message, type = 'info') {

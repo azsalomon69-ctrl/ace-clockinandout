@@ -2,6 +2,23 @@
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
   const duration = seconds => { const value = Math.max(0, Number(seconds) || 0); return `${Math.floor(value / 3600)}h ${Math.floor((value % 3600) / 60)}m`; };
   const clockTime = value => value ? new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Active';
+  const dateValue = value => { const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000); return local.toISOString().slice(0, 10); };
+  const openExportModal = onSelect => {
+    let modal = document.getElementById('employeeProfileExportModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'employeeProfileExportModal';
+      modal.className = 'modal';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title">Save employee report as</h3><button class="modal-close" type="button" aria-label="Close">×</button></div><div class="modal-body"><p class="modal-description">This report will use the date filter selected in Clock-in history.</p><div class="form-actions"><button class="btn btn-outline employee-report-format" type="button" data-format="XLSX">Save Excel</button><button class="btn btn-primary employee-report-format" type="button" data-format="PDF">Save PDF</button></div></div></div>';
+      document.body.appendChild(modal);
+      modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal.id));
+      modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
+    }
+    modal.querySelectorAll('.employee-report-format').forEach(button => { button.onclick = () => { closeModal(modal.id); onSelect(button.dataset.format); }; });
+    openModal(modal.id);
+  };
   const render = async () => {
     const root = document.getElementById('employeeProfileContent');
     const id = new URLSearchParams(window.location.search).get('user');
@@ -29,7 +46,7 @@
       const daily = Array.from({ length: 7 }, (_, offset) => { const day = new Date(); day.setHours(0, 0, 0, 0); day.setDate(day.getDate() - (6 - offset)); const seconds = completed.filter(entry => new Date(entry.clock_in_at).toDateString() === day.toDateString()).reduce((sum, entry) => sum + Number(entry.duration_seconds || 0), 0); return { label: day.toLocaleDateString([], { weekday: 'short' }), seconds }; });
       const maxDaily = Math.max(1, ...daily.map(item => item.seconds));
       const initial = (person.full_name || person.email || 'E').trim().slice(0, 1).toUpperCase();
-      root.innerHTML = `<header class="employee-profile-header"><a class="btn btn-outline" href="users.html">← Users</a><div class="employee-profile-identity"><span class="employee-profile-avatar">${person.profile_picture_url ? `<img src="${esc(person.profile_picture_url)}" alt="">` : esc(initial)}</span><div><p class="admin-section-kicker">EMPLOYEE PROFILE</p><h1>${esc(person.full_name || 'Unnamed employee')}</h1><p>${esc(person.email)} · ${esc(person.role === 'ADMIN' ? 'Administrator' : 'Employee')} · ${esc(department)}</p></div></div></header><section class="employee-profile-stats"><article><span>Total worked</span><strong>${duration(worked)}</strong><small>Completed sessions</small></article><article><span>Time entries</span><strong>${sessions.length}</strong><small>${sessions.filter(entry => !entry.clock_out_at).length} active</small></article><article><span>Average session</span><strong>${duration(average)}</strong><small>Across completed entries</small></article><article><span>Recorded breaks</span><strong>${duration(breaks)}</strong><small>Break time total</small></article></section><section class="employee-profile-grid"><article class="employee-profile-card"><div class="employee-profile-card-head"><div><span>WEEKLY ACTIVITY</span><h2>Worked time</h2></div><small>Last 7 days</small></div><div class="employee-profile-chart">${daily.map(item => `<div><b>${duration(item.seconds)}</b><i><em style="height:${Math.max(4, Math.round(item.seconds / maxDaily * 100))}%"></em></i><span>${esc(item.label)}</span></div>`).join('')}</div></article><article class="employee-profile-card"><div class="employee-profile-card-head"><div><span>PROJECT ALLOCATION</span><h2>Hours by project</h2></div></div><div class="employee-profile-projects">${topProjects.length ? topProjects.map(([name, seconds]) => `<div><span>${esc(name)}</span><i><em style="width:${Math.max(4, Math.round(seconds / maxProject * 100))}%"></em></i><strong>${duration(seconds)}</strong></div>`).join('') : '<p class="analytics-empty">No completed project time yet.</p>'}</div></article></section><section class="table-container employee-profile-entries"><div class="table-header employee-history-header"><div><h2>Clock-in history</h2><span id="employeeHistoryCount"></span></div><label class="employee-history-filter">Period<select class="form-select" id="employeeHistoryPeriod"><option value="month">This month</option><option value="week">This week</option><option value="custom">Custom date range</option></select></label></div><div class="employee-history-dates" id="employeeHistoryDates" hidden><label>From<input class="form-input" id="employeeHistoryFrom" type="date"></label><label>To<input class="form-input" id="employeeHistoryTo" type="date"></label></div><div class="table-responsive"><table class="table"><thead><tr><th>Clock in</th><th>Clock out</th><th>Project</th><th>Worked</th><th>Break</th><th>Status</th></tr></thead><tbody id="employeeHistoryRows"></tbody></table></div></section>`;
+      root.innerHTML = `<header class="employee-profile-header"><div class="employee-profile-actions"><a class="btn btn-outline" href="users.html">← Users</a><button class="btn btn-primary" id="employeeProfileGenerateReport" type="button">Generate report</button></div><div class="employee-profile-identity"><span class="employee-profile-avatar">${person.profile_picture_url ? `<img src="${esc(person.profile_picture_url)}" alt="">` : esc(initial)}</span><div><p class="admin-section-kicker">EMPLOYEE PROFILE</p><h1>${esc(person.full_name || 'Unnamed employee')}</h1><p>${esc(person.email)} · ${esc(person.role === 'ADMIN' ? 'Administrator' : 'Employee')} · ${esc(department)}</p></div></div></header><section class="employee-profile-stats"><article><span>Total worked</span><strong>${duration(worked)}</strong><small>Completed sessions</small></article><article><span>Time entries</span><strong>${sessions.length}</strong><small>${sessions.filter(entry => !entry.clock_out_at).length} active</small></article><article><span>Average session</span><strong>${duration(average)}</strong><small>Across completed entries</small></article><article><span>Recorded breaks</span><strong>${duration(breaks)}</strong><small>Break time total</small></article></section><section class="employee-profile-grid"><article class="employee-profile-card"><div class="employee-profile-card-head"><div><span>WEEKLY ACTIVITY</span><h2>Worked time</h2></div><small>Last 7 days</small></div><div class="employee-profile-chart">${daily.map(item => `<div><b>${duration(item.seconds)}</b><i><em style="height:${Math.max(4, Math.round(item.seconds / maxDaily * 100))}%"></em></i><span>${esc(item.label)}</span></div>`).join('')}</div></article><article class="employee-profile-card"><div class="employee-profile-card-head"><div><span>PROJECT ALLOCATION</span><h2>Hours by project</h2></div></div><div class="employee-profile-projects">${topProjects.length ? topProjects.map(([name, seconds]) => `<div><span>${esc(name)}</span><i><em style="width:${Math.max(4, Math.round(seconds / maxProject * 100))}%"></em></i><strong>${duration(seconds)}</strong></div>`).join('') : '<p class="analytics-empty">No completed project time yet.</p>'}</div></article></section><section class="table-container employee-profile-entries"><div class="table-header employee-history-header"><div><h2>Clock-in history</h2><span id="employeeHistoryCount"></span></div><label class="employee-history-filter">Period<select class="form-select" id="employeeHistoryPeriod"><option value="month">This month</option><option value="week">This week</option><option value="custom">Custom date range</option></select></label></div><div class="employee-history-dates" id="employeeHistoryDates" hidden><label>From<input class="form-input" id="employeeHistoryFrom" type="date"></label><label>To<input class="form-input" id="employeeHistoryTo" type="date"></label></div><div class="table-responsive"><table class="table"><thead><tr><th>Clock in</th><th>Clock out</th><th>Project</th><th>Worked</th><th>Break</th><th>Status</th></tr></thead><tbody id="employeeHistoryRows"></tbody></table></div></section>`;
       const historyRows = document.getElementById('employeeHistoryRows');
       const historyCount = document.getElementById('employeeHistoryCount');
       const historyPeriod = document.getElementById('employeeHistoryPeriod');
@@ -52,6 +69,21 @@
       };
       historyPeriod.addEventListener('change', () => { historyDates.hidden = historyPeriod.value !== 'custom'; renderHistory(); });
       historyFrom.addEventListener('change', renderHistory); historyTo.addEventListener('change', renderHistory); renderHistory();
+      document.getElementById('employeeProfileGenerateReport').addEventListener('click', () => {
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        let start = new Date(now); let end = new Date(now); let reportType = 'MONTHLY';
+        if (historyPeriod.value === 'month') start.setDate(1);
+        else if (historyPeriod.value === 'week') { start.setDate(now.getDate() - now.getDay()); reportType = 'WEEKLY'; }
+        else {
+          if (!historyFrom.value || !historyTo.value || historyFrom.value > historyTo.value) { showToast('Choose a valid custom start and end date first.', 'warning'); return; }
+          start = new Date(`${historyFrom.value}T00:00:00`); end = new Date(`${historyTo.value}T00:00:00`); reportType = 'CUSTOM';
+        }
+        openExportModal(async format => {
+          try {
+            await window.ACEReportActions.generate({ userId: id, dateFrom: dateValue(start), dateTo: dateValue(end), reportType, filters: { userId: id }, format });
+          } catch (error) { showToast(error.message || 'Could not generate this employee report.', 'error'); }
+        });
+      });
     } catch (error) { root.innerHTML = `<p class="empty-state">${esc(error.message || 'Unable to load this employee profile.')}</p>`; }
   };
   document.addEventListener('DOMContentLoaded', render);
