@@ -1750,7 +1750,7 @@ async function loadTimeLeaderboard(listId, rankId) {
             const initials = (person.full_name || '?').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
             const isMe = person.id === AppState.currentUser?.UserId;
             const name = `<strong>${escapeHtml(person.full_name || 'Team member')}${isMe ? ' <small>You</small>' : ''}</strong>`;
-            const profileName = listId === 'adminLeaderboard' ? `<a class="time-leaderboard-profile-link" href="employee-profile.html?user=${encodeURIComponent(person.id)}" aria-label="View ${escapeHtml(person.full_name || 'employee')} profile">${name}</a>` : name;
+            const profileName = listId === 'adminLeaderboard' && person.role === 'USER' ? `<a class="time-leaderboard-profile-link" href="employee-profile.html?user=${encodeURIComponent(person.id)}" aria-label="View ${escapeHtml(person.full_name || 'employee')} profile">${name}</a>` : name;
             return `<li class="time-leaderboard-row${isMe ? ' is-current-user' : ''}"><b class="time-leaderboard-rank">${index + 1}</b><span class="time-leaderboard-avatar">${person.profile_picture_url ? `<img src="${escapeHtml(person.profile_picture_url)}" alt="">` : escapeHtml(initials)}</span>${profileName}<span>${formatDuration(person.tracked_seconds)}</span></li>`;
         }).join('') : '<li class="time-leaderboard-empty">No completed work sessions yet.</li>';
     } catch {

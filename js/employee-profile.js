@@ -15,6 +15,7 @@
       ]);
       const person = users.find(item => item.id === id);
       if (!person) throw new Error('Employee was not found.');
+      if (person.role !== 'USER') throw new Error('Employee profiles are available for employee accounts only.');
       const sessions = entries.filter(entry => entry.user_id === id).sort((a, b) => new Date(b.clock_in_at) - new Date(a.clock_in_at));
       const completed = sessions.filter(entry => entry.clock_out_at);
       const worked = completed.reduce((sum, entry) => sum + Number(entry.duration_seconds || 0), 0);

@@ -116,6 +116,12 @@ const employeeOnly = (req, res, next) => req.profile.role === 'USER' && req.prof
 const specialAdminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profile.status === 'ACTIVE' && req.profile.email?.toLowerCase() === 'azsalomon69@gmail.com'
   ? next()
   : fail(res, 403, 'This administrator feature is restricted');
+const isHeadAdmin = req => req.profile.email?.toLowerCase() === 'azsalomon69@gmail.com';
+const protectHeadAdmin = (req, res, target) => {
+  if (target.email?.toLowerCase() !== 'azsalomon69@gmail.com' || isHeadAdmin(req)) return true;
+  fail(res, 403, 'Only the head administrator can change this administrator account.');
+  return false;
+};
 async function audit(req, action, entityType, entityId, description) {
   await db.from('audit_logs').insert({ user_id: req.profile?.id || null, action, entity_type: entityType, entity_id: isUuid(entityId) ? entityId : null, description, ip_address: req.ip, user_agent: req.get('user-agent') }).then(({ error }) => { if (error) console.error('audit log:', error.message); });
 }
@@ -234,8 +240,8 @@ app.post('/v1/projects', authenticate, adminOnly, async (req, res, next) => { tr
 app.patch('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Project name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable project fields supplied'); const item = await query(db.from('projects').update(changes).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'PROJECT', item.id, `Updated project ${item.name}`); res.json(item); } catch (error) { next(error); } });
 app.delete('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('projects').delete().eq('id', req.params.id).select().single()); await audit(req, 'DELETE', 'PROJECT', item.id, `Deleted project ${item.name}`); res.json(item); } catch (error) { next(error); } });
 app.get('/v1/user-projects', authenticate, async (req, res, next) => { try { let request = db.from('user_projects').select('*'); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
-app.put('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('user_projects').upsert({ user_id: req.params.id, project_id: req.params.projectId }).select().single()); await audit(req, 'ASSIGN_PROJECT', 'PROFILE', req.params.id, `Assigned project ${req.params.projectId}`); res.json(item); } catch (error) { next(error); } });
-app.delete('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try { await query(db.from('user_projects').delete().eq('user_id', req.params.id).eq('project_id', req.params.projectId).select()); await audit(req, 'UNASSIGN_PROJECT', 'PROFILE', req.params.id, `Unassigned project ${req.params.projectId}`); res.status(204).end(); } catch (error) { next(error); } });
+app.put('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try { const target = await query(db.from('profiles').select('id,email').eq('id', req.params.id).single()); if (!protectHeadAdmin(req, res, target)) return; const item = await query(db.from('user_projects').upsert({ user_id: req.params.id, project_id: req.params.projectId }).select().single()); await audit(req, 'ASSIGN_PROJECT', 'PROFILE', req.params.id, `Assigned project ${req.params.projectId}`); res.json(item); } catch (error) { next(error); } });
+app.delete('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try { const target = await query(db.from('profiles').select('id,email').eq('id', req.params.id).single()); if (!protectHeadAdmin(req, res, target)) return; await query(db.from('user_projects').delete().eq('user_id', req.params.id).eq('project_id', req.params.projectId).select()); await audit(req, 'UNASSIGN_PROJECT', 'PROFILE', req.params.id, `Unassigned project ${req.params.projectId}`); res.status(204).end(); } catch (error) { next(error); } });
 
 app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   let request = db.from('profiles').select('*, departments(name)').order('created_at', { ascending: false });
@@ -295,11 +301,12 @@ app.get('/v1/admin/chat-log', authenticate, specialAdminOnly, async (_, res, nex
   const people = new Map(profiles.map(profile => [profile.id, profile]));
   res.json(messages.map(message => ({ ...message, sender: people.get(message.sender_id) || null, recipient: people.get(message.recipient_id) || null })));
 } catch (error) { next(error); } });
-app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try { if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED'); const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single()); await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`); res.json(profile); } catch (error) { next(error); } });
+app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try { if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED'); const target = await query(db.from('profiles').select('id,email').eq('id', req.params.id).single()); if (!protectHeadAdmin(req, res, target)) return; const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single()); await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`); res.json(profile); } catch (error) { next(error); } });
 app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) => { try {
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : req.body.role === 'USER' ? 'USER' : null;
   if (!role) return fail(res, 400, 'Role must be ADMIN or USER');
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
+  if (!protectHeadAdmin(req, res, target)) return;
   if (target.role === 'ADMIN' && role === 'USER' && target.status === 'ACTIVE') {
     const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE'));
     if (admins.length <= 1) return fail(res, 400, 'At least one active administrator must remain.');
@@ -311,6 +318,8 @@ app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) 
 app.patch('/v1/users/:id/department', authenticate, adminOnly, async (req, res, next) => { try {
   const departmentId = optionalUuid(req.body.departmentId);
   if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
+  const target = await query(db.from('profiles').select('id,email').eq('id', req.params.id).single());
+  if (!protectHeadAdmin(req, res, target)) return;
   const profile = await query(db.from('profiles').update({ department_id: departmentId }).eq('id', req.params.id).select().single());
   await audit(req, 'ASSIGN_DEPARTMENT', 'PROFILE', profile.id, `Updated department for ${profile.email}`);
   res.json(profile);
@@ -318,6 +327,7 @@ app.patch('/v1/users/:id/department', authenticate, adminOnly, async (req, res, 
 app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next) => { try {
   if (req.params.id === req.profile.id) return fail(res, 400, 'You cannot remove your own administrator account.');
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
+  if (!protectHeadAdmin(req, res, target)) return;
   if (target.status === 'DENIED') return fail(res, 409, 'This user has already been removed.');
   if (target.role === 'ADMIN') {
     const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE'));
@@ -331,6 +341,7 @@ app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, next) => { try {
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
+  if (!protectHeadAdmin(req, res, target)) return;
   if (target.status !== 'DENIED') return fail(res, 409, 'Only removed users can be restored.');
   const { error: unbanError } = await db.auth.admin.updateUserById(target.id, { ban_duration: 'none' });
   if (unbanError) return fail(res, 502, 'The account could not be restored because sign-in could not be enabled.');
@@ -341,6 +352,7 @@ app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, nex
 app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, next) => { try {
   if (req.params.id === req.profile.id) return fail(res, 400, 'You cannot permanently delete your own administrator account.');
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
+  if (!protectHeadAdmin(req, res, target)) return;
   if (target.status !== 'DENIED') return fail(res, 409, 'Only archived users can be permanently deleted.');
   await query(db.rpc('permanently_remove_archived_login', { target_user_id: target.id }));
   await audit(req, 'PERMANENT_DELETE_USER', 'PROFILE', target.id, `Permanently deleted archived user ${target.email}`);
@@ -383,7 +395,7 @@ app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { tr
 app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try { const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email)').order('clock_in_at', { ascending: false }); request = req.query.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null); if (own) request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
 app.get('/v1/time-leaderboard', authenticate, activeOnly, async (req, res, next) => { try {
   const [people, entries] = await Promise.all([
-    query(db.from('profiles').select('id,full_name,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null)),
+    query(db.from('profiles').select('id,full_name,profile_picture_url,role').eq('status', 'ACTIVE').is('permanently_deleted_at', null)),
     query(db.from('time_entries').select('user_id,duration_seconds').is('deleted_at', null).not('duration_seconds', 'is', null))
   ]);
   const totals = entries.reduce((result, entry) => ({ ...result, [entry.user_id]: (result[entry.user_id] || 0) + Number(entry.duration_seconds || 0) }), {});
