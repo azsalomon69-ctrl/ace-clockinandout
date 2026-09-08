@@ -1429,7 +1429,7 @@ function renderGeneratedReport(report, options = {}) {
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Break</th><th>Note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${formatDuration(entry.BreakSeconds || 0)}</td><td>${escapeHtml(entry.UserNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
+    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Break</th><th>Note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${formatDuration(entry.BreakSeconds || 0)}</td><td>${escapeHtml(entry.UserNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="8">No entries match this report.</td></tr>'}</tbody></table></section>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 
@@ -2529,20 +2529,21 @@ function loadExcelLibrary() {
 }
 function reportWorkbookData(report) {
     const entries = filterEntriesForReport(report);
-    const timeEntries = [['Employee', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Break seconds', 'Break time', 'Note', 'Status']];
+    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Break seconds', 'Break time', 'Note', 'Status']];
     entries.forEach(entry => {
         const user = AppState.users.find(item => item.UserId === entry.UserId);
+        const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned';
         const workedSeconds = Number(entry.DurationSeconds || 0);
         const breakSeconds = Number(entry.BreakSeconds || 0);
         timeEntries.push([
-            user?.FullName || 'Unknown', reportDateTime(entry.ClockInAt),
+            user?.FullName || 'Unknown', project, reportDateTime(entry.ClockInAt),
             entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active',
             workedSeconds, formatDuration(workedSeconds), breakSeconds, formatDuration(breakSeconds),
             entry.UserNote || '', entry.ClockOutAt ? 'Completed' : 'Active'
         ]);
     });
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    timeEntries.push(['Total worked', '', '', totalSeconds, formatDuration(totalSeconds), '', '', '', '']);
+    timeEntries.push(['Total worked', '', '', '', totalSeconds, formatDuration(totalSeconds), '', '', '', '']);
     return timeEntries;
 }
 async function exportExcelReport(reportId) {
@@ -2556,7 +2557,7 @@ async function exportExcelReport(reportId) {
         const timeEntries = reportWorkbookData(report);
         const workbook = XLSX.utils.book_new();
         const entriesSheet = XLSX.utils.aoa_to_sheet(timeEntries);
-        entriesSheet['!cols'] = [{ wch: 26 }, { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 15 }, { wch: 16 }, { wch: 26 }, { wch: 13 }];
+        entriesSheet['!cols'] = [{ wch: 26 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 15 }, { wch: 16 }, { wch: 26 }, { wch: 13 }];
         XLSX.utils.book_append_sheet(workbook, entriesSheet, 'Time Entries');
         XLSX.writeFile(workbook, `ace-time-report-${String(report.ReportId).toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xlsx`, { compression: true });
         showToast('Excel report downloaded.', 'success');
