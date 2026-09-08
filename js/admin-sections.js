@@ -46,7 +46,7 @@ async function applyLiveData(key, view) {
     const now = Date.now();
     const liveWorkedSeconds = item => Math.max(0, Math.floor((now - new Date(item.clock_in_at).getTime()) / 1000) - (item.break_seconds || 0) - (item.break_started_at ? Math.max(0, Math.floor((now - new Date(item.break_started_at).getTime()) / 1000)) : 0));
     const total = items.reduce((sum, item) => sum + (item.duration_seconds || (!item.clock_out_at ? liveWorkedSeconds(item) : 0)), 0);
-    view.records = items.map(item => { const activeBreakSeconds = item.break_started_at ? Math.max(0, Math.floor((now - new Date(item.break_started_at).getTime()) / 1000)) : 0; const totalBreakSeconds = (item.break_seconds || 0) + activeBreakSeconds; const entryRemarks = remarksByEntry.get(item.id) || []; return { id: item.id, remarks: entryRemarks, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || 'Unassigned', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : duration(liveWorkedSeconds(item)), totalBreakSeconds ? duration(totalBreakSeconds) + (item.break_started_at ? ' (active)' : '') : '00:00:00', entryRemarks.length ? `${entryRemarks.length} remark${entryRemarks.length === 1 ? '' : 's'}` : '—', 'Add remark'] }; });
+    view.records = items.map(item => { const activeBreakSeconds = item.break_started_at ? Math.max(0, Math.floor((now - new Date(item.break_started_at).getTime()) / 1000)) : 0; const totalBreakSeconds = (item.break_seconds || 0) + activeBreakSeconds; const entryRemarks = remarksByEntry.get(item.id) || []; return { id: item.id, clockInAt: item.clock_in_at, clockOutAt: item.clock_out_at, remarks: entryRemarks, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || 'Unassigned', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : duration(liveWorkedSeconds(item)), totalBreakSeconds ? duration(totalBreakSeconds) + (item.break_started_at ? ' (active)' : '') : '00:00:00', entryRemarks.length ? `${entryRemarks.length} remark${entryRemarks.length === 1 ? '' : 's'}` : '—', 'Add remark'] }; });
     view.stats = [[duration(total), 'Tracked time', 'timer'], [items.filter(item => !item.clock_out_at).length, 'Open entries', 'circle-alert'], [items.length, 'Time entries', 'check']];
   } else if (key === 'audit') {
     const items = await liveRequest('/v1/audit-logs');
@@ -63,7 +63,7 @@ function status(value) {
 }
 function action(label, index, key, record) {
   if (key === 'audit') return '<span class="record-reference">' + esc(label) + '</span>';
-  if (key === 'entries') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Add remark</button><button class="btn btn-sm btn-danger admin-delete-entry" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
+  if (key === 'entries') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-edit-entry-time" type="button" data-row="' + index + '">' + icon('timer') + 'Correct time</button><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Add remark</button><button class="btn btn-sm btn-danger admin-delete-entry" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
   const iconName = /remove/i.test(label) ? 'trash' : /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
   const style = /remove/i.test(label) ? 'btn-danger' : 'btn-outline';
   const canViewEmployee = key === 'users' && record?.cells?.[2] === 'Employee';
@@ -92,6 +92,35 @@ function formField(label, type, placeholder, value, index) {
   }
   return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><input class="form-input" id="' + id + '" type="' + type + '" placeholder="' + esc(placeholder) + '" value="' + esc(value) + '" required></div>';
 }
+
+function editEntryTime(record) {
+  const asLocalInput = value => {
+    const date = new Date(value || Date.now());
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  };
+  let node = document.getElementById('adminTimeCorrectionModal');
+  if (!node) {
+    node = document.createElement('div'); node.id = 'adminTimeCorrectionModal'; node.className = 'modal'; node.setAttribute('role', 'dialog'); node.setAttribute('aria-modal', 'true');
+    document.body.appendChild(node);
+    node.addEventListener('click', event => { if (event.target === node) closeModal(node.id); });
+  }
+  node.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title">Correct employee time</h3><button class="modal-close" type="button" aria-label="Close">' + icon('x') + '</button></div><div class="modal-body"><p class="modal-description">Use this only to correct an employee’s recorded time, such as a missed clock-out caused by an outage.</p><div class="detail-summary"><strong>' + esc(record.cells[0]) + '</strong><p>' + esc(record.cells[1]) + '</p></div><form id="adminTimeCorrectionForm"><div class="form-group"><label class="form-label" for="correctClockIn">Clock in</label><input class="form-input" id="correctClockIn" type="datetime-local" value="' + asLocalInput(record.clockInAt) + '" required></div><div class="form-group"><label class="form-label" for="correctClockOut">Clock out</label><input class="form-input" id="correctClockOut" type="datetime-local" value="' + asLocalInput(record.clockOutAt) + '" required></div><div class="form-actions"><button class="btn btn-primary" type="submit">' + icon('check') + 'Save corrected time</button><button class="btn btn-outline admin-time-cancel" type="button">' + icon('x') + 'Cancel</button></div></form></div></div>';
+  node.querySelector('.modal-close').addEventListener('click', () => closeModal(node.id));
+  node.querySelector('.admin-time-cancel').addEventListener('click', () => closeModal(node.id));
+  node.querySelector('form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const clockInAt = new Date(node.querySelector('#correctClockIn').value);
+    const clockOutAt = new Date(node.querySelector('#correctClockOut').value);
+    if (Number.isNaN(clockInAt.getTime()) || Number.isNaN(clockOutAt.getTime()) || clockOutAt < clockInAt) { showToast('Clock-out must be after clock-in.', 'warning'); return; }
+    try {
+      await liveRequest('/v1/time-entries/' + record.id + '/admin-time', { method: 'PATCH', body: JSON.stringify({ clockInAt: clockInAt.toISOString(), clockOutAt: clockOutAt.toISOString() }) });
+      closeModal(node.id); showToast('Employee time corrected.', 'success'); window.setTimeout(() => window.location.reload(), 400);
+    } catch (error) { showToast(error.message || 'Could not correct this time entry.', 'error'); }
+  });
+  openModal(node.id);
+}
+
 function modal(view, primary, record) {
   let node = document.getElementById('adminActionModal');
   if (!node) {
@@ -221,6 +250,7 @@ async function renderAdminSection() {
   const draw = records => {
     body.innerHTML = records.length ? records.map((record, rowIndex) => '<tr class="' + (key === 'entries' || key === 'users' ? 'admin-collapsible-row' : '') + '">' + record.cells.map((cell, index) => '<td' + (key === 'entries' && index === 6 ? ' class="admin-entry-remarks"' : '') + '>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key, record) : key === 'entries' && index === 6 ? (record.remarks?.length ? record.remarks.map(remark => '<article class="admin-entry-remark"><strong>' + esc(remark.admin) + '</strong><span>' + esc(remark.text) + '</span></article>').join('') : '—') : key === 'users' && index === 0 ? '<span class="admin-user-identity"><span class="admin-user-avatar">' + (record.avatarUrl ? '<img src="' + esc(record.avatarUrl) + '" alt="">' : esc(String(cell).trim().slice(0, 1).toUpperCase())) + '</span><strong>' + esc(cell) + '</strong></span>' : status(cell)) + '</td>').join('') + '</tr>').join('') : '<tr><td colspan="' + view.columns.length + '">No ' + view.title.toLowerCase() + ' found.</td></tr>';
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, records[Number(button.dataset.row)])));
+    body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => editEntryTime(records[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-view-employee').forEach(button => button.addEventListener('click', () => {
       const record = records[Number(button.dataset.row)];
       if (record) window.location.assign('employee-profile.html?user=' + encodeURIComponent(record.id));

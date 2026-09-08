@@ -73,6 +73,7 @@ const fail = (res, status, message) => res.status(status).json({ error: message 
 const query = async builder => { const { data, error } = await builder; if (error) throw error; return data; };
 const isUuid = value => /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value || '');
 const isDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+const isTimestamp = value => typeof value === 'string' && value.length <= 80 && !Number.isNaN(Date.parse(value));
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const htmlEscape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const optionalText = (value, maximum = 500) => {
@@ -491,6 +492,20 @@ app.post('/v1/time-entries/:id/admin-stop', authenticate, adminOnly, async (req,
   const entry = await query(db.from('time_entries').update({ clock_out_at: stoppedAt, break_started_at: null, break_seconds: breakSeconds, stopped_by_user_id: req.profile.id, stopped_by_at: stoppedAt }).eq('id', current.id).is('clock_out_at', null).select().maybeSingle());
   if (!entry) return fail(res, 409, 'This shift was stopped by someone else');
   await audit(req, 'ADMIN_STOP_CLOCK', 'TIME_ENTRY', entry.id, `Stopped ${current.profiles?.full_name || current.profiles?.email || 'an employee'}'s active shift`);
+  res.json(entry);
+} catch (error) { next(error); } });
+app.patch('/v1/time-entries/:id/admin-time', authenticate, adminOnly, async (req, res, next) => { try {
+  const { clockInAt, clockOutAt } = req.body;
+  if (!isTimestamp(clockInAt) || !isTimestamp(clockOutAt)) return fail(res, 400, 'A valid clock-in and clock-out date and time are required');
+  const clockIn = new Date(clockInAt);
+  const clockOut = new Date(clockOutAt);
+  if (clockOut < clockIn) return fail(res, 400, 'Clock-out cannot be earlier than clock-in');
+  const current = await query(db.from('time_entries').select('id,user_id,break_started_at,break_seconds,profiles!time_entries_user_id_fkey(role,full_name,email)').eq('id', req.params.id).is('deleted_at', null).maybeSingle());
+  if (!current) return fail(res, 404, 'Time entry is unavailable');
+  if (current.profiles?.role !== 'USER') return fail(res, 403, 'Only employee time entries can be corrected by an administrator');
+  const breakSeconds = (current.break_seconds || 0) + (current.break_started_at ? Math.max(0, Math.floor((clockOut.getTime() - new Date(current.break_started_at).getTime()) / 1000)) : 0);
+  const entry = await query(db.from('time_entries').update({ clock_in_at: clockIn.toISOString(), clock_out_at: clockOut.toISOString(), break_started_at: null, break_seconds: breakSeconds }).eq('id', current.id).select().single());
+  await audit(req, 'ADMIN_CORRECT_TIME', 'TIME_ENTRY', entry.id, `Corrected ${current.profiles?.full_name || current.profiles?.email || 'an employee'}'s clock-in and clock-out times`);
   res.json(entry);
 } catch (error) { next(error); } });
 
