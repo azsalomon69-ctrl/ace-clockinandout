@@ -388,7 +388,8 @@ function initializeEmployeeChat() {
     const chat = document.createElement('section');
     chat.id = 'employeeChat';
     chat.className = 'employee-chat';
-    chat.innerHTML = `<button class="employee-chat-launcher" type="button" aria-expanded="false" aria-controls="employeeChatPanel"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Chat</span><b class="employee-chat-badge" hidden>0</b></button><div class="employee-chat-panel" id="employeeChatPanel" hidden><header><strong>Team chat</strong><button type="button" class="employee-chat-close" aria-label="Close chat">×</button></header><div class="employee-chat-layout"><aside><p>All messages</p><label class="employee-chat-search"><span class="sr-only">Search teammates</span><input type="search" placeholder="Search teammates" autocomplete="off"></label><div class="employee-chat-contacts"></div></aside><section class="employee-chat-thread"><div class="employee-chat-empty">Choose a teammate to start a private chat.</div></section></div></div>`;
+    const employeeChat = AppState.currentUser.Role !== 'ADMIN';
+    chat.innerHTML = `<button class="employee-chat-launcher" type="button" aria-expanded="false" aria-controls="employeeChatPanel"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Chat</span><b class="employee-chat-badge" hidden>0</b></button><div class="employee-chat-panel" id="employeeChatPanel" hidden><header><strong>Team chat</strong><button type="button" class="employee-chat-close" aria-label="Close chat">×</button></header><div class="employee-chat-layout"><aside><p>${employeeChat ? 'Administrators' : 'All messages'}</p><label class="employee-chat-search"><span class="sr-only">Search teammates</span><input type="search" placeholder="Search teammates" autocomplete="off"></label><div class="employee-chat-contacts"></div></aside><section class="employee-chat-thread"><div class="employee-chat-empty">Choose a teammate to start a private chat.</div></section></div></div>`;
     document.body.appendChild(chat);
     const launcher = chat.querySelector('.employee-chat-launcher');
     const panel = chat.querySelector('.employee-chat-panel');
@@ -456,7 +457,7 @@ function initializeEmployeeChat() {
             people.forEach(person => unreadByContact.set(person.id, person.unread_count || 0));
             contactsLoaded = true;
             badge.hidden = !totalUnread; badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
-            allContacts = people;
+            allContacts = people.filter(person => !employeeChat || person.role === 'ADMIN');
             const selectedContact = people.find(person => person.id === selectedId);
             if (selectedContact) { selectedOnline = Boolean(selectedContact.last_seen_at && Date.now() - new Date(selectedContact.last_seen_at).getTime() < 2 * 60 * 1000); selectedPictureUrl = selectedContact.profile_picture_url || ''; }
             renderContacts();

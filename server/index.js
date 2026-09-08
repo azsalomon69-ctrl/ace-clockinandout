@@ -110,6 +110,7 @@ const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() 
 const employeeOnly = (req, res, next) => req.profile.role === 'USER' && req.profile.status === 'ACTIVE'
   ? next()
   : fail(res, 403, 'Employee access is required');
+const canChatWith = (profile, contact) => profile.role === 'ADMIN' || contact.role === 'ADMIN';
 const specialAdminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profile.status === 'ACTIVE' && req.profile.email?.toLowerCase() === 'azsalomon69@gmail.com'
   ? next()
   : fail(res, 403, 'This administrator feature is restricted');
@@ -247,18 +248,25 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   res.json(await query(request));
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
+  let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
+  if (req.profile.role !== 'ADMIN') contactRequest = contactRequest.eq('role', 'ADMIN');
   const [contacts, unread] = await Promise.all([
-    query(db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name')),
+    query(contactRequest),
     query(db.from('employee_messages').select('sender_id').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null))
   ]);
-  const unreadCounts = unread.reduce((counts, message) => ({ ...counts, [message.sender_id]: (counts[message.sender_id] || 0) + 1 }), {});
+  const allowedContactIds = new Set(contacts.map(contact => contact.id));
+  const unreadCounts = unread.reduce((counts, message) => {
+    if (allowedContactIds.has(message.sender_id)) counts[message.sender_id] = (counts[message.sender_id] || 0) + 1;
+    return counts;
+  }, {});
   res.json(contacts.map(contact => ({ ...contact, unread_count: unreadCounts[contact.id] || 0 })));
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/messages/:userId', authenticate, activeOnly, async (req, res, next) => { try {
   const otherUserId = optionalUuid(req.params.userId);
   if (!otherUserId) return fail(res, 400, 'A valid contact ID is required');
-  const contact = await query(db.from('profiles').select('id').eq('id', otherUserId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
+  const contact = await query(db.from('profiles').select('id,role').eq('id', otherUserId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
   if (!contact) return fail(res, 404, 'Contact is not available for chat');
+  if (!canChatWith(req.profile, contact)) return fail(res, 403, 'Employees can only chat with administrators');
   const messages = await query(db.from('employee_messages').select('*').or(`and(sender_id.eq.${req.profile.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${req.profile.id})`).order('created_at').limit(200));
   await query(db.from('employee_messages').update({ read_at: new Date().toISOString() }).eq('sender_id', otherUserId).eq('recipient_id', req.profile.id).is('read_at', null));
   res.json(messages);
@@ -268,8 +276,9 @@ app.post('/v1/employee-chat/messages', authenticate, activeOnly, async (req, res
   const body = optionalText(req.body.body, 2000);
   if (!recipientId || !body) return fail(res, 400, 'A recipient and message are required');
   if (recipientId === req.profile.id) return fail(res, 400, 'You cannot message yourself');
-  const recipient = await query(db.from('profiles').select('id').eq('id', recipientId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
+  const recipient = await query(db.from('profiles').select('id,role').eq('id', recipientId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
   if (!recipient) return fail(res, 404, 'Contact is not available for chat');
+  if (!canChatWith(req.profile, recipient)) return fail(res, 403, 'Employees can only chat with administrators');
   const message = await query(db.from('employee_messages').insert({ sender_id: req.profile.id, recipient_id: recipientId, body }).select().single());
   res.status(201).json(message);
 } catch (error) { next(error); } });
