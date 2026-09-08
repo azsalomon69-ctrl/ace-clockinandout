@@ -17,20 +17,38 @@ async function buildScripts() {
   const output = new Map();
   const destination = path.join(dist, 'assets', 'js');
   await mkdir(destination, { recursive: true });
-  for (const file of (await filesIn(path.join(root, 'js'))).filter(file => file.endsWith('.js'))) {
-    const source = await readFile(path.join(root, 'js', file), 'utf8');
+  const sourceDirectory = path.join(root, 'js');
+  // These two files only attach configuration/helpers to window and do not
+  // execute page logic, so combining them preserves their current behavior
+  // while reducing the number of deployed readable entry points.
+  const coreSource = [
+    await readFile(path.join(sourceDirectory, 'api-config.js'), 'utf8'),
+    await readFile(path.join(sourceDirectory, 'supabase-auth.js'), 'utf8')
+  ].join('\n');
+  const core = await minifyJs(coreSource, {
+    compress: { defaults: true, passes: 3 },
+    mangle: { toplevel: true },
+    format: { comments: false },
+    sourceMap: false
+  });
+  if (!core.code) throw new Error('Could not minify the production core bundle');
+  const coreCode = `console.warn("STOP! If you did something we'll know :>");${core.code}`;
+  const coreTarget = `assets/js/${sourceHash(coreCode)}.js`;
+  await writeFile(path.join(dist, coreTarget), coreCode);
+  output.set('js/api-config.js', coreTarget);
+  output.set('js/supabase-auth.js', coreTarget);
+
+  for (const file of (await filesIn(sourceDirectory)).filter(file => file.endsWith('.js') && !['api-config.js', 'supabase-auth.js'].includes(file))) {
+    const source = await readFile(path.join(sourceDirectory, file), 'utf8');
     const result = await minifyJs(source, {
-      compress: { defaults: true, passes: 2 },
+      compress: { defaults: true, passes: 3 },
       mangle: { toplevel: false },
       format: { comments: false },
       sourceMap: false
     });
     if (!result.code) throw new Error(`Could not minify js/${file}`);
-    const productionCode = file === 'api-config.js'
-      ? `console.warn("STOP!\\n\\nIf you did something we'll know :>");${result.code}`
-      : result.code;
-    const target = `assets/js/${sourceHash(productionCode)}.js`;
-    await writeFile(path.join(dist, target), productionCode);
+    const target = `assets/js/${sourceHash(result.code)}.js`;
+    await writeFile(path.join(dist, target), result.code);
     output.set(`js/${file}`, target);
   }
   return output;
@@ -59,7 +77,15 @@ async function buildPages(assetMap) {
       const target = assetMap.get(normalized);
       return target ? `${attribute}=${quote}${target}${quote}` : match;
     });
-    const output = await minifyHtml(withProductionAssets, {
+    const emittedScripts = new Set();
+    const deduplicatedScripts = withProductionAssets.replace(/<script\b([^>]*)\bsrc=(['"])([^'"]+)\2([^>]*)><\/script>/gi, (tag, before, quote, sourcePath, after) => {
+      if (!sourcePath.startsWith('assets/js/') || !emittedScripts.has(sourcePath)) {
+        emittedScripts.add(sourcePath);
+        return tag;
+      }
+      return '';
+    });
+    const output = await minifyHtml(deduplicatedScripts, {
       collapseWhitespace: true,
       conservativeCollapse: true,
       removeComments: true,
