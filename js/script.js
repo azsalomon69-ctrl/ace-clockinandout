@@ -1361,13 +1361,14 @@ function filterEntriesForReport(report) {
     const from = report.DateFrom ? new Date(`${report.DateFrom}T00:00:00`).getTime() : -Infinity;
     const to = report.DateTo ? new Date(`${report.DateTo}T23:59:59.999`).getTime() : Infinity;
     const filters = report.Filters || {};
+    const matchesId = (expected, actual) => !expected || String(expected) === String(actual);
     return AppState.timeEntries.filter(entry => {
         const time = new Date(entry.ClockInAt).getTime();
         const user = AppState.users.find(item => item.UserId === entry.UserId);
         return time >= from && time <= to &&
-            (!filters.projectId || Number(filters.projectId) === Number(entry.ProjectId)) &&
-            (!filters.userId || Number(filters.userId) === Number(entry.UserId)) &&
-            (!filters.departmentId || Number(filters.departmentId) === Number(user?.DepartmentId));
+            matchesId(filters.projectId, entry.ProjectId) &&
+            matchesId(filters.userId, entry.UserId) &&
+            matchesId(filters.departmentId, user?.DepartmentId);
     });
 }
 
