@@ -3150,6 +3150,10 @@ html[data-theme="dark"] :is(.shell-skeleton-title,.shell-skeleton-subtitle,.shel
 .shell-nav-group:not(.is-open) .shell-nav-group-toggle b { transform: rotate(-90deg); }
 .shell-nav-group-items { display: grid; gap: 2px; }
 .shell-nav-group-items[hidden] { display: none; }
+.shell-nav-group-toggle { min-height: 34px; margin: 2px 8px 6px; width: calc(100% - 16px); padding: 0 10px; border: 1px solid #c6e3e9; border-radius: 8px; background: #f7fdfe; color: var(--ace-ink); letter-spacing: .09em; box-shadow: 0 1px 0 rgba(8, 162, 194, .06); }
+.shell-nav-group-toggle::after { display: none; }
+.shell-nav-group-toggle:hover { background: #e3f7fa; border-color: var(--ace-cyan); }
+.shell-nav-group-toggle b { color: var(--ace-cyan); font-size: 1.1rem; font-weight: 800; }
 .shell-link { min-height: 39px; gap: 11px; padding: 0 12px; border-radius: 7px; font-size: .79rem; font-weight: 650; }
 .shell-link .shell-icon { width: 18px; height: 18px; flex-basis: 18px; opacity: .8; }
 .shell-link.active { box-shadow: inset 2px 0 0 var(--ace-cyan); }
