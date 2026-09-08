@@ -38,7 +38,7 @@ where email = 'your-admin-email@example.com';
 
 ## Staging security integration tests
 
-The automated integration suite is deliberately separate from normal development and production credentials. Create a dedicated staging Supabase project plus isolated `ADMIN` and `USER` accounts, then copy `.env.test.example` to the ignored `.env.test` file and load those values into your terminal.
+The automated integration suite is deliberately separate from normal development and production credentials. Create a dedicated staging Supabase project plus isolated `ADMIN` and `USER` accounts, then copy `.env.test.example` to `.env.test` in the repository root (the same folder as `package.json`) and fill in the values there. `.env.test` is explicitly ignored by Git and is loaded automatically by the test command.
 
 Run:
 

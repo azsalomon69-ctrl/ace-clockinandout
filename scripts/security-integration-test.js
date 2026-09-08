@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
+import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+
+// .env.test is intentionally ignored by Git. Environment variables already
+// supplied by secure CI secret storage continue to take precedence.
+dotenv.config({ path: '.env.test', quiet: true, override: false });
 
 const required = [
   'ACE_TEST_API_URL', 'ACE_TEST_SUPABASE_URL', 'ACE_TEST_SUPABASE_PUBLISHABLE_KEY',
