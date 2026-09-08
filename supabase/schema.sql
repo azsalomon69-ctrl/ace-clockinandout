@@ -107,6 +107,28 @@ create table public.time_entries (
 create unique index one_open_entry_per_user on public.time_entries(user_id) where clock_out_at is null;
 create index time_entries_user_clock_in_idx on public.time_entries(user_id, clock_in_at desc);
 
+create table public.work_schedules (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(trim(name)) between 1 and 80),
+  schedule_type text not null check (schedule_type in ('FIXED', 'FLEX')),
+  start_time time,
+  end_time time,
+  daily_elapsed_minutes integer not null default 540 check (daily_elapsed_minutes between 60 and 1440),
+  break_limit_minutes integer not null default 60 check (break_limit_minutes between 0 and 360),
+  is_active boolean not null default true,
+  created_by_user_id uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint fixed_schedule_times check (schedule_type = 'FLEX' or (start_time is not null and end_time is not null))
+);
+
+create table public.user_schedule_assignments (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  schedule_id uuid not null references public.work_schedules(id) on delete cascade,
+  assigned_by_user_id uuid references public.profiles(id) on delete set null,
+  assigned_at timestamptz not null default now()
+);
+
 create table public.admin_remarks (
   id uuid primary key default gen_random_uuid(),
   time_entry_id uuid not null references public.time_entries(id) on delete cascade,
@@ -156,6 +178,7 @@ begin new.updated_at = now(); return new; end;
 $$;
 create trigger profiles_updated_at before update on public.profiles for each row execute function public.set_updated_at();
 create trigger admin_remarks_updated_at before update on public.admin_remarks for each row execute function public.set_updated_at();
+create trigger work_schedules_updated_at before update on public.work_schedules for each row execute function public.set_updated_at();
 
 -- Profiles are created automatically after Google/email sign-up.
 create or replace function public.create_profile_for_auth_user() returns trigger language plpgsql security definer set search_path = public as $$
@@ -192,6 +215,8 @@ alter table public.invitations enable row level security;
 alter table public.access_requests enable row level security;
 alter table public.time_entries enable row level security;
 alter table public.admin_remarks enable row level security;
+alter table public.work_schedules enable row level security;
+alter table public.user_schedule_assignments enable row level security;
 alter table public.reports enable row level security;
 alter table public.report_exports enable row level security;
 alter table public.audit_logs enable row level security;

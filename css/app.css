@@ -1544,6 +1544,7 @@ body { background: #f7fcfd; color: var(--ace-ink); }
 .admin-entry-remark strong { color: var(--ace-ink); font-size: .72rem; }
 .admin-entry-remark span { color: #52717b; font-size: .76rem; overflow-wrap: anywhere; }
 .entry-admin-stop { display: block; margin-top: 5px; color: #b02c40; font-size: .72rem; font-weight: 700; line-height: 1.35; }
+.employee-schedule-notice { margin: 0 0 18px; padding: 13px 16px; border: 1px solid #8dd9e7; border-radius: 10px; color: var(--ace-ink); background: #e9faff; font-weight: 700; line-height: 1.45; }
 .shell-account { min-height: 86px; display: grid; grid-template-columns: 38px minmax(0,1fr) 34px; align-items: center; gap: 10px; padding: 16px 14px; border-top: 1px solid var(--ace-line); }
 .shell-avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--ace-ink); color: #fff; font: 700 .78rem 'Montserrat', Arial, sans-serif; }
 .shell-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }

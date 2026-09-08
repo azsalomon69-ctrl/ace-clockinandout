@@ -24,6 +24,8 @@ const AppState = {
     auditLogs: [],
     userProjects: [],
     adminRemarks: [],
+    assignedSchedule: null,
+    scheduleAlertKeys: new Set(),
     recentEntriesPage: 1,
     recentEntriesPageSize: 3,
     database: null
@@ -54,17 +56,19 @@ async function loadDatabase() {
     AppState.currentUser = profileRecord(profile);
     AppState.isAuthenticated = true;
     localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
-    const [departments, projects, entries, userProjects, remarks] = await Promise.all([
+    const [departments, projects, entries, userProjects, remarks, assignedSchedule] = await Promise.all([
         window.ACEAuth.request('/v1/departments'),
         window.ACEAuth.request('/v1/projects'),
         window.ACEAuth.request(`/v1/time-entries${AppState.currentUser.Role === 'ADMIN' ? '' : '?mine=true'}`),
         window.ACEAuth.request('/v1/user-projects'),
-        window.ACEAuth.request('/v1/admin-remarks')
+        window.ACEAuth.request('/v1/admin-remarks'),
+        window.ACEAuth.request('/v1/my-schedule')
     ]);
     AppState.departments = departments.map(departmentRecord);
     AppState.projects = projects.map(projectRecord);
     AppState.timeEntries = entries.map(timeEntryRecord);
     AppState.adminRemarks = remarks.map(adminRemarkRecord);
+    AppState.assignedSchedule = assignedSchedule;
     AppState.userProjects = userProjects.map(item => ({ UserId: item.user_id, ProjectId: item.project_id, AssignedAt: item.assigned_at, IsActive: true }));
     if (AppState.currentUser.Role === 'ADMIN') {
         const [users, invitations, reports, auditLogs] = await Promise.all([
@@ -271,7 +275,7 @@ function renderInitialSkeletons() {
     const shell = document.querySelector('.app-shell-skeleton');
     if (shell) {
         const page = (window.location.pathname.split('/').pop() || '').toLowerCase();
-        const managementPages = ['users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'audit-logs.html'];
+        const managementPages = ['users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'audit-logs.html'];
         const rows = count => Array.from({ length: count }, () => '<div class="shell-skeleton-row"></div>').join('');
         const header = '<div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div>';
         if (page === 'admin-dashboard.html') {
@@ -482,7 +486,7 @@ function initializeAppShell() {
     // Vercel cleanUrls removes .html while the local static server preserves it.
     // Normalize both forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'audit-logs.html', 'chat-log.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'audit-logs.html', 'chat-log.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -497,13 +501,13 @@ function initializeAppShell() {
         return;
     }
 
-    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', chart: 'chart-column-big', audit: 'brick-wall-shield', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
+    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', calendar: 'calendar-days', chart: 'chart-column-big', audit: 'brick-wall-shield', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
     const icon = name => suppliedIconMarkup(icons[name], 'shell-icon');
     const isSpecialAdmin = isAdmin && AppState.currentUser?.Email?.toLowerCase() === 'azsalomon69@gmail.com';
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
         ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['invitations.html', 'mail', 'Invitations'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
-        ['Work', [['projects.html', 'folder', 'Projects'], ['admin-time-entries.html', 'clock', 'Time entries'], ['deleted-time-entries.html', 'clock', 'Deleted time entries']]],
+        ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['deleted-time-entries.html', 'clock', 'Deleted time entries']]],
         ['Insights', [['reports.html', 'chart', 'Reports']]],
         ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]
     ];
@@ -1286,6 +1290,11 @@ function updateTimerDisplay() {
         if (el) el.textContent = timeString;
     });
     const totalBreakSeconds = (AppState.currentSession?.BreakSeconds || 0) + activeBreakSeconds;
+    const schedule = AppState.assignedSchedule;
+    if (schedule?.schedule_type === 'FLEX' && totalBreakSeconds > Number(schedule.break_limit_minutes || 60) * 60) {
+        const key = `break-${AppState.currentSession?.TimeEntryId}`;
+        if (!AppState.scheduleAlertKeys.has(key)) { AppState.scheduleAlertKeys.add(key); showToast(`Your ${schedule.break_limit_minutes || 60}-minute flextime break limit has been exceeded.`, 'warning'); }
+    }
     document.querySelectorAll('#currentBreakDuration').forEach(el => { el.textContent = formatClockDuration(totalBreakSeconds); });
     const sessionStateTime = document.getElementById('sessionStateTime');
     if (sessionStateTime && AppState.isOnBreak) sessionStateTime.textContent = formatClockDuration(totalBreakSeconds);
@@ -1589,6 +1598,12 @@ function startClock() {
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString();
+    const schedule = AppState.assignedSchedule;
+    if (schedule?.schedule_type === 'FIXED' && !AppState.isClockedIn && schedule.start_time) {
+        const [hours, minutes] = String(schedule.start_time).slice(0, 5).split(':').map(Number); const start = new Date(); start.setHours(hours, minutes, 0, 0);
+        const key = `late-${now.toDateString()}`;
+        if (now > start && !AppState.scheduleAlertKeys.has(key)) { AppState.scheduleAlertKeys.add(key); showToast(`You are late for ${schedule.name}. Your scheduled start was ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`, 'warning'); }
+    }
     
     const clockTimeElements = document.querySelectorAll('#clockTime');
     clockTimeElements.forEach(el => {
@@ -1660,6 +1675,22 @@ function loadPageSpecificData() {
 }
 
 function loadUserDashboard() {
+    const schedule = AppState.assignedSchedule;
+    const existingNotice = document.getElementById('employeeScheduleNotice');
+    if (schedule && !existingNotice) {
+        const notice = document.createElement('section'); notice.id = 'employeeScheduleNotice'; notice.className = 'employee-schedule-notice';
+        const now = new Date(); const active = AppState.currentSession;
+        let message = '';
+        if (schedule.schedule_type === 'FLEX' && active) {
+            const finish = new Date(new Date(active.ClockInAt).getTime() + Number(schedule.daily_elapsed_minutes || 540) * 60000);
+            const breakSeconds = Number(active.BreakSeconds || 0) + (active.BreakStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(active.BreakStartedAt).getTime()) / 1000)) : 0);
+            message = `Flextime: expected finish ${finish.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Break limit: ${schedule.break_limit_minutes || 60} minutes${breakSeconds > Number(schedule.break_limit_minutes || 60) * 60 ? ' — your break limit has been exceeded.' : '.'}`;
+        } else if (schedule.schedule_type === 'FIXED') {
+            const [hours, minutes] = String(schedule.start_time).slice(0, 5).split(':').map(Number); const start = new Date(); start.setHours(hours, minutes, 0, 0);
+            message = !active && now > start ? `You are late for ${schedule.name}. Scheduled start: ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : `${schedule.name}: ${String(schedule.start_time).slice(0, 5)}–${String(schedule.end_time).slice(0, 5)}. Break limit: ${schedule.break_limit_minutes || 60} minutes.`;
+        } else if (schedule.schedule_type === 'FLEX') message = `${schedule.name}: clock in for ${Math.floor(Number(schedule.daily_elapsed_minutes || 540) / 60)} hours total, including up to ${schedule.break_limit_minutes || 60} minutes of break.`;
+        notice.textContent = message; document.querySelector('.user-dashboard .employee-dashboard-intro')?.insertAdjacentElement('afterend', notice);
+    }
     const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.DurationSeconds);
     const now = new Date();
     const startOfWeek = new Date(now);
