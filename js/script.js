@@ -39,15 +39,15 @@ const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_e
 const employeeTimeEntries = () => AppState.timeEntries.filter(entry => AppState.users.find(user => String(user.UserId) === String(entry.UserId))?.Role === 'USER');
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+const formatAppDate = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '—';
+const formatAppDateTime = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
+const formatAppTime = value => value ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
 const reportDate = value => {
     if (!value) return '—';
-    const date = new Date(`${value}T00:00:00`);
-    return `${date.toLocaleDateString('en-US', { month: 'short' })}/${date.getDate()}/${date.getFullYear()}`;
+    return formatAppDate(`${value}T00:00:00`);
 };
 const reportDateTime = value => {
-    if (!value) return '—';
-    const date = new Date(value);
-    return `${date.toLocaleDateString('en-US', { month: 'short' })}/${date.getDate()}/${date.getFullYear()}, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`;
+    return formatAppDateTime(value);
 };
 
 // Native select popups differ wildly between browsers and operating systems.
@@ -2554,9 +2554,9 @@ function loadTimeEntries() {
             
             return `
                 <tr class="time-entry-row" data-date="${clockIn.toISOString().slice(0, 10)}" data-project="${entry.ProjectId || ''}" data-status="${clockOut ? 'COMPLETED' : 'ACTIVE'}">
-                    <td>${clockIn.toLocaleDateString()}</td>
-                    <td>${clockIn.toLocaleTimeString()}</td>
-                    <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
+                    <td>${formatAppDate(entry.ClockInAt)}</td>
+                    <td>${formatAppTime(entry.ClockInAt)}</td>
+                    <td>${clockOut ? formatAppTime(entry.ClockOutAt) : 'Active'}</td>
                     <td>${duration}</td>
                     <td>${entry.BreakSeconds ? formatDuration(entry.BreakSeconds) : 'None'}${entry.BreakStartedAt ? ' (active)' : ''}</td>
                     <td>${escapeHtml(project?.ProjectName || 'None')}</td>
@@ -2674,7 +2674,7 @@ function loadReportsList() {
                     <td>${report.ReportType}</td>
                     <td>${reportDate(report.DateFrom)} to ${reportDate(report.DateTo)}</td>
                     <td>${escapeHtml(user?.FullName || 'Unknown')}</td>
-                    <td>${new Date(report.GeneratedAt).toLocaleString()}</td>
+                    <td>${formatAppDateTime(report.GeneratedAt)}</td>
                     <td>${report.TotalRecords}</td>
                     <td>
                         <button class="btn btn-sm btn-outline" onclick="exportReport('${report.ReportId}', 'XLSX')">Save Excel</button>

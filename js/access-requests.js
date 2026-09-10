@@ -1,6 +1,7 @@
 const requestApi = path => window.ACEAuth.request(path);
 const requestEsc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 let accessRequests = [];
+const requestDateTime = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
 
 function requestExpiry(value) {
   const seconds = Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 1000));
@@ -12,7 +13,7 @@ function requestBadge(state) {
 }
 function renderAccessRequests() {
   const body = document.getElementById('accessRequestTable'); if (!body) return;
-  body.innerHTML = accessRequests.length ? accessRequests.map((request, index) => '<tr><td><strong>' + requestEsc(request.profiles?.full_name || request.full_name || 'Google user') + '</strong><br><small>' + requestEsc(request.email) + '</small></td><td>' + new Date(request.created_at).toLocaleTimeString() + '</td><td>' + requestExpiry(request.expires_at) + '</td><td>' + requestBadge(request.state) + '</td><td>' + (request.state === 'PENDING' ? '<select class="form-select request-role" data-row="' + index + '"><option value="USER">Employee</option><option value="ADMIN">Admin</option></select>' : '—') + '</td><td>' + (request.state === 'PENDING' ? '<button class="btn btn-sm btn-primary review-request" data-row="' + index + '" data-decision="APPROVE" type="button">Approve</button> <button class="btn btn-sm btn-outline review-request" data-row="' + index + '" data-decision="DENY" type="button">Deny</button>' : '—') + '</td></tr>').join('') : '<tr><td colspan="6">No access requests found.</td></tr>';
+  body.innerHTML = accessRequests.length ? accessRequests.map((request, index) => '<tr><td><strong>' + requestEsc(request.profiles?.full_name || request.full_name || 'Google user') + '</strong><br><small>' + requestEsc(request.email) + '</small></td><td>' + requestDateTime(request.created_at) + '</td><td>' + requestExpiry(request.expires_at) + '</td><td>' + requestBadge(request.state) + '</td><td>' + (request.state === 'PENDING' ? '<select class="form-select request-role" data-row="' + index + '"><option value="USER">Employee</option><option value="ADMIN">Admin</option></select>' : '—') + '</td><td>' + (request.state === 'PENDING' ? '<button class="btn btn-sm btn-primary review-request" data-row="' + index + '" data-decision="APPROVE" type="button">Approve</button> <button class="btn btn-sm btn-outline review-request" data-row="' + index + '" data-decision="DENY" type="button">Deny</button>' : '—') + '</td></tr>').join('') : '<tr><td colspan="6">No access requests found.</td></tr>';
   body.querySelectorAll('.review-request').forEach(button => button.addEventListener('click', () => reviewRequest(accessRequests[Number(button.dataset.row)], button.dataset.decision, body.querySelector('.request-role[data-row="' + button.dataset.row + '"]')?.value || 'USER')));
 }
 function reviewRequest(request, decision, role) {
