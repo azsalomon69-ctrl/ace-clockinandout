@@ -4090,3 +4090,72 @@ html[data-theme="dark"] .employee-chat-message-time, html[data-theme="dark"] .em
 .admin-employee-profile-link { color: var(--ace-ink); font-weight: 800; text-decoration: none; }
 .admin-employee-profile-link:hover, .admin-employee-profile-link:focus-visible { color: var(--ace-cyan-dark); text-decoration: underline; text-underline-offset: 3px; }
 html[data-theme="dark"] .admin-employee-profile-link { color: var(--ace-text-primary); }
+
+/* A single select-control language for the employee and administrator workspaces.
+   Native option menus retain their platform accessibility, while their colours,
+   type and selected state now match the rest of the application. */
+.form-select {
+  color: var(--ace-ink);
+  background-color: var(--ace-surface);
+  border: 1px solid #aacfd8;
+  border-radius: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  color-scheme: light;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+.form-select:hover:not(:disabled) {
+  background-color: #fbfeff;
+  border-color: #5aaebe;
+  box-shadow: 0 3px 10px rgba(7, 86, 106, .1);
+}
+.form-select:focus-visible {
+  outline: 0;
+  border-color: var(--ace-cyan-dark);
+  box-shadow: 0 0 0 3px rgba(12, 80, 105, .18), 0 4px 12px rgba(7, 86, 106, .12);
+}
+.form-select option {
+  color: #173f4b;
+  background: #fff;
+  font-family: 'Open Sans', Arial, sans-serif;
+  font-weight: 650;
+}
+.form-select option:checked {
+  color: #fff;
+  background: #0C5069 linear-gradient(#0C5069, #0C5069);
+}
+.form-select:disabled { cursor: not-allowed; opacity: .62; }
+
+/* Banner filters need a deliberately dark menu so the popup does not look like
+   an unrelated browser control over the photographic background. */
+.admin-dashboard .analytics-toolbar .form-select {
+  color-scheme: dark;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23e4f9fb' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+.admin-dashboard .analytics-toolbar .form-select:hover:not(:disabled) {
+  background-color: rgba(7, 83, 102, .82);
+  border-color: rgba(214, 249, 252, .72);
+  box-shadow: 0 4px 14px rgba(0, 34, 44, .24), inset 0 1px 0 rgba(255,255,255,.13);
+}
+.admin-dashboard .analytics-toolbar .form-select option {
+  color: #eafcff;
+  background: #123f4d;
+}
+.admin-dashboard .analytics-toolbar .form-select option:checked {
+  color: #fff;
+  background: #0C5069 linear-gradient(#0C5069, #0C5069);
+}
+html[data-theme="dark"] .form-select {
+  color-scheme: dark;
+  color: var(--ace-text-primary);
+  background-color: var(--ace-surface-input);
+  border-color: var(--ace-border-strong);
+}
+html[data-theme="dark"] .form-select:hover:not(:disabled) {
+  background-color: var(--ace-surface-raised);
+  border-color: #75bdcc;
+}
+html[data-theme="dark"] .form-select option {
+  color: var(--ace-text-primary);
+  background: var(--ace-surface-input);
+}
