@@ -245,7 +245,7 @@ async function renderAdminSection() {
   const actionButton = document.getElementById('sectionAction'); actionButton.hidden = !view.action;
   if (view.action) actionButton.innerHTML = icon(view.actionIcon) + view.action;
   document.getElementById('sectionStats').innerHTML = view.stats.map(item => '<div class="stat-card"><div class="stat-icon">' + icon(item[2]) + '</div><div class="stat-info"><div class="stat-number">' + esc(item[0]) + '</div><div class="stat-label">' + esc(item[1]) + '</div></div></div>').join('');
-  document.getElementById('sectionTableTitle').textContent = view.title;
+  const tableTitle = document.getElementById('sectionTableTitle'); tableTitle.textContent = view.title;
   document.getElementById('sectionTableHead').innerHTML = '<tr>' + view.columns.map(column => '<th>' + esc(column) + '</th>').join('') + '</tr>';
   const body = document.getElementById('sectionTableBody');
   const draw = records => {
@@ -279,7 +279,7 @@ async function renderAdminSection() {
   };
   draw(view.records);
   const search = document.getElementById('sectionSearch'); const count = document.getElementById('sectionResultCount') || document.createElement('span');
-  count.id = 'sectionResultCount'; count.className = 'result-count'; search.insertAdjacentElement('beforebegin', count);
+  count.id = 'sectionResultCount'; count.className = 'result-count'; tableTitle.append(' ', count);
   const setCount = records => { count.textContent = records.length + ' record' + (records.length === 1 ? '' : 's'); }; setCount(view.records);
   let departmentFilter = null; let roleFilter = null; let employeeFilter = null; let projectFilter = null; let remarksFilter = null;
   if (key === 'users') {
