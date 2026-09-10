@@ -640,6 +640,7 @@ function initializeAppShell() {
     }).join('')}</div></section>`; }).join('');
 
     document.body.classList.add('has-app-shell');
+    document.body.dataset.userRole = isAdmin ? 'admin' : 'employee';
     if (isSharedSettings && isAdmin) {
         const title = document.querySelector('.settings-title');
         const subtitle = document.querySelector('.settings-subtitle');

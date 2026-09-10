@@ -4000,3 +4000,40 @@ html[data-theme="dark"] .user-dashboard .employee-status-panel { background-imag
 
 /* Native form controls otherwise keep browser-specific fonts on some routes. */
 body { font-family: 'Open Sans', Arial, sans-serif; }button, input, select, textarea { font: inherit; }h1, h2, h3, h4, h5, h6, .btn, .dashboard-title, .section-title { font-family: 'Montserrat', Arial, sans-serif; }
+
+/* Employee workspace: make the personal work flow legible at a glance without
+   changing the administrator layout.  The page title, current shift, and the
+   employee's recorded work intentionally step down in that order. */
+body[data-user-role="employee"] .employee-dashboard-intro { margin-bottom: 26px; }
+body[data-user-role="employee"] .employee-dashboard-intro h1 { font-size: clamp(2rem, 3.2vw, 2.65rem); font-weight: 800; }
+body[data-user-role="employee"] .employee-dashboard-intro > div > p:last-child { font-size: .94rem; }
+body[data-user-role="employee"] :is(.employee-eyebrow, .employee-section-kicker, .clock-kicker) { font-size: .7rem; font-weight: 800; letter-spacing: .12em; }
+body[data-user-role="employee"] .employee-status-copy h2 { font-size: clamp(1.65rem, 2.7vw, 2.15rem); font-weight: 800; }
+body[data-user-role="employee"] .employee-status-copy > p:last-child { font-size: .92rem; }
+body[data-user-role="employee"] .employee-session-detail strong { font-size: 1.42rem; }
+body[data-user-role="employee"] .employee-session-facts dt { font-size: .66rem; }
+body[data-user-role="employee"] .employee-session-facts dd { font-size: .92rem; }
+body[data-user-role="employee"] .employee-summary-grid .stat-card { min-height: 112px; padding: 19px; }
+body[data-user-role="employee"] .employee-summary-grid .stat-number { font-size: 1.5rem; font-weight: 800; }
+body[data-user-role="employee"] .employee-summary-grid .stat-label { font-size: .78rem; }
+body[data-user-role="employee"] .employee-section-heading { min-height: 58px; margin-bottom: 16px; }
+body[data-user-role="employee"] .employee-section-heading .section-title { font-size: 1.28rem; font-weight: 800; }
+body[data-user-role="employee"] .employee-section-heading > p { font-size: .79rem; }
+body[data-user-role="employee"] :is(.recent-activity-section, .admin-remarks-section, .projects-section) { padding: 25px; }
+body[data-user-role="employee"] .activity-item { min-height: 54px; font-size: .84rem; }
+body[data-user-role="employee"] .time-entries-title, body[data-user-role="employee"] .admin-section-header h1 { font-size: clamp(1.9rem, 3vw, 2.35rem); font-weight: 800; }
+body[data-user-role="employee"] .time-entries-heading > p:last-child, body[data-user-role="employee"] .admin-section-header p { font-size: .9rem; }
+body[data-user-role="employee"] .filters-title { font-size: 1rem; font-weight: 800; }
+body[data-user-role="employee"] :is(.filter-label, .form-label) { font-size: .76rem; font-weight: 800; }
+body[data-user-role="employee"] .summary-card { min-height: 112px; padding: 19px; }
+body[data-user-role="employee"] .summary-value { font-size: 1.5rem; font-weight: 800; }
+body[data-user-role="employee"] .table-header h2 { font-size: 1.12rem; font-weight: 800; }
+body[data-user-role="employee"] .time-entries-page .table :is(th, td) { font-size: .78rem; }
+body[data-user-role="employee"] .admin-remarks-section { min-height: 190px; }
+body[data-user-role="employee"] .remarks-list .empty-state, body[data-user-role="employee"] .admin-remarks-section > .empty-state { font-size: .92rem; }
+@media (max-width: 760px) {
+  body[data-user-role="employee"] .employee-dashboard-intro h1 { font-size: 1.65rem; }
+  body[data-user-role="employee"] .employee-status-copy h2 { font-size: 1.42rem; }
+  body[data-user-role="employee"] .employee-summary-grid .stat-card, body[data-user-role="employee"] .summary-card { min-height: 96px; padding: 16px; }
+  body[data-user-role="employee"] :is(.recent-activity-section, .admin-remarks-section, .projects-section) { padding: 19px 17px; }
+}
