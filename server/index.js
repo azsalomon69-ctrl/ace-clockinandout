@@ -292,6 +292,14 @@ app.post('/v1/schedules', authenticate, adminOnly, async (req, res, next) => { t
   const item = await query(db.from('work_schedules').insert({ name, schedule_type: scheduleType, start_time: scheduleType === 'FIXED' ? startTime : null, end_time: scheduleType === 'FIXED' ? endTime : null, daily_elapsed_minutes: dailyElapsedMinutes, break_limit_minutes: breakLimitMinutes, created_by_user_id: req.profile.id }).select().single());
   await audit(req, 'CREATE_SCHEDULE', 'SCHEDULE', item.id, `Created ${scheduleType.toLowerCase()} schedule ${name}`); res.status(201).json(item);
 } catch (error) { next(error); } });
+app.delete('/v1/schedules/:id', authenticate, adminOnly, async (req, res, next) => { try {
+  const { count, error } = await db.from('user_schedule_assignments').select('user_id', { count: 'exact', head: true }).eq('schedule_id', req.params.id);
+  if (error) throw error;
+  if (count > 0) return fail(res, 409, `This schedule is assigned to ${count} employee${count === 1 ? '' : 's'}. Unassign them first.`);
+  const schedule = await query(db.from('work_schedules').delete().eq('id', req.params.id).select('id,name').single());
+  await audit(req, 'DELETE_SCHEDULE', 'SCHEDULE', schedule.id, `Deleted schedule ${schedule.name}`);
+  res.json(schedule);
+} catch (error) { next(error); } });
 app.put('/v1/users/:id/schedule', authenticate, adminOnly, async (req, res, next) => { try {
   const scheduleId = optionalUuid(req.body.scheduleId); if (scheduleId === undefined) return fail(res, 400, 'Invalid schedule');
   const employee = await query(db.from('profiles').select('id,full_name,email,role').eq('id', req.params.id).single()); if (employee.role !== 'USER') return fail(res, 400, 'Schedules can only be assigned to employees');

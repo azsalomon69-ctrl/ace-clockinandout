@@ -8,7 +8,17 @@
     const employees = users.filter(user => user.role === 'USER' && user.status === 'ACTIVE');
     document.getElementById('scheduleEmployee').innerHTML = employees.map(user => `<option value="${user.id}">${escapeHtml(user.full_name || user.email)}</option>`).join('');
     document.getElementById('scheduleAssignment').innerHTML = schedules.filter(item => item.is_active).map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('');
-    document.getElementById('scheduleRows').innerHTML = schedules.length ? schedules.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>${item.schedule_type === 'FLEX' ? 'Flextime' : `${escapeHtml(item.start_time?.slice(0,5) || '—')}–${escapeHtml(item.end_time?.slice(0,5) || '—')}`}</td><td>${item.daily_elapsed_minutes / 60}h</td><td>${item.break_limit_minutes}m</td><td>${item.user_schedule_assignments?.length || 0}</td></tr>`).join('') : '<tr><td colspan="5">No schedules yet.</td></tr>';
+    document.getElementById('scheduleRows').innerHTML = schedules.length ? schedules.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>${item.schedule_type === 'FLEX' ? 'Flextime' : `${escapeHtml(item.start_time?.slice(0,5) || '—')}–${escapeHtml(item.end_time?.slice(0,5) || '—')}`}</td><td>${item.daily_elapsed_minutes / 60}h</td><td>${item.break_limit_minutes}m</td><td>${item.user_schedule_assignments?.length || 0}</td><td><button class="btn btn-sm btn-danger delete-schedule" data-id="${item.id}" data-assigned="${item.user_schedule_assignments?.length || 0}" type="button">Delete</button></td></tr>`).join('') : '<tr><td colspan="6">No schedules yet.</td></tr>';
+    document.querySelectorAll('.delete-schedule').forEach(button => button.addEventListener('click', async () => {
+      const assigned = Number(button.dataset.assigned);
+      if (assigned > 0) {
+        await window.ACEUI.confirm({ title: 'Schedule still assigned', message: `This schedule is assigned to ${assigned} employee${assigned === 1 ? '' : 's'}. Unassign them first.`, confirmLabel: 'OK' });
+        return;
+      }
+      if (!await window.ACEUI.confirm({ title: 'Delete schedule?', message: 'Delete this schedule? This cannot be undone.', confirmLabel: 'Delete', danger: true })) return;
+      try { await request(`/v1/schedules/${button.dataset.id}`, { method: 'DELETE' }); toast('Schedule deleted.'); await load(); }
+      catch (error) { toast(error.message || 'Could not delete schedule.', 'error'); }
+    }));
   };
   document.addEventListener('DOMContentLoaded', async () => { try { const me = await request('/v1/me'); if (me.profile.role !== 'ADMIN') return location.replace('user-dashboard.html'); await load(); } catch { location.replace('login.html'); }
     const type = document.getElementById('scheduleType'); const toggle = () => document.querySelectorAll('.fixed-time').forEach(node => node.hidden = type.value === 'FLEX'); type.addEventListener('change', toggle); toggle();
