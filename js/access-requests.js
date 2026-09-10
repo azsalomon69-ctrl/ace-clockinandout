@@ -20,6 +20,10 @@ function reviewRequest(request, decision, role) {
   requestApi('/v1/access-requests/' + request.id, { method: 'PATCH', body: JSON.stringify({ decision, role }) })
     .then(() => { showToast(decision === 'APPROVE' ? 'Access approved.' : 'Access denied.', 'success'); loadAccessRequests(); })
     .catch(error => {
+      if (error.status === 401) {
+        showToast('Your session expired. Redirecting to login.', 'warning');
+        return;
+      }
       if (error.status === 404) {
         showToast('This access request is no longer available.', 'warning');
         loadAccessRequests();

@@ -237,6 +237,11 @@ async function initApp() {
             window.setTimeout(() => openModal('requestAccessModal'), 0);
         }
         initializeUXEnhancements();
+        const loginNotice = sessionStorage.getItem('ace_login_notice');
+        if (loginNotice) {
+            sessionStorage.removeItem('ace_login_notice');
+            window.setTimeout(() => showToast(loginNotice, 'warning'), 0);
+        }
         clearInitialSkeletons();
         return;
     }
