@@ -128,6 +128,28 @@ if (process.env.ACE_TEST_RUN_MUTATIONS === 'true') {
   if (fixtureTimeEntryId) {
     await expectStatus('admin remark allowed', `/v1/time-entries/${fixtureTimeEntryId}/remarks`, 201, { token: admin.token, method: 'POST', body: { remark: 'Automated staging security test.' } });
   }
+
+  // The fixture employee supplies a known department. Compare the persisted
+  // count to all time entries belonging to users in that department, without
+  // adding a user filter that could mask a missing department filter.
+  const users = await expectStatus('admin users for department report fixture', '/v1/users', 200, { token: admin.token });
+  const fixtureUser = users.find(profile => profile.id === fixtureUserId);
+  assert.ok(fixtureUser?.department_id, 'ACE_TEST_USER_ID must belong to an employee assigned to a department.');
+  const dateFrom = '2000-01-01';
+  const dateTo = '2100-12-31';
+  const [activeEntries, removedEntries] = await Promise.all([
+    expectStatus('active time entries for department report fixture', '/v1/time-entries', 200, { token: admin.token }),
+    expectStatus('removed time entries for department report fixture', '/v1/time-entries?removed=true', 200, { token: admin.token })
+  ]);
+  const departmentUserIds = new Set(users.filter(profile => profile.department_id === fixtureUser.department_id).map(profile => profile.id));
+  const expectedCount = [...activeEntries, ...removedEntries].filter(entry => departmentUserIds.has(entry.user_id) && entry.clock_in_at >= `${dateFrom}T00:00:00Z` && entry.clock_in_at <= `${dateTo}T23:59:59Z`).length;
+  const report = await expectStatus('department-filtered report count', '/v1/reports', 201, {
+    token: admin.token,
+    method: 'POST',
+    body: { reportType: 'CUSTOM', dateFrom, dateTo, filters: { departmentId: fixtureUser.department_id } }
+  });
+  assert.equal(report.total_records, expectedCount, 'Department-filtered report total_records must equal matching time-entry count.');
+  await expectStatus('department-filtered report cleanup', `/v1/reports/${report.id}`, 200, { token: admin.token, method: 'DELETE' });
 }
 
 if (process.env.ACE_TEST_HEAD_ADMIN_EMAIL && process.env.ACE_TEST_HEAD_ADMIN_PASSWORD) {

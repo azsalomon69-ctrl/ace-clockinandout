@@ -620,9 +620,13 @@ app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try
   const departmentId = optionalUuid(filters.departmentId);
   if ([projectId, userId, departmentId].includes(undefined)) return fail(res, 400, 'Invalid report filter ID');
   const safeFilters = { ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(departmentId ? { departmentId } : {}) };
-  let entries = db.from('time_entries').select('id', { count: 'exact', head: true }).gte('clock_in_at', `${dateFrom}T00:00:00Z`).lte('clock_in_at', `${dateTo}T23:59:59Z`);
+  let entries = db.from('time_entries').select(
+    departmentId ? 'id, profiles!time_entries_user_id_fkey!inner(department_id)' : 'id',
+    { count: 'exact', head: true }
+  ).gte('clock_in_at', `${dateFrom}T00:00:00Z`).lte('clock_in_at', `${dateTo}T23:59:59Z`);
   if (projectId) entries = entries.eq('project_id', projectId);
   if (userId) entries = entries.eq('user_id', userId);
+  if (departmentId) entries = entries.eq('profiles.department_id', departmentId);
   const { count, error } = await entries;
   if (error) throw error;
   const report = await query(db.from('reports').insert({ created_by_user_id: req.profile.id, report_type: reportType, date_from: dateFrom, date_to: dateTo, filters: safeFilters, total_records: count || 0 }).select().single());
