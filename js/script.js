@@ -2166,8 +2166,8 @@ function renderAdminAnalytics(days = 7) {
 
 function loadAdminDashboard() {
     // Update stats
-    const totalUsers = document.getElementById('totalUsers');
-    if (totalUsers) totalUsers.textContent = AppState.users.length;
+    const clockedInUsers = document.getElementById('clockedInUsers');
+    if (clockedInUsers) clockedInUsers.textContent = employeeTimeEntries().filter(entry => !entry.ClockOutAt).length;
     
     updateOnlineUserCount();
     startOnlineUserCountRefresh();
@@ -2178,9 +2178,6 @@ function loadAdminDashboard() {
         todayEntries.textContent = employeeTimeEntries().filter(te => new Date(te.ClockInAt).toDateString() === today).length;
     }
     
-    const pendingApprovals = document.getElementById('pendingApprovals');
-    if (pendingApprovals) pendingApprovals.textContent = AppState.users.filter(u => u.Status === 'PENDING').length;
-
     renderAdminAnalytics(Number(document.getElementById('dashboardRange')?.value || 7));
     
     // Populate recent time entries

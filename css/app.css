@@ -1580,8 +1580,7 @@ html[data-theme="dark"] .time-leaderboard-avatar { color: #bceef3; background: v
 /* Keep the dashboard analytics concise so team progress remains above the fold. */
 @media (min-width: 901px) {
   .admin-dashboard .analytics-grid { grid-template-columns: minmax(290px,.78fr) minmax(0,1.72fr); }
-  .admin-dashboard .time-leaderboard-card { grid-column: 1; grid-row: 1; }
-  .admin-dashboard .team-activity-card { grid-column: 1; grid-row: 2; }
+  .admin-dashboard .time-leaderboard-card { grid-column: 1; grid-row: 1 / span 2; }
   .admin-dashboard .hours-trend-card { grid-column: 2; grid-row: 1; }
   .admin-dashboard .project-allocation-card { grid-column: 2; grid-row: 2; }
   .admin-dashboard .hours-chart { height: 178px; padding-top: 12px; }
@@ -1589,7 +1588,7 @@ html[data-theme="dark"] .time-leaderboard-avatar { color: #bceef3; background: v
   .admin-dashboard .project-allocation-card { min-height: 186px; }
   .admin-dashboard .project-allocation-card .analytics-card-header { min-height: 42px; }
   .admin-dashboard .project-allocation { gap: 10px; }
-  .admin-dashboard .time-leaderboard-card { min-height: 186px; padding: 18px; }
+  .admin-dashboard .time-leaderboard-card { min-height: 490px; padding: 18px; }
   .admin-dashboard .time-leaderboard-card .analytics-card-header { min-height: 34px; }
   .admin-dashboard .time-leaderboard-card .analytics-card-header strong { font-size: 1.05rem; }
   .admin-dashboard .time-leaderboard-row { grid-template-columns: 20px 30px minmax(0,1fr) auto; min-height: 29px; gap: 7px; padding: 4px 5px; border-radius: 8px; }
@@ -3955,6 +3954,7 @@ html[data-theme="dark"] :is(.employee-profile-header,.employee-profile-stats art
 
 /* Keep the shared top bar above the final responsive shell overrides. */
 .has-app-shell .main-content { padding-top: 98px; }
+.admin-dashboard .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 1180px) {
   .shell-topbar, .shell-collapsed .shell-topbar { left: 0; padding-left: 82px; }
   .has-app-shell .main-content, .has-app-shell.shell-collapsed .main-content { padding-top: 82px; }
@@ -3962,4 +3962,5 @@ html[data-theme="dark"] :is(.employee-profile-header,.employee-profile-stats art
 @media (max-width: 640px) {
   .shell-topbar, .shell-collapsed .shell-topbar { min-height: 62px; gap: 8px; padding: 9px 12px 9px 74px; }
   .has-app-shell .main-content, .has-app-shell.shell-collapsed .main-content { padding-top: 76px; }
+  .admin-dashboard .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
