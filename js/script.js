@@ -464,6 +464,7 @@ function initializeEmployeeChat() {
             people.forEach(person => unreadByContact.set(person.id, person.unread_count || 0));
             contactsLoaded = true;
             badge.hidden = !totalUnread; badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
+            window.dispatchEvent(new CustomEvent('ace:chat-unread', { detail: { totalUnread } }));
             allContacts = people.filter(person => !employeeChat || person.role === 'ADMIN');
             const selectedContact = people.find(person => person.id === selectedId);
             if (selectedContact) { selectedOnline = Boolean(selectedContact.last_seen_at && Date.now() - new Date(selectedContact.last_seen_at).getTime() < 2 * 60 * 1000); selectedPictureUrl = selectedContact.profile_picture_url || ''; }
@@ -487,7 +488,7 @@ function initializeAppShell() {
     // Vercel cleanUrls removes .html while the local static server preserves it.
     // Normalize both forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -542,7 +543,10 @@ function initializeAppShell() {
     const mobileToggle = document.createElement('button');
     mobileToggle.className = 'shell-mobile-toggle'; mobileToggle.type = 'button'; mobileToggle.setAttribute('aria-label', 'Open navigation'); mobileToggle.setAttribute('aria-expanded', 'false');
     mobileToggle.innerHTML = suppliedIconMarkup('menu', 'shell-icon');
-    document.body.prepend(overlay); document.body.prepend(sidebar); document.body.prepend(mobileToggle);
+    const topbar = document.createElement('header');
+    topbar.className = 'shell-topbar';
+    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch">${suppliedIconMarkup('search', 'shell-icon')}<span class="sr-only">Search</span><input id="shellGlobalSearch" type="search" autocomplete="off" placeholder="${isAdmin ? 'Search employees, projects…' : 'Search projects…'}"></label><div class="shell-global-results" role="listbox" hidden></div></div><div class="shell-topbar-actions"><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">Profile &amp; settings</a><button type="button" role="menuitem" data-topbar-logout>Sign out</button></div></div></div>`;
+    document.body.prepend(overlay); document.body.prepend(sidebar); document.body.prepend(topbar); document.body.prepend(mobileToggle);
 
     const setCollapsed = collapsed => {
         document.body.classList.toggle('shell-collapsed', collapsed);
@@ -568,8 +572,66 @@ function initializeAppShell() {
     };
     accountButton.addEventListener('click', () => setAccountMenu(accountMenu.hidden));
     sidebar.querySelector('[data-account-logout]').addEventListener('click', handleLogout);
+    topbar.querySelector('[data-topbar-logout]').addEventListener('click', handleLogout);
+
+    const topbarAccountButton = topbar.querySelector('.shell-topbar-user-button');
+    const topbarAccountMenu = topbar.querySelector('.shell-topbar-account-menu');
+    const notificationButton = topbar.querySelector('.shell-topbar-icon-button');
+    const notificationMenu = topbar.querySelector('.shell-notification-menu');
+    const notificationBadge = topbar.querySelector('.shell-topbar-badge');
+    let unreadMessages = 0;
+    const setTopbarMenu = (button, menu, open) => {
+        button.setAttribute('aria-expanded', String(open));
+        menu.hidden = !open;
+    };
+    const renderNotifications = () => {
+        const unreadRemarksCount = isAdmin ? 0 : AppState.adminRemarks.filter(remark => !remark.SeenAt).length;
+        const total = unreadMessages + unreadRemarksCount;
+        notificationBadge.hidden = !total;
+        notificationBadge.textContent = total > 99 ? '99+' : total;
+        const notices = [];
+        if (unreadMessages) notices.push(`<button type="button" role="menuitem" data-open-chat><strong>${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'}</strong><span>Open team chat</span></button>`);
+        if (unreadRemarksCount) notices.push(`<a href="remarks.html" role="menuitem"><strong>${unreadRemarksCount} new remark${unreadRemarksCount === 1 ? '' : 's'}</strong><span>Review administrator feedback</span></a>`);
+        notificationMenu.innerHTML = `<p class="shell-topbar-menu-title">Notifications</p>${notices.length ? notices.join('') : '<p class="shell-topbar-empty">You’re all caught up.</p>'}`;
+        notificationMenu.querySelector('[data-open-chat]')?.addEventListener('click', () => {
+            setTopbarMenu(notificationButton, notificationMenu, false);
+            document.querySelector('.employee-chat-launcher')?.click();
+        });
+    };
+    renderNotifications();
+    window.addEventListener('ace:chat-unread', event => {
+        unreadMessages = Number(event.detail?.totalUnread) || 0;
+        renderNotifications();
+    });
+    topbarAccountButton.addEventListener('click', () => {
+        setTopbarMenu(notificationButton, notificationMenu, false);
+        setTopbarMenu(topbarAccountButton, topbarAccountMenu, topbarAccountMenu.hidden);
+    });
+    notificationButton.addEventListener('click', () => {
+        setTopbarMenu(topbarAccountButton, topbarAccountMenu, false);
+        setTopbarMenu(notificationButton, notificationMenu, notificationMenu.hidden);
+    });
+
+    const searchInput = topbar.querySelector('#shellGlobalSearch');
+    const searchResults = topbar.querySelector('.shell-global-results');
+    const renderSearchResults = () => {
+        const query = searchInput.value.trim().toLowerCase();
+        if (!query) { searchResults.hidden = true; searchResults.innerHTML = ''; return; }
+        const results = [];
+        if (isAdmin) AppState.users.filter(person => `${person.FullName || ''} ${person.Email || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(person => results.push({ label: person.FullName || person.Email, detail: person.Role === 'ADMIN' ? 'Administrator' : 'Employee', href: person.Role === 'USER' ? `employee-profile.html?user=${encodeURIComponent(person.UserId)}` : 'users.html', picture: person.ProfilePictureUrl }));
+        AppState.projects.filter(project => project.IsActive !== false && `${project.ProjectName || ''} ${project.Description || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(project => results.push({ label: project.ProjectName, detail: 'Project', href: isAdmin ? 'projects.html' : 'time-entries.html' }));
+        searchResults.innerHTML = results.length ? results.slice(0, 6).map(result => `<a href="${result.href}" role="option"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : escapeHtml(result.label.slice(0, 1).toUpperCase())}</span><span><strong>${escapeHtml(result.label)}</strong><small>${escapeHtml(result.detail)}</small></span></a>`).join('') : '<p class="shell-topbar-empty">No matching people or projects.</p>';
+        searchResults.hidden = false;
+    };
+    searchInput.addEventListener('input', renderSearchResults);
+    searchInput.addEventListener('keydown', event => { if (event.key === 'Escape') { searchInput.value = ''; renderSearchResults(); searchInput.blur(); } });
     document.addEventListener('click', event => {
         if (!sidebar.contains(event.target)) setAccountMenu(false);
+        if (!topbar.contains(event.target)) {
+            setTopbarMenu(topbarAccountButton, topbarAccountMenu, false);
+            setTopbarMenu(notificationButton, notificationMenu, false);
+            searchResults.hidden = true;
+        }
     });
     return true;
 }
