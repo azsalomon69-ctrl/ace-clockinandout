@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const server = await readFile(path.join(root, 'server', 'index.js'), 'utf8');
+const frontendScript = await readFile(path.join(root, 'js', 'script.js'), 'utf8');
 const vercel = JSON.parse(await readFile(path.join(root, 'vercel.json'), 'utf8'));
+const htmlPages = await Promise.all((await readdir(root))
+  .filter(file => file.endsWith('.html'))
+  .map(file => readFile(path.join(root, file), 'utf8')));
 
 const requiredAdminRoutes = [
   '/v1/users', '/v1/invitations', '/v1/reports', '/v1/audit-logs',
@@ -28,5 +32,11 @@ assert.match(header('Content-Security-Policy'), /frame-ancestors 'none'/, 'Front
 assert.equal(header('X-Frame-Options'), 'DENY', 'Legacy clickjacking protection must remain enabled');
 assert.equal(header('X-Content-Type-Options'), 'nosniff', 'MIME sniffing must remain disabled');
 assert.match(header('Strict-Transport-Security'), /max-age=/, 'HTTPS transport policy must remain enabled');
+assert.doesNotMatch(header('Content-Security-Policy'), /cdn\.jsdelivr\.net/, 'The frontend must not permit jsDelivr scripts at runtime');
+assert.doesNotMatch(frontendScript, /cdn\.jsdelivr\.net\/npm\/xlsx/, 'Excel exports must not load XLSX from jsDelivr at runtime');
+for (const html of htmlPages) {
+  assert.doesNotMatch(html, /cdn\.jsdelivr\.net/, 'HTML pages must not load scripts from jsDelivr');
+  assert.doesNotMatch(html, /@supabase\/supabase-js@2/, 'HTML pages must use the local Supabase UMD bundle');
+}
 
 console.log('Security regression checks passed.');

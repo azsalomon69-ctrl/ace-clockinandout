@@ -86,6 +86,10 @@ Do not commit `.env` or Supabase secret keys.
 4. Deploy. The production build minifies HTML, CSS, and JavaScript; uses hashed frontend asset filenames; and deliberately creates no source maps.
 5. Add the deployed Vercel URL to Render's `FRONTEND_ORIGIN` and Supabase Auth redirect URLs.
 
+## Local browser dependencies
+
+The production build bundles the exact Supabase UMD dependency (`@supabase/supabase-js` `2.112.4`) and Excel export dependency (`xlsx` `0.18.5`) as hashed `/assets/js/` files. Browser authentication and Excel exports therefore do not depend on jsDelivr or another third-party runtime script host.
+
 ## API routes
 
 All `/v1/*` routes require a Supabase user access token in `Authorization: Bearer <token>`.

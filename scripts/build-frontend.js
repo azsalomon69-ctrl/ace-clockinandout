@@ -26,6 +26,14 @@ async function buildScripts() {
   const destination = path.join(dist, 'assets', 'js');
   await mkdir(destination, { recursive: true });
   const sourceDirectory = path.join(root, 'js');
+  const supabaseSource = await readFile(path.join(root, 'node_modules', '@supabase', 'supabase-js', 'dist', 'umd', 'supabase.js'), 'utf8');
+  const supabaseTarget = `assets/js/${sourceHash(supabaseSource)}.js`;
+  await writeFile(path.join(dist, supabaseTarget), supabaseSource);
+  output.set('js/supabase.js', supabaseTarget);
+  const xlsxSource = await readFile(path.join(root, 'node_modules', 'xlsx', 'dist', 'xlsx.full.min.js'), 'utf8');
+  const xlsxTarget = `assets/js/${sourceHash(xlsxSource)}.js`;
+  await writeFile(path.join(dist, xlsxTarget), xlsxSource);
+  output.set('js/xlsx.js', xlsxTarget);
   // These two files only attach configuration/helpers to window and do not
   // execute page logic, so combining them preserves their current behavior
   // while reducing the number of deployed readable entry points.
@@ -85,8 +93,13 @@ async function buildPages(assetMap) {
       const target = assetMap.get(normalized);
       return target ? `${attribute}=${quote}${target}${quote}` : match;
     });
+    const xlsxTarget = assetMap.get('js/xlsx.js');
+    const appScriptTarget = assetMap.get('js/script.js');
+    const withXlsxBundle = source.includes('js/script.js')
+      ? withProductionAssets.replace(`<script src="${appScriptTarget}"></script>`, `<script src="${xlsxTarget}"></script><script src="${appScriptTarget}"></script>`)
+      : withProductionAssets;
     const emittedScripts = new Set();
-    const deduplicatedScripts = withProductionAssets.replace(/<script\b([^>]*)\bsrc=(['"])([^'"]+)\2([^>]*)><\/script>/gi, (tag, before, quote, sourcePath, after) => {
+    const deduplicatedScripts = withXlsxBundle.replace(/<script\b([^>]*)\bsrc=(['"])([^'"]+)\2([^>]*)><\/script>/gi, (tag, before, quote, sourcePath, after) => {
       if (!sourcePath.startsWith('assets/js/') || !emittedScripts.has(sourcePath)) {
         emittedScripts.add(sourcePath);
         return tag;

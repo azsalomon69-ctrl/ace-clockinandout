@@ -2873,19 +2873,9 @@ async function deleteReport(reportId) {
     }
 }
 
-let excelLibraryPromise;
 function loadExcelLibrary() {
     if (window.XLSX) return Promise.resolve(window.XLSX);
-    if (excelLibraryPromise) return excelLibraryPromise;
-    excelLibraryPromise = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-        script.async = true;
-        script.onload = () => window.XLSX ? resolve(window.XLSX) : reject(new Error('Excel export library did not load.'));
-        script.onerror = () => reject(new Error('Could not load the Excel export library. Check your connection and try again.'));
-        document.head.appendChild(script);
-    });
-    return excelLibraryPromise;
+    return Promise.reject(new Error('Excel export library did not load.'));
 }
 function reportWorkbookData(report) {
     const entries = filterEntriesForReport(report);
