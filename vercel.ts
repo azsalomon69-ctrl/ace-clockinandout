@@ -10,7 +10,7 @@ try {
   throw new Error('ACE_API_URL or ACE_API_URL_FALLBACK must be a valid HTTP(S) URL.');
 }
 
-export default {
+export const config = {
   outputDirectory: 'dist',
   cleanUrls: true,
   headers: [
