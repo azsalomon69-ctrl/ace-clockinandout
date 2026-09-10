@@ -66,6 +66,7 @@ function status(value) {
 function action(label, index, key, record) {
   if (key === 'audit') return '<span class="record-reference">' + esc(label) + '</span>';
   if (key === 'entries') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-edit-entry-time" type="button" data-row="' + index + '">' + icon('timer') + 'Correct time</button><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Add remark</button><button class="btn btn-sm btn-danger admin-delete-entry" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
+  if (key === 'departments' || key === 'projects') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Edit</button><button class="btn btn-sm btn-danger admin-delete-section" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button></div>';
   const iconName = /remove/i.test(label) ? 'trash' : /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
   const style = /remove/i.test(label) ? 'btn-danger' : 'btn-outline';
   const canViewEmployee = key === 'users' && record?.cells?.[2] === 'Employee';
@@ -269,6 +270,12 @@ async function renderAdminSection() {
       } catch (error) {
         showToast(error.message || 'Could not delete this time entry.', 'error');
       }
+    }));
+    body.querySelectorAll('.admin-delete-section').forEach(button => button.addEventListener('click', async () => {
+      const record = records[Number(button.dataset.row)];
+      if (!record || !await window.ACEUI.confirm({ title: `Delete ${key.slice(0, -1)}?`, message: `Delete ${record.cells[0]}? This cannot be undone.`, confirmLabel: 'Delete', danger: true })) return;
+      try { await liveRequest('/v1/' + key + '/' + record.id, { method: 'DELETE' }); closeModal('adminActionModal'); showToast(`${key.slice(0, -1)} deleted.`, 'success'); window.setTimeout(() => window.location.reload(), 350); }
+      catch (error) { showToast(error.message || `Could not delete ${key.slice(0, -1)}.`, 'error'); }
     }));
     body.querySelectorAll('.admin-mobile-details-toggle').forEach(button => button.addEventListener('click', () => {
       const row = button.closest('.admin-collapsible-row');
