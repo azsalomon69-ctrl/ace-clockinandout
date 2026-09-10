@@ -37,8 +37,8 @@ create or replace function public.create_profile_for_auth_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare invitation_id uuid; invitation_role public.user_role; invitation_department_id uuid;
 begin
-  insert into public.profiles (id, email, full_name, role, status)
-  values (new.id, new.email, coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name', ''), 'USER'::public.user_role, 'PENDING'::public.user_status)
+  insert into public.profiles (id, email, full_name, profile_picture_url, role, status)
+  values (new.id, new.email, coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name', ''), coalesce(new.raw_user_meta_data ->> 'avatar_url', new.raw_user_meta_data ->> 'picture'), 'USER'::public.user_role, 'PENDING'::public.user_status)
   on conflict (id) do nothing;
   begin
     select id, role, department_id into invitation_id, invitation_role, invitation_department_id
@@ -46,7 +46,7 @@ begin
     where lower(email) = lower(new.email) and status = 'PENDING' and expires_at > now()
     order by invited_at desc limit 1;
     if invitation_id is not null then
-      update public.profiles set role = invitation_role, status = 'ACTIVE'::public.user_status, department_id = invitation_department_id, profile_picture_url = new.raw_user_meta_data ->> 'avatar_url' where id = new.id;
+      update public.profiles set role = invitation_role, status = 'ACTIVE'::public.user_status, department_id = invitation_department_id, profile_picture_url = coalesce(profile_picture_url, new.raw_user_meta_data ->> 'avatar_url', new.raw_user_meta_data ->> 'picture') where id = new.id;
       update public.invitations set status = 'ACCEPTED', accepted_at = now() where id = invitation_id;
     end if;
   exception when others then

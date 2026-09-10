@@ -45,11 +45,12 @@ begin
   -- Always create the base profile first. An invitation lookup must never
   -- prevent Auth from saving a newly created Google user.
   insert into public.profiles (
-    id, email, full_name, role, status
+    id, email, full_name, profile_picture_url, role, status
   ) values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name', ''),
+    coalesce(new.raw_user_meta_data ->> 'avatar_url', new.raw_user_meta_data ->> 'picture'),
     'USER'::public.user_role,
     'PENDING'::public.user_status
   ) on conflict (id) do nothing;
@@ -69,7 +70,7 @@ begin
       set role = invitation_role,
           status = 'ACTIVE'::public.user_status,
           department_id = invitation_department_id,
-          profile_picture_url = new.raw_user_meta_data ->> 'avatar_url'
+          profile_picture_url = coalesce(profile_picture_url, new.raw_user_meta_data ->> 'avatar_url', new.raw_user_meta_data ->> 'picture')
       where id = new.id;
 
       update public.invitations

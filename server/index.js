@@ -308,7 +308,22 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   let request = db.from('profiles').select('*, departments(name)').order('created_at', { ascending: false });
   request = req.query.removed === 'true' ? request.eq('status', 'DENIED') : request.neq('status', 'DENIED');
   request = request.is('permanently_deleted_at', null);
-  res.json(await query(request));
+  const [profiles, authResult] = await Promise.all([
+    query(request),
+    db.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  ]);
+  if (authResult.error) throw authResult.error;
+  // Older Google profiles may predate avatar persistence. Use their trusted
+  // Supabase Auth metadata as a read-time fallback without overwriting an
+  // employee's own uploaded profile picture.
+  const googleAvatarById = new Map(authResult.data.users.map(user => [
+    user.id,
+    user.user_metadata?.avatar_url || user.user_metadata?.picture || null
+  ]));
+  res.json(profiles.map(profile => ({
+    ...profile,
+    profile_picture_url: profile.profile_picture_url || googleAvatarById.get(profile.id) || null
+  })));
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
   let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
