@@ -1579,7 +1579,7 @@ html[data-theme="dark"] .time-leaderboard-avatar { color: #bceef3; background: v
 
 /* Keep the dashboard analytics concise so team progress remains above the fold. */
 @media (min-width: 901px) {
-  .admin-dashboard .analytics-grid { grid-template-columns: minmax(290px,.78fr) minmax(0,1.72fr); }
+  .admin-dashboard .analytics-grid { grid-template-columns: minmax(350px,.9fr) minmax(0,1.6fr); }
   .admin-dashboard .time-leaderboard-card { grid-column: 1; grid-row: 1 / span 2; }
   .admin-dashboard .hours-trend-card { grid-column: 2; grid-row: 1; }
   .admin-dashboard .project-allocation-card { grid-column: 2; grid-row: 2; }
@@ -1591,10 +1591,10 @@ html[data-theme="dark"] .time-leaderboard-avatar { color: #bceef3; background: v
   .admin-dashboard .time-leaderboard-card { min-height: 490px; padding: 18px; }
   .admin-dashboard .time-leaderboard-card .analytics-card-header { min-height: 34px; }
   .admin-dashboard .time-leaderboard-card .analytics-card-header strong { font-size: 1.05rem; }
-  .admin-dashboard .time-leaderboard-row { grid-template-columns: 20px 30px minmax(0,1fr) auto; min-height: 29px; gap: 7px; padding: 4px 5px; border-radius: 8px; }
-  .admin-dashboard .time-leaderboard-avatar { width: 28px; height: 28px; font-size: .6rem; }
-  .admin-dashboard .time-leaderboard-row strong, .admin-dashboard .time-leaderboard-row > span:last-child { font-size: .66rem; }
-  .admin-dashboard .time-leaderboard-row strong small { font-size: .56rem; }
+  .admin-dashboard .time-leaderboard-row { grid-template-columns: 22px 34px minmax(0,1fr) auto; min-height: 36px; gap: 8px; padding: 5px 7px; border-radius: 8px; }
+  .admin-dashboard .time-leaderboard-avatar { width: 32px; height: 32px; font-size: .62rem; }
+  .admin-dashboard .time-leaderboard-row strong, .admin-dashboard .time-leaderboard-row > span:last-child { font-size: .69rem; }
+  .admin-dashboard .time-leaderboard-row strong small { font-size: .58rem; }
 }
 .shell-user { min-width: 0; display: flex; flex-direction: column; }
 .shell-user strong { overflow: hidden; text-overflow: ellipsis; color: var(--ace-ink); font-size: .82rem; white-space: nowrap; }

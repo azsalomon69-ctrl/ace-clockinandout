@@ -1824,7 +1824,7 @@ async function loadTimeLeaderboard(listId, rankId) {
     if (!list || !window.ACEAuth) return;
     try {
         const data = await window.ACEAuth.request('/v1/time-leaderboard');
-        if (rank) rank.textContent = AppState.currentUser?.Role === 'ADMIN' ? 'Top five by completed worked time.' : `Your team rank: #${data.my_rank} of ${data.total_people}`;
+        if (rank) rank.textContent = AppState.currentUser?.Role === 'ADMIN' ? 'Top ten by completed worked time.' : `Your team rank: #${data.my_rank} of ${data.total_people}`;
         list.innerHTML = data.leaders.length ? data.leaders.map((person, index) => {
             const initials = (person.full_name || '?').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
             const isMe = person.id === AppState.currentUser?.UserId;
@@ -2027,8 +2027,7 @@ async function generateAdminAnalyticsReport(exportFormat = 'PDF') {
 function renderAdminAnalytics(days = 7) {
     const hoursChart = document.getElementById('hoursChart');
     const projectChart = document.getElementById('projectAllocationChart');
-    const teamChart = document.getElementById('teamActivityChart');
-    if (!hoursChart || !projectChart || !teamChart) return;
+    if (!hoursChart || !projectChart) return;
     initializeAnalyticsRangePicker();
 
     const projectFilter = document.getElementById('analyticsProject');
@@ -2127,16 +2126,6 @@ function renderAdminAnalytics(days = 7) {
         const detail = `${name}: ${formatDuration(seconds)} tracked (${share}% of selected time)`;
         return `<div class="allocation-row analytics-tooltip" tabindex="0" role="listitem" aria-label="${escapeHtml(detail)}" data-tooltip="${escapeHtml(detail)}"><span class="allocation-name">${escapeHtml(name)}</span><div class="allocation-track" aria-hidden="true"><div class="allocation-fill" style="width:${Math.max(4, Math.round(seconds / largestProject * 100))}%"></div></div><span class="allocation-hours">${formatDuration(seconds)}</span></div>`;
     }).join('') : '<div class="analytics-empty">No tracked project hours in this period.</div>';
-
-    const activeTeam = AppState.users.filter(user => user.Role === 'USER' && user.Status === 'ACTIVE' && (!selectedDepartmentId || Number(user.DepartmentId) === selectedDepartmentId) && (!selectedEmployeeId || Number(user.UserId) === selectedEmployeeId));
-    const clockedInIds = new Set(employeeTimeEntries().filter(entry => !entry.ClockOutAt).map(entry => entry.UserId));
-    const clockedIn = activeTeam.filter(user => clockedInIds.has(user.UserId)).length;
-    const available = Math.max(activeTeam.length - clockedIn, 0);
-    const pending = AppState.users.filter(user => user.Role === 'USER' && user.Status === 'PENDING').length;
-    const circumference = 2 * Math.PI * 48;
-    const ratio = activeTeam.length ? clockedIn / activeTeam.length : 0;
-    const teamDetail = `${clockedIn} of ${activeTeam.length} active employees are clocked in (${Math.round(ratio * 100)}%).`;
-    teamChart.innerHTML = `<div class="team-ring analytics-tooltip" tabindex="0" role="img" aria-label="${teamDetail}" data-tooltip="${teamDetail}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="team-ring-track" cx="60" cy="60" r="48"></circle><circle class="team-ring-value" cx="60" cy="60" r="48" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference * (1 - ratio)}"></circle></svg><div class="team-ring-label"><strong>${clockedIn}</strong><span>clocked in</span></div></div><div class="team-status-list"><div class="team-status-row"><span class="team-status-name"><i class="team-status-dot"></i>Clocked in</span><strong>${clockedIn}</strong></div><div class="team-status-row"><span class="team-status-name"><i class="team-status-dot is-muted"></i>Available</span><strong>${available}</strong></div><div class="team-status-row"><span class="team-status-name"><i class="team-status-dot is-muted"></i>Pending approval</span><strong>${pending}</strong></div></div>`;
 
     const range = document.getElementById('dashboardRange');
     if (range && !range.dataset.bound) {

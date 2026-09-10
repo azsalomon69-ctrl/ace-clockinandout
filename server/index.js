@@ -500,7 +500,7 @@ app.get('/v1/time-leaderboard', authenticate, adminOnly, async (req, res, next) 
   ]);
   const totals = entries.reduce((result, entry) => ({ ...result, [entry.user_id]: (result[entry.user_id] || 0) + Number(entry.duration_seconds || 0) }), {});
   const ranked = people.map(person => ({ ...person, tracked_seconds: totals[person.id] || 0 })).sort((a, b) => b.tracked_seconds - a.tracked_seconds || a.full_name.localeCompare(b.full_name));
-  res.json({ leaders: ranked.slice(0, 5), my_rank: Math.max(1, ranked.findIndex(person => person.id === req.profile.id) + 1), total_people: ranked.length });
+  res.json({ leaders: ranked.slice(0, 10), my_rank: Math.max(1, ranked.findIndex(person => person.id === req.profile.id) + 1), total_people: ranked.length });
 } catch (error) { next(error); } });
 app.get('/v1/admin-remarks', authenticate, activeOnly, async (req, res, next) => { try {
   let visibleEntryIds = null;
