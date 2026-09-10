@@ -537,7 +537,26 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
   if (note === undefined) return fail(res, 400, 'Clock-in note must be text up to 50 characters');
   const open = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('clock_out_at', null).maybeSingle());
   if (open) return fail(res, 409, 'You already have an active time entry');
-  const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: projectId, user_note: note }).select().single());
+  const assignment = await query(db.from('user_schedule_assignments').select('work_schedules(id,schedule_type,start_time,end_time,daily_elapsed_minutes,break_limit_minutes)').eq('user_id', req.profile.id).maybeSingle());
+  const schedule = assignment?.work_schedules;
+  // Schedule time values are Asia/Manila wall-clock values by policy; copy
+  // them as-is so later schedule edits cannot change this entry's snapshot.
+  const scheduleSnapshot = schedule ? {
+    schedule_id: schedule.id,
+    schedule_type: schedule.schedule_type,
+    scheduled_start_time: schedule.start_time,
+    scheduled_end_time: schedule.end_time,
+    target_seconds: schedule.daily_elapsed_minutes * 60,
+    break_limit_seconds: schedule.break_limit_minutes * 60
+  } : {
+    schedule_id: null,
+    schedule_type: null,
+    scheduled_start_time: null,
+    scheduled_end_time: null,
+    target_seconds: null,
+    break_limit_seconds: null
+  };
+  const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: projectId, user_note: note, ...scheduleSnapshot }).select().single());
   const device = clockingDevice(req);
   await audit(req, `CLOCK_IN (${device})`, 'TIME_ENTRY', entry.id, `Started a time entry from ${device}`);
   res.status(201).json(entry);
