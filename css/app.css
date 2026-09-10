@@ -3952,15 +3952,16 @@ html[data-theme="dark"] :is(.employee-profile-header,.employee-profile-stats art
   body[data-admin-view="users"] .admin-section-page .table tr.admin-collapsible-row.is-expanded .admin-mobile-details-toggle { display: none; }
 }
 
-/* Keep the shared top bar above the final responsive shell overrides. */
-.has-app-shell .main-content { padding-top: 98px; }
+/* Every authenticated page reserves space for the persistent top bar. This
+   intentionally wins over individual dashboard/page layout refinements. */
+.has-app-shell .main-content { padding-top: calc(64px + clamp(26px, 3vw, 44px)) !important; }
 .admin-dashboard .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 1180px) {
   .shell-topbar, .shell-collapsed .shell-topbar { left: 0; padding-left: 82px; }
-  .has-app-shell .main-content, .has-app-shell.shell-collapsed .main-content { padding-top: 82px; }
+  .has-app-shell .main-content, .has-app-shell.shell-collapsed .main-content { padding-top: 82px !important; }
 }
 @media (max-width: 640px) {
   .shell-topbar, .shell-collapsed .shell-topbar { min-height: 62px; gap: 8px; padding: 9px 12px 9px 74px; }
-  .has-app-shell .main-content, .has-app-shell.shell-collapsed .main-content { padding-top: 76px; }
+  .has-app-shell .main-content, .has-app-shell.shell-collapsed .main-content { padding-top: 76px !important; }
   .admin-dashboard .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
