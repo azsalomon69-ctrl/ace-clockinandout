@@ -4085,3 +4085,8 @@ html[data-theme="dark"] :is(.time-entry-detail-header h1,.time-entry-detail-grid
 .employee-chat-actions .employee-chat-message-time { margin-right: 2px; }
 .employee-chat-message-meta { margin-top: 4px; padding: 0 4px; color: var(--ace-muted); line-height: 1; }
 html[data-theme="dark"] .employee-chat-message-time, html[data-theme="dark"] .employee-chat-message-meta { color: var(--ace-text-tertiary); }
+
+/* Employee names are a direct, visible path to the employee profile. */
+.admin-employee-profile-link { color: var(--ace-ink); font-weight: 800; text-decoration: none; }
+.admin-employee-profile-link:hover, .admin-employee-profile-link:focus-visible { color: var(--ace-cyan-dark); text-decoration: underline; text-underline-offset: 3px; }
+html[data-theme="dark"] .admin-employee-profile-link { color: var(--ace-text-primary); }

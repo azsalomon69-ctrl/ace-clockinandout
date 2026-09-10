@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!selected.length) return showToast('Choose an employee from the search list or clear it to generate all employee reports.', 'warning');
     const label = new Date(`${month.value}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     document.getElementById('individualReportCount').textContent = `${selected.length} report${selected.length === 1 ? '' : 's'}`;
-    rows.innerHTML = selected.map((employee, index) => `<tr><td>${escapeHtml(employeeName(employee))}</td><td>${label}</td><td><button class="btn btn-sm btn-outline" data-format="VIEW" data-row="${index}">View PDF</button><button class="btn btn-sm btn-primary" data-format="PDF" data-row="${index}">Save PDF</button><button class="btn btn-sm btn-outline" data-format="XLSX" data-row="${index}">Save Excel</button></td></tr>`).join('');
+    rows.innerHTML = selected.map((employee, index) => `<tr><td><a class="admin-employee-profile-link" href="employee-profile.html?user=${encodeURIComponent(employee.id)}">${escapeHtml(employeeName(employee))}</a></td><td>${label}</td><td><button class="btn btn-sm btn-outline" data-format="VIEW" data-row="${index}">View PDF</button><button class="btn btn-sm btn-primary" data-format="PDF" data-row="${index}">Save PDF</button><button class="btn btn-sm btn-outline" data-format="XLSX" data-row="${index}">Save Excel</button></td></tr>`).join('');
     rows.querySelectorAll('[data-format]').forEach(button => button.addEventListener('click', () => run(selected[Number(button.dataset.row)], button.dataset.format)));
     showToast(`${selected.length} individual report${selected.length === 1 ? '' : 's'} ready.`, 'success');
   });

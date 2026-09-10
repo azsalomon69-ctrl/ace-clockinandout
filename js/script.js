@@ -2376,10 +2376,12 @@ function loadAdminDashboard() {
             const clockOut = entry.ClockOutAt ? new Date(entry.ClockOutAt) : null;
             const duration = entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active';
             const remarks = AppState.adminRemarks.filter(remark => remark.TimeEntryId === entry.TimeEntryId);
+            const userName = escapeHtml(user?.FullName || 'Unknown');
+            const userLabel = user?.Role === 'USER' ? `<a class="admin-employee-profile-link" href="employee-profile.html?user=${encodeURIComponent(entry.UserId)}">${userName}</a>` : `<strong>${userName}</strong>`;
             
             return `
                 <tr class="admin-recent-entry-row">
-                    <td><span class="admin-entry-user"><span class="admin-entry-avatar">${user?.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml((user?.FullName || 'Unknown').trim().slice(0, 1).toUpperCase())}</span><strong>${escapeHtml(user?.FullName || 'Unknown')}</strong></span></td>
+                    <td><span class="admin-entry-user"><span class="admin-entry-avatar">${user?.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml((user?.FullName || 'Unknown').trim().slice(0, 1).toUpperCase())}</span>${userLabel}</span></td>
                     <td>${escapeHtml(project?.ProjectName || 'None')}</td>
                     <td>${clockIn.toLocaleTimeString()}</td>
                     <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
