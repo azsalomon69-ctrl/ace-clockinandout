@@ -21,8 +21,22 @@ function reviewRequest(request, decision, role) {
     .then(() => { showToast(decision === 'APPROVE' ? 'Access approved.' : 'Access denied.', 'success'); loadAccessRequests(); })
     .catch(error => {
       if (error.status === 404) {
-        showToast('This access request is no longer available. Refreshing the list.', 'warning');
+        showToast('This access request is no longer available.', 'warning');
         loadAccessRequests();
+        return;
+      }
+      if (error.status === 409) {
+        showToast(error.message || 'This access request has already been reviewed.', 'warning');
+        loadAccessRequests();
+        return;
+      }
+      if (error.status === 410) {
+        showToast('This access request has expired.', 'warning');
+        loadAccessRequests();
+        return;
+      }
+      if (error.status === 429) {
+        showToast('Too many requests. Try again in a moment.', 'warning');
         return;
       }
       showToast(error.message || 'Unable to review request.', 'error');

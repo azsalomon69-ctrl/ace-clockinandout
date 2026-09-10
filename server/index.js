@@ -67,8 +67,6 @@ const sensitiveActionLimiter = rateLimit({
   message: { error: 'Too many requests. Please wait a few minutes and try again.' }
 });
 app.use('/v1', apiLimiter);
-app.use('/v1/access-requests', sensitiveActionLimiter);
-app.use('/v1/invitations', sensitiveActionLimiter);
 app.use('/v1/auth/config', rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 120,
@@ -229,7 +227,7 @@ app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
   await audit(req, 'LOGOUT', 'PROFILE', req.profile.id, 'Signed out successfully');
   res.status(204).end();
 } catch (error) { next(error); } });
-app.post('/v1/access-requests', authenticate, async (req, res, next) => { try {
+app.post('/v1/access-requests', sensitiveActionLimiter, authenticate, async (req, res, next) => { try {
   const email = req.profile.email.trim().toLowerCase();
   if (!isAllowedCompanyEmail(email)) return fail(res, 403, 'Use an approved company email address to request access.');
   const now = new Date();
@@ -257,7 +255,7 @@ app.get('/v1/access-requests', authenticate, adminOnly, async (_, res, next) => 
   const now = Date.now();
   res.json(requests.map(request => ({ ...request, state: request.status === 'PENDING' && new Date(request.expires_at).getTime() <= now ? 'EXPIRED' : request.status })));
 } catch (error) { next(error); } });
-app.patch('/v1/access-requests/:id', authenticate, adminOnly, async (req, res, next) => { try {
+app.patch('/v1/access-requests/:id', sensitiveActionLimiter, authenticate, adminOnly, async (req, res, next) => { try {
   const decision = req.body.decision;
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
   if (!['APPROVE', 'DENY'].includes(decision)) return fail(res, 400, 'Decision must be APPROVE or DENY');
@@ -467,7 +465,7 @@ app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, 
   await audit(req, 'PERMANENT_DELETE_USER', 'PROFILE', target.id, `Permanently deleted archived user ${target.email}`);
   res.status(204).end();
 } catch (error) { next(error); } });
-app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try {
+app.post('/v1/invitations', sensitiveActionLimiter, authenticate, adminOnly, async (req, res, next) => { try {
   const email = req.body.email?.trim().toLowerCase();
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
   if (!email || !emailPattern.test(email) || email.length > 254) return fail(res, 400, 'A valid email is required');
@@ -507,7 +505,7 @@ app.post('/v1/invitations', authenticate, adminOnly, async (req, res, next) => {
   catch (mailError) { console.error('Invitation email delivery failed:', mailError.message); emailIssue = invitationMailIssue(mailError); }
   res.status(201).json({ ...invitation, email_sent: emailSent, email_issue: emailSent ? null : (emailIssue || invitationMailIssue()) });
 } catch (error) { next(error); } });
-app.delete('/v1/invitations/:id', authenticate, adminOnly, async (req, res, next) => { try {
+app.delete('/v1/invitations/:id', sensitiveActionLimiter, authenticate, adminOnly, async (req, res, next) => { try {
   const invitation = await query(db.from('invitations').select('*').eq('id', req.params.id).maybeSingle());
   if (!invitation) return fail(res, 404, 'Invitation not found.');
   if (invitation.status !== 'PENDING') return fail(res, 409, 'Only pending invitations can be cancelled.');
