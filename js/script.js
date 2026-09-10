@@ -50,6 +50,93 @@ const reportDateTime = value => {
     return `${date.toLocaleDateString('en-US', { month: 'short' })}/${date.getDate()}/${date.getFullYear()}, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`;
 };
 
+// Native select popups differ wildly between browsers and operating systems.
+// Keep the original select for its value, form behaviour and existing change
+// handlers, then provide one consistent, keyboard-friendly menu above it.
+let aceSelectObserver;
+function closeAceSelectMenus(except = null) {
+    document.querySelectorAll('.ace-select.is-open').forEach(control => {
+        if (control === except) return;
+        control.classList.remove('is-open');
+        control.querySelector('.ace-select-trigger')?.setAttribute('aria-expanded', 'false');
+    });
+    document.querySelectorAll('.analytics-toolbar.ace-select-menu-open').forEach(toolbar => toolbar.classList.remove('ace-select-menu-open'));
+    if (except?.closest('.analytics-toolbar')) except.closest('.analytics-toolbar').classList.add('ace-select-menu-open');
+}
+
+function enhanceSelectControl(select) {
+    if (!(select instanceof HTMLSelectElement) || !select.classList.contains('form-select')) return;
+    if (select.classList.contains('ace-native-select')) {
+        select._aceSelectRefresh?.();
+        return;
+    }
+    const control = document.createElement('div');
+    control.className = 'ace-select';
+    const trigger = document.createElement('button');
+    trigger.className = 'ace-select-trigger';
+    trigger.type = 'button';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    const menu = document.createElement('div');
+    menu.className = 'ace-select-menu';
+    menu.setAttribute('role', 'listbox');
+    select.classList.add('ace-native-select');
+    select.insertAdjacentElement('afterend', control);
+    control.append(trigger, menu);
+
+    const label = select.closest('label') || (select.id ? document.querySelector(`label[for="${CSS.escape(select.id)}"]`) : null);
+    const refresh = () => {
+        const selected = select.options[select.selectedIndex];
+        trigger.innerHTML = `<span>${escapeHtml(selected?.textContent || 'Select an option')}</span><i aria-hidden="true"></i>`;
+        trigger.disabled = select.disabled;
+        const labelText = select.getAttribute('aria-label') || label?.childNodes?.[0]?.textContent?.trim() || 'Select an option';
+        trigger.setAttribute('aria-label', labelText);
+        menu.innerHTML = Array.from(select.options).map((option, index) => `<button class="ace-select-option${option.selected ? ' is-selected' : ''}" type="button" role="option" aria-selected="${option.selected}" data-index="${index}"${option.disabled ? ' disabled' : ''}>${escapeHtml(option.textContent)}</button>`).join('');
+        menu.querySelectorAll('.ace-select-option').forEach(optionButton => optionButton.addEventListener('click', () => {
+            const option = select.options[Number(optionButton.dataset.index)];
+            if (!option || option.disabled) return;
+            select.selectedIndex = Number(optionButton.dataset.index);
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            closeAceSelectMenus();
+            trigger.focus();
+        }));
+    };
+    select._aceSelectRefresh = refresh;
+    refresh();
+    select.addEventListener('change', refresh);
+    trigger.addEventListener('click', () => {
+        if (trigger.disabled) return;
+        const opening = !control.classList.contains('is-open');
+        closeAceSelectMenus(opening ? control : null);
+        control.classList.toggle('is-open', opening);
+        trigger.setAttribute('aria-expanded', String(opening));
+        if (opening) menu.querySelector('.is-selected:not(:disabled), .ace-select-option:not(:disabled)')?.focus();
+    });
+    trigger.addEventListener('keydown', event => {
+        if (event.key === 'Escape') { closeAceSelectMenus(); trigger.focus(); }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            if (!control.classList.contains('is-open')) trigger.click();
+        }
+    });
+}
+
+function initializeSelectControls(root = document) {
+    root.querySelectorAll?.('select.form-select:not(.ace-native-select)').forEach(enhanceSelectControl);
+    if (aceSelectObserver) return;
+    document.addEventListener('pointerdown', event => { if (!event.target.closest('.ace-select')) closeAceSelectMenus(); });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') closeAceSelectMenus(); });
+    aceSelectObserver = new MutationObserver(records => records.forEach(record => {
+        if (record.type === 'childList' && record.target instanceof HTMLSelectElement && record.target.classList.contains('ace-native-select')) record.target._aceSelectRefresh?.();
+        record.addedNodes.forEach(node => {
+            if (!(node instanceof Element)) return;
+            if (node.matches?.('select.form-select:not(.ace-native-select)')) enhanceSelectControl(node);
+            node.querySelectorAll?.('select.form-select:not(.ace-native-select)').forEach(enhanceSelectControl);
+        });
+    }));
+    aceSelectObserver.observe(document.body, { childList: true, subtree: true });
+}
+
 // Live data is supplied exclusively by the Render API and Supabase.
 async function loadDatabase() {
     if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
@@ -143,6 +230,7 @@ async function initApp() {
         initializeNavigation();
         initializeModals();
         initializeForms();
+        initializeSelectControls();
         if (document.body.dataset.openAccessRequest === 'true') {
             delete document.body.dataset.openAccessRequest;
             window.setTimeout(() => openModal('requestAccessModal'), 0);
@@ -191,6 +279,7 @@ async function initApp() {
         updateUI();
         startClock();
         loadPageSpecificData();
+        initializeSelectControls();
         initializeResponsiveTables();
         initializeUXEnhancements();
         initializeEmployeeChat();
@@ -426,6 +515,7 @@ function installPageFadeNavigation() {
         updateUI();
         startClock();
         loadPageSpecificData();
+        initializeSelectControls();
         if (document.body.dataset.adminView) {
             if (!window.renderAdminSection) {
                 const source = documentFromRoute.querySelector('script[src*="admin-sections.js"]')?.src;
