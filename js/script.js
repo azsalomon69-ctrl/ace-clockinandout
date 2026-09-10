@@ -895,7 +895,7 @@ function applySuppliedIcons() {
         generateReportBtn: 'file-text', inviteUserBtn: 'user-plus', manageDepartmentsBtn: 'building', manageProjectsBtn: 'folder',
         mainClockInBtn: 'timer', mainClockOutBtn: 'log-out', clockInBtn: 'timer', clockOutBtn: 'log-out', sessionClockOutBtn: 'log-out',
         applyFiltersBtn: 'funnel', clearFiltersBtn: 'eraser', exportCsvBtn: 'download', exportXlsxBtn: 'download', exportPdfBtn: 'download',
-        viewAllEntriesBtn: 'eye', logoutOtherSessionsBtn: 'log-out'
+        viewAllEntriesBtn: 'eye'
     };
     const inferIcon = text => {
         const value = String(text || '').toLowerCase();
@@ -1373,10 +1373,6 @@ function initializeSecondaryActions() {
     document.getElementById('cancelProfileBtn')?.addEventListener('click', () => {
         loadUserSettings();
         showToast('Unsaved profile changes discarded.', 'info');
-    });
-
-    document.getElementById('logoutOtherSessionsBtn')?.addEventListener('click', () => {
-        showToast('Other sessions have been signed out in this frontend preview.', 'success');
     });
 
     const exportButtons = {
