@@ -663,7 +663,9 @@ function initializeEmployeeChat() {
     };
     const loadContacts = async () => {
         try {
-            const people = await window.ACEAuth.request('/v1/employee-chat/contacts');
+            const response = await window.ACEAuth.request('/v1/employee-chat/contacts');
+            const people = Array.isArray(response) ? response : response.contacts || [];
+            const pendingAccessRequestCount = Number(response.pending_access_request_count) || 0;
             const totalUnread = people.reduce((total, person) => total + (person.unread_count || 0), 0);
             if (contactsLoaded) {
                 people.forEach(person => {
@@ -680,6 +682,7 @@ function initializeEmployeeChat() {
             allContacts = people.filter(person => !employeeChat || person.role === 'ADMIN');
             window.dispatchEvent(new CustomEvent('ace:chat-unread', { detail: {
                 totalUnread,
+                pendingAccessRequestCount,
                 conversations: allContacts.filter(person => person.unread_count).map(person => ({
                     id: person.id,
                     name: person.full_name || person.email,
@@ -820,16 +823,18 @@ function initializeAppShell() {
     const notificationBadge = topbar.querySelector('.shell-topbar-badge');
     let unreadMessages = 0;
     let unreadConversations = [];
+    let pendingAccessRequestCount = 0;
     const setTopbarMenu = (button, menu, open) => {
         button.setAttribute('aria-expanded', String(open));
         menu.hidden = !open;
     };
     const renderNotifications = () => {
         const unreadRemarksCount = isAdmin ? 0 : AppState.adminRemarks.filter(remark => !remark.SeenAt).length;
-        const total = unreadMessages + unreadRemarksCount;
+        const total = unreadMessages + unreadRemarksCount + pendingAccessRequestCount;
         notificationBadge.hidden = !total;
         notificationBadge.textContent = total > 99 ? '99+' : total;
         const notices = [];
+        if (pendingAccessRequestCount) notices.push(`<a href="access-requests.html" role="menuitem"><strong>${pendingAccessRequestCount} pending access request${pendingAccessRequestCount === 1 ? '' : 's'}</strong><span>Review employee access requests</span></a>`);
         if (unreadMessages) {
             notices.push(...unreadConversations.map(conversation => {
                 const preview = String(conversation.preview || 'New message').replace(/\s+/g, ' ').trim();
@@ -851,6 +856,7 @@ function initializeAppShell() {
     window.addEventListener('ace:chat-unread', event => {
         unreadMessages = Number(event.detail?.totalUnread) || 0;
         unreadConversations = Array.isArray(event.detail?.conversations) ? event.detail.conversations : [];
+        pendingAccessRequestCount = Number(event.detail?.pendingAccessRequestCount) || 0;
         renderNotifications();
     });
     topbarAccountButton.addEventListener('click', () => {

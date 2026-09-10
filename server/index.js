@@ -336,10 +336,14 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
   let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
   if (req.profile.role !== 'ADMIN') contactRequest = contactRequest.eq('role', 'ADMIN');
-  const [contacts, unread] = await Promise.all([
+  const [contacts, unread, pendingAccessRequests] = await Promise.all([
     query(contactRequest),
-    query(db.from('employee_messages').select('sender_id,body,created_at').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null).order('created_at', { ascending: false }))
+    query(db.from('employee_messages').select('sender_id,body,created_at').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null).order('created_at', { ascending: false })),
+    req.profile.role === 'ADMIN'
+      ? db.from('access_requests').select('id', { count: 'exact', head: true }).eq('status', 'PENDING').gt('expires_at', new Date().toISOString())
+      : Promise.resolve({ count: 0, error: null })
   ]);
+  if (pendingAccessRequests.error) throw pendingAccessRequests.error;
   const allowedContactIds = new Set(contacts.map(contact => contact.id));
   const unreadByContact = unread.reduce((summary, message) => {
     if (!allowedContactIds.has(message.sender_id)) return summary;
@@ -350,12 +354,15 @@ app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res,
     summary[message.sender_id] = item;
     return summary;
   }, {});
-  res.json(contacts.map(contact => ({
-    ...contact,
-    unread_count: unreadByContact[contact.id]?.count || 0,
-    last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
-    last_unread_at: unreadByContact[contact.id]?.latest?.created_at || null
-  })));
+  res.json({
+    contacts: contacts.map(contact => ({
+      ...contact,
+      unread_count: unreadByContact[contact.id]?.count || 0,
+      last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
+      last_unread_at: unreadByContact[contact.id]?.latest?.created_at || null
+    })),
+    pending_access_request_count: pendingAccessRequests.count || 0
+  });
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/messages/:userId', authenticate, activeOnly, async (req, res, next) => { try {
   const otherUserId = optionalUuid(req.params.userId);
