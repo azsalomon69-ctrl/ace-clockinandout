@@ -2568,7 +2568,7 @@ function loadTimeEntries() {
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
                     <td>${remarks.length ? remarks.map(remark => `<div class="time-entry-remark"><strong>${escapeHtml(remark.AdminName)}</strong><br>${escapeHtml(remark.Remark)}</div>`).join('') : '—'}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline desktop-entry-view" onclick="viewTimeEntry('${entry.TimeEntryId}')">View</button>
+                        <button class="btn btn-sm btn-outline desktop-entry-view" data-time-entry-view="${escapeHtml(entry.TimeEntryId)}" type="button">View</button>
                         <button class="btn btn-sm btn-outline time-entry-details-toggle" type="button" aria-expanded="false">Details</button>
                     </td>
                 </tr>
@@ -2582,6 +2582,12 @@ function loadTimeEntries() {
                 button.setAttribute('aria-expanded', String(expanded));
                 button.textContent = expanded ? 'Hide details' : 'Details';
             });
+        });
+        // Use an explicit listener instead of an inline onclick handler. The
+        // security policy correctly blocks inline script, which was preventing
+        // the employee detail modal from opening.
+        timeEntriesList.querySelectorAll('[data-time-entry-view]').forEach(button => {
+            button.addEventListener('click', () => viewTimeEntry(button.dataset.timeEntryView));
         });
     }
 }
