@@ -624,7 +624,7 @@ function initializeAppShell() {
     // Vercel cleanUrls removes .html while the local static server preserves it.
     // Normalize both forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -1851,6 +1851,10 @@ function loadPageSpecificData() {
         loadAdminDashboard();
         loadTimeLeaderboard('adminLeaderboard', 'adminLeaderboardRank');
     }
+
+    if (page === 'time-entry-details.html') {
+        loadAdminTimeEntryDetails();
+    }
     
     // Time Entries
     if (page === 'time-entries.html') {
@@ -1871,6 +1875,28 @@ function loadPageSpecificData() {
     if (page === 'settings.html') {
         loadUserSettings();
     }
+}
+
+function loadAdminTimeEntryDetails() {
+    const root = document.getElementById('timeEntryDetailsContent');
+    if (!root) return;
+    const entryId = new URLSearchParams(window.location.search).get('entry');
+    const entry = AppState.timeEntries.find(item => String(item.TimeEntryId) === String(entryId));
+    if (!entry) {
+        root.innerHTML = `<section class="time-entry-detail-empty"><h1>Time entry not found</h1><p>This entry may have been removed or you may not have access to it.</p><a class="btn btn-primary" href="admin-dashboard.html">Back to dashboard</a></section>`;
+        return;
+    }
+    const user = AppState.users.find(item => String(item.UserId) === String(entry.UserId));
+    const project = AppState.projects.find(item => String(item.ProjectId) === String(entry.ProjectId));
+    const remarks = AppState.adminRemarks.filter(item => String(item.TimeEntryId) === String(entry.TimeEntryId));
+    const activeBreak = entry.BreakStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(entry.BreakStartedAt).getTime()) / 1000)) : 0;
+    const worked = entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : entry.ClockOutAt ? '—' : 'Active';
+    const dateTime = value => value ? new Date(value).toLocaleString() : '—';
+    root.innerHTML = `<header class="time-entry-detail-header"><div><a class="time-entry-detail-back" href="admin-dashboard.html">← Back to dashboard</a><p class="admin-section-kicker">TIME ENTRY</p><h1>${escapeHtml(user?.FullName || entry.UserName || 'Employee')}’s work session</h1><p>${dateTime(entry.ClockInAt)}</p></div><span class="badge ${entry.ClockOutAt ? 'badge-success' : 'badge-warning'}">${entry.ClockOutAt ? 'Completed' : 'Active'}</span></header>
+        <section class="time-entry-detail-grid" aria-label="Time entry summary"><article><span>Clock in</span><strong>${dateTime(entry.ClockInAt)}</strong></article><article><span>Clock out</span><strong>${dateTime(entry.ClockOutAt)}</strong></article><article><span>Worked time</span><strong>${worked}</strong></article><article><span>Break time</span><strong>${formatDuration(Number(entry.BreakSeconds || 0) + activeBreak)}${entry.BreakStartedAt ? ' (active)' : ''}</strong></article><article><span>Project</span><strong>${escapeHtml(project?.ProjectName || entry.ProjectName || 'Unassigned')}</strong></article><article><span>Entry status</span><strong>${entry.ClockOutAt ? 'Completed' : 'Currently active'}</strong></article></section>
+        <section class="time-entry-detail-notes"><article><h2>Clock-in note</h2><p>${escapeHtml(entry.UserNote || 'No clock-in note was added.')}</p></article><article><h2>Clock-out note</h2><p>${escapeHtml(entry.FinalNote || 'No clock-out note was added.')}</p></article></section>
+        ${entry.StoppedByName ? `<section class="time-entry-stopped"><h2>Stopped by an administrator</h2><p>${escapeHtml(entry.StoppedByName)} stopped this session on ${dateTime(entry.StoppedByAt || entry.ClockOutAt)}.</p></section>` : ''}
+        <section class="time-entry-detail-remarks"><div><p class="admin-section-kicker">ADMINISTRATOR NOTES</p><h2>Remarks</h2></div>${remarks.length ? `<div class="time-entry-remark-list">${remarks.map(remark => `<article><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${dateTime(remark.CreatedAt)}</small></article>`).join('')}</div>` : '<p class="time-entry-no-remarks">No administrator remarks were added to this entry.</p>'}</section>`;
 }
 
 function loadUserDashboard() {
@@ -2351,7 +2377,7 @@ function loadAdminDashboard() {
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span>${entry.StoppedByName ? `<small class="entry-admin-stop">Stopped by ${escapeHtml(entry.StoppedByName)} · ${new Date(entry.StoppedByAt || entry.ClockOutAt).toLocaleString()}</small>` : ''}</td>
                     <td>${remarks.length ? `${remarks.length} remark${remarks.length === 1 ? '' : 's'}` : '—'}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline admin-recent-entry-view" onclick="viewTimeEntry('${entry.TimeEntryId}')">View</button>
+                        <a class="btn btn-sm btn-outline admin-recent-entry-view" href="time-entry-details.html?entry=${encodeURIComponent(entry.TimeEntryId)}">View</a>
                         <button class="btn btn-sm btn-outline admin-recent-entry-toggle" type="button" aria-expanded="false">Details</button>
                     </td>
                 </tr>
