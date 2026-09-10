@@ -575,8 +575,18 @@ function initializeEmployeeChat() {
             people.forEach(person => unreadByContact.set(person.id, person.unread_count || 0));
             contactsLoaded = true;
             badge.hidden = !totalUnread; badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
-            window.dispatchEvent(new CustomEvent('ace:chat-unread', { detail: { totalUnread } }));
             allContacts = people.filter(person => !employeeChat || person.role === 'ADMIN');
+            window.dispatchEvent(new CustomEvent('ace:chat-unread', { detail: {
+                totalUnread,
+                conversations: allContacts.filter(person => person.unread_count).map(person => ({
+                    id: person.id,
+                    name: person.full_name || person.email,
+                    picture: person.profile_picture_url || '',
+                    unreadCount: person.unread_count,
+                    preview: person.last_unread_message || 'New message',
+                    createdAt: person.last_unread_at || ''
+                }))
+            } }));
             const selectedContact = people.find(person => person.id === selectedId);
             if (selectedContact) { selectedOnline = Boolean(selectedContact.last_seen_at && Date.now() - new Date(selectedContact.last_seen_at).getTime() < 2 * 60 * 1000); selectedPictureUrl = selectedContact.profile_picture_url || ''; }
             renderContacts();
@@ -584,6 +594,21 @@ function initializeEmployeeChat() {
     };
     contactSearch.addEventListener('input', renderContacts);
     const openChat = open => { panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); if (open) { chat.classList.remove('employee-chat-chatting'); loadContacts(); } };
+    window.ACEEmployeeChat = {
+        openConversation(contactId) {
+            const person = allContacts.find(contact => String(contact.id) === String(contactId));
+            if (!person) { openChat(true); return; }
+            selectedId = person.id;
+            selectedName = person.full_name || person.email;
+            selectedPictureUrl = person.profile_picture_url || '';
+            selectedOnline = Boolean(person.last_seen_at && Date.now() - new Date(person.last_seen_at).getTime() < 2 * 60 * 1000);
+            panel.hidden = false;
+            launcher.setAttribute('aria-expanded', 'true');
+            chat.classList.add('employee-chat-chatting');
+            renderContacts();
+            loadMessages();
+        }
+    };
     launcher.addEventListener('click', () => openChat(panel.hidden));
     chat.querySelector('.employee-chat-close').addEventListener('click', () => openChat(false));
     // Fetch immediately, then keep the unread indicator fresh without a page reload.
@@ -692,6 +717,7 @@ function initializeAppShell() {
     const notificationMenu = topbar.querySelector('.shell-notification-menu');
     const notificationBadge = topbar.querySelector('.shell-topbar-badge');
     let unreadMessages = 0;
+    let unreadConversations = [];
     const setTopbarMenu = (button, menu, open) => {
         button.setAttribute('aria-expanded', String(open));
         menu.hidden = !open;
@@ -702,17 +728,27 @@ function initializeAppShell() {
         notificationBadge.hidden = !total;
         notificationBadge.textContent = total > 99 ? '99+' : total;
         const notices = [];
-        if (unreadMessages) notices.push(`<button type="button" role="menuitem" data-open-chat><strong>${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'}</strong><span>Open team chat</span></button>`);
+        if (unreadMessages) {
+            notices.push(...unreadConversations.map(conversation => {
+                const preview = String(conversation.preview || 'New message').replace(/\s+/g, ' ').trim();
+                const shortPreview = preview.length > 90 ? `${preview.slice(0, 89)}…` : preview;
+                const count = conversation.unreadCount > 1 ? `<b>${conversation.unreadCount}</b>` : '';
+                return `<button class="shell-message-notice" type="button" role="menuitem" data-open-chat="${escapeHtml(conversation.id)}"><span class="shell-message-notice-avatar">${conversation.picture ? `<img src="${escapeHtml(conversation.picture)}" alt="">` : escapeHtml(String(conversation.name || '?').slice(0, 1).toUpperCase())}</span><span class="shell-message-notice-copy"><strong>${escapeHtml(conversation.name || 'Teammate')}</strong><small>${escapeHtml(shortPreview)}</small></span>${count}</button>`;
+            }));
+        }
         if (unreadRemarksCount) notices.push(`<a href="remarks.html" role="menuitem"><strong>${unreadRemarksCount} new remark${unreadRemarksCount === 1 ? '' : 's'}</strong><span>Review administrator feedback</span></a>`);
         notificationMenu.innerHTML = `<p class="shell-topbar-menu-title">Notifications</p>${notices.length ? notices.join('') : '<p class="shell-topbar-empty">You’re all caught up.</p>'}`;
-        notificationMenu.querySelector('[data-open-chat]')?.addEventListener('click', () => {
+        notificationMenu.querySelectorAll('[data-open-chat]').forEach(button => button.addEventListener('click', () => {
             setTopbarMenu(notificationButton, notificationMenu, false);
-            document.querySelector('.employee-chat-launcher')?.click();
-        });
+            const contactId = button.dataset.openChat;
+            if (contactId) window.ACEEmployeeChat?.openConversation(contactId);
+            else document.querySelector('.employee-chat-launcher')?.click();
+        }));
     };
     renderNotifications();
     window.addEventListener('ace:chat-unread', event => {
         unreadMessages = Number(event.detail?.totalUnread) || 0;
+        unreadConversations = Array.isArray(event.detail?.conversations) ? event.detail.conversations : [];
         renderNotifications();
     });
     topbarAccountButton.addEventListener('click', () => {

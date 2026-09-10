@@ -4037,3 +4037,16 @@ body[data-user-role="employee"] .remarks-list .empty-state, body[data-user-role=
   body[data-user-role="employee"] .employee-summary-grid .stat-card, body[data-user-role="employee"] .summary-card { min-height: 96px; padding: 16px; }
   body[data-user-role="employee"] :is(.recent-activity-section, .admin-remarks-section, .projects-section) { padding: 19px 17px; }
 }
+
+/* Navbar message notifications identify the sender and preserve enough of the
+   message to be useful before opening the conversation. */
+.shell-topbar-menu .shell-message-notice { grid-template-columns: 32px minmax(0,1fr) auto; align-items: center; gap: 9px; min-height: 54px; }
+.shell-message-notice-avatar { width: 32px; height: 32px; display: grid !important; place-items: center; overflow: hidden; color: var(--ace-cyan-dark) !important; background: #e7f6f8; border: 1px solid #c5e6eb; border-radius: 50%; font-size: .72rem !important; font-weight: 800 !important; }
+.shell-message-notice-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.shell-topbar-menu .shell-message-notice-copy { min-width: 0; display: grid; gap: 2px; color: inherit; }
+.shell-topbar-menu .shell-message-notice-copy strong, .shell-topbar-menu .shell-message-notice-copy small { overflow: hidden; display: block; text-overflow: ellipsis; white-space: nowrap; }
+.shell-topbar-menu .shell-message-notice-copy strong { color: var(--ace-ink); font-size: .74rem; }
+.shell-topbar-menu .shell-message-notice-copy small { color: var(--ace-muted); font-size: .66rem; font-weight: 600; }
+.shell-topbar-menu .shell-message-notice > b { min-width: 18px; height: 18px; display: grid; place-items: center; color: #fff; background: #d92d45; border-radius: 50%; font: 800 .62rem/1 Arial,sans-serif; }
+html[data-theme="dark"] .shell-message-notice-avatar { color: #bdeef4 !important; background: var(--ace-surface-raised); border-color: var(--ace-border-strong); }
+html[data-theme="dark"] .shell-topbar-menu .shell-message-notice-copy strong { color: var(--ace-text-primary); }

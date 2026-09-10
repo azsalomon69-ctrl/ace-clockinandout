@@ -330,14 +330,24 @@ app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res,
   if (req.profile.role !== 'ADMIN') contactRequest = contactRequest.eq('role', 'ADMIN');
   const [contacts, unread] = await Promise.all([
     query(contactRequest),
-    query(db.from('employee_messages').select('sender_id').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null))
+    query(db.from('employee_messages').select('sender_id,body,created_at').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null).order('created_at', { ascending: false }))
   ]);
   const allowedContactIds = new Set(contacts.map(contact => contact.id));
-  const unreadCounts = unread.reduce((counts, message) => {
-    if (allowedContactIds.has(message.sender_id)) counts[message.sender_id] = (counts[message.sender_id] || 0) + 1;
-    return counts;
+  const unreadByContact = unread.reduce((summary, message) => {
+    if (!allowedContactIds.has(message.sender_id)) return summary;
+    const item = summary[message.sender_id] || { count: 0, latest: null };
+    item.count += 1;
+    // Results are newest-first, so retain only the first message as a preview.
+    if (!item.latest) item.latest = message;
+    summary[message.sender_id] = item;
+    return summary;
   }, {});
-  res.json(contacts.map(contact => ({ ...contact, unread_count: unreadCounts[contact.id] || 0 })));
+  res.json(contacts.map(contact => ({
+    ...contact,
+    unread_count: unreadByContact[contact.id]?.count || 0,
+    last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
+    last_unread_at: unreadByContact[contact.id]?.latest?.created_at || null
+  })));
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/messages/:userId', authenticate, activeOnly, async (req, res, next) => { try {
   const otherUserId = optionalUuid(req.params.userId);
