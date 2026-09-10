@@ -1,4 +1,4 @@
-const requestApi = path => window.ACEAuth.request(path);
+const requestApi = (...args) => window.ACEAuth.request(...args);
 const requestEsc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 let accessRequests = [];
 const requestDateTime = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
