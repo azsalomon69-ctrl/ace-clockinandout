@@ -127,8 +127,12 @@ async function initApp() {
     // a stale browser preference can never leave an empty sidebar-sized gap.
     try {
         applySuppliedIcons();
-        renderInitialSkeletons();
         applyStoredAppearance();
+        // A previously verified profile is used only to paint the navigation
+        // chrome immediately. It never authorizes data or bypasses the /v1/me
+        // check below; that remains the source of truth for every refresh.
+        mountCachedDashboardShell();
+        renderInitialSkeletons();
     } catch (error) {
         console.warn('Recovered from a saved interface preference.', error);
         localStorage.removeItem('ace_current_user');
@@ -199,9 +203,23 @@ async function initApp() {
     });
 }
 
+function mountCachedDashboardShell() {
+    if (isPublicRoute() || document.body.classList.contains('has-app-shell')) return;
+    try {
+        const cached = JSON.parse(localStorage.getItem('ace_current_user') || 'null');
+        if (!cached || cached.Status !== 'ACTIVE' || !cached.UserId || !cached.Role) return;
+        AppState.currentUser = cached;
+        initializeAppShell();
+    } catch {
+        // A damaged cache simply falls back to the protected loading state.
+    }
+}
+
 // Tables stay semantic on desktop, then become labelled record cards on phones.
 // This avoids clipped columns without duplicating data markup for every page.
 function initializeResponsiveTables() {
+    if (document.body.dataset.responsiveTablesReady === 'true') return;
+    document.body.dataset.responsiveTablesReady = 'true';
     const labelCells = root => {
         root.querySelectorAll('table').forEach(table => {
             const labels = Array.from(table.querySelectorAll('thead th')).map(header => header.textContent.trim());
@@ -373,13 +391,94 @@ function initializeUXEnhancements() {
     });
 }
 
-// Use the same quiet fade for every ordinary in-app navigation. This is
-// intentionally app-managed instead of relying on browser-specific page
-// transitions, which can be inconsistent across navigation types.
+// Authenticated pages share one long-lived shell. Internal navigation swaps
+// only <main>; sidebar, top bar, chat, and their event handlers stay mounted.
 function installPageFadeNavigation() {
     if (document.body.dataset.pageFadeReady === 'true') return;
     document.body.dataset.pageFadeReady = 'true';
     let navigating = false;
+
+    const routeSkeleton = () => {
+        const shell = document.createElement('div');
+        shell.className = 'app-shell-skeleton';
+        shell.setAttribute('aria-hidden', 'true');
+        shell.innerHTML = `<main class="shell-skeleton-main shell-skeleton-management"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats">${'<div class="shell-skeleton-stat"></div>'.repeat(3)}</div><section class="shell-skeleton-panel shell-skeleton-table">${'<div class="shell-skeleton-row"></div>'.repeat(6)}</section></main>`;
+        document.body.appendChild(shell);
+        return shell;
+    };
+
+    const updateShellRoute = destination => {
+        const currentFile = (destination.pathname.split('/').pop() || '').toLowerCase();
+        document.querySelectorAll('.shell-link').forEach(link => {
+            const linkFile = (new URL(link.href, window.location.href).pathname.split('/').pop() || '').toLowerCase();
+            link.classList.toggle('active', linkFile === currentFile);
+        });
+        document.body.classList.remove('shell-mobile-open');
+    };
+
+    const runMountedPage = async documentFromRoute => {
+        applySuppliedIcons();
+        initializeNavigation();
+        initializeModals();
+        initializeForms();
+        initializeUXEnhancements();
+        initializeResponsiveTables();
+        updateUI();
+        startClock();
+        loadPageSpecificData();
+        if (document.body.dataset.adminView) {
+            if (!window.renderAdminSection) {
+                const source = documentFromRoute.querySelector('script[src*="admin-sections.js"]')?.src;
+                if (source) await new Promise((resolve, reject) => {
+                    const script = document.createElement('script'); script.src = source; script.onload = resolve; script.onerror = reject; document.head.appendChild(script);
+                });
+            }
+            await window.renderAdminSection?.();
+        }
+    };
+
+    const navigateDashboardRoute = async (href, push = true) => {
+        const destination = new URL(href, window.location.href);
+        if (navigating || destination.origin !== window.location.origin || !document.body.classList.contains('has-app-shell')) {
+            window.location.assign(destination.href);
+            return;
+        }
+        navigating = true;
+        const main = document.querySelector('main.main-content');
+        if (!main) { window.location.assign(destination.href); return; }
+        const skeleton = routeSkeleton();
+        main.setAttribute('aria-busy', 'true');
+        try {
+            const response = await fetch(destination.href, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error(`Could not load ${destination.pathname}`);
+            const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const nextMain = parsed.querySelector('main.main-content');
+            if (!nextMain) throw new Error('The selected dashboard page is unavailable.');
+            const unsupportedModule = Array.from(parsed.querySelectorAll('script[src]')).map(node => node.src)
+                .find(source => /\.js(?:\?|$)/.test(source) && !/(api-config|supabase-auth|sidebar|\/script\.js|admin-sections\.js)/.test(source));
+            if (unsupportedModule) { window.location.assign(destination.href); return; }
+            main.className = nextMain.className;
+            main.innerHTML = nextMain.innerHTML;
+            const nextView = parsed.body.dataset.adminView;
+            if (nextView) document.body.dataset.adminView = nextView;
+            else delete document.body.dataset.adminView;
+            document.title = parsed.title || document.title;
+            if (push) history.pushState({ aceDashboard: true }, '', destination.href);
+            updateShellRoute(destination);
+            await runMountedPage(parsed);
+            window.scrollTo({ top: 0, behavior: 'auto' });
+        } catch (error) {
+            console.warn('Dashboard content navigation fell back to a normal page load.', error);
+            window.location.assign(destination.href);
+            return;
+        } finally {
+            main.removeAttribute('aria-busy');
+            skeleton.remove();
+            navigating = false;
+        }
+    };
+
+    window.ACEDashboardNavigate = navigateDashboardRoute;
 
     document.addEventListener('click', event => {
         const link = event.target.closest('a[href]');
@@ -391,16 +490,14 @@ function installPageFadeNavigation() {
         const sameDocument = destination.origin === current.origin
             && destination.pathname === current.pathname
             && destination.search === current.search;
-        if (destination.origin !== current.origin || sameDocument) return;
+        if (destination.origin !== current.origin || sameDocument || !document.body.classList.contains('has-app-shell')) return;
 
         event.preventDefault();
-        navigating = true;
-        const overlay = document.createElement('div');
-        overlay.className = 'page-transition-overlay';
-        overlay.setAttribute('aria-hidden', 'true');
-        document.body.appendChild(overlay);
-        requestAnimationFrame(() => overlay.classList.add('is-visible'));
-        window.setTimeout(() => window.location.assign(destination.href), 145);
+        void navigateDashboardRoute(destination.href);
+    });
+
+    window.addEventListener('popstate', () => {
+        if (document.body.classList.contains('has-app-shell')) void navigateDashboardRoute(window.location.href, false);
     });
 }
 
@@ -897,7 +994,8 @@ function initializeModals() {
         if (!control) return;
         control.addEventListener('click', event => {
             event.preventDefault();
-            window.location.href = href;
+            if (window.ACEDashboardNavigate && document.body.classList.contains('has-app-shell')) window.ACEDashboardNavigate(href);
+            else window.location.href = href;
         });
     });
 
@@ -1125,7 +1223,8 @@ function initializeForms() {
     const viewAllEntriesBtn = document.getElementById('viewAllEntriesBtn');
     if (viewAllEntriesBtn) {
         viewAllEntriesBtn.addEventListener('click', () => {
-            window.location.href = 'time-entries.html';
+            if (window.ACEDashboardNavigate && document.body.classList.contains('has-app-shell')) window.ACEDashboardNavigate('time-entries.html');
+            else window.location.href = 'time-entries.html';
         });
     }
 

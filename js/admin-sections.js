@@ -252,7 +252,10 @@ async function renderAdminSection() {
     body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => editEntryTime(records[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-view-employee').forEach(button => button.addEventListener('click', () => {
       const record = records[Number(button.dataset.row)];
-      if (record) window.location.assign('employee-profile.html?user=' + encodeURIComponent(record.id));
+      if (!record) return;
+      const href = 'employee-profile.html?user=' + encodeURIComponent(record.id);
+      if (window.ACEDashboardNavigate && document.body.classList.contains('has-app-shell')) window.ACEDashboardNavigate(href);
+      else window.location.assign(href);
     }));
     body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
       const record = records[Number(button.dataset.row)];
@@ -303,4 +306,7 @@ async function renderAdminSection() {
   search.addEventListener('input', applyFilters);
   departmentFilter?.addEventListener('change', applyFilters); roleFilter?.addEventListener('change', applyFilters); employeeFilter?.addEventListener('input', applyFilters); projectFilter?.addEventListener('input', applyFilters); remarksFilter?.addEventListener('change', applyFilters);
 }
+// Also expose the renderer for the persistent dashboard shell. The normal
+// document-ready path remains for a direct browser refresh.
+window.renderAdminSection = renderAdminSection;
 document.addEventListener('DOMContentLoaded', renderAdminSection);
