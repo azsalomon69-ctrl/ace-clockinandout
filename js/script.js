@@ -525,11 +525,22 @@ function initializeEmployeeChat() {
     const formatTime = value => new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     const loadMessages = async () => {
         if (!selectedId) return;
+        const previousComposer = thread.querySelector('.employee-chat-compose input');
+        const draft = previousComposer?.value || '';
+        const restoreComposerFocus = document.activeElement === previousComposer;
         try {
             const messages = await window.ACEAuth.request(`/v1/employee-chat/messages/${selectedId}`);
-            thread.innerHTML = `<div class="employee-chat-thread-head"><button class="employee-chat-back" type="button" aria-label="Back to chats">‹</button><span class="employee-chat-avatar">${selectedPictureUrl ? `<img src="${escapeHtml(selectedPictureUrl)}" alt="">` : escapeHtml(selectedName.slice(0, 1).toUpperCase())}</span><div><strong>${escapeHtml(selectedName)}</strong><span class="employee-chat-presence${selectedOnline ? ' is-online' : ''}">${selectedOnline ? 'Online now' : 'Offline'}</span></div></div><div class="employee-chat-messages">${messages.map(message => { const mine = message.sender_id === AppState.currentUser.UserId; const deleted = Boolean(message.deleted_at); return `<div class="employee-chat-message-row${mine ? ' mine' : ''}"><div class="employee-chat-message${mine ? ' mine' : ''}${deleted ? ' deleted' : ''}"><span>${deleted ? 'This message was deleted.' : escapeHtml(message.body)}</span>${!deleted && message.edited_at ? '<em>edited</em>' : ''}<time>${formatTime(message.created_at)}</time></div>${mine && !deleted ? `<div class="employee-chat-actions"><button type="button" data-chat-edit="${message.id}" data-chat-body="${escapeHtml(message.body)}">Edit</button><button type="button" data-chat-delete="${message.id}">Delete</button></div>` : ''}</div>`; }).join('')}</div><form class="employee-chat-compose"><input maxlength="2000" aria-label="Message ${escapeHtml(selectedName)}" placeholder="Write a message…" required><button type="submit">Send</button></form>`;
+            // The request can finish while the user is typing. Capture the
+            // live value immediately before replacing the message list.
+            const liveComposer = thread.querySelector('.employee-chat-compose input');
+            const liveDraft = liveComposer?.value ?? draft;
+            const keepComposerFocus = document.activeElement === liveComposer || restoreComposerFocus;
+            thread.innerHTML = `<div class="employee-chat-thread-head"><button class="employee-chat-back" type="button" aria-label="Back to chats">‹</button><span class="employee-chat-avatar">${selectedPictureUrl ? `<img src="${escapeHtml(selectedPictureUrl)}" alt="">` : escapeHtml(selectedName.slice(0, 1).toUpperCase())}</span><div><strong>${escapeHtml(selectedName)}</strong><span class="employee-chat-presence${selectedOnline ? ' is-online' : ''}">${selectedOnline ? 'Online now' : 'Offline'}</span></div></div><div class="employee-chat-messages">${messages.map(message => { const mine = message.sender_id === AppState.currentUser.UserId; const deleted = Boolean(message.deleted_at); const time = `<time class="employee-chat-message-time">${formatTime(message.created_at)}</time>`; return `<div class="employee-chat-message-row${mine ? ' mine' : ''}"><div class="employee-chat-message${mine ? ' mine' : ''}${deleted ? ' deleted' : ''}"><span>${deleted ? 'This message was deleted.' : escapeHtml(message.body)}</span>${!deleted && message.edited_at ? '<em>edited</em>' : ''}</div>${mine && !deleted ? `<div class="employee-chat-actions">${time}<button type="button" data-chat-edit="${message.id}" data-chat-body="${escapeHtml(message.body)}">Edit</button><button type="button" data-chat-delete="${message.id}">Delete</button></div>` : `<div class="employee-chat-message-meta">${time}</div>`}</div>`; }).join('')}</div><form class="employee-chat-compose"><input maxlength="2000" aria-label="Message ${escapeHtml(selectedName)}" placeholder="Write a message…" required><button type="submit">Send</button></form>`;
             const messagesBox = thread.querySelector('.employee-chat-messages');
             if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight;
+            const composer = thread.querySelector('.employee-chat-compose input');
+            if (composer && liveDraft) composer.value = liveDraft;
+            if (composer && keepComposerFocus) composer.focus({ preventScroll: true });
             thread.querySelector('.employee-chat-back')?.addEventListener('click', () => chat.classList.remove('employee-chat-chatting'));
             thread.querySelector('form').addEventListener('submit', async event => {
                 event.preventDefault();

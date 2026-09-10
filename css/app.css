@@ -4076,3 +4076,12 @@ html[data-theme="dark"] :is(.time-entry-detail-header,.time-entry-detail-grid ar
 html[data-theme="dark"] :is(.time-entry-detail-header h1,.time-entry-detail-grid strong,.time-entry-detail-notes h2,.time-entry-detail-remarks h2,.time-entry-remark-list strong) { color: var(--ace-text-primary); }
 @media (max-width: 760px) { .time-entry-detail-header { flex-direction: column; padding: 20px; }.time-entry-detail-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }.time-entry-detail-notes { grid-template-columns: 1fr; } }
 @media (max-width: 480px) { .time-entry-detail-grid { grid-template-columns: 1fr; }.time-entry-detail-grid article, .time-entry-detail-notes article, .time-entry-detail-remarks, .time-entry-stopped { padding: 17px; } }
+
+/* Keep timestamps out of the message bubble: own-message time shares the
+   edit/delete action row, while received-message time sits just beneath it. */
+.employee-chat-message .employee-chat-message-time { display: none; }
+.employee-chat-message-row .employee-chat-actions { align-items: center; }
+.employee-chat-message-time { color: var(--ace-muted); font-size: .62rem; font-style: normal; line-height: 1; white-space: nowrap; }
+.employee-chat-actions .employee-chat-message-time { margin-right: 2px; }
+.employee-chat-message-meta { margin-top: 4px; padding: 0 4px; color: var(--ace-muted); line-height: 1; }
+html[data-theme="dark"] .employee-chat-message-time, html[data-theme="dark"] .employee-chat-message-meta { color: var(--ace-text-tertiary); }
