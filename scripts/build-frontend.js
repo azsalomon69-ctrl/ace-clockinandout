@@ -12,6 +12,14 @@ const sourceHash = source => createHash('sha256').update(source).digest('hex').s
 const filesIn = async directory => (await readdir(directory, { withFileTypes: true }))
   .filter(entry => entry.isFile())
   .map(entry => entry.name);
+const apiUrl = String(process.env.ACE_API_URL || process.env.ACE_API_URL_FALLBACK || '').replace(/\/$/, '');
+if (!apiUrl) throw new Error('Missing ACE_API_URL and ACE_API_URL_FALLBACK. Set one before building the frontend.');
+try {
+  const parsed = new URL(apiUrl);
+  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('unsupported protocol');
+} catch {
+  throw new Error('ACE_API_URL or ACE_API_URL_FALLBACK must be a valid HTTP(S) URL.');
+}
 
 async function buildScripts() {
   const output = new Map();
@@ -22,7 +30,7 @@ async function buildScripts() {
   // execute page logic, so combining them preserves their current behavior
   // while reducing the number of deployed readable entry points.
   const coreSource = [
-    await readFile(path.join(sourceDirectory, 'api-config.js'), 'utf8'),
+    `window.ACE_API_URL = window.ACE_API_URL || ${JSON.stringify(apiUrl)};`,
     await readFile(path.join(sourceDirectory, 'supabase-auth.js'), 'utf8')
   ].join('\n');
   const core = await minifyJs(coreSource, {
@@ -105,5 +113,4 @@ await mkdir(dist, { recursive: true });
 await cp(path.join(root, 'assets'), path.join(dist, 'assets'), { recursive: true });
 const assetMap = new Map([...(await buildScripts()), ...(await buildStyles())]);
 await buildPages(assetMap);
-await cp(path.join(root, 'vercel.json'), path.join(dist, 'vercel.json'));
 console.log(`Built ${dist} with ${assetMap.size} minified, hashed frontend assets.`);
