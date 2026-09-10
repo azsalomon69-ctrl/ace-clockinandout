@@ -92,6 +92,53 @@ The production build bundles the exact Supabase UMD dependency (`@supabase/supab
 
 `script-src` currently allows `'unsafe-inline'` because the HTML uses inline event handlers (such as `onclick`). A future task should migrate these to `addEventListener` and then remove `'unsafe-inline'`.
 
+## Schedule compliance specification
+
+This section defines the schedule-compliance rules for the planned implementation. All scheduled-time comparisons use the `Asia/Manila` timezone.
+
+### Definitions
+
+- `duration_seconds` is the existing net-work duration: elapsed clock time minus recorded `break_seconds`.
+- `elapsed_seconds = duration_seconds + break_seconds`.
+- `target_seconds = daily_elapsed_minutes * 60`.
+- All resulting seconds values are non-negative integers.
+
+### Fixed schedules
+
+For a `FIXED` schedule, `scheduled_start` is the schedule's start time on the entry's clock-in date in `Asia/Manila`.
+
+- **Late:** `late_seconds = max(0, clock_in_at - scheduled_start)`. Late is strict: there is no grace period. Any clock-in after the scheduled start is late.
+- **Undertime:** `undertime_seconds = max(0, target_seconds - elapsed_seconds)`.
+- **Overtime / Above target:** `overtime_seconds = max(0, elapsed_seconds - target_seconds)`. It is informational only; it has no payroll, approval, or disciplinary meaning.
+- **Break overage:** `break_overage_seconds = max(0, break_seconds - (break_limit_minutes * 60))`. It is an informational administrator indicator only. It is not included in undertime and does not dock worked time.
+
+### Flextime schedules
+
+For a `FLEX` schedule, there is no late classification because it has no scheduled start time.
+
+- **Late:** not applicable; `late_seconds` is `null`.
+- **Undertime:** `undertime_seconds = max(0, target_seconds - elapsed_seconds)`.
+- **Overtime / Above target:** `overtime_seconds = max(0, elapsed_seconds - target_seconds)`. It is informational only; it has no payroll, approval, or disciplinary meaning.
+- **Break overage:** `break_overage_seconds = max(0, break_seconds - (break_limit_minutes * 60))`. It is informational only and remains separate from undertime.
+
+### Break-inclusive target example
+
+The daily target is elapsed time, including breaks. For a nine-hour schedule with a one-hour break allowance, an employee who records eight hours of net work and one hour of break has nine elapsed hours:
+
+```text
+duration_seconds = 8 hours
+break_seconds    = 1 hour
+elapsed_seconds  = 9 hours
+target_seconds   = 9 hours
+undertime_seconds = 0
+```
+
+That employee is on target. The break is only flagged when it exceeds the configured break limit.
+
+### No schedule assigned
+
+An entry with no assigned schedule has the classification `NOT_APPLICABLE`. Its `late_seconds`, `undertime_seconds`, `overtime_seconds`, and `break_overage_seconds` are all `null`. It produces no employee penalty and no administrator alert.
+
 ## API routes
 
 All `/v1/*` routes require a Supabase user access token in `Authorization: Bearer <token>`.
