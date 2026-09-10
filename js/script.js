@@ -2670,8 +2670,7 @@ function loadReportsList() {
         reportsList.innerHTML = AppState.reports.map(report => {
             const user = AppState.users.find(u => u.UserId === report.CreatedByUserId);
             return `
-                <tr data-type="${report.ReportType}" data-from="${report.DateFrom}" data-to="${report.DateTo}" data-user="${report.CreatedByUserId}" data-department="${report.Filters?.departmentId || ''}" data-project="${report.Filters?.projectId || ''}">
-                    <td>${report.ReportId}</td>
+                <tr data-type="${report.ReportType}" data-from="${report.DateFrom}" data-to="${report.DateTo}" data-user="${report.CreatedByUserId}" data-department="${report.Filters?.departmentId || ''}" data-project="${report.Filters?.projectId || ''}"${report.TotalRecords === 0 ? ' style="color: var(--ace-muted); opacity: .62"' : ''}>
                     <td>${formatReportType(report.ReportType)}</td>
                     <td>${reportDate(report.DateFrom)} to ${reportDate(report.DateTo)}</td>
                     <td>${escapeHtml(user?.FullName || 'Unknown')}</td>
