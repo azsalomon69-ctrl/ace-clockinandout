@@ -15,6 +15,8 @@ const ADMIN_SECTION_CONFIG = {
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const date = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '—';
 const time = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
+const humanizeEnum = value => String(value || '').toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
+const auditAction = value => { const [action, ...suffix] = String(value || '').split(' '); return ({ CLOCK_IN: 'Clocked in', CLOCK_OUT: 'Clocked out', BREAK_START: 'Started break', BREAK_END: 'Ended break' }[action] || humanizeEnum(action)) + (suffix.length ? ` ${suffix.join(' ')}` : ''); };
 const duration = seconds => { const safe = Math.max(0, Number(seconds) || 0); return String(Math.floor(safe / 3600)).padStart(2, '0') + ':' + String(Math.floor((safe % 3600) / 60)).padStart(2, '0') + ':' + String(safe % 60).padStart(2, '0'); };
 const icon = (name, className = 'ui-icon') => '<img class="' + className + '" src="assets/icons/' + name + '.svg" alt="" aria-hidden="true">';
 
@@ -50,7 +52,7 @@ async function applyLiveData(key, view) {
     view.stats = [[duration(total), 'Tracked time', 'timer'], [items.filter(item => !item.clock_out_at).length, 'Open entries', 'circle-alert'], [items.length, 'Time entries', 'check']];
   } else if (key === 'audit') {
     const items = await liveRequest('/v1/audit-logs');
-    view.records = items.map(item => ({ id: item.id, cells: [time(item.created_at), item.profiles?.full_name || item.profiles?.email || 'System', item.action, item.entity_type, item.description || '—', '#' + item.id] }));
+    view.records = items.map(item => ({ id: item.id, cells: [time(item.created_at), item.profiles?.full_name || item.profiles?.email || 'System', auditAction(item.action), humanizeEnum(item.entity_type), item.description || '—', '#' + item.id] }));
     view.stats = [[items.length, 'Recorded events', 'brick-wall-shield'], [items.filter(item => item.action === 'LOGIN').length, 'Sign-ins', 'key-round'], [items.filter(item => /REPORT/i.test(item.action)).length, 'Reports exported', 'download']];
   }
 }

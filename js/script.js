@@ -42,6 +42,7 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character =>
 const formatAppDate = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '—';
 const formatAppDateTime = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
 const formatAppTime = value => value ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
+const formatReportType = value => String(value || '').toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
 const reportDate = value => {
     if (!value) return '—';
     return formatAppDate(`${value}T00:00:00`);
@@ -2671,7 +2672,7 @@ function loadReportsList() {
             return `
                 <tr data-type="${report.ReportType}" data-from="${report.DateFrom}" data-to="${report.DateTo}" data-user="${report.CreatedByUserId}" data-department="${report.Filters?.departmentId || ''}" data-project="${report.Filters?.projectId || ''}">
                     <td>${report.ReportId}</td>
-                    <td>${report.ReportType}</td>
+                    <td>${formatReportType(report.ReportType)}</td>
                     <td>${reportDate(report.DateFrom)} to ${reportDate(report.DateTo)}</td>
                     <td>${escapeHtml(user?.FullName || 'Unknown')}</td>
                     <td>${formatAppDateTime(report.GeneratedAt)}</td>
