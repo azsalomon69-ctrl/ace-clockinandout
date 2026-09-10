@@ -57,6 +57,10 @@ async function loadDatabase() {
     AppState.currentUser = profileRecord(profile);
     AppState.isAuthenticated = true;
     localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
+    // The identity is server-verified at this point. Let the persistent shell
+    // appear while the remaining page data is fetched, instead of making the
+    // workspace look like a full-page reload on every navigation.
+    window.dispatchEvent(new CustomEvent('ace:verified-profile-ready'));
     const [departments, projects, entries, userProjects, remarks, assignedSchedule] = await Promise.all([
         window.ACEAuth.request('/v1/departments'),
         window.ACEAuth.request('/v1/projects'),
@@ -144,6 +148,13 @@ async function initApp() {
         return;
     }
 
+    let earlyShellMounted = false;
+    const mountVerifiedShell = () => {
+        if (earlyShellMounted) return;
+        try { earlyShellMounted = initializeAppShell(); }
+        catch (error) { console.error('Could not mount the application navigation.', error); }
+    };
+    window.addEventListener('ace:verified-profile-ready', mountVerifiedShell, { once: true });
     let loaded;
     try {
         loaded = await loadDatabaseWhenServiceIsReady();
@@ -161,10 +172,13 @@ async function initApp() {
         }
         throw error;
     }
+    window.removeEventListener('ace:verified-profile-ready', mountVerifiedShell);
     if (loaded) {
-        let shellMounted = true;
-        try { shellMounted = initializeAppShell(); }
-        catch (error) { console.error('Could not mount the application navigation.', error); }
+        let shellMounted = earlyShellMounted;
+        if (!shellMounted) {
+            try { shellMounted = initializeAppShell(); }
+            catch (error) { console.error('Could not mount the application navigation.', error); }
+        }
         if (!shellMounted) return;
         startPresenceHeartbeat();
         initializeNavigation();
@@ -537,7 +551,7 @@ function initializeAppShell() {
     }
     const sidebar = document.createElement('aside');
     sidebar.className = 'app-sidebar';
-    sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">Profile &amp; settings</a><button type="button" role="menuitem" data-account-logout>Sign out</button></div></div>`;
+    sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-account-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div>`;
     const overlay = document.createElement('button');
     overlay.className = 'shell-overlay'; overlay.type = 'button'; overlay.setAttribute('aria-label', 'Close navigation');
     const mobileToggle = document.createElement('button');
@@ -545,7 +559,7 @@ function initializeAppShell() {
     mobileToggle.innerHTML = suppliedIconMarkup('menu', 'shell-icon');
     const topbar = document.createElement('header');
     topbar.className = 'shell-topbar';
-    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" aria-label="Search employees and projects" autocomplete="off" placeholder="${isAdmin ? 'Search employees, projects…' : 'Search projects…'}"></label><div class="shell-global-results" role="listbox" hidden></div></div><div class="shell-topbar-actions"><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">Profile &amp; settings</a><button type="button" role="menuitem" data-topbar-logout>Sign out</button></div></div></div>`;
+    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" aria-label="Search employees and projects" autocomplete="off" placeholder="${isAdmin ? 'Search employees, projects…' : 'Search projects…'}"></label><div class="shell-global-results" role="listbox" hidden></div></div><div class="shell-topbar-actions"><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
     document.body.prepend(overlay); document.body.prepend(sidebar); document.body.prepend(topbar); document.body.prepend(mobileToggle);
 
     const setCollapsed = collapsed => {
