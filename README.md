@@ -90,6 +90,8 @@ Do not commit `.env` or Supabase secret keys.
 
 The production build bundles the exact Supabase UMD dependency (`@supabase/supabase-js` `2.112.4`) and Excel export dependency (`xlsx` `0.18.5`) as hashed `/assets/js/` files. Browser authentication and Excel exports therefore do not depend on jsDelivr or another third-party runtime script host.
 
+`script-src` currently allows `'unsafe-inline'` because the HTML uses inline event handlers (such as `onclick`). A future task should migrate these to `addEventListener` and then remove `'unsafe-inline'`.
+
 ## API routes
 
 All `/v1/*` routes require a Supabase user access token in `Authorization: Bearer <token>`.
