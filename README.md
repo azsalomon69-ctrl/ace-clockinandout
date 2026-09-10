@@ -78,11 +78,11 @@ Do not commit `.env` or Supabase secret keys.
 ## Deploy the frontend to Vercel
 
 1. In Vercel, import the same GitHub repository.
-2. Set the framework preset to **Other** and set the build command to `npm run build`. Vercel deploys the generated `dist` directory configured in `vercel.ts`, not the readable source HTML, CSS, or JavaScript files.
+2. Set the framework preset to **Other** and set the build command to `npm run build`. Vercel deploys the generated `dist` directory configured in `vercel.json`, not the readable source HTML, CSS, or JavaScript files.
 3. In **Project Settings → Environment Variables**, set both values for each deployment environment:
    - `ACE_API_URL` — the primary HTTPS API base URL for that environment.
    - `ACE_API_URL_FALLBACK` — the current production API base URL, used only when `ACE_API_URL` is unset.
-   The build uses `ACE_API_URL` first, then `ACE_API_URL_FALLBACK`; it fails clearly if neither exists. The same resolution configures the API origin in the Content Security Policy.
+   The build uses `ACE_API_URL` first, then `ACE_API_URL_FALLBACK`; it fails clearly if neither exists. The CSP API origin remains hardcoded in `vercel.json`; if the API host changes, update both the Vercel environment variables and that `connect-src` origin.
 4. Deploy. The production build minifies HTML, CSS, and JavaScript; uses hashed frontend asset filenames; and deliberately creates no source maps.
 5. Add the deployed Vercel URL to Render's `FRONTEND_ORIGIN` and Supabase Auth redirect URLs.
 

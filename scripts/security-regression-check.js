@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const server = await readFile(path.join(root, 'server', 'index.js'), 'utf8');
-const vercel = await readFile(path.join(root, 'vercel.ts'), 'utf8');
+const vercel = JSON.parse(await readFile(path.join(root, 'vercel.json'), 'utf8'));
 
 const requiredAdminRoutes = [
   '/v1/users', '/v1/invitations', '/v1/reports', '/v1/audit-logs',
@@ -22,9 +22,11 @@ assert.doesNotMatch(server, /update\(\{\s*\.\.\.req\.body/, 'Do not mass-assign 
 assert.match(server, /limit: 600/, 'API rate limiting must remain enabled');
 assert.match(server, /limit: 30/, 'Sensitive-action rate limiting must remain enabled');
 
-assert.match(vercel, /frame-ancestors 'none'/, 'Frontend framing must be blocked');
-assert.match(vercel, /key: 'X-Frame-Options', value: 'DENY'/, 'Legacy clickjacking protection must remain enabled');
-assert.match(vercel, /key: 'X-Content-Type-Options', value: 'nosniff'/, 'MIME sniffing must remain disabled');
-assert.match(vercel, /key: 'Strict-Transport-Security', value: 'max-age=/, 'HTTPS transport policy must remain enabled');
+const headers = vercel.headers.flatMap(rule => rule.headers || []);
+const header = key => headers.find(item => item.key === key)?.value || '';
+assert.match(header('Content-Security-Policy'), /frame-ancestors 'none'/, 'Frontend framing must be blocked');
+assert.equal(header('X-Frame-Options'), 'DENY', 'Legacy clickjacking protection must remain enabled');
+assert.equal(header('X-Content-Type-Options'), 'nosniff', 'MIME sniffing must remain disabled');
+assert.match(header('Strict-Transport-Security'), /max-age=/, 'HTTPS transport policy must remain enabled');
 
 console.log('Security regression checks passed.');
