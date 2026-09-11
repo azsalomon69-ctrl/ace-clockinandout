@@ -813,20 +813,16 @@ function initializeAppShell() {
         employeeBottomNav.className = 'employee-bottom-nav';
         employeeBottomNav.setAttribute('aria-label', 'Employee mobile navigation');
         const navLink = ([href, iconName, label]) => `<a class="employee-bottom-nav-item${file === href ? ' is-active' : ''}" href="${href}"${file === href ? ' aria-current="page"' : ''}>${suppliedIconMarkup(iconName, 'shell-icon')}<span>${label}</span></a>`;
-        employeeBottomNav.innerHTML = `${navLink(bottomNavItems[0])}${navLink(bottomNavItems[1])}<button class="employee-bottom-nav-clock" type="button" data-mobile-clock-action aria-label="Clock in">${suppliedIconMarkup('timer', 'shell-icon')}<span>Clock in</span></button>${navLink(bottomNavItems[2])}<button class="employee-bottom-nav-item" type="button" data-bottom-nav-more aria-expanded="false" aria-controls="employeeBottomNavMore">${suppliedIconMarkup('menu', 'shell-icon')}<span>More</span></button><div class="employee-bottom-nav-more-menu" id="employeeBottomNavMore" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Settings</span></a><button type="button" role="menuitem" data-bottom-nav-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div>`;
+        employeeBottomNav.innerHTML = `${navLink(bottomNavItems[0])}${navLink(bottomNavItems[1])}<button class="employee-bottom-nav-clock" type="button" data-mobile-clock-action aria-label="Clock in">${suppliedIconMarkup('timer', 'shell-icon')}<span>Clock in</span></button>${navLink(bottomNavItems[2])}<button class="employee-bottom-nav-item" type="button" data-bottom-nav-more aria-label="Open navigation" aria-expanded="false">${suppliedIconMarkup('menu', 'shell-icon')}<span>More</span></button>`;
         document.body.append(employeeBottomNav);
         const moreButton = employeeBottomNav.querySelector('[data-bottom-nav-more]');
-        const moreMenu = employeeBottomNav.querySelector('#employeeBottomNavMore');
-        const setMoreMenu = open => { moreButton.setAttribute('aria-expanded', String(open)); moreMenu.hidden = !open; };
-        moreButton.addEventListener('click', () => setMoreMenu(moreMenu.hidden));
-        employeeBottomNav.querySelector('[data-bottom-nav-logout]').addEventListener('click', handleLogout);
+        moreButton.addEventListener('click', () => setMobileNavigation(true));
         employeeBottomNav.querySelector('[data-mobile-clock-action]').addEventListener('click', event => {
             const action = event.currentTarget.dataset.mobileClockAction;
             if (action === 'clock-in') openClockInModal();
             else if (action === 'clock-out') openClockOutModal();
             else if (action === 'end-break') handleBreakToggle(event);
         });
-        document.addEventListener('click', event => { if (!employeeBottomNav.contains(event.target)) setMoreMenu(false); });
         updateEmployeeBottomNav();
     }
 
@@ -842,6 +838,7 @@ function initializeAppShell() {
         document.body.classList.toggle('shell-mobile-open', open);
         mobileToggle.setAttribute('aria-expanded', String(open));
         mobileToggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+        employeeBottomNav?.querySelector('[data-bottom-nav-more]')?.setAttribute('aria-expanded', String(open));
     };
     mobileToggle.addEventListener('click', () => setMobileNavigation(!document.body.classList.contains('shell-mobile-open')));
     overlay.addEventListener('click', () => setMobileNavigation(false));
