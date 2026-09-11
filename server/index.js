@@ -634,7 +634,16 @@ app.patch('/v1/time-entries/:id/admin-time', authenticate, adminOnly, async (req
 } catch (error) { next(error); } });
 
 app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try { const remarkText = requireText(req.body.remark, 'Remark', 2000); const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: remarkText }).select().single()); await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark'); res.status(201).json(remark); } catch (error) { next(error); } });
-app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try { const entry = await query(db.from('time_entries').update({ deleted_at: new Date().toISOString(), deleted_by_user_id: req.profile.id }).eq('id', req.params.id).is('deleted_at', null).select().single()); await audit(req, 'DELETE', 'TIME_ENTRY', entry.id, 'Moved time entry to deleted data'); res.json(entry); } catch (error) { next(error); } });
+app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try {
+  const entry = await query(db.from('time_entries').update({ deleted_at: new Date().toISOString(), deleted_by_user_id: req.profile.id }).eq('id', req.params.id).is('deleted_at', null).not('clock_out_at', 'is', null).select().maybeSingle());
+  if (!entry) {
+    const current = await query(db.from('time_entries').select('id,clock_out_at').eq('id', req.params.id).is('deleted_at', null).maybeSingle());
+    if (current?.clock_out_at === null) return fail(res, 409, 'Cannot delete an open shift. Clock the employee out first.');
+    return fail(res, 404, 'Time entry is unavailable');
+  }
+  await audit(req, 'DELETE', 'TIME_ENTRY', entry.id, 'Moved time entry to deleted data');
+  res.json(entry);
+} catch (error) { next(error); } });
 app.patch('/v1/time-entries/:id/restore', authenticate, adminOnly, async (req, res, next) => { try { const entry = await query(db.from('time_entries').update({ deleted_at: null, deleted_by_user_id: null }).eq('id', req.params.id).not('deleted_at', 'is', null).select().single()); await audit(req, 'RESTORE', 'TIME_ENTRY', entry.id, 'Restored time entry'); res.json(entry); } catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id/permanent', authenticate, adminOnly, async (req, res, next) => { try {
   const entry = await query(db.from('time_entries').delete().eq('id', req.params.id).not('deleted_at', 'is', null).select().single());
