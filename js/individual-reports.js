@@ -7,7 +7,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const employeeName = user => user.full_name || user.email;
   const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
   document.getElementById('individualEmployeeOptions').innerHTML = users.map(user => `<option value="${escapeHtml(employeeName(user))}"></option>`).join('');
-  const run = (employee, format) => { const [year, mon] = month.value.split('-').map(Number); window.ACEReportActions.preview({ dateFrom: `${year}-${String(mon).padStart(2, '0')}-01`, dateTo: new Date(year, mon, 0).toISOString().slice(0, 10), filters: { userId: employee.id }, format }); };
+  const run = (employee, format) => {
+    const [year, mon] = month.value.split('-').map(Number);
+    const lastDay = new Date(year, mon, 0).getDate();
+    window.ACEReportActions.preview({ dateFrom: `${month.value}-01`, dateTo: `${month.value}-${String(lastDay).padStart(2, '0')}`, filters: { userId: employee.id }, format });
+  };
   document.getElementById('individualReportForm').addEventListener('submit', event => {
     event.preventDefault(); const selected = input.value ? users.filter(user => employeeName(user) === input.value) : users;
     if (!selected.length) return showToast('Choose an employee from the search list or clear it to generate all employee reports.', 'warning');
