@@ -4463,12 +4463,15 @@ html[data-theme="dark"] .mobile-clock-action-modal .mobile-clock-action:hover { 
   }
   .user-dashboard .employee-summary-grid .stat-label {
     margin-top: 4px;
-    color: var(--ace-muted);
-    font-size: 0;
     line-height: 1;
-    overflow: hidden;
-    text-indent: -9999px;
-    white-space: nowrap;
+    font-size: 0;
+    color: transparent;
+  }
+
+  .user-dashboard .employee-summary-grid .stat-label::after {
+    display: inline;
+    color: var(--ace-muted);
+    font-size: .72rem;
   }
   .user-dashboard .employee-summary-grid .stat-label::after { font-size: .72rem; }
   .user-dashboard .employee-summary-grid .stat-card:nth-child(1) .stat-label::after { content: 'Today'; }
