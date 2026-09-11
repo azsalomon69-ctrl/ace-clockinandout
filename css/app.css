@@ -2827,23 +2827,115 @@ html[data-font-size="large"] body { font-size: 16px; }
 .skip-link { position: fixed; z-index: 10000; top: 12px; left: 12px; padding: 10px 14px; transform: translateY(-160%); color: #fff; background: var(--ace-navy); border-radius: var(--ace-radius-sm); font-weight: 700; }
 .skip-link:focus { transform: translateY(0); outline: 3px solid var(--ace-cyan); outline-offset: 2px; }
 .home-page .hero-section {
-  position: relative;
-  isolation: isolate;
-  min-height: auto;
-  display: block;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 60px 48px;
-  overflow: hidden;
-  background-image:
-    linear-gradient(100deg, rgba(3,45,61,.62), rgba(5,75,94,.34)),
-    url('/assets/images/analytics-mountain-banner-v1.png');
-  background-position: center 44%;
-  background-size: cover;
-  border-color: rgba(137,220,232,.32);
-  box-shadow: 0 12px 24px rgba(3,50,65,.16);
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 48px;
+    align-items: center;
+    min-height: auto;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 48px clamp(24px, 4vw, 64px);
+    overflow: hidden;
+    background-image:
+        linear-gradient(100deg, rgba(3,30,45,.72), rgba(5,60,78,.42)),
+        url('/assets/images/analytics-mountain-banner-v1.png');
+    background-position: center 42%;
+    background-size: cover;
+    border-radius: 22px;
+    border: 1px solid rgba(137,220,232,.24);
+    box-shadow: 0 18px 42px rgba(3,50,65,.22);
 }
-.home-page .hero-section::before { content: ''; position: absolute; z-index: -1; inset: 0; background: radial-gradient(circle at 92% 8%, rgba(8,162,194,.26), transparent 30%), radial-gradient(circle at 8% 100%, rgba(23,105,214,.2), transparent 35%); pointer-events: none; }
+
+.home-page .hero-content {
+    max-width: 620px;
+    position: relative;
+    z-index: 1;
+}
+
+.home-page .hero-eyebrow {
+    margin: 0 0 18px;
+    color: #29c1e0;
+    font: 750 .72rem 'Montserrat', Arial, sans-serif;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+}
+
+.home-page .hero-title {
+    font-size: clamp(2.4rem, 4.6vw, 4rem);
+    line-height: 1.02;
+    letter-spacing: -.045em;
+    margin: 0 0 22px;
+    color: #fff;
+    font-weight: 750;
+}
+
+.home-page .hero-title em {
+    color: #29c1e0;
+    font-style: normal;
+}
+
+.home-page .hero-subtitle {
+    max-width: 520px;
+    margin: 0 0 30px;
+    color: #c8e6ec;
+    font-size: clamp(.95rem, 1.3vw, 1.1rem);
+    line-height: 1.6;
+}
+
+.home-page .hero-actions {
+    margin: 0 0 32px;
+}
+
+.home-page .hero-actions .btn-primary {
+    background: #08a2c2 !important;
+    border-color: #08a2c2 !important;
+    color: #fff !important;
+    box-shadow: 0 12px 28px rgba(8,162,194,.32) !important;
+}
+
+.home-page .hero-actions .btn-primary:hover {
+    background: #0788a4 !important;
+    border-color: #0788a4 !important;
+}
+
+.home-page .hero-assurances {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 26px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: #d8eef2;
+    font-size: .82rem;
+    font-weight: 700;
+}
+
+.home-page .hero-assurances li {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.home-page .hero-assurance-icon {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    background: rgba(255,255,255,.12);
+    border-radius: 7px;
+    flex: 0 0 26px;
+}
+
+.home-page .hero-assurance-icon .ui-icon {
+    width: 15px;
+    height: 15px;
+    filter: brightness(0) invert(1);
+    opacity: .95;
+}
+
+
 .home-page .hero-title { max-width: 700px; }
 .home-page .hero-subtitle { max-width: 570px; line-height: 1.65; }
 .hero-assurances { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 28px 0 0; padding: 0; color: #d8eef2; font-size: .75rem; font-weight: 700; list-style: none; }
@@ -4380,4 +4472,37 @@ html[data-theme="dark"] .mobile-clock-action-modal .mobile-clock-action:hover { 
   .user-dashboard .employee-summary-grid .stat-card:nth-child(2) .stat-label::after { content: 'Week'; }
   .user-dashboard .employee-summary-grid .stat-card:nth-child(3) .stat-label::after { content: 'Month'; }
   html[data-theme="dark"] .user-dashboard .employee-summary-grid .stat-card + .stat-card { border-left-color: var(--ace-border); }
+}
+
+/* Hero preview — image version */
+.home-page .hero-preview {
+    display: block !important;
+    position: relative;
+    z-index: 1;
+    align-self: center;
+    width: 100%;
+    max-width: 640px;
+    margin-left: auto;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,20,32,.36), 0 4px 12px rgba(0,20,32,.16);
+    background: #fff;
+    grid-template-columns: none;
+    grid-template-rows: none;
+    gap: 0;
+    padding: 0;
+}
+
+.home-page .hero-preview > img {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100% !important;
+    border-radius: inherit;
+}
+
+@media (max-width: 900px) {
+    .home-page .hero-preview {
+        display: none !important;
+    }
 }
