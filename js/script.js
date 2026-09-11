@@ -2524,37 +2524,6 @@ function loadAdminDashboard() {
         pageSize?.addEventListener('change', () => { AppState.recentEntriesPageSize = Number(pageSize.value); AppState.recentEntriesPage = 1; renderRecentEntries(); });
         renderRecentEntries();
     }
-    
-    // Populate pending users
-    const pendingUsers = document.getElementById('pendingUsers');
-    if (pendingUsers) {
-        if (!pendingUsers.dataset.visibilityRefreshBound) {
-            pendingUsers.dataset.visibilityRefreshBound = 'true';
-            document.addEventListener('visibilitychange', async () => {
-                if (document.visibilityState !== 'visible') return;
-                try {
-                    await refreshAdminUsers();
-                    loadAdminDashboard();
-                } catch (error) { console.warn('Unable to refresh pending user approvals:', error); }
-            });
-        }
-        const pending = AppState.users.filter(u => u.Status === 'PENDING');
-        
-        pendingUsers.innerHTML = pending.length ? pending.map(user => {
-            return `
-                <tr>
-                    <td>${escapeHtml(user.FullName)}</td>
-                    <td>${escapeHtml(user.Email)}</td>
-                    <td>${escapeHtml(AppState.departments.find(d => d.DepartmentId === user.DepartmentId)?.DepartmentName || 'None')}</td>
-                    <td>${new Date(user.CreatedAt).toLocaleDateString()}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary" onclick="approveUser('${user.UserId}')">Approve</button>
-                        <button class="btn btn-sm btn-danger" onclick="denyUser('${user.UserId}')">Deny</button>
-                    </td>
-                </tr>
-            `;
-        }).join('') : `<tr><td colspan="5">${emptyState('All caught up', 'There are no pending user approvals right now.')}</td></tr>`;
-    }
 }
 
 function loadTimeEntries() {
@@ -2866,30 +2835,6 @@ function viewTimeEntry(entryId) {
         
         openModal('entryDetailsModal');
     }
-}
-
-async function refreshAdminUsers() {
-    if (AppState.currentUser?.Role !== 'ADMIN') return;
-    const users = await window.ACEAuth.request('/v1/users');
-    AppState.users = users.map(profileRecord);
-}
-
-async function approveUser(userId) {
-    try {
-        const saved = await window.ACEAuth.request(`/v1/users/${userId}/approval`, { method: 'PATCH', body: JSON.stringify({ status: 'ACTIVE' }) });
-        const user = profileRecord(saved);
-        await refreshAdminUsers();
-        showToast(`${user.FullName} approved`, 'success'); loadAdminDashboard();
-    } catch (error) { showToast(error.message || 'Unable to approve user', 'error'); }
-}
-
-async function denyUser(userId) {
-    try {
-        const saved = await window.ACEAuth.request(`/v1/users/${userId}/approval`, { method: 'PATCH', body: JSON.stringify({ status: 'DENIED' }) });
-        const user = profileRecord(saved);
-        await refreshAdminUsers();
-        showToast(`${user.FullName} denied`, 'success'); loadAdminDashboard();
-    } catch (error) { showToast(error.message || 'Unable to deny user', 'error'); }
 }
 
 function viewReport(reportId) {
