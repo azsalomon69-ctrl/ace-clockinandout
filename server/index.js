@@ -150,7 +150,9 @@ async function authenticate(req, res, next) {
 const adminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profile.status === 'ACTIVE'
   ? next()
   : fail(res, 403, 'Active administrator access required');
-const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() : fail(res, 403, 'Your account is awaiting approval');
+const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() : fail(res, 403, req.profile.status === 'DENIED'
+  ? 'Your access request was denied. Contact an administrator if you believe this is a mistake.'
+  : 'Your account is awaiting approval');
 const employeeOnly = (req, res, next) => req.profile.role === 'USER' && req.profile.status === 'ACTIVE'
   ? next()
   : fail(res, 403, 'Employee access is required');

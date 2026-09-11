@@ -189,6 +189,7 @@ async function loadDatabase() {
 }
 
 const pause = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+const deniedAccessRequestMessage = 'Your access request was denied. Contact an administrator if you believe this is a mistake.';
 
 async function loadDatabaseWhenServiceIsReady() {
     // Free Render services can sleep. Keep the page skeleton visible while the
@@ -262,6 +263,9 @@ async function initApp() {
         // Supabase session.  A missing, expired, or disallowed session belongs
         // on the sign-in page instead of briefly exposing a dashboard shell.
         if (error?.status === 401 || error?.status === 403) {
+            sessionStorage.setItem('ace_login_notice', AppState.currentUser?.Status === 'DENIED'
+                ? deniedAccessRequestMessage
+                : error.message || 'Unable to load your account.');
             localStorage.removeItem('ace_current_user');
             localStorage.removeItem('ace_current_session');
             sessionStorage.removeItem('ace_login_audited');
@@ -352,6 +356,8 @@ async function resumePublicSession() {
     if (AppState.currentUser.Status === 'ACTIVE') {
         await recordLoginOnce();
         window.location.replace(AppState.currentUser.Role === 'ADMIN' ? 'admin-dashboard.html' : 'user-dashboard.html');
+    } else if (AppState.currentUser.Status === 'DENIED') {
+        sessionStorage.setItem('ace_login_notice', deniedAccessRequestMessage);
     } else {
         document.body.dataset.openAccessRequest = 'true';
     }
@@ -1061,6 +1067,10 @@ function initializeModals() {
     if (requestAccessLink) {
         requestAccessLink.addEventListener('click', (e) => {
             e.preventDefault();
+            if (AppState.currentUser?.Status === 'DENIED') {
+                showToast(deniedAccessRequestMessage, 'warning');
+                return;
+            }
             beginGoogleAccessRequest();
         });
     }
