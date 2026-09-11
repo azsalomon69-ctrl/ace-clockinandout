@@ -801,6 +801,35 @@ function initializeAppShell() {
     topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" aria-label="Search employees and projects" autocomplete="off" placeholder="${isAdmin ? 'Search employees, projects…' : 'Search projects…'}"></label><div class="shell-global-results" role="listbox" hidden></div></div><div class="shell-topbar-actions"><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
     document.body.prepend(overlay); document.body.prepend(sidebar); document.body.prepend(topbar); document.body.prepend(mobileToggle);
 
+    let employeeBottomNav = null;
+    if (isEmployee) {
+        document.body.classList.add('has-employee-bottom-nav');
+        const bottomNavItems = [
+            ['user-dashboard.html', 'layout-panel-top', 'Dashboard'],
+            ['time-entries.html', 'timer', 'My time'],
+            ['remarks.html', 'message-circle-more', 'Remarks']
+        ];
+        employeeBottomNav = document.createElement('nav');
+        employeeBottomNav.className = 'employee-bottom-nav';
+        employeeBottomNav.setAttribute('aria-label', 'Employee mobile navigation');
+        const navLink = ([href, iconName, label]) => `<a class="employee-bottom-nav-item${file === href ? ' is-active' : ''}" href="${href}"${file === href ? ' aria-current="page"' : ''}>${suppliedIconMarkup(iconName, 'shell-icon')}<span>${label}</span></a>`;
+        employeeBottomNav.innerHTML = `${navLink(bottomNavItems[0])}${navLink(bottomNavItems[1])}<button class="employee-bottom-nav-clock" type="button" data-mobile-clock-action aria-label="Clock in">${suppliedIconMarkup('timer', 'shell-icon')}<span>Clock in</span></button>${navLink(bottomNavItems[2])}<button class="employee-bottom-nav-item" type="button" data-bottom-nav-more aria-expanded="false" aria-controls="employeeBottomNavMore">${suppliedIconMarkup('menu', 'shell-icon')}<span>More</span></button><div class="employee-bottom-nav-more-menu" id="employeeBottomNavMore" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Settings</span></a><button type="button" role="menuitem" data-bottom-nav-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div>`;
+        document.body.append(employeeBottomNav);
+        const moreButton = employeeBottomNav.querySelector('[data-bottom-nav-more]');
+        const moreMenu = employeeBottomNav.querySelector('#employeeBottomNavMore');
+        const setMoreMenu = open => { moreButton.setAttribute('aria-expanded', String(open)); moreMenu.hidden = !open; };
+        moreButton.addEventListener('click', () => setMoreMenu(moreMenu.hidden));
+        employeeBottomNav.querySelector('[data-bottom-nav-logout]').addEventListener('click', handleLogout);
+        employeeBottomNav.querySelector('[data-mobile-clock-action]').addEventListener('click', event => {
+            const action = event.currentTarget.dataset.mobileClockAction;
+            if (action === 'clock-in') openClockInModal();
+            else if (action === 'clock-out') openClockOutModal();
+            else if (action === 'end-break') handleBreakToggle(event);
+        });
+        document.addEventListener('click', event => { if (!employeeBottomNav.contains(event.target)) setMoreMenu(false); });
+        updateEmployeeBottomNav();
+    }
+
     const setCollapsed = collapsed => {
         document.body.classList.toggle('shell-collapsed', collapsed);
         sidebar.querySelector('.shell-collapse').setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
@@ -901,6 +930,17 @@ function initializeAppShell() {
         }
     });
     return true;
+}
+
+function updateEmployeeBottomNav() {
+    const button = document.querySelector('[data-mobile-clock-action]');
+    if (!button) return;
+    const action = !AppState.isClockedIn ? { key: 'clock-in', label: 'Clock in', icon: 'timer' }
+        : AppState.isOnBreak ? { key: 'end-break', label: 'End break', icon: 'timer' }
+        : { key: 'clock-out', label: 'Clock out', icon: 'log-out' };
+    button.dataset.mobileClockAction = action.key;
+    button.setAttribute('aria-label', action.label);
+    button.innerHTML = `${suppliedIconMarkup(action.icon, 'shell-icon')}<span>${action.label}</span>`;
 }
 
 function suppliedIconMarkup(name, className = 'ui-icon') {
@@ -1103,37 +1143,17 @@ function initializeModals() {
 
     // Clock in buttons
     const clockInBtn = document.getElementById('mainClockInBtn');
-    if (clockInBtn) {
-        clockInBtn.addEventListener('click', () => {
-            openModal('clockInModal');
-            populateProjectSelect('clockInProject');
-        });
-    }
+    if (clockInBtn) clockInBtn.addEventListener('click', openClockInModal);
 
     const clockInBtnAlt = document.getElementById('clockInBtn');
-    if (clockInBtnAlt) {
-        clockInBtnAlt.addEventListener('click', () => {
-            openModal('clockInModal');
-            populateProjectSelect('clockInProject');
-        });
-    }
+    if (clockInBtnAlt) clockInBtnAlt.addEventListener('click', openClockInModal);
 
     // Clock out buttons
     const clockOutBtn = document.getElementById('mainClockOutBtn');
-    if (clockOutBtn) {
-        clockOutBtn.addEventListener('click', () => {
-            showClockOutSummary();
-            openModal('clockOutModal');
-        });
-    }
+    if (clockOutBtn) clockOutBtn.addEventListener('click', openClockOutModal);
 
     const sessionClockOutBtn = document.getElementById('sessionClockOutBtn');
-    if (sessionClockOutBtn) {
-        sessionClockOutBtn.addEventListener('click', () => {
-            showClockOutSummary();
-            openModal('clockOutModal');
-        });
-    }
+    if (sessionClockOutBtn) sessionClockOutBtn.addEventListener('click', openClockOutModal);
 
     const breakButton = document.querySelectorAll('[data-break-toggle]');
     breakButton.forEach(button => button.addEventListener('click', handleBreakToggle));
@@ -1160,12 +1180,7 @@ function initializeModals() {
     });
 
     const clockOutBtnAlt = document.getElementById('clockOutBtn');
-    if (clockOutBtnAlt) {
-        clockOutBtnAlt.addEventListener('click', () => {
-            showClockOutSummary();
-            openModal('clockOutModal');
-        });
-    }
+    if (clockOutBtnAlt) clockOutBtnAlt.addEventListener('click', openClockOutModal);
 
     // Settings tabs
     const settingsTabs = document.querySelectorAll('.settings-tab');
@@ -1511,6 +1526,16 @@ async function handleRequestAccess(e) {
     } catch (error) { showToast(error.message || 'Unable to submit access request', 'error'); }
 }
 
+function openClockInModal() {
+    openModal('clockInModal');
+    populateProjectSelect('clockInProject');
+}
+
+function openClockOutModal() {
+    showClockOutSummary();
+    openModal('clockOutModal');
+}
+
 // Clock In/Out Handlers
 async function handleClockIn(e) {
     e.preventDefault();
@@ -1804,6 +1829,7 @@ function handleAppearanceUpdate(e) {
 
 // UI Updates
 function updateUI() {
+    updateEmployeeBottomNav();
     // Update user name
     const userNameElements = document.querySelectorAll('#userName');
     userNameElements.forEach(el => {
