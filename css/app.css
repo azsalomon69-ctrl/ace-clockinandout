@@ -4461,19 +4461,26 @@ html[data-theme="dark"] .mobile-clock-action-modal .mobile-clock-action:hover { 
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .user-dashboard .employee-summary-grid .stat-label {
+    .user-dashboard .employee-summary-grid .stat-label {
+    position: relative;
     margin-top: 4px;
-    line-height: 1;
-    font-size: 0;
-    color: transparent;
+    line-height: 1.2;
+    font-size: .72rem;
+    color: var(--ace-muted);
+    text-indent: -9999px;
+    overflow: hidden;
+    white-space: nowrap;
+    min-height: 1em;
   }
 
   .user-dashboard .employee-summary-grid .stat-label::after {
-    display: inline;
+    display: block;
+    text-indent: 0;
     color: var(--ace-muted);
     font-size: .72rem;
+    line-height: 1.2;
   }
-  .user-dashboard .employee-summary-grid .stat-label::after { font-size: .72rem; }
+
   .user-dashboard .employee-summary-grid .stat-card:nth-child(1) .stat-label::after { content: 'Today'; }
   .user-dashboard .employee-summary-grid .stat-card:nth-child(2) .stat-label::after { content: 'Week'; }
   .user-dashboard .employee-summary-grid .stat-card:nth-child(3) .stat-label::after { content: 'Month'; }
