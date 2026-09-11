@@ -1598,9 +1598,9 @@ function updateTimerDisplay() {
     });
     const totalBreakSeconds = (AppState.currentSession?.BreakSeconds || 0) + activeBreakSeconds;
     const schedule = AppState.assignedSchedule;
-    if (schedule?.schedule_type === 'FLEX' && totalBreakSeconds > Number(schedule.break_limit_minutes || 60) * 60) {
+    if (schedule?.schedule_type === 'FLEX' && totalBreakSeconds > Number(schedule.break_limit_minutes ?? 60) * 60) {
         const key = `break-${AppState.currentSession?.TimeEntryId}`;
-        if (!AppState.scheduleAlertKeys.has(key)) { AppState.scheduleAlertKeys.add(key); showToast(`Your ${schedule.break_limit_minutes || 60}-minute flextime break limit has been exceeded.`, 'warning'); }
+        if (!AppState.scheduleAlertKeys.has(key)) { AppState.scheduleAlertKeys.add(key); showToast(`Your ${schedule.break_limit_minutes ?? 60}-minute flextime break limit has been exceeded.`, 'warning'); }
     }
     document.querySelectorAll('#currentBreakDuration').forEach(el => { el.textContent = formatClockDuration(totalBreakSeconds); });
     const sessionStateTime = document.getElementById('sessionStateTime');
@@ -2018,11 +2018,11 @@ function loadUserDashboard() {
         if (schedule.schedule_type === 'FLEX' && active) {
             const finish = new Date(new Date(active.ClockInAt).getTime() + Number(schedule.daily_elapsed_minutes || 540) * 60000);
             const breakSeconds = Number(active.BreakSeconds || 0) + (active.BreakStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(active.BreakStartedAt).getTime()) / 1000)) : 0);
-            message = `Flextime: expected finish ${finish.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Break limit: ${schedule.break_limit_minutes || 60} minutes${breakSeconds > Number(schedule.break_limit_minutes || 60) * 60 ? ' — your break limit has been exceeded.' : '.'}`;
+            message = `Flextime: expected finish ${finish.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Break limit: ${schedule.break_limit_minutes ?? 60} minutes${breakSeconds > Number(schedule.break_limit_minutes ?? 60) * 60 ? ' — your break limit has been exceeded.' : '.'}`;
         } else if (schedule.schedule_type === 'FIXED') {
             const [hours, minutes] = String(schedule.start_time).slice(0, 5).split(':').map(Number); const start = new Date(); start.setHours(hours, minutes, 0, 0);
-            message = !active && now > start ? `You are late for ${schedule.name}. Scheduled start: ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : `${schedule.name}: ${String(schedule.start_time).slice(0, 5)}–${String(schedule.end_time).slice(0, 5)}. Break limit: ${schedule.break_limit_minutes || 60} minutes.`;
-        } else if (schedule.schedule_type === 'FLEX') message = `${schedule.name}: clock in for ${Math.floor(Number(schedule.daily_elapsed_minutes || 540) / 60)} hours total, including up to ${schedule.break_limit_minutes || 60} minutes of break.`;
+            message = !active && now > start ? `You are late for ${schedule.name}. Scheduled start: ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : `${schedule.name}: ${String(schedule.start_time).slice(0, 5)}–${String(schedule.end_time).slice(0, 5)}. Break limit: ${schedule.break_limit_minutes ?? 60} minutes.`;
+        } else if (schedule.schedule_type === 'FLEX') message = `${schedule.name}: clock in for ${Math.floor(Number(schedule.daily_elapsed_minutes || 540) / 60)} hours total, including up to ${schedule.break_limit_minutes ?? 60} minutes of break.`;
         notice.textContent = message; document.querySelector('.user-dashboard .employee-dashboard-intro')?.insertAdjacentElement('afterend', notice);
     }
     const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.DurationSeconds);
