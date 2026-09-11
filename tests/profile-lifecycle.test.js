@@ -154,15 +154,30 @@ for (const route of routeCases.filter(item => item.body.role === 'USER')) {
   }
 }
 
-test('access denial updates only the request, even when linked to the head account', async () => {
+test('access denial updates the linked profile and request', async () => {
+  const route = { ...routeCases.find(item => item.name === 'access approval'), body: { decision: 'DENY' } };
+  const h = harness(route);
+  await h.run();
+  assert.equal(h.res.statusCode, 200);
+  assert.equal(h.state.profiles.find(row => row.id === 'target').status, 'DENIED');
+  assert.equal(h.state.access_requests[0].status, 'DENIED');
+  assert.deepEqual(h.effects.map(effect => effect.kind), ['update', 'update', 'audit']);
+  assert.equal(h.effects[0].table, 'profiles');
+  assert.equal(h.effects[1].table, 'access_requests');
+});
+
+test('access denial cannot deny the head administrator', async () => {
   const route = { ...routeCases.find(item => item.name === 'access approval'), body: { decision: 'DENY' } };
   const h = harness(route, { target: profile('head', { email: headEmail }) });
   await h.run();
-  assert.equal(h.res.statusCode, 200);
-  assert.deepEqual(h.state.profiles, h.initial.profiles);
-  assert.equal(h.state.access_requests[0].status, 'DENIED');
-  assert.deepEqual(h.effects.map(effect => effect.kind), ['update', 'audit']);
-  assert.equal(h.effects[0].table, 'access_requests');
+  assertBlocked(h, 403, messages.head);
+});
+
+test('denied profiles cannot submit another access request', async () => {
+  const route = { name: 'access request', method: 'post', path: '/v1/access-requests', body: {} };
+  const h = harness(route, { actor: profile('actor', { role: 'USER', status: 'DENIED' }) });
+  await h.run();
+  assertBlocked(h, 403, 'Your access request was denied. Contact an administrator if you believe this is a mistake.');
 });
 
 for (const name of ['new invitation', 'pending invitation']) {

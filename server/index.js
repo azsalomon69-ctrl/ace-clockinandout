@@ -258,6 +258,7 @@ app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
   res.status(204).end();
 } catch (error) { next(error); } });
 app.post('/v1/access-requests', sensitiveActionLimiter, authenticate, async (req, res, next) => { try {
+  if (req.profile.status === 'DENIED') return fail(res, 403, 'Your access request was denied. Contact an administrator if you believe this is a mistake.');
   const email = req.profile.email.trim().toLowerCase();
   if (!isAllowedCompanyEmail(email)) return fail(res, 403, 'Use an approved company email address to request access.');
   const now = new Date();
@@ -299,10 +300,13 @@ app.patch('/v1/access-requests/:id', sensitiveActionLimiter, authenticate, admin
     const department = await query(db.from('departments').select('id').eq('id', departmentId).eq('is_active', true).maybeSingle());
     if (!department) return fail(res, 400, 'Department not found or inactive');
   }
+  const target = await query(db.from('profiles').select('id,email,role,status').eq('id', request.profile_id).single());
+  const profileChanges = decision === 'APPROVE' ? { status, role } : { status };
+  if (!await guardProfileLifecycle(req, res, target, profileChanges, { operation: 'access-approval' })) return;
   if (decision === 'APPROVE') {
-    const target = await query(db.from('profiles').select('id,email,role,status').eq('id', request.profile_id).single());
-    if (!await guardProfileLifecycle(req, res, target, { status, role }, { operation: 'access-approval' })) return;
     await query(db.from('profiles').update({ status, role, department_id: departmentId }).eq('id', request.profile_id).select().single());
+  } else {
+    await query(db.from('profiles').update({ status }).eq('id', request.profile_id).select().single());
   }
   const reviewed = await query(db.from('access_requests').update({ status, reviewed_at: new Date().toISOString(), reviewed_by_user_id: req.profile.id }).eq('id', request.id).select().single());
   await audit(req, decision === 'APPROVE' ? 'APPROVE_ACCESS_REQUEST' : 'DENY_ACCESS_REQUEST', 'ACCESS_REQUEST', request.id, `${decision === 'APPROVE' ? 'Approved' : 'Denied'} ${request.email}`);
