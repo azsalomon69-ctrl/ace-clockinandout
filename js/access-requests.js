@@ -35,7 +35,7 @@ function reviewRequest(request, decision, role) {
         return;
       }
       if (error.status === 410) {
-        showToast('This access request has expired.', 'warning');
+        showToast('This request is no longer available.', 'warning');
         loadAccessRequests();
         return;
       }

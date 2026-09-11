@@ -275,7 +275,7 @@ app.post('/v1/access-requests', sensitiveActionLimiter, authenticate, async (req
   const request = await query(db.from('access_requests').insert({
     profile_id: req.profile.id, email, full_name: req.profile.full_name || req.authUser.user_metadata?.full_name || '',
     requested_department: requestedDepartment, message,
-    requested_role: 'USER', request_ip: req.ip, expires_at: new Date(now.getTime() + 2 * 60 * 1000).toISOString()
+    requested_role: 'USER', request_ip: req.ip, expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString()
   }).select().single());
   await audit(req, 'REQUEST_ACCESS', 'ACCESS_REQUEST', request.id, 'Requested account approval');
   res.status(201).json({ request });
@@ -291,7 +291,6 @@ app.patch('/v1/access-requests/:id', sensitiveActionLimiter, authenticate, admin
   if (!['APPROVE', 'DENY'].includes(decision)) return fail(res, 400, 'Decision must be APPROVE or DENY');
   const request = await query(db.from('access_requests').select('*').eq('id', req.params.id).single());
   if (request.status !== 'PENDING') return fail(res, 409, 'This request has already been reviewed.');
-  if (new Date(request.expires_at).getTime() <= Date.now()) return fail(res, 410, 'This request expired after two minutes.');
   if (!request.profile_id) return fail(res, 409, 'This legacy request is not linked to a Google account.');
   const status = decision === 'APPROVE' ? 'ACTIVE' : 'DENIED';
   const departmentId = optionalUuid(req.body.departmentId);

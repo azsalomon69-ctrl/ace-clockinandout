@@ -8,7 +8,7 @@ alter table public.invitations
 alter table public.access_requests
   add column if not exists profile_id uuid references public.profiles(id) on delete cascade,
   add column if not exists requested_role public.user_role not null default 'USER',
-  add column if not exists expires_at timestamptz not null default now() + interval '2 minutes',
+  add column if not exists expires_at timestamptz not null default now() + interval '24 hours',
   add column if not exists request_ip inet;
 
 alter table public.access_requests drop constraint if exists access_requests_email_key;

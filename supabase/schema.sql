@@ -74,7 +74,7 @@ create table public.access_requests (
   requested_role public.user_role not null default 'USER',
   status public.user_status not null default 'PENDING',
   created_at timestamptz not null default now(),
-  expires_at timestamptz not null default now() + interval '2 minutes',
+  expires_at timestamptz not null default now() + interval '24 hours',
   request_ip inet,
   reviewed_at timestamptz,
   reviewed_by_user_id uuid references public.profiles(id)
