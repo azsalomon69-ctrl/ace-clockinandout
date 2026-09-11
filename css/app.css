@@ -4311,3 +4311,57 @@ html[data-theme="dark"] .mobile-clock-action-modal .mobile-clock-action:hover { 
   background-size: 200% 100%; border-radius: 999px; animation: ace-route-progress 900ms ease-in-out infinite;
 }
 @keyframes ace-route-progress { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* On phones, recorded time is a single at-a-glance metric card rather than
+   three full-width cards. The existing value IDs stay in place so clock
+   updates continue to populate the same elements. */
+@media (max-width: 768px) {
+  .user-dashboard .employee-stats-section .employee-section-heading {
+    min-height: 0;
+    margin-bottom: 10px;
+  }
+  .user-dashboard .employee-stats-section .employee-section-heading > p { display: none; }
+  .user-dashboard .employee-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+    padding: 8px 4px;
+    background: var(--neo-surface);
+    border: 1px solid rgba(255,255,255,.78);
+    border-radius: 14px;
+    box-shadow: var(--neo-raised);
+  }
+  .user-dashboard .employee-summary-grid .stat-card {
+    min-height: 0 !important;
+    display: block;
+    padding: 7px 4px !important;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    text-align: center;
+  }
+  .user-dashboard .employee-summary-grid .stat-card + .stat-card { border-left: 1px solid #d3e8ed; }
+  .user-dashboard .employee-summary-grid .stat-icon { display: none; }
+  .user-dashboard .employee-summary-grid .stat-info { min-width: 0; }
+  .user-dashboard .employee-summary-grid .stat-number {
+    overflow: hidden;
+    color: var(--ace-navy);
+    font-size: 1.35rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .user-dashboard .employee-summary-grid .stat-label {
+    margin-top: 4px;
+    color: var(--ace-muted);
+    font-size: 0;
+    line-height: 1;
+  }
+  .user-dashboard .employee-summary-grid .stat-label::after { font-size: .72rem; }
+  .user-dashboard .employee-summary-grid .stat-card:nth-child(1) .stat-label::after { content: 'Today'; }
+  .user-dashboard .employee-summary-grid .stat-card:nth-child(2) .stat-label::after { content: 'Week'; }
+  .user-dashboard .employee-summary-grid .stat-card:nth-child(3) .stat-label::after { content: 'Month'; }
+  html[data-theme="dark"] .user-dashboard .employee-summary-grid .stat-card + .stat-card { border-left-color: var(--ace-border); }
+}
