@@ -2477,6 +2477,7 @@ body.app-shell-pending { background: var(--ace-sky-2); }
 body.app-shell-pending > :is(.navbar, .footer, .main-content) { visibility: hidden !important; }
 .app-shell-skeleton { position: fixed; z-index: 8000; inset: 64px 0 0 var(--ace-sidebar); overflow: hidden; background: var(--ace-sky-2); }
 body.app-shell-pending :is(.app-sidebar, .shell-topbar, .shell-mobile-toggle) { z-index: 9100; }
+body.app-shell-pending .employee-bottom-nav { z-index: 9100; }
 body.app-shell-pending .shell-collapse { z-index: 2; }
 .shell-skeleton-main { overflow: hidden; padding: 38px clamp(28px,3.5vw,64px); }
 .shell-skeleton-header { height: 104px; margin-bottom: 24px; border: 1px solid var(--ace-line); border-radius: 16px; background: #fff; }
