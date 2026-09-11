@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const server = await readFile(path.join(root, 'server', 'index.js'), 'utf8');
 const frontendScript = await readFile(path.join(root, 'js', 'script.js'), 'utf8');
+const schema = await readFile(path.join(root, 'supabase', 'schema.sql'), 'utf8');
 const vercel = JSON.parse(await readFile(path.join(root, 'vercel.json'), 'utf8'));
 const htmlPages = await Promise.all((await readdir(root))
   .filter(file => file.endsWith('.html'))
@@ -25,6 +26,12 @@ assert.match(server, /req\.profile\.status === 'ACTIVE'/, 'Account status must b
 assert.doesNotMatch(server, /update\(\{\s*\.\.\.req\.body/, 'Do not mass-assign request bodies to database records');
 assert.match(server, /limit: 600/, 'API rate limiting must remain enabled');
 assert.match(server, /limit: 30/, 'Sensitive-action rate limiting must remain enabled');
+assert.doesNotMatch(schema, /create policy "create own entries" on public\.time_entries/i, 'Time entries must not allow direct authenticated inserts');
+assert.doesNotMatch(schema, /create policy "update own open entries" on public\.time_entries/i, 'Time entries must not allow direct authenticated updates');
+const browserTimeEntryGrants = schema.split(';').filter(statement => /\bgrant\b[\s\S]*?\bon\s+public\.time_entries\b[\s\S]*?\bto\s+(?:anon|authenticated)\b/i.test(statement));
+for (const grant of browserTimeEntryGrants) {
+  assert.doesNotMatch(grant, /\b(insert|update|delete|truncate|references|trigger)\b/i, 'Time entries must not grant browser write privileges');
+}
 
 const headers = vercel.headers.flatMap(rule => rule.headers || []);
 const header = key => headers.find(item => item.key === key)?.value || '';

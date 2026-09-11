@@ -221,10 +221,7 @@ alter table public.reports enable row level security;
 alter table public.report_exports enable row level security;
 alter table public.audit_logs enable row level security;
 
--- The Express API uses the server-only Supabase secret key. These policies allow
--- authenticated users to read their own profile and own time entries if direct
--- browser reads are introduced later.
+-- The Express API uses the server-only Supabase secret key. Authenticated users
+-- may read their own profile and time entries, but all writes go through the API.
 create policy "read own profile" on public.profiles for select to authenticated using (id = auth.uid());
 create policy "read own entries" on public.time_entries for select to authenticated using (user_id = auth.uid());
-create policy "create own entries" on public.time_entries for insert to authenticated with check (user_id = auth.uid());
-create policy "update own open entries" on public.time_entries for update to authenticated using (user_id = auth.uid() and clock_out_at is null);
