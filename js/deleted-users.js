@@ -15,4 +15,5 @@ async function loadDeletedUsers() {
     }));
   } catch (error) { showToast(error.message || 'Could not load deleted users.', 'error'); }
 }
-document.addEventListener('DOMContentLoaded', loadDeletedUsers);
+window.mountDeletedUsers = loadDeletedUsers;
+document.addEventListener('DOMContentLoaded', window.mountDeletedUsers);

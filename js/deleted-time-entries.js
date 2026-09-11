@@ -16,4 +16,5 @@ async function loadDeletedTimeEntries() {
     }));
   } catch (error) { showToast(error.message || 'Could not load deleted time entries.', 'error'); }
 }
-document.addEventListener('DOMContentLoaded', loadDeletedTimeEntries);
+window.mountDeletedTimeEntries = loadDeletedTimeEntries;
+document.addEventListener('DOMContentLoaded', window.mountDeletedTimeEntries);

@@ -96,5 +96,6 @@
       });
     } catch (error) { root.innerHTML = `<p class="empty-state">${esc(error.message || 'Unable to load this employee profile.')}</p>`; }
   };
-  document.addEventListener('DOMContentLoaded', render);
+  window.mountEmployeeProfile = render;
+  document.addEventListener('DOMContentLoaded', window.mountEmployeeProfile);
 })();

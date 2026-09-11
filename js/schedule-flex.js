@@ -20,9 +20,11 @@
       catch (error) { toast(error.message || 'Could not delete schedule.', 'error'); }
     }));
   };
-  document.addEventListener('DOMContentLoaded', async () => { try { const me = await request('/v1/me'); if (me.profile.role !== 'ADMIN') return location.replace('user-dashboard.html'); await load(); } catch { location.replace('login.html'); }
+  const mount = async () => { try { const me = await request('/v1/me'); if (me.profile.role !== 'ADMIN') return location.replace('user-dashboard.html'); await load(); } catch { location.replace('login.html'); }
     const type = document.getElementById('scheduleType'); const toggle = () => document.querySelectorAll('.fixed-time').forEach(node => node.hidden = type.value === 'FLEX'); type.addEventListener('change', toggle); toggle();
     document.getElementById('scheduleForm').addEventListener('submit', async event => { event.preventDefault(); try { await request('/v1/schedules', { method: 'POST', body: JSON.stringify({ name: document.getElementById('scheduleName').value, scheduleType: type.value, startTime: document.getElementById('scheduleStart').value, endTime: document.getElementById('scheduleEnd').value, dailyElapsedMinutes: Number(document.getElementById('scheduleHours').value) * 60, breakLimitMinutes: Number(document.getElementById('scheduleBreak').value) }) }); toast('Schedule created.'); event.target.reset(); await load(); } catch (error) { toast(error.message || 'Could not create schedule.', 'error'); } });
     document.getElementById('assignmentForm').addEventListener('submit', async event => { event.preventDefault(); try { await request(`/v1/users/${document.getElementById('scheduleEmployee').value}/schedule`, { method: 'PUT', body: JSON.stringify({ scheduleId: document.getElementById('scheduleAssignment').value }) }); toast('Schedule assigned.'); await load(); } catch (error) { toast(error.message || 'Could not assign schedule.', 'error'); } });
-  });
+  };
+  window.mountScheduleFlex = mount;
+  document.addEventListener('DOMContentLoaded', window.mountScheduleFlex);
 })();

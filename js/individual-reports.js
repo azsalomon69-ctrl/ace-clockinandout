@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', async () => {
+const mountIndividualReports = async () => {
   const me = await window.ACEAuth.request('/v1/me');
   if (me.profile.role !== 'ADMIN') return location.replace('user-dashboard.html');
   const users = (await window.ACEAuth.request('/v1/users')).filter(user => user.role === 'USER' && user.status === 'ACTIVE');
@@ -21,4 +21,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     rows.querySelectorAll('[data-format]').forEach(button => button.addEventListener('click', () => run(selected[Number(button.dataset.row)], button.dataset.format)));
     showToast(`${selected.length} individual report${selected.length === 1 ? '' : 's'} ready.`, 'success');
   });
-});
+};
+window.mountIndividualReports = mountIndividualReports;
+document.addEventListener('DOMContentLoaded', window.mountIndividualReports);

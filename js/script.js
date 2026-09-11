@@ -502,14 +502,32 @@ function installPageFadeNavigation() {
     if (document.body.dataset.pageFadeReady === 'true') return;
     document.body.dataset.pageFadeReady = 'true';
     let navigating = false;
+    const routeModules = {
+        'deleted-users.js': 'mountDeletedUsers',
+        'access-requests.js': 'mountAccessRequests',
+        'schedule-flex.js': 'mountScheduleFlex',
+        'deleted-time-entries.js': 'mountDeletedTimeEntries',
+        'individual-reports.js': 'mountIndividualReports',
+        'chat-log.js': 'mountChatLog',
+        'employee-profile.js': 'mountEmployeeProfile'
+    };
 
-    const routeSkeleton = () => {
-        const shell = document.createElement('div');
-        shell.className = 'app-shell-skeleton';
-        shell.setAttribute('aria-hidden', 'true');
-        shell.innerHTML = `<main class="shell-skeleton-main shell-skeleton-management"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats">${'<div class="shell-skeleton-stat"></div>'.repeat(3)}</div><section class="shell-skeleton-panel shell-skeleton-table">${'<div class="shell-skeleton-row"></div>'.repeat(6)}</section></main>`;
-        document.body.appendChild(shell);
-        return shell;
+    const mountRouteModule = async documentFromRoute => {
+        const source = Array.from(documentFromRoute.querySelectorAll('script[src]')).map(node => node.src)
+            .find(candidate => /\.js(?:\?|$)/.test(candidate) && !/(api-config|supabase|sidebar|\/script\.js|admin-sections\.js)/.test(candidate));
+        if (!source) return;
+        const moduleName = new URL(source, window.location.href).pathname.split('/').pop();
+        const mountName = routeModules[moduleName];
+        if (!mountName) throw new Error(`Unsupported route module: ${moduleName}`);
+        if (!window[mountName]) {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = source; script.dataset.routeModule = moduleName;
+                script.onload = resolve; script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+        await window[mountName]?.();
     };
 
     const updateShellRoute = destination => {
@@ -581,11 +599,8 @@ function installPageFadeNavigation() {
         const main = document.querySelector('main.main-content');
         if (!main) { window.location.assign(destination.href); return; }
         const isEmployeeNavigation = document.body.dataset.userRole === 'employee';
-        const skeleton = isEmployeeNavigation ? null : routeSkeleton();
-        if (isEmployeeNavigation) {
-            updateBottomNavRoute(destination);
-            main.classList.add('is-route-loading');
-        }
+        updateBottomNavRoute(destination);
+        main.classList.add('is-route-loading');
         main.setAttribute('aria-busy', 'true');
         try {
             const response = await fetch(destination.href, { credentials: 'same-origin' });
@@ -594,8 +609,9 @@ function installPageFadeNavigation() {
             const nextMain = parsed.querySelector('main.main-content');
             if (!nextMain) throw new Error('The selected dashboard page is unavailable.');
             const unsupportedModule = Array.from(parsed.querySelectorAll('script[src]')).map(node => node.src)
-                .find(source => /\.js(?:\?|$)/.test(source) && !/(api-config|supabase-auth|sidebar|\/script\.js|admin-sections\.js)/.test(source));
+                .find(source => /\.js(?:\?|$)/.test(source) && !/(api-config|supabase-auth|sidebar|\/script\.js|admin-sections\.js)/.test(source) && !routeModules[new URL(source, window.location.href).pathname.split('/').pop()]);
             if (unsupportedModule) { window.location.assign(destination.href); return; }
+            window.unmountAccessRequests?.();
             main.className = nextMain.className;
             main.innerHTML = nextMain.innerHTML;
             const nextView = parsed.body.dataset.adminView;
@@ -605,6 +621,7 @@ function installPageFadeNavigation() {
             if (push) history.pushState({ aceDashboard: true }, '', destination.href);
             updateShellRoute(destination);
             await runMountedPage(parsed);
+            await mountRouteModule(parsed);
             window.scrollTo({ top: 0, behavior: 'auto' });
         } catch (error) {
             console.warn('Dashboard content navigation fell back to a normal page load.', error);
@@ -614,7 +631,6 @@ function installPageFadeNavigation() {
         } finally {
             main.removeAttribute('aria-busy');
             main.classList.remove('is-route-loading');
-            skeleton?.remove();
             navigating = false;
         }
     };

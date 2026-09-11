@@ -71,11 +71,18 @@ async function loadAccessRequests() {
   }
   catch (error) { showToast(error.message || 'Unable to load access requests.', 'error'); }
 }
-document.addEventListener('DOMContentLoaded', () => {
+let accessRequestsInterval;
+window.unmountAccessRequests = () => {
+  if (accessRequestsInterval) window.clearInterval(accessRequestsInterval);
+  accessRequestsInterval = null;
+};
+window.mountAccessRequests = () => {
+  window.unmountAccessRequests();
   loadAccessRequests();
   document.getElementById('accessRequestSearch')?.addEventListener('input', event => {
     const term = event.target.value.toLowerCase();
     const all = accessRequests; accessRequests = all.filter(request => [request.email, request.full_name, request.state].join(' ').toLowerCase().includes(term)); renderAccessRequests(); accessRequests = all;
   });
-  window.setInterval(loadAccessRequests, 15000);
-});
+  accessRequestsInterval = window.setInterval(loadAccessRequests, 15000);
+};
+document.addEventListener('DOMContentLoaded', window.mountAccessRequests);
