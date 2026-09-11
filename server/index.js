@@ -293,8 +293,12 @@ app.patch('/v1/access-requests/:id', sensitiveActionLimiter, authenticate, admin
   if (request.status !== 'PENDING') return fail(res, 409, 'This request has already been reviewed.');
   if (!request.profile_id) return fail(res, 409, 'This legacy request is not linked to a Google account.');
   const status = decision === 'APPROVE' ? 'ACTIVE' : 'DENIED';
-  const departmentId = optionalUuid(req.body.departmentId);
+  const departmentId = optionalUuid(req.body.department_id);
   if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
+  if (departmentId) {
+    const department = await query(db.from('departments').select('id').eq('id', departmentId).eq('is_active', true).maybeSingle());
+    if (!department) return fail(res, 400, 'Department not found or inactive');
+  }
   if (decision === 'APPROVE') {
     const target = await query(db.from('profiles').select('id,email,role,status').eq('id', request.profile_id).single());
     if (!await guardProfileLifecycle(req, res, target, { status, role }, { operation: 'access-approval' })) return;
