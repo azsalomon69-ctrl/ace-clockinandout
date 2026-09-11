@@ -164,6 +164,36 @@ const protectHeadAdmin = (req, res, target) => {
   fail(res, 403, 'Only the head administrator can change this administrator account.');
   return false;
 };
+async function guardProfileLifecycle(req, res, target, changes, { operation }) {
+  if (['archive', 'approval'].includes(operation) && changes.status === 'DENIED' && target.id === req.profile.id) {
+    fail(res, 400, 'You cannot remove your own administrator account.');
+    return false;
+  }
+  if (!protectHeadAdmin(req, res, target)) return false;
+  if (operation === 'archive' && target.status === 'DENIED') {
+    fail(res, 409, 'This user has already been removed.');
+    return false;
+  }
+  if (operation === 'restore' && target.status !== 'DENIED') {
+    fail(res, 409, 'Only removed users can be restored.');
+    return false;
+  }
+  const nextRole = changes.role ?? target.role;
+  const nextStatus = changes.status ?? target.status;
+  const removesActiveAdmin = target.role === 'ADMIN' && target.status === 'ACTIVE'
+    && (nextRole !== 'ADMIN' || nextStatus !== 'ACTIVE');
+  // Preserve archive's existing count check for pending administrators too.
+  if (removesActiveAdmin || (operation === 'archive' && target.role === 'ADMIN')) {
+    // This application-level count can still race with simultaneous mutations.
+    // A future database-level constraint enforced transactionally is the proper fix.
+    const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE'));
+    if (admins.length <= 1) {
+      fail(res, 403, 'At least one active administrator must remain.');
+      return false;
+    }
+  }
+  return true;
+}
 async function audit(req, action, entityType, entityId, description) {
   await db.from('audit_logs').insert({ user_id: req.profile?.id || null, action, entity_type: entityType, entity_id: isUuid(entityId) ? entityId : null, description, ip_address: req.ip, user_agent: req.get('user-agent') }).then(({ error }) => { if (error) console.error('audit log:', error.message); });
 }
@@ -266,7 +296,11 @@ app.patch('/v1/access-requests/:id', sensitiveActionLimiter, authenticate, admin
   const status = decision === 'APPROVE' ? 'ACTIVE' : 'DENIED';
   const departmentId = optionalUuid(req.body.departmentId);
   if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
-  if (decision === 'APPROVE') await query(db.from('profiles').update({ status, role, department_id: departmentId }).eq('id', request.profile_id).select().single());
+  if (decision === 'APPROVE') {
+    const target = await query(db.from('profiles').select('id,email,role,status').eq('id', request.profile_id).single());
+    if (!await guardProfileLifecycle(req, res, target, { status, role }, { operation: 'access-approval' })) return;
+    await query(db.from('profiles').update({ status, role, department_id: departmentId }).eq('id', request.profile_id).select().single());
+  }
   const reviewed = await query(db.from('access_requests').update({ status, reviewed_at: new Date().toISOString(), reviewed_by_user_id: req.profile.id }).eq('id', request.id).select().single());
   await audit(req, decision === 'APPROVE' ? 'APPROVE_ACCESS_REQUEST' : 'DENY_ACCESS_REQUEST', 'ACCESS_REQUEST', request.id, `${decision === 'APPROVE' ? 'Approved' : 'Denied'} ${request.email}`);
   res.json(reviewed);
@@ -408,16 +442,19 @@ app.get('/v1/admin/chat-log', authenticate, specialAdminOnly, async (_, res, nex
   const people = new Map(profiles.map(profile => [profile.id, profile]));
   res.json(messages.map(message => ({ ...message, sender: people.get(message.sender_id) || null, recipient: people.get(message.recipient_id) || null })));
 } catch (error) { next(error); } });
-app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try { if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED'); const target = await query(db.from('profiles').select('id,email').eq('id', req.params.id).single()); if (!protectHeadAdmin(req, res, target)) return; const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single()); await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`); res.json(profile); } catch (error) { next(error); } });
+app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try {
+  if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED');
+  const target = await query(db.from('profiles').select('id,email,role,status').eq('id', req.params.id).single());
+  if (!await guardProfileLifecycle(req, res, target, { status: req.body.status }, { operation: 'approval' })) return;
+  const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single());
+  await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`);
+  res.json(profile);
+} catch (error) { next(error); } });
 app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) => { try {
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : req.body.role === 'USER' ? 'USER' : null;
   if (!role) return fail(res, 400, 'Role must be ADMIN or USER');
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
-  if (!protectHeadAdmin(req, res, target)) return;
-  if (target.role === 'ADMIN' && role === 'USER' && target.status === 'ACTIVE') {
-    const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE'));
-    if (admins.length <= 1) return fail(res, 400, 'At least one active administrator must remain.');
-  }
+  if (!await guardProfileLifecycle(req, res, target, { role }, { operation: 'role' })) return;
   const profile = await query(db.from('profiles').update({ role }).eq('id', target.id).select().single());
   await audit(req, 'CHANGE_ROLE', 'PROFILE', profile.id, `Changed ${profile.email} role to ${role}`);
   res.json(profile);
@@ -432,14 +469,8 @@ app.patch('/v1/users/:id/department', authenticate, adminOnly, async (req, res, 
   res.json(profile);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next) => { try {
-  if (req.params.id === req.profile.id) return fail(res, 400, 'You cannot remove your own administrator account.');
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
-  if (!protectHeadAdmin(req, res, target)) return;
-  if (target.status === 'DENIED') return fail(res, 409, 'This user has already been removed.');
-  if (target.role === 'ADMIN') {
-    const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE'));
-    if (admins.length <= 1) return fail(res, 400, 'At least one active administrator must remain.');
-  }
+  if (!await guardProfileLifecycle(req, res, target, { status: 'DENIED' }, { operation: 'archive' })) return;
   const { error: banError } = await db.auth.admin.updateUserById(target.id, { ban_duration: '876000h' });
   if (banError) return fail(res, 502, 'The account was not archived because sign-in could not be disabled.');
   const profile = await query(db.from('profiles').update({ status: 'DENIED' }).eq('id', target.id).select().single());
@@ -448,8 +479,7 @@ app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, next) => { try {
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
-  if (!protectHeadAdmin(req, res, target)) return;
-  if (target.status !== 'DENIED') return fail(res, 409, 'Only removed users can be restored.');
+  if (!await guardProfileLifecycle(req, res, target, { status: 'ACTIVE' }, { operation: 'restore' })) return;
   const { error: unbanError } = await db.auth.admin.updateUserById(target.id, { ban_duration: 'none' });
   if (unbanError) return fail(res, 502, 'The account could not be restored because sign-in could not be enabled.');
   const profile = await query(db.from('profiles').update({ status: 'ACTIVE' }).eq('id', target.id).select().single());
@@ -474,8 +504,9 @@ app.post('/v1/invitations', sensitiveActionLimiter, authenticate, adminOnly, asy
   if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
   const now = new Date().toISOString();
   const duplicate = await query(db.from('invitations').select('id').eq('email', email).eq('status', 'PENDING').gt('expires_at', now).maybeSingle());
+  const existingProfile = await query(db.from('profiles').select('id,email,role,status').eq('email', email).is('permanently_deleted_at', null).maybeSingle());
+  if (existingProfile && !await guardProfileLifecycle(req, res, existingProfile, { status: 'ACTIVE', role }, { operation: 'invitation' })) return;
   if (duplicate) {
-    const existingProfile = await query(db.from('profiles').select('id').eq('email', email).is('permanently_deleted_at', null).maybeSingle());
     if (!existingProfile) return fail(res, 409, 'This email already has an active invitation.');
     await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: departmentId }).eq('id', existingProfile.id).select().single());
     const invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', duplicate.id).select().single());
@@ -493,7 +524,6 @@ app.post('/v1/invitations', sensitiveActionLimiter, authenticate, adminOnly, asy
   // A person may have selected Google before the admin invited them. In that
   // case the auth trigger has already made a PENDING profile, so activate that
   // exact existing profile instead of waiting for a second account creation.
-  const existingProfile = await query(db.from('profiles').select('id').eq('email', email).is('permanently_deleted_at', null).maybeSingle());
   if (existingProfile) {
     await query(db.from('profiles').update({ status: 'ACTIVE', role, department_id: departmentId }).eq('id', existingProfile.id).select().single());
     invitation = await query(db.from('invitations').update({ status: 'ACCEPTED', accepted_at: new Date().toISOString() }).eq('id', invitation.id).select().single());
