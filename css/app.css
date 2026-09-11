@@ -4466,6 +4466,9 @@ html[data-theme="dark"] .mobile-clock-action-modal .mobile-clock-action:hover { 
     color: var(--ace-muted);
     font-size: 0;
     line-height: 1;
+    overflow: hidden;
+    text-indent: -9999px;
+    white-space: nowrap;
   }
   .user-dashboard .employee-summary-grid .stat-label::after { font-size: .72rem; }
   .user-dashboard .employee-summary-grid .stat-card:nth-child(1) .stat-label::after { content: 'Today'; }
