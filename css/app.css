@@ -4237,8 +4237,7 @@ html[data-theme="dark"] .admin-dashboard .analytics-toolbar .ace-select-menu { b
   }
   .employee-bottom-nav-item .shell-icon,
   .employee-bottom-nav-clock .shell-icon { width: 22px; height: 22px; }
-  .employee-bottom-nav-item span,
-  .employee-bottom-nav-clock span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
+  .employee-bottom-nav-item span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
   .employee-bottom-nav-item.is-active { color: #087fa4; background: rgba(8,127,164,.08); }
   .employee-bottom-nav-item:hover,
   .employee-bottom-nav-item:active { box-shadow: var(--neo-inset); }
@@ -4253,7 +4252,6 @@ html[data-theme="dark"] .admin-dashboard .analytics-toolbar .ace-select-menu { b
   .employee-bottom-nav-clock .shell-icon {
     position: absolute; top: 3px; left: 50%; width: 22px; height: 22px; filter: brightness(0) invert(1); transform: translateX(-50%); z-index: 1;
   }
-  .employee-bottom-nav-clock span { position: absolute; top: 34px; left: 0; right: 0; overflow: hidden; color: #087fa4; font: 500 11px/1.15 'Open Sans', Arial, sans-serif; text-align: center; text-overflow: ellipsis; white-space: nowrap; z-index: 1; }
   .employee-bottom-nav-clock:active::before { transform: translate(-50%, -14px) scale(.96); }
   .employee-bottom-nav-clock:active .shell-icon { transform: translateX(-50%) scale(.96); }
   .employee-bottom-nav-item:focus-visible,
@@ -4271,3 +4269,34 @@ html[data-theme="dark"] .admin-dashboard .analytics-toolbar .ace-select-menu { b
   .has-employee-bottom-nav .shell-topbar,
   .has-employee-bottom-nav.shell-collapsed .shell-topbar { padding-left: 14px; }
 }
+
+/* Employee clock actions reuse the shared dialog surface, becoming a bottom
+   sheet only where the bottom navigation is present. */
+.mobile-clock-action-modal .modal-content { width: min(100%, 420px); }
+.mobile-clock-action-modal .modal-header { align-items: flex-start; }
+.mobile-clock-action-status { margin: 0 0 4px; color: var(--ace-muted); font-size: .78rem; font-weight: 600; }
+.mobile-clock-action-list { display: grid; gap: 10px; }
+.mobile-clock-action {
+  width: 100%; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 9px; padding: 12px 16px;
+  color: #fff; background: #0b9fbb; border: 1px solid rgba(255,255,255,.32); border-radius: 13px; box-shadow: 5px 5px 11px rgba(2,104,126,.22);
+  font: 700 .88rem 'Open Sans', Arial, sans-serif; cursor: pointer;
+}
+.mobile-clock-action:hover { background: #078ca6; }
+.mobile-clock-action:active { transform: scale(.98); box-shadow: 0 4px 9px rgba(2,104,126,.2); }
+.mobile-clock-action .shell-icon { width: 20px; height: 20px; filter: brightness(0) invert(1); }
+.mobile-clock-action-cancel { width: 100%; margin-top: 12px; }
+
+@media (max-width: 768px) {
+  .mobile-clock-action-modal { align-items: flex-end; padding: 0; }
+  .mobile-clock-action-modal.active .modal-content {
+    width: 100%; max-width: none; max-height: min(76dvh, 560px); border-radius: 22px 22px 0 0;
+    box-shadow: 0 -16px 38px rgba(7,59,76,.22); animation: mobile-clock-sheet-in 220ms ease-out;
+  }
+  .mobile-clock-action-modal .modal-header { min-height: 76px; padding: 20px 20px 14px; }
+  .mobile-clock-action-modal .modal-body { padding: 14px 20px calc(20px + env(safe-area-inset-bottom)); }
+}
+
+@keyframes mobile-clock-sheet-in { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+
+html[data-theme="dark"] .mobile-clock-action-modal .mobile-clock-action { background: #0b849d; border-color: rgba(117,198,211,.2); box-shadow: 5px 5px 11px rgba(0,0,0,.28); }
+html[data-theme="dark"] .mobile-clock-action-modal .mobile-clock-action:hover { background: #08728a; }

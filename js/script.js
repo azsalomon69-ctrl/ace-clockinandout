@@ -813,16 +813,11 @@ function initializeAppShell() {
         employeeBottomNav.className = 'employee-bottom-nav';
         employeeBottomNav.setAttribute('aria-label', 'Employee mobile navigation');
         const navLink = ([href, iconName, label]) => `<a class="employee-bottom-nav-item${file === href ? ' is-active' : ''}" href="${href}"${file === href ? ' aria-current="page"' : ''}>${suppliedIconMarkup(iconName, 'shell-icon')}<span>${label}</span></a>`;
-        employeeBottomNav.innerHTML = `${navLink(bottomNavItems[0])}${navLink(bottomNavItems[1])}<button class="employee-bottom-nav-clock" type="button" data-mobile-clock-action aria-label="Clock in">${suppliedIconMarkup('timer', 'shell-icon')}<span>Clock in</span></button>${navLink(bottomNavItems[2])}<button class="employee-bottom-nav-item" type="button" data-bottom-nav-more aria-label="Open navigation" aria-expanded="false">${suppliedIconMarkup('menu', 'shell-icon')}<span>More</span></button>`;
+        employeeBottomNav.innerHTML = `${navLink(bottomNavItems[0])}${navLink(bottomNavItems[1])}<button class="employee-bottom-nav-clock" type="button" data-mobile-clock-action aria-label="Open time actions">${suppliedIconMarkup('timer', 'shell-icon')}</button>${navLink(bottomNavItems[2])}<button class="employee-bottom-nav-item" type="button" data-bottom-nav-more aria-label="Open navigation" aria-expanded="false">${suppliedIconMarkup('menu', 'shell-icon')}<span>More</span></button>`;
         document.body.append(employeeBottomNav);
         const moreButton = employeeBottomNav.querySelector('[data-bottom-nav-more]');
         moreButton.addEventListener('click', () => setMobileNavigation(true));
-        employeeBottomNav.querySelector('[data-mobile-clock-action]').addEventListener('click', event => {
-            const action = event.currentTarget.dataset.mobileClockAction;
-            if (action === 'clock-in') openClockInModal();
-            else if (action === 'clock-out') openClockOutModal();
-            else if (action === 'end-break') handleBreakToggle(event);
-        });
+        employeeBottomNav.querySelector('[data-mobile-clock-action]').addEventListener('click', openMobileClockActions);
         updateEmployeeBottomNav();
     }
 
@@ -932,12 +927,49 @@ function initializeAppShell() {
 function updateEmployeeBottomNav() {
     const button = document.querySelector('[data-mobile-clock-action]');
     if (!button) return;
-    const action = !AppState.isClockedIn ? { key: 'clock-in', label: 'Clock in', icon: 'timer' }
-        : AppState.isOnBreak ? { key: 'end-break', label: 'End break', icon: 'timer' }
-        : { key: 'clock-out', label: 'Clock out', icon: 'log-out' };
-    button.dataset.mobileClockAction = action.key;
-    button.setAttribute('aria-label', action.label);
-    button.innerHTML = `${suppliedIconMarkup(action.icon, 'shell-icon')}<span>${action.label}</span>`;
+    button.setAttribute('aria-label', 'Open time actions');
+    button.innerHTML = suppliedIconMarkup('timer', 'shell-icon');
+}
+
+function ensureMobileClockActionsModal() {
+    let modal = document.getElementById('mobileClockActionsModal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'mobileClockActionsModal';
+    modal.className = 'modal mobile-clock-action-modal';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = `<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="mobileClockActionsTitle"><div class="modal-header"><div><p class="mobile-clock-action-status"></p><h3 class="modal-title" id="mobileClockActionsTitle">What would you like to do?</h3></div><button class="modal-close" type="button" aria-label="Close">${suppliedIconMarkup('x')}</button></div><div class="modal-body"><div class="mobile-clock-action-list"></div><button class="btn btn-outline mobile-clock-action-cancel" type="button">Cancel</button></div></div>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('.modal-close, .mobile-clock-action-cancel').forEach(button => button.addEventListener('click', () => closeModal(modal.id)));
+    modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
+    return modal;
+}
+
+function openMobileClockActions() {
+    const modal = ensureMobileClockActionsModal();
+    const status = modal.querySelector('.mobile-clock-action-status');
+    const actions = modal.querySelector('.mobile-clock-action-list');
+    const clockInTime = AppState.clockInTime instanceof Date ? AppState.clockInTime : new Date(AppState.currentSession?.ClockInAt);
+    const actionButton = (action, label) => `<button class="mobile-clock-action" type="button" data-mobile-clock-choice="${action}">${suppliedIconMarkup('timer', 'shell-icon')}<span>${label}</span></button>`;
+
+    if (!AppState.isClockedIn) {
+        status.textContent = 'You are currently clocked out.';
+        actions.innerHTML = actionButton('clock-in', 'Clock In');
+    } else if (AppState.isOnBreak) {
+        status.textContent = 'You are currently on break.';
+        actions.innerHTML = `${actionButton('end-break', 'End Break')}${actionButton('clock-out', 'Clock Out')}`;
+    } else {
+        const time = Number.isNaN(clockInTime.getTime()) ? '' : ` since ${clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+        status.textContent = `Clocked in${time}.`;
+        actions.innerHTML = `${actionButton('start-break', 'Start Break')}${actionButton('clock-out', 'Clock Out')}`;
+    }
+    actions.querySelectorAll('[data-mobile-clock-choice]').forEach(button => button.addEventListener('click', event => {
+        closeModal(modal.id);
+        if (button.dataset.mobileClockChoice === 'clock-in') openClockInModal();
+        else if (button.dataset.mobileClockChoice === 'clock-out') openClockOutModal();
+        else handleBreakToggle(event);
+    }));
+    openModal(modal.id);
 }
 
 function suppliedIconMarkup(name, className = 'ui-icon') {
