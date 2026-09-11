@@ -55,6 +55,18 @@ async function startBreak(actor, entryId) {
   await expectStatus(`/v1/time-entries/${entryId}/break/start`, 200, { token: actor.token, method: 'POST' });
 }
 
+async function adminStop(actor, entryId) {
+  return request(`/v1/time-entries/${entryId}/admin-stop`, { token: actor.token, method: 'POST' });
+}
+
+async function adminCorrect(actor, entryId, clockInAt, clockOutAt) {
+  return request(`/v1/time-entries/${entryId}/admin-time`, {
+    token: actor.token,
+    method: 'PATCH',
+    body: { clockInAt, clockOutAt }
+  });
+}
+
 async function auditsFor(admin, action, entryId) {
   const audits = await expectStatus('/v1/audit-logs', 200, { token: admin.token });
   return audits.filter(audit => audit.action === action && audit.entity_id === entryId);
@@ -139,6 +151,52 @@ try {
   assert.ok(Number.isInteger(finishedBreak.break_seconds) && finishedBreak.break_seconds >= 0);
   assert.equal((await auditsFor(admin, 'BREAK_END', concurrentBreakEntry.id)).length, 1, 'Concurrent break end must write one audit row.');
   await closeForCleanup(admin, concurrentBreakEntry.id);
+
+  // A concurrent break start either wins and is included in the stop, or loses
+  // cleanly because the stop closes the entry first.
+  const stopWithBreakStart = await createOpenEntry(employee);
+  const [stopAfterStart, startBeforeStop] = await Promise.all([
+    adminStop(admin, stopWithBreakStart.id),
+    request(`/v1/time-entries/${stopWithBreakStart.id}/break/start`, { token: employee.token, method: 'POST' })
+  ]);
+  assert.equal(stopAfterStart.response.status, 200);
+  assert.ok([200, 409].includes(startBeforeStop.response.status));
+  assert.equal(stopAfterStart.body.break_started_at, null);
+  assert.ok(Number.isInteger(stopAfterStart.body.break_seconds) && stopAfterStart.body.break_seconds >= 0);
+  assert.equal((await auditsFor(admin, 'ADMIN_STOP_CLOCK', stopWithBreakStart.id)).length, 1);
+
+  // A concurrent break end and admin stop are serialized. If the break end
+  // wins, its recorded duration is preserved; otherwise it is rejected after
+  // the stop closes the entry.
+  const stopWithBreakEnd = await createOpenEntry(employee);
+  await startBreak(employee, stopWithBreakEnd.id);
+  const [stopAfterEnd, endBeforeStop] = await Promise.all([
+    adminStop(admin, stopWithBreakEnd.id),
+    request(`/v1/time-entries/${stopWithBreakEnd.id}/break/end`, { token: employee.token, method: 'POST' })
+  ]);
+  assert.equal(stopAfterEnd.response.status, 200);
+  assert.ok([200, 409].includes(endBeforeStop.response.status));
+  if (endBeforeStop.response.status === 200) assert.equal(stopAfterEnd.body.break_seconds, endBeforeStop.body.break_seconds);
+  assert.equal(stopAfterEnd.body.break_started_at, null);
+
+  // Concurrent corrections serialize through the atomic RPC. Each correction
+  // runs against the latest break state, and no corrected row may retain more
+  // break time than its elapsed interval.
+  const correctionEntry = await createOpenEntry(employee);
+  await startBreak(employee, correctionEntry.id);
+  const correctedClockIn = new Date(Date.now() - 60_000).toISOString();
+  const correctedClockOut = new Date().toISOString();
+  const correctionRequests = await Promise.all([
+    adminCorrect(admin, correctionEntry.id, correctedClockIn, correctedClockOut),
+    adminCorrect(admin, correctionEntry.id, correctedClockIn, correctedClockOut)
+  ]);
+  assert.equal(correctionRequests.filter(result => result.response.status === 200).length, 2);
+  for (const result of correctionRequests) {
+    const elapsedSeconds = Math.max(0, Math.floor((new Date(result.body.clock_out_at) - new Date(result.body.clock_in_at)) / 1000));
+    assert.ok(result.body.break_seconds <= elapsedSeconds, 'Correction must clamp break time to the corrected interval');
+    assert.equal(result.body.break_started_at, null);
+  }
+  assert.equal((await auditsFor(admin, 'ADMIN_CORRECT_TIME', correctionEntry.id)).length, 2);
 
   console.log('Time-entry concurrency checks passed.');
 } finally {

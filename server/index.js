@@ -641,14 +641,13 @@ app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req,
   res.json(entry);
 } catch (error) { next(error); } });
 app.post('/v1/time-entries/:id/admin-stop', authenticate, adminOnly, async (req, res, next) => { try {
-  const current = await query(db.from('time_entries').select('id,user_id,break_started_at,break_seconds, profiles!time_entries_user_id_fkey(role,full_name,email)').eq('id', req.params.id).is('clock_out_at', null).is('deleted_at', null).maybeSingle());
-  if (!current) return fail(res, 409, 'This shift is already stopped or unavailable');
-  if (current.profiles?.role !== 'USER') return fail(res, 403, 'Only employee shifts can be stopped by an administrator');
-  const stoppedAt = new Date().toISOString();
-  const breakSeconds = (current.break_seconds || 0) + (current.break_started_at ? Math.max(0, Math.floor((Date.now() - new Date(current.break_started_at).getTime()) / 1000)) : 0);
-  const entry = await query(db.from('time_entries').update({ clock_out_at: stoppedAt, break_started_at: null, break_seconds: breakSeconds, stopped_by_user_id: req.profile.id, stopped_by_at: stoppedAt }).eq('id', current.id).is('clock_out_at', null).select().maybeSingle());
-  if (!entry) return fail(res, 409, 'This shift was stopped by someone else');
-  await audit(req, 'ADMIN_STOP_CLOCK', 'TIME_ENTRY', entry.id, `Stopped ${current.profiles?.full_name || current.profiles?.email || 'an employee'}'s active shift`);
+  const { data: entry, error } = await db.rpc('admin_stop_entry', { p_entry_id: req.params.id, p_actor_user_id: req.profile.id });
+  if (error) {
+    if (error.code === 'P0001' && error.message === 'ENTRY_ALREADY_CLOSED') return fail(res, 409, 'This shift is already stopped');
+    if (error.code === 'P0001' && error.message === 'ENTRY_NOT_FOUND') return fail(res, 404, 'Time entry is unavailable');
+    if (error.code === 'P0001' && error.message === 'NOT_EMPLOYEE_ENTRY') return fail(res, 403, 'Only employee shifts can be stopped by an administrator');
+    throw error;
+  }
   res.json(entry);
 } catch (error) { next(error); } });
 app.patch('/v1/time-entries/:id/admin-time', authenticate, adminOnly, async (req, res, next) => { try {
@@ -657,12 +656,15 @@ app.patch('/v1/time-entries/:id/admin-time', authenticate, adminOnly, async (req
   const clockIn = new Date(clockInAt);
   const clockOut = new Date(clockOutAt);
   if (clockOut < clockIn) return fail(res, 400, 'Clock-out cannot be earlier than clock-in');
-  const current = await query(db.from('time_entries').select('id,user_id,break_started_at,break_seconds,profiles!time_entries_user_id_fkey(role,full_name,email)').eq('id', req.params.id).is('deleted_at', null).maybeSingle());
-  if (!current) return fail(res, 404, 'Time entry is unavailable');
-  if (current.profiles?.role !== 'USER') return fail(res, 403, 'Only employee time entries can be corrected by an administrator');
-  const breakSeconds = (current.break_seconds || 0) + (current.break_started_at ? Math.max(0, Math.floor((clockOut.getTime() - new Date(current.break_started_at).getTime()) / 1000)) : 0);
-  const entry = await query(db.from('time_entries').update({ clock_in_at: clockIn.toISOString(), clock_out_at: clockOut.toISOString(), break_started_at: null, break_seconds: breakSeconds }).eq('id', current.id).select().single());
-  await audit(req, 'ADMIN_CORRECT_TIME', 'TIME_ENTRY', entry.id, `Corrected ${current.profiles?.full_name || current.profiles?.email || 'an employee'}'s clock-in and clock-out times`);
+  const { data: entry, error } = await db.rpc('admin_correct_entry', {
+    p_entry_id: req.params.id, p_actor_user_id: req.profile.id,
+    p_clock_in: clockIn.toISOString(), p_clock_out: clockOut.toISOString()
+  });
+  if (error) {
+    if (error.code === 'P0001' && error.message === 'ENTRY_NOT_FOUND') return fail(res, 404, 'Time entry is unavailable');
+    if (error.code === 'P0001' && error.message === 'NOT_EMPLOYEE_ENTRY') return fail(res, 403, 'Only employee time entries can be corrected by an administrator');
+    throw error;
+  }
   res.json(entry);
 } catch (error) { next(error); } });
 
