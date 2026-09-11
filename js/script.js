@@ -481,14 +481,18 @@ function initializeUXEnhancements() {
 
     // Warm internal pages before navigation so sidebar changes feel immediate.
     document.querySelectorAll('a[href$=".html"], a[href*=".html?"]').forEach(link => {
-        link.addEventListener('pointerenter', () => {
+        if (link.dataset.prefetchReady) return;
+        link.dataset.prefetchReady = 'true';
+        const prefetch = () => {
             if (link.dataset.prefetched) return;
             link.dataset.prefetched = 'true';
             const preload = document.createElement('link');
             preload.rel = 'prefetch';
             preload.href = link.href;
             document.head.appendChild(preload);
-        }, { once: true });
+        };
+        link.addEventListener('pointerenter', prefetch, { once: true });
+        link.addEventListener('touchstart', prefetch, { once: true, passive: true });
     });
 }
 
@@ -514,7 +518,25 @@ function installPageFadeNavigation() {
             const linkFile = (new URL(link.href, window.location.href).pathname.split('/').pop() || '').toLowerCase();
             link.classList.toggle('active', linkFile === currentFile);
         });
+        document.querySelectorAll('.employee-bottom-nav-item[href]').forEach(link => {
+            const linkFile = (new URL(link.href, window.location.href).pathname.split('/').pop() || '').toLowerCase();
+            const active = linkFile === currentFile;
+            link.classList.toggle('is-active', active);
+            if (active) link.setAttribute('aria-current', 'page');
+            else link.removeAttribute('aria-current');
+        });
         document.body.classList.remove('shell-mobile-open');
+    };
+
+    const updateBottomNavRoute = destination => {
+        const currentFile = (destination.pathname.split('/').pop() || '').toLowerCase();
+        document.querySelectorAll('.employee-bottom-nav-item[href]').forEach(link => {
+            const linkFile = (new URL(link.href, window.location.href).pathname.split('/').pop() || '').toLowerCase();
+            const active = linkFile === currentFile;
+            link.classList.toggle('is-active', active);
+            if (active) link.setAttribute('aria-current', 'page');
+            else link.removeAttribute('aria-current');
+        });
     };
 
     const runMountedPage = async documentFromRoute => {
@@ -548,7 +570,12 @@ function installPageFadeNavigation() {
         navigating = true;
         const main = document.querySelector('main.main-content');
         if (!main) { window.location.assign(destination.href); return; }
-        const skeleton = routeSkeleton();
+        const isEmployeeNavigation = document.body.dataset.userRole === 'employee';
+        const skeleton = isEmployeeNavigation ? null : routeSkeleton();
+        if (isEmployeeNavigation) {
+            updateBottomNavRoute(destination);
+            main.classList.add('is-route-loading');
+        }
         main.setAttribute('aria-busy', 'true');
         try {
             const response = await fetch(destination.href, { credentials: 'same-origin' });
@@ -571,11 +598,13 @@ function installPageFadeNavigation() {
             window.scrollTo({ top: 0, behavior: 'auto' });
         } catch (error) {
             console.warn('Dashboard content navigation fell back to a normal page load.', error);
+            if (isEmployeeNavigation) updateBottomNavRoute(new URL(window.location.href));
             window.location.assign(destination.href);
             return;
         } finally {
             main.removeAttribute('aria-busy');
-            skeleton.remove();
+            main.classList.remove('is-route-loading');
+            skeleton?.remove();
             navigating = false;
         }
     };

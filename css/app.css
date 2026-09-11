@@ -4300,3 +4300,13 @@ html[data-theme="dark"] .admin-dashboard .analytics-toolbar .ace-select-menu { b
 
 html[data-theme="dark"] .mobile-clock-action-modal .mobile-clock-action { background: #0b849d; border-color: rgba(117,198,211,.2); box-shadow: 5px 5px 11px rgba(0,0,0,.28); }
 html[data-theme="dark"] .mobile-clock-action-modal .mobile-clock-action:hover { background: #08728a; }
+
+/* Internal employee navigation keeps the existing page visible while the next
+   view loads; this indicator stays inside main and never covers the shell. */
+.has-employee-bottom-nav .main-content.is-route-loading { position: relative; }
+.has-employee-bottom-nav .main-content.is-route-loading::before {
+  position: absolute; z-index: 2; top: 0; right: 0; left: 0; height: 3px; content: ''; overflow: hidden;
+  background: linear-gradient(90deg, transparent 0%, #08a2c2 35%, #087fa4 65%, transparent 100%);
+  background-size: 200% 100%; border-radius: 999px; animation: ace-route-progress 900ms ease-in-out infinite;
+}
+@keyframes ace-route-progress { from { background-position: 200% 0; } to { background-position: -200% 0; } }
