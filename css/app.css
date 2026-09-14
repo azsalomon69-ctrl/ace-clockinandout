@@ -4437,6 +4437,25 @@ html[data-theme="dark"] .table-search {
 html[data-theme="dark"] :is(.table-container,.settings-section,.analytics-card,.stat-card,.summary-card) { box-shadow: 0 1px 2px rgba(0,0,0,.18) !important; }
 html[data-theme="dark"] .ace-select-menu, html[data-theme="dark"] .ace-autocomplete-menu { background: var(--ace-surface-modal) !important; border-color: var(--ace-border-strong) !important; }
 
+/* Chat fallback avatars are self-contained circles; initials must never escape their frame. */
+.employee-chat-avatar {
+  overflow: hidden !important;
+  isolation: isolate;
+}
+.employee-chat-avatar .avatar-fallback {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  line-height: 1;
+  text-align: center;
+}
+.employee-chat-avatar > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.employee-chat-online-dot { right: 1px; bottom: 1px; z-index: 2; }
+
 /* Employee mobile navigation is injected by the authenticated shell. */
 .employee-bottom-nav { display: none; }
 
