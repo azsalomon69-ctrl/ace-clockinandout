@@ -31,7 +31,7 @@ const AppState = {
     database: null
 };
 
-const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, LastSeenAt: item.last_seen_at, CreatedAt: item.created_at });
+const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, LastSeenAt: item.last_seen_at, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin) });
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, BreakStartedAt: item.break_started_at, BreakSeconds: item.break_seconds || 0, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
@@ -817,7 +817,7 @@ function initializeAppShell() {
 
     const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', calendar: 'calendar-days', chart: 'chart-column-big', audit: 'brick-wall-shield', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
     const icon = name => suppliedIconMarkup(icons[name], 'shell-icon');
-    const isSpecialAdmin = isAdmin && AppState.currentUser?.Email?.toLowerCase() === 'azsalomon69@gmail.com';
+    const isSpecialAdmin = isAdmin && AppState.currentUser?.IsHeadAdmin;
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
         ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['invitations.html', 'mail', 'Invitations'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
@@ -1157,6 +1157,19 @@ function initializeNavigation() {
 
 // Modals
 function initializeModals() {
+    // Normalise the older static dialogs as well as the newer generated ones.
+    // This gives screen-reader users a title and keeps the page semantics
+    // consistent no matter which workflow opened the dialog.
+    document.querySelectorAll('.modal').forEach((modal, index) => {
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        if (!modal.hasAttribute('aria-hidden')) modal.setAttribute('aria-hidden', 'true');
+        const title = modal.querySelector('.modal-title');
+        if (title) {
+            if (!title.id) title.id = `aceModalTitle${index + 1}`;
+            modal.setAttribute('aria-labelledby', title.id);
+        }
+    });
     document.querySelectorAll('.modal-close').forEach(button => {
         if (!button.getAttribute('aria-label')) button.setAttribute('aria-label', 'Close dialog');
     });
@@ -1229,7 +1242,11 @@ function initializeModals() {
             }
             openModal('generateReportModal');
             const reportMonth = document.getElementById('reportMonth');
-            if (reportMonth && !reportMonth.value) reportMonth.value = new Date().toISOString().slice(0, 7);
+            if (reportMonth) {
+                const currentMonth = new Date().toISOString().slice(0, 7);
+                reportMonth.max = currentMonth;
+                if (!reportMonth.value) reportMonth.value = currentMonth;
+            }
             populateDepartmentSelect('reportDepartment');
             populateProjectSelect('reportProject');
             populateUserSelect('reportUser');
@@ -1791,6 +1808,12 @@ async function handleGenerateReport(e) {
     
     const reportType = document.getElementById('reportType').value;
     const reportMonth = document.getElementById('reportMonth')?.value;
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    if (!reportMonth || reportMonth > currentMonth) {
+        showToast('Choose the current month or an earlier reporting month.', 'warning');
+        document.getElementById('reportMonth')?.focus();
+        return;
+    }
     const [reportYear, reportMonthIndex] = (reportMonth || '').split('-').map(Number);
     const lastDay = reportYear && reportMonthIndex ? new Date(reportYear, reportMonthIndex, 0).getDate() : null;
     const dateFrom = reportMonth ? `${reportMonth}-01` : document.getElementById('dateFrom')?.value;

@@ -26,7 +26,7 @@ async function applyLiveData(key, view) {
     const onlineAfter = Date.now() - 2 * 60 * 1000;
     view.records = items.map(item => {
       const online = item.last_seen_at && new Date(item.last_seen_at).getTime() >= onlineAfter;
-      return { id: item.id, email: item.email, avatarUrl: item.profile_picture_url || '', cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || '—', online ? 'Online' : 'Offline', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
+      return { id: item.id, email: item.email, isHeadAdmin: Boolean(item.is_head_admin), avatarUrl: item.profile_picture_url || '', cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || '—', online ? 'Online' : 'Offline', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
     });
     view.stats = [[items.length, 'Team members', 'users'], [items.filter(item => item.status === 'ACTIVE').length, 'Active users', 'check'], [items.filter(item => item.status === 'PENDING').length, 'Pending review', 'circle-alert']];
   } else if (key === 'invitations') {
@@ -70,10 +70,8 @@ function action(label, index, key, record) {
   const iconName = /remove/i.test(label) ? 'trash' : /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
   const style = /remove/i.test(label) ? 'btn-danger' : 'btn-outline';
   const canViewEmployee = key === 'users' && record?.cells?.[2] === 'Employee';
-  const headEmail = 'azsalomon69@gmail.com';
-  const headTarget = key === 'users' && record?.email?.toLowerCase() === headEmail;
-  const currentEmail = (typeof AppState !== 'undefined' ? AppState.currentUser?.Email : '').toLowerCase();
-  const canManage = !headTarget || currentEmail === headEmail;
+  const headTarget = key === 'users' && record?.isHeadAdmin;
+  const canManage = !headTarget || Boolean(typeof AppState !== 'undefined' && AppState.currentUser?.IsHeadAdmin);
   return '<div class="table-actions">' + (canViewEmployee ? '<button class="btn btn-sm btn-outline admin-view-employee" type="button" data-row="' + index + '">' + icon('eye') + 'View employee</button>' : '') + (canManage ? '<button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button>' : '<span class="record-reference">Head administrator</span>') + (key === 'users' ? '<button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button>' : '') + '</div>';
 }
 function formField(label, type, placeholder, value, index) {

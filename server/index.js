@@ -243,7 +243,12 @@ app.get('/health', async (_, res) => {
   }
 });
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
-app.get('/v1/me', authenticate, (req, res) => res.json({ profile: req.profile }));
+// The browser needs to know which navigation and safeguards to show, but it
+// must never duplicate the protected account's email or make the permission
+// decision itself.  Keep the source of truth in the server environment.
+app.get('/v1/me', authenticate, (req, res) => res.json({
+  profile: { ...req.profile, is_head_admin: isHeadAdmin(req) }
+}));
 app.patch('/v1/me', authenticate, activeOnly, async (req, res, next) => { try {
   const fullName = requireText(req.body.fullName, 'Full name', 160);
   const profile = await query(db.from('profiles').update({ full_name: fullName }).eq('id', req.profile.id).select().single());
@@ -395,6 +400,7 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   const googleAvatarById = new Map(authResult.data.users.map(user => [user.id, googleAvatarUrl(user)]));
   res.json(profiles.map(profile => ({
     ...profile,
+    is_head_admin: profile.email?.toLowerCase() === headAdminEmail,
     profile_picture_url: profile.profile_picture_url || googleAvatarById.get(profile.id) || null
   })));
 } catch (error) { next(error); } });

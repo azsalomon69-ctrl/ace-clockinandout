@@ -78,8 +78,12 @@ async function buildStyles() {
     const source = await readFile(path.join(root, 'css', file), 'utf8');
     const result = new CleanCSS({ level: 2, sourceMap: false }).minify(source);
     if (result.errors.length) throw new Error(`Could not minify css/${file}: ${result.errors.join('; ')}`);
-    const target = `assets/css/${sourceHash(result.styles)}.css`;
-    await writeFile(path.join(dist, target), result.styles);
+    // Source styles live in /css while emitted styles live in /assets/css.
+    // Preserve source-relative asset URLs during development, then adjust them
+    // for the extra directory level in the production bundle.
+    const styles = result.styles.replace(/url\((['"]?)\.\.\/assets\//g, 'url($1../../assets/');
+    const target = `assets/css/${sourceHash(styles)}.css`;
+    await writeFile(path.join(dist, target), styles);
     output.set(`css/${file}`, target);
   }
   return output;

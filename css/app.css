@@ -3729,9 +3729,17 @@ html[data-theme="dark"] :is(.shell-user span, .form-input::placeholder, .form-te
   .table-container .table td[colspan] { display: block; min-height: 150px; padding: 34px 8px; text-align: center; }
   .table-container .table td[colspan]::before { display: none; }
   .table-container .table td:last-child { padding-bottom: 0; }
-  .table-container .table td .btn { min-height: 38px; justify-self: end; }
+  /* Table actions are often the only control on a compact record. Keep them
+     comfortably tappable instead of inheriting desktop's compact button. */
+  .table-container .table td .btn { min-height: 44px; justify-self: end; }
   html[data-theme="dark"] .table-container .table tr { background: var(--ace-surface) !important; border-color: var(--ace-border); box-shadow: 5px 5px 11px rgba(0,0,0,.26), -3px -3px 8px rgba(76,121,130,.08); }
   html[data-theme="dark"] .table-container .table td::before { color: var(--ace-text-tertiary); }
+}
+
+/* Native-looking custom selects must be just as usable by touch as buttons. */
+@media (pointer: coarse) {
+  .ace-select-option { min-height: 44px; }
+  .btn-sm { min-height: 40px; }
 }
 
 /* Employee dashboard gets its own phone rhythm: the clock action remains the
