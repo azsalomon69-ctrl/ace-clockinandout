@@ -4409,6 +4409,34 @@ body:has(.employee-chat) .toast-container { bottom: 96px; }
   body:has(.employee-chat) .toast-container { right: 12px; bottom: calc(82px + env(safe-area-inset-bottom)); width: min(390px, calc(100vw - 24px)); }
 }
 
+/* Final dark-mode control layer: semantic slate surfaces, never light-mode button fills. */
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] .admin-dashboard :is(.quick-actions .btn, .dashboard-header .btn):not(.btn-primary) {
+  color: var(--ace-text-primary) !important;
+  background: var(--ace-surface-raised) !important;
+  border-color: var(--ace-border-strong) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2) !important;
+}
+html[data-theme="dark"] .btn-secondary:hover,
+html[data-theme="dark"] .btn-secondary:focus-visible,
+html[data-theme="dark"] .admin-dashboard :is(.quick-actions .btn, .dashboard-header .btn):not(.btn-primary):hover,
+html[data-theme="dark"] .admin-dashboard :is(.quick-actions .btn, .dashboard-header .btn):not(.btn-primary):focus-visible {
+  color: #f5ffff !important;
+  background: #244247 !important;
+  border-color: var(--ace-accent) !important;
+  box-shadow: 0 0 0 3px rgba(40,170,189,.18) !important;
+}
+html[data-theme="dark"] .table-search {
+  color: var(--ace-text-primary) !important;
+  background-color: var(--ace-surface-input) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2395dce7' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='m16 16 4 4'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: 13px center !important;
+  background-size: 17px !important;
+}
+html[data-theme="dark"] :is(.table-container,.settings-section,.analytics-card,.stat-card,.summary-card) { box-shadow: 0 1px 2px rgba(0,0,0,.18) !important; }
+html[data-theme="dark"] .ace-select-menu, html[data-theme="dark"] .ace-autocomplete-menu { background: var(--ace-surface-modal) !important; border-color: var(--ace-border-strong) !important; }
+
 /* Employee mobile navigation is injected by the authenticated shell. */
 .employee-bottom-nav { display: none; }
 
