@@ -4371,6 +4371,18 @@ html[data-theme="dark"] .ace-autocomplete-menu { background: var(--ace-surface-m
 html[data-theme="dark"] .ace-autocomplete-option { color: var(--ace-text-primary); }
 html[data-theme="dark"] .ace-autocomplete-option:hover, html[data-theme="dark"] .ace-autocomplete-option.is-active { color: #e8fbfd; background: var(--ace-surface-raised); }
 
+/* Shared list search fields: keep the magnifier with the input through every build. */
+.table-search {
+  padding-left: 40px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230b7894' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='m16 16 4 4'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: 13px center !important;
+  background-size: 17px !important;
+}
+html[data-theme="dark"] .table-search {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2395dce7' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='m16 16 4 4'/%3E%3C/svg%3E") !important;
+}
+
 /* Employee mobile navigation is injected by the authenticated shell. */
 .employee-bottom-nav { display: none; }
 
