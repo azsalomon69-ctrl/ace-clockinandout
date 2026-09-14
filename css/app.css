@@ -4383,6 +4383,26 @@ html[data-theme="dark"] .table-search {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2395dce7' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='m16 16 4 4'/%3E%3C/svg%3E") !important;
 }
 
+/* Schedule assignments are a managed list, not a hidden count in a table cell. */
+.schedule-row-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.schedule-assignment-count { padding: 0; color: #087f9d; background: transparent; border: 0; font: 750 .8rem 'Open Sans', Arial, sans-serif; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.schedule-assignment-count:hover, .schedule-assignment-count:focus-visible { color: #063b4b; }
+.schedule-assignments-panel { margin-top: 20px; }
+.schedule-assignments-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--ace-line); }
+.schedule-assignments-heading h2 { margin: 2px 0 5px; }
+.schedule-assignments-heading p:last-child { max-width: 620px; margin: 0; color: #5b7680; font-size: .86rem; line-height: 1.45; }
+.schedule-assignment-list { display: grid; gap: 9px; margin-top: 16px; }
+.schedule-assignment-person { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 66px; padding: 12px 13px; background: #f4fbfc; border: 1px solid #d4e9ed; border-radius: 11px; }
+.schedule-assignment-person strong, .schedule-assignment-person span { display: block; }
+.schedule-assignment-person strong { color: #123f4c; font-size: .86rem; }
+.schedule-assignment-person span { margin-top: 3px; color: #66858e; font-size: .76rem; overflow-wrap: anywhere; }
+.schedule-assignment-empty { margin: 0; padding: 13px; color: #5b7680; background: #f4fbfc; border-radius: 9px; font-size: .84rem; }
+html[data-theme="dark"] .schedule-assignments-heading { border-color: var(--ace-border); }
+html[data-theme="dark"] .schedule-assignments-heading p:last-child, html[data-theme="dark"] .schedule-assignment-person span, html[data-theme="dark"] .schedule-assignment-empty { color: var(--ace-text-secondary); }
+html[data-theme="dark"] .schedule-assignment-person, html[data-theme="dark"] .schedule-assignment-empty { background: var(--ace-surface-raised); border-color: var(--ace-border); }
+html[data-theme="dark"] .schedule-assignment-person strong { color: var(--ace-text-primary); }
+@media (max-width: 680px) { .schedule-assignments-heading, .schedule-assignment-person { align-items: stretch; flex-direction: column; } .schedule-assignments-heading .btn, .schedule-assignment-person .btn { width: 100%; } .schedule-row-actions { min-width: 150px; flex-direction: column; } .schedule-row-actions .btn { width: 100%; } }
+
 /* Employee mobile navigation is injected by the authenticated shell. */
 .employee-bottom-nav { display: none; }
 

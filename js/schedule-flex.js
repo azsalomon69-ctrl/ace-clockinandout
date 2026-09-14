@@ -5,25 +5,48 @@
   const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const workdayLabel = days => (Array.isArray(days) && days.length ? [...days].sort((a, b) => a - b).map(day => weekdayNames[day]).join(', ') : 'Mon–Fri');
   let schedules = [];
+  let allUsers = [];
+  let selectedScheduleId = null;
+  const assignedPeople = schedule => (schedule.user_schedule_assignments || []).map(assignment => allUsers.find(user => user.id === assignment.user_id) || { id: assignment.user_id, full_name: 'Unknown employee', email: 'Employee record unavailable', status: 'UNKNOWN' });
+  const renderAssignments = () => {
+    const panel = document.getElementById('scheduleAssignmentsPanel');
+    const schedule = schedules.find(item => item.id === selectedScheduleId);
+    if (!panel || !schedule) { panel && (panel.hidden = true); return; }
+    const people = assignedPeople(schedule);
+    panel.hidden = false;
+    panel.innerHTML = `<div class="schedule-assignments-heading"><div><p class="admin-section-kicker">SCHEDULE ASSIGNMENTS</p><h2>${escapeHtml(schedule.name)}</h2><p>${people.length ? `${people.length} employee${people.length === 1 ? '' : 's'} currently follows this ${schedule.schedule_type === 'FLEX' ? 'flextime rule' : 'schedule'}.` : 'No employees are assigned to this schedule. It can be deleted.'}</p></div><button class="btn btn-outline btn-sm" type="button" data-close-assignments>Close</button></div><div class="schedule-assignment-list">${people.length ? people.map(person => `<article class="schedule-assignment-person"><div><strong>${escapeHtml(person.full_name || person.email)}</strong><span>${escapeHtml(person.email || '')}${person.status && person.status !== 'ACTIVE' ? ` · ${escapeHtml(String(person.status).toLowerCase())}` : ''}</span></div><button class="btn btn-sm btn-outline" type="button" data-unassign-user="${person.id}" data-schedule-id="${schedule.id}">Remove assignment</button></article>`).join('') : '<p class="schedule-assignment-empty">Assign an employee above when this schedule is ready to use.</p>'}</div>`;
+    panel.querySelector('[data-close-assignments]')?.addEventListener('click', () => { selectedScheduleId = null; renderAssignments(); });
+    panel.querySelectorAll('[data-unassign-user]').forEach(button => button.addEventListener('click', async () => {
+      const person = allUsers.find(user => user.id === button.dataset.unassignUser);
+      if (!await window.ACEUI.confirm({ title: 'Remove schedule assignment?', message: `Remove ${person?.full_name || person?.email || 'this employee'} from ${schedule.name}?`, confirmLabel: 'Remove', danger: true })) return;
+      button.disabled = true; button.textContent = 'Removing…';
+      try { await request(`/v1/users/${button.dataset.unassignUser}/schedule`, { method: 'PUT', body: JSON.stringify({ scheduleId: null }) }); toast('Schedule assignment removed.'); await load(); }
+      catch (error) { button.disabled = false; button.textContent = 'Remove assignment'; toast(error.message || 'Could not remove the assignment.', 'error'); }
+    }));
+  };
   const load = async () => {
-    const [items, users] = await Promise.all([request('/v1/schedules'), request('/v1/users')]); schedules = items;
-    const employees = users.filter(user => user.role === 'USER' && user.status === 'ACTIVE');
+    const [items, users] = await Promise.all([request('/v1/schedules'), request('/v1/users')]); schedules = items; allUsers = users;
+    const employees = allUsers.filter(user => user.role === 'USER' && user.status === 'ACTIVE');
     const employeeSelect = document.getElementById('scheduleEmployee'); const assignmentSelect = document.getElementById('scheduleAssignment'); const assignButton = document.querySelector('#assignmentForm button[type="submit"]');
     employeeSelect.innerHTML = employees.length ? `<option value="" selected disabled>Select employee</option>${employees.map(user => `<option value="${user.id}">${escapeHtml(user.full_name || user.email)}</option>`).join('')}` : '<option value="">No active employees available</option>';
     const activeSchedules = schedules.filter(item => item.is_active);
     assignmentSelect.innerHTML = activeSchedules.length ? `<option value="" selected disabled>Select schedule</option>${activeSchedules.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}` : '<option value="">Create a schedule first</option>';
     employeeSelect.disabled = !employees.length; assignmentSelect.disabled = !activeSchedules.length; assignButton.disabled = !employees.length || !activeSchedules.length;
-    document.getElementById('scheduleRows').innerHTML = schedules.length ? schedules.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>${item.schedule_type === 'FLEX' ? 'Flextime' : `${escapeHtml(item.start_time?.slice(0,5) || '—')}–${escapeHtml(item.end_time?.slice(0,5) || '—')}`}</td><td>${workdayLabel(item.scheduled_weekdays)}</td><td>${item.daily_elapsed_minutes / 60}h</td><td>${item.break_limit_minutes}m</td><td>${item.user_schedule_assignments?.length || 0}</td><td><button class="btn btn-sm btn-danger delete-schedule" data-id="${item.id}" data-assigned="${item.user_schedule_assignments?.length || 0}" type="button">Delete</button></td></tr>`).join('') : '<tr><td colspan="7">No schedules yet.</td></tr>';
+    document.getElementById('scheduleRows').innerHTML = schedules.length ? schedules.map(item => { const count = item.user_schedule_assignments?.length || 0; return `<tr><td>${escapeHtml(item.name)}</td><td>${item.schedule_type === 'FLEX' ? 'Flextime' : `${escapeHtml(item.start_time?.slice(0,5) || '—')}–${escapeHtml(item.end_time?.slice(0,5) || '—')}`}</td><td>${workdayLabel(item.scheduled_weekdays)}</td><td>${item.daily_elapsed_minutes / 60}h</td><td>${item.break_limit_minutes}m</td><td><button class="schedule-assignment-count" type="button" data-view-assignees="${item.id}">${count ? `View ${count} employee${count === 1 ? '' : 's'}` : 'No employees'}</button></td><td><div class="schedule-row-actions"><button class="btn btn-sm btn-outline" data-view-assignees="${item.id}" type="button">View employees</button><button class="btn btn-sm btn-danger delete-schedule" data-id="${item.id}" data-assigned="${count}" type="button">Delete</button></div></td></tr>`; }).join('') : '<tr><td colspan="7">No schedules yet.</td></tr>';
+    document.querySelectorAll('[data-view-assignees]').forEach(button => button.addEventListener('click', () => { selectedScheduleId = button.dataset.viewAssignees; renderAssignments(); document.getElementById('scheduleAssignmentsPanel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }));
     document.querySelectorAll('.delete-schedule').forEach(button => button.addEventListener('click', async () => {
       const assigned = Number(button.dataset.assigned);
       if (assigned > 0) {
-        await window.ACEUI.confirm({ title: 'Schedule still assigned', message: `This schedule is assigned to ${assigned} employee${assigned === 1 ? '' : 's'}. Unassign them first.`, confirmLabel: 'OK' });
+        selectedScheduleId = button.dataset.id; renderAssignments(); document.getElementById('scheduleAssignmentsPanel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        toast(`Remove the ${assigned} assignment${assigned === 1 ? '' : 's'} before deleting this schedule.`, 'warning');
         return;
       }
       if (!await window.ACEUI.confirm({ title: 'Delete schedule?', message: 'Delete this schedule? This cannot be undone.', confirmLabel: 'Delete', danger: true })) return;
-      try { await request(`/v1/schedules/${button.dataset.id}`, { method: 'DELETE' }); toast('Schedule deleted.'); await load(); }
-      catch (error) { toast(error.message || 'Could not delete schedule.', 'error'); }
+      button.disabled = true; button.textContent = 'Deleting…';
+      try { await request(`/v1/schedules/${button.dataset.id}`, { method: 'DELETE' }); if (selectedScheduleId === button.dataset.id) selectedScheduleId = null; toast('Schedule deleted.'); await load(); }
+      catch (error) { button.disabled = false; button.textContent = 'Delete'; if (error.status === 409) { selectedScheduleId = button.dataset.id; await load(); renderAssignments(); } toast(error.message || 'Could not delete schedule.', 'error'); }
     }));
+    renderAssignments();
   };
   const mount = async () => { try { const me = await request('/v1/me'); if (me.profile.role !== 'ADMIN') return location.replace('user-dashboard.html'); await load(); } catch { location.replace('login.html'); }
     const type = document.getElementById('scheduleType'); const typeHelp = document.getElementById('scheduleTypeHelp'); const scheduleForm = document.getElementById('scheduleForm'); const workdayInputs = [...document.querySelectorAll('input[name="scheduleWorkday"]')]; const workdayError = document.getElementById('scheduleWorkdayError'); const createButton = scheduleForm.querySelector('button[type="submit"]');

@@ -41,6 +41,7 @@
       <section class="settings-section schedule-assign-card"><div class="schedule-card-heading"><div><p class="admin-section-kicker">NEXT STEP</p><h2>Assign employee</h2></div><p>Choose an active employee and their schedule.</p></div><form id="assignmentForm" class="form-grid"><label>Employee<select class="form-select" id="scheduleEmployee" required></select></label><label>Schedule<select class="form-select" id="scheduleAssignment" required></select></label><button class="btn btn-primary" type="submit">Assign schedule</button></form></section>
       </div>
       <section class="table-container"><div class="table-header"><h2>Schedules</h2></div><div class="table-responsive"><table class="table"><thead><tr><th>Name</th><th>Type</th><th>Workdays</th><th>Hours</th><th>Break limit</th><th>Assigned employees</th><th>Actions</th></tr></thead><tbody id="scheduleRows"></tbody></table></div></section>
+      <section class="settings-section schedule-assignments-panel" id="scheduleAssignmentsPanel" hidden aria-live="polite"></section>
     </div>
   </main>
   <div id="toastContainer" class="toast-container"></div>
