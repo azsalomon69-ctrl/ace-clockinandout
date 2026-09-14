@@ -4771,6 +4771,12 @@ html[data-theme="dark"] .schedule-validation-message { color: #ffaca6; }
   transition: opacity .16s ease, transform .16s ease;
 }
 .shell-collapse:hover::after, .shell-collapse:focus-visible::after { opacity: 1; transform: translateX(0); }
+.shell-collapsed .shell-collapse::after {
+  right: auto;
+  left: calc(100% + 10px);
+  transform: translateX(-4px);
+}
+.shell-collapsed .shell-collapse:hover::after, .shell-collapsed .shell-collapse:focus-visible::after { transform: translateX(0); }
 @media (max-width: 1180px) {
   .shell-brand { height: 118px; }
   .shell-brand a { width: 170px; height: 98px; }
