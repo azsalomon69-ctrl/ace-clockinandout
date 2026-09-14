@@ -157,12 +157,14 @@ const employeeOnly = (req, res, next) => req.profile.role === 'USER' && req.prof
   ? next()
   : fail(res, 403, 'Employee access is required');
 const canChatWith = (profile, contact) => profile.role === 'ADMIN' || contact.role === 'ADMIN';
-const specialAdminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profile.status === 'ACTIVE' && req.profile.email?.toLowerCase() === 'azsalomon69@gmail.com'
+const headAdminEmail = process.env.HEAD_ADMIN_EMAIL?.trim().toLowerCase();
+if (!headAdminEmail) throw new Error('HEAD_ADMIN_EMAIL is required');
+const specialAdminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profile.status === 'ACTIVE' && req.profile.email?.toLowerCase() === headAdminEmail
   ? next()
   : fail(res, 403, 'This administrator feature is restricted');
-const isHeadAdmin = req => req.profile.email?.toLowerCase() === 'azsalomon69@gmail.com';
+const isHeadAdmin = req => req.profile.email?.toLowerCase() === headAdminEmail;
 const protectHeadAdmin = (req, res, target) => {
-  if (target.email?.toLowerCase() !== 'azsalomon69@gmail.com' || isHeadAdmin(req)) return true;
+  if (target.email?.toLowerCase() !== headAdminEmail || isHeadAdmin(req)) return true;
   fail(res, 403, 'Only the head administrator can change this administrator account.');
   return false;
 };

@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 // Exercise the actual guard and route handlers without credentials or live writes.
 const source = readFileSync(new URL('../server/index.js', import.meta.url), 'utf8');
-const helpers = source.slice(source.indexOf('const isHeadAdmin ='), source.indexOf('async function audit('));
+const helpers = source.slice(source.indexOf('const headAdminEmail ='), source.indexOf('async function audit('));
 const headEmail = 'azsalomon69@gmail.com';
 const messages = {
   head: 'Only the head administrator can change this administrator account.',
@@ -67,6 +67,7 @@ function harness(route, { actor = profile('actor'), target = profile('target', {
   }
   let handler;
   const context = vm.createContext({
+    process: { env: { HEAD_ADMIN_EMAIL: headEmail } },
     app: { [route.method]: (_path, ...handlers) => { handler = handlers.at(-1); } },
     authenticate() {}, adminOnly() {}, sensitiveActionLimiter() {}, db, query,
     fail: (res, status, error) => res.status(status).json({ error }),

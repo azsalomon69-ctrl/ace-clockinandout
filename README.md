@@ -14,19 +14,20 @@ The database model is in [supabase/schema.sql](supabase/schema.sql). It implemen
 
 1. Install Node.js 20 or newer.
 2. Copy `.env.example` to `.env` and enter your Supabase project URL, publishable key, and **secret key**.
-3. In Supabase SQL Editor, run `supabase/schema.sql` once. For an existing project created from an earlier version, run `supabase/current-production-upgrade.sql` once afterward. If Google sign-in shows “Database error saving new user”, run `supabase/auth-profile-trigger-fix.sql` once to repair the Auth profile trigger.
+3. Apply the database files in the required order in [supabase/MIGRATION_ORDER.md](supabase/MIGRATION_ORDER.md). Do not deploy after running only `supabase/schema.sql`. If Google sign-in shows “Database error saving new user”, run `supabase/auth-profile-trigger-fix.sql` once to repair the Auth profile trigger.
 4. Run `npm install` and then `npm run dev`.
 5. Serve the frontend files with a local static server. Configure `FRONTEND_ORIGIN` with that server's address.
 
 ## Supabase setup
 
 1. Create a new Supabase project.
-2. Run `supabase/schema.sql` in SQL Editor. If the project already existed before this version, run `supabase/current-production-upgrade.sql` afterward instead of re-running the base schema.
+2. Apply the database files in the required order in [supabase/MIGRATION_ORDER.md](supabase/MIGRATION_ORDER.md). For an existing project, follow that guide's existing-project path instead of re-running the base schema.
 3. Under **Authentication → Providers**, enable Google if Google sign-in is required.
 4. Add your Vercel production URL and local development URL under **Authentication → URL Configuration**.
 5. Copy the Project URL, publishable key, and a server-only `sb_secret_...` key into Render. Do not put the secret key in Vercel or any browser JavaScript.
 6. Run `npm run seed:admin` locally once after SQL setup. It creates only `ace@admin.com` and delegates password hashing to Supabase Auth. Set its password through `INITIAL_ADMIN_PASSWORD` in `.env`.
 7. Set `ACE_API_URL` or `ACE_API_URL_FALLBACK` before building the frontend. The build generates the browser's `window.ACE_API_URL` configuration; do not create or edit `js/api-config.js` manually.
+8. Before API deployment, run `npm run db:verify`. It verifies the deployed Supabase project has the tables, columns, and RPCs used by the API.
 
 If you need to promote a different administrator later, use SQL Editor:
 
@@ -72,6 +73,7 @@ Do not commit `.env` or Supabase secret keys.
    - `SUPABASE_URL`
    - `SUPABASE_SECRET_KEY`
    - `SUPABASE_PUBLISHABLE_KEY`
+   - `HEAD_ADMIN_EMAIL` — the email address of the protected head administrator
    - `FRONTEND_ORIGIN` — your Vercel URL, for example `https://ace-clock.vercel.app`
 3. Deploy, then confirm `https://YOUR-RENDER-SERVICE.onrender.com/health` returns `{ "ok": true }`.
 
