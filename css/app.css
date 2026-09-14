@@ -4733,3 +4733,41 @@ html[data-theme="dark"] .shell-nav-group-toggle:hover, html[data-theme="dark"] .
   .shell-brand a { width: 132px; height: 78px; }
   .shell-brand a > img { width: 114px; height: 68px; }
 }
+
+/* Use a drawn chevron, not a rotated text glyph, so the disclosure arrow is truly centered. */
+.shell-nav-group-toggle > b,
+.shell-nav-group-toggle > .shell-nav-group-indicator > b {
+  position: relative;
+  display: grid;
+  place-items: center;
+  font-size: 0;
+  line-height: 0;
+  transform: none !important;
+}
+.shell-nav-group-toggle > b::before,
+.shell-nav-group-toggle > .shell-nav-group-indicator > b::before {
+  width: 7px;
+  height: 7px;
+  content: '';
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform .18s ease;
+}
+.shell-nav-group.is-open .shell-nav-group-toggle > b::before,
+.shell-nav-group.is-open .shell-nav-group-toggle > .shell-nav-group-indicator > b::before { transform: rotate(-45deg); }
+.shell-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(49, 117, 132, .55) transparent;
+}
+.shell-nav::-webkit-scrollbar { width: 8px; }
+.shell-nav::-webkit-scrollbar-track { margin: 10px 0; background: transparent; }
+.shell-nav::-webkit-scrollbar-thumb {
+  min-height: 42px;
+  background: linear-gradient(180deg, rgba(99, 166, 180, .58), rgba(49, 117, 132, .7));
+  border: 2px solid rgba(231, 244, 246, .9);
+  border-radius: 999px;
+}
+.shell-nav::-webkit-scrollbar-thumb:hover { background: #27798a; }
+html[data-theme="dark"] .shell-nav { scrollbar-color: rgba(126, 204, 216, .58) transparent; }
+html[data-theme="dark"] .shell-nav::-webkit-scrollbar-thumb { background: rgba(126, 204, 216, .62); border-color: rgba(10,45,55,.9); }
