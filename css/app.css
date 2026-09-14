@@ -4758,16 +4758,32 @@ html[data-theme="dark"] .shell-nav-group-toggle:hover, html[data-theme="dark"] .
 .shell-nav-group.is-open .shell-nav-group-toggle > .shell-nav-group-indicator > b::before { transform: rotate(-45deg); }
 .shell-nav {
   scrollbar-width: thin;
-  scrollbar-color: rgba(49, 117, 132, .55) transparent;
+  scrollbar-color: rgba(70, 139, 153, .48) rgba(218, 238, 241, .5);
 }
-.shell-nav::-webkit-scrollbar { width: 8px; }
-.shell-nav::-webkit-scrollbar-track { margin: 10px 0; background: transparent; }
+.shell-nav::-webkit-scrollbar { width: 6px; }
+.shell-nav::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.shell-nav::-webkit-scrollbar-track { margin: 12px 0; background: rgba(218, 238, 241, .5); border-radius: 999px; }
 .shell-nav::-webkit-scrollbar-thumb {
-  min-height: 42px;
-  background: linear-gradient(180deg, rgba(99, 166, 180, .58), rgba(49, 117, 132, .7));
-  border: 2px solid rgba(231, 244, 246, .9);
+  min-height: 44px;
+  background: rgba(70, 139, 153, .52);
+  border: 1px solid rgba(239, 250, 251, .92);
   border-radius: 999px;
+  background-clip: padding-box;
 }
-.shell-nav::-webkit-scrollbar-thumb:hover { background: #27798a; }
-html[data-theme="dark"] .shell-nav { scrollbar-color: rgba(126, 204, 216, .58) transparent; }
-html[data-theme="dark"] .shell-nav::-webkit-scrollbar-thumb { background: rgba(126, 204, 216, .62); border-color: rgba(10,45,55,.9); }
+.shell-nav::-webkit-scrollbar-thumb:hover { background: rgba(26, 126, 146, .78); }
+html[data-theme="dark"] .shell-nav { scrollbar-color: rgba(126, 204, 216, .48) rgba(17,57,67,.55); }
+html[data-theme="dark"] .shell-nav::-webkit-scrollbar-track { background: rgba(17,57,67,.55); }
+html[data-theme="dark"] .shell-nav::-webkit-scrollbar-thumb { background: rgba(126, 204, 216, .52); border-color: rgba(10,45,55,.9); }
+
+/* SVG chevrons have a centered viewbox; this avoids the visual offset of a CSS corner. */
+.shell-nav-group-toggle > b::before,
+.shell-nav-group-toggle > .shell-nav-group-indicator > b::before { content: none; }
+.shell-nav-group-chevron {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  transform: rotate(0deg);
+  transition: transform .18s ease;
+}
+.shell-nav-group.is-open .shell-nav-group-chevron { transform: rotate(-90deg); }
