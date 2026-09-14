@@ -4331,6 +4331,46 @@ html[data-theme="dark"] .ace-select-option:hover:not(:disabled), html[data-theme
 html[data-theme="dark"] .admin-dashboard .analytics-toolbar .ace-select-menu { background: var(--ace-surface-modal); }
 @keyframes ace-select-open { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
+/* Search suggestions use an app-owned menu, never the browser's dark datalist bubble. */
+.ace-autocomplete { position: relative; width: 100%; min-width: 0; }
+.ace-autocomplete > .form-input { width: 100%; }
+.ace-autocomplete-menu {
+  position: absolute;
+  z-index: 100;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  display: none;
+  max-height: min(260px, 40vh);
+  overflow-y: auto;
+  padding: 6px;
+  background: #fafdfe;
+  border: 1px solid #a9d8e1;
+  border-radius: 11px;
+  box-shadow: 0 14px 28px rgba(5,55,70,.18);
+}
+.ace-autocomplete.is-open .ace-autocomplete-menu { display: grid; gap: 2px; animation: ace-select-open 150ms ease-out both; }
+.ace-autocomplete-option {
+  width: 100%;
+  min-height: 38px;
+  padding: 9px 10px;
+  overflow: hidden;
+  color: #1c4652;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font: 700 .76rem/1.25 'Open Sans', Arial, sans-serif;
+}
+.ace-autocomplete-option:hover, .ace-autocomplete-option.is-active { color: #073e51; background: #e4f5f7; outline: 0; }
+.ace-autocomplete-empty { margin: 6px 8px; color: #63818a; font: 650 .75rem 'Open Sans', Arial, sans-serif; }
+.analytics-toolbar.ace-autocomplete-menu-open { overflow: visible; }
+html[data-theme="dark"] .ace-autocomplete-menu { background: var(--ace-surface-modal); border-color: var(--ace-border-strong); box-shadow: var(--ace-shadow-sm); }
+html[data-theme="dark"] .ace-autocomplete-option { color: var(--ace-text-primary); }
+html[data-theme="dark"] .ace-autocomplete-option:hover, html[data-theme="dark"] .ace-autocomplete-option.is-active { color: #e8fbfd; background: var(--ace-surface-raised); }
+
 /* Employee mobile navigation is injected by the authenticated shell. */
 .employee-bottom-nav { display: none; }
 

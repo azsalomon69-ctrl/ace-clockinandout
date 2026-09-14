@@ -70,6 +70,7 @@ const isScheduledToday = (schedule, date = new Date()) => {
 // Keep the original select for its value, form behaviour and existing change
 // handlers, then provide one consistent, keyboard-friendly menu above it.
 let aceSelectObserver;
+let aceAutocompleteObserver;
 function closeAceSelectMenus(except = null) {
     document.querySelectorAll('.ace-select.is-open').forEach(control => {
         if (control === except) return;
@@ -151,6 +152,103 @@ function initializeSelectControls(root = document) {
         });
     }));
     aceSelectObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+// Browser datalist popups cannot be styled consistently (and some browsers use
+// an opaque black system bubble). Replace the presentation layer while keeping
+// the original input value and change events that the existing filters use.
+function closeAceAutocompleteMenus(except = null) {
+    document.querySelectorAll('.ace-autocomplete.is-open').forEach(control => {
+        if (control === except) return;
+        control.classList.remove('is-open');
+        control.querySelector('.ace-autocomplete-input')?.setAttribute('aria-expanded', 'false');
+    });
+    document.querySelectorAll('.analytics-toolbar.ace-autocomplete-menu-open').forEach(toolbar => toolbar.classList.remove('ace-autocomplete-menu-open'));
+    if (except?.closest('.analytics-toolbar')) except.closest('.analytics-toolbar').classList.add('ace-autocomplete-menu-open');
+}
+
+function enhanceDatalistControl(input) {
+    if (!(input instanceof HTMLInputElement) || input.dataset.aceAutocompleteBound) return;
+    const listId = input.getAttribute('list');
+    const datalist = listId && document.getElementById(listId);
+    if (!(datalist instanceof HTMLDataListElement)) return;
+
+    input.dataset.aceAutocompleteBound = 'true';
+    input.dataset.aceDatalist = listId;
+    input.removeAttribute('list');
+    input.classList.add('ace-autocomplete-input');
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-expanded', 'false');
+
+    const control = document.createElement('div');
+    control.className = 'ace-autocomplete';
+    const menu = document.createElement('div');
+    const menuId = `${input.id || listId}-ace-menu`;
+    menu.className = 'ace-autocomplete-menu';
+    menu.id = menuId;
+    menu.setAttribute('role', 'listbox');
+    input.setAttribute('aria-controls', menuId);
+    input.insertAdjacentElement('beforebegin', control);
+    control.append(input, menu);
+
+    let activeIndex = -1;
+    const options = () => Array.from(datalist.options).map(option => option.value || option.textContent || '').filter(Boolean);
+    const choose = value => {
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        closeAceAutocompleteMenus();
+    };
+    const render = () => {
+        const query = input.value.trim().toLowerCase();
+        const values = options().filter(value => !query || value.toLowerCase().includes(query));
+        activeIndex = values.length ? Math.min(Math.max(activeIndex, 0), values.length - 1) : -1;
+        menu.innerHTML = values.length
+            ? values.map((value, index) => `<button class="ace-autocomplete-option${index === activeIndex ? ' is-active' : ''}" type="button" role="option" aria-selected="${index === activeIndex}" data-value="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join('')
+            : '<p class="ace-autocomplete-empty">No matches</p>';
+        menu.querySelectorAll('.ace-autocomplete-option').forEach(button => button.addEventListener('mousedown', event => {
+            event.preventDefault(); choose(button.dataset.value || ''); input.focus();
+        }));
+        return values;
+    };
+    const open = () => {
+        activeIndex = -1;
+        const values = render();
+        control.classList.toggle('is-open', Boolean(values.length));
+        input.setAttribute('aria-expanded', String(Boolean(values.length)));
+        if (values.length) closeAceAutocompleteMenus(control);
+    };
+    datalist._aceAutocompleteRefresh = () => { if (control.classList.contains('is-open')) open(); };
+    input.addEventListener('focus', open);
+    input.addEventListener('input', open);
+    input.addEventListener('keydown', event => {
+        const values = options().filter(value => !input.value.trim() || value.toLowerCase().includes(input.value.trim().toLowerCase()));
+        if (event.key === 'Escape') { closeAceAutocompleteMenus(); return; }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (!control.classList.contains('is-open')) { open(); return; }
+            activeIndex = values.length ? (activeIndex + (event.key === 'ArrowDown' ? 1 : values.length - 1)) % values.length : -1;
+            render();
+        } else if (event.key === 'Enter' && control.classList.contains('is-open') && activeIndex >= 0) {
+            event.preventDefault(); choose(values[activeIndex]);
+        }
+    });
+}
+
+function initializeAutocompleteControls(root = document) {
+    root.querySelectorAll?.('input[list]:not([data-ace-autocomplete-bound])').forEach(enhanceDatalistControl);
+    if (aceAutocompleteObserver) return;
+    document.addEventListener('pointerdown', event => { if (!event.target.closest('.ace-autocomplete')) closeAceAutocompleteMenus(); });
+    aceAutocompleteObserver = new MutationObserver(records => records.forEach(record => {
+        if (record.type === 'childList' && record.target instanceof HTMLDataListElement) record.target._aceAutocompleteRefresh?.();
+        record.addedNodes.forEach(node => {
+            if (!(node instanceof Element)) return;
+            if (node.matches?.('input[list]:not([data-ace-autocomplete-bound])')) enhanceDatalistControl(node);
+            node.querySelectorAll?.('input[list]:not([data-ace-autocomplete-bound])').forEach(enhanceDatalistControl);
+        });
+    }));
+    aceAutocompleteObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 // Live data is supplied exclusively by the Render API and Supabase.
@@ -248,6 +346,7 @@ async function initApp() {
         initializeModals();
         initializeForms();
         initializeSelectControls();
+        initializeAutocompleteControls();
         if (document.body.dataset.openAccessRequest === 'true') {
             delete document.body.dataset.openAccessRequest;
             window.setTimeout(() => openModal('requestAccessModal'), 0);
@@ -305,6 +404,7 @@ async function initApp() {
         startClock();
         loadPageSpecificData();
         initializeSelectControls();
+        initializeAutocompleteControls();
         initializeResponsiveTables();
         initializeUXEnhancements();
         initializeEmployeeChat();
@@ -609,6 +709,7 @@ function installPageFadeNavigation() {
         startClock();
         loadPageSpecificData();
         initializeSelectControls();
+        initializeAutocompleteControls();
         if (document.body.dataset.adminView) {
             if (!window.renderAdminSection) {
                 const source = documentFromRoute.querySelector('script[src*="admin-sections.js"]')?.src;
