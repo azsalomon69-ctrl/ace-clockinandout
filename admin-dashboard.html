@@ -17,7 +17,7 @@
             <div class="dashboard-content">
                 <!-- Dashboard Header -->
                 <div class="dashboard-header">
-                    <h1 class="dashboard-title">Admin Dashboard</h1>
+                    <div class="dashboard-header-copy"><p class="admin-section-kicker">ADMIN CONTROL CENTER</p><h1 class="dashboard-title">Admin Dashboard</h1><p>Review live work, handle staffing tasks, and follow up on recent time activity.</p></div>
                     <div class="dashboard-actions">
                         <button class="btn btn-primary" id="generateReportBtn">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -68,7 +68,9 @@
                 </div>
 
                 <!-- Quick Actions -->
-                <div class="quick-actions">
+                <section class="dashboard-command-center" aria-labelledby="operationsTitle">
+                    <div class="dashboard-command-copy"><p class="admin-section-kicker">QUICK ACTIONS</p><h2 id="operationsTitle">Keep the team moving</h2><p>Start with people and schedules, then review reporting when you need it.</p></div>
+                    <div class="quick-actions">
                     <button class="btn btn-primary" id="inviteUserBtn">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -91,7 +93,9 @@
                         </svg>
                         Manage Projects
                     </button>
-                </div>
+                    <a class="btn btn-secondary" href="schedule-flex.html">Manage Schedules</a>
+                    </div>
+                </section>
 
                 <!-- Team Analytics -->
                 <section class="dashboard-analytics" aria-labelledby="analyticsTitle">
@@ -160,7 +164,7 @@
 
                 <!-- Recent Activity -->
                 <div class="dashboard-section">
-                    <h2 class="section-title">Recent Time Entries</h2>
+                    <div class="dashboard-section-heading"><div><p class="admin-section-kicker">LIVE ACTIVITY</p><h2 class="section-title">Recent Time Entries</h2><p>Review the latest employee sessions and open a record for details or follow-up.</p></div><a class="btn btn-secondary btn-sm" href="admin-time-entries.html">View all entries</a></div>
                     <div class="table-container">
                         <table class="table">
                             <thead>
