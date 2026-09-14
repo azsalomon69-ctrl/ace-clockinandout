@@ -11,6 +11,13 @@
       list.innerHTML = messages.length ? messages.map(message => `<article class="chat-log-entry"><div class="chat-log-entry-head"><strong>${escape(name(message.sender))}</strong><span>to</span><strong>${escape(name(message.recipient))}</strong><time>${dateTime(message.created_at)}</time></div><p>${escape(message.body)}</p>${message.deleted_at ? '<small>Deleted in employee chat</small>' : message.edited_at ? '<small>Edited</small>' : ''}</article>`).join('') : '<p class="chat-log-empty">No employee messages yet.</p>';
     } catch (error) { list.innerHTML = `<p class="chat-log-empty">${escape(error.message || 'Unable to load the chat log.')}</p>`; }
   }
-  window.mountChatLog = () => { loadChatLog(); document.getElementById('refreshChatLog')?.addEventListener('click', loadChatLog); };
+  let refreshTimer;
+  window.mountChatLog = () => {
+    if (refreshTimer) window.clearInterval(refreshTimer);
+    loadChatLog();
+    document.getElementById('refreshChatLog')?.addEventListener('click', loadChatLog, { once: true });
+    refreshTimer = window.setInterval(loadChatLog, 10000);
+  };
+  window.addEventListener('pagehide', () => window.clearInterval(refreshTimer));
   document.addEventListener('DOMContentLoaded', window.mountChatLog);
 })();

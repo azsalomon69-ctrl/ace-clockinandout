@@ -32,6 +32,11 @@
     type.addEventListener('change', toggle); workdayInputs.forEach(input => input.addEventListener('change', validateWorkdays)); toggle(); validateWorkdays();
     scheduleForm.addEventListener('submit', async event => { event.preventDefault(); if (!validateWorkdays()) { workdayInputs[0].focus(); return; } try { const workdays = workdayInputs.filter(input => input.checked).map(input => Number(input.value)); await request('/v1/schedules', { method: 'POST', body: JSON.stringify({ name: document.getElementById('scheduleName').value, scheduleType: type.value, startTime: document.getElementById('scheduleStart').value, endTime: document.getElementById('scheduleEnd').value, dailyElapsedMinutes: Number(document.getElementById('scheduleHours').value) * 60, breakLimitMinutes: Number(document.getElementById('scheduleBreak').value), workdays }) }); toast('Schedule created.'); event.target.reset(); toggle(); validateWorkdays(); await load(); } catch (error) { toast(error.message || 'Could not create schedule.', 'error'); } });
     document.getElementById('assignmentForm').addEventListener('submit', async event => { event.preventDefault(); try { await request(`/v1/users/${document.getElementById('scheduleEmployee').value}/schedule`, { method: 'PUT', body: JSON.stringify({ scheduleId: document.getElementById('scheduleAssignment').value }) }); toast('Schedule assigned.'); await load(); } catch (error) { toast(error.message || 'Could not assign schedule.', 'error'); } });
+    window.refreshScheduleFlex = load;
+    if (!document.body.dataset.scheduleLiveBound) {
+      document.body.dataset.scheduleLiveBound = 'true';
+      window.addEventListener('ace:live-data', () => { if (!document.querySelector('form:focus-within')) void window.refreshScheduleFlex?.().catch(() => {}); });
+    }
   };
   window.mountScheduleFlex = mount;
   document.addEventListener('DOMContentLoaded', window.mountScheduleFlex);

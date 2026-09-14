@@ -1,7 +1,7 @@
 const mountIndividualReports = async () => {
   const me = await window.ACEAuth.request('/v1/me');
   if (me.profile.role !== 'ADMIN') return location.replace('user-dashboard.html');
-  const users = (await window.ACEAuth.request('/v1/users')).filter(user => user.role === 'USER' && user.status === 'ACTIVE');
+  let users = (await window.ACEAuth.request('/v1/users')).filter(user => user.role === 'USER' && user.status === 'ACTIVE');
   const input = document.getElementById('individualEmployee'); const month = document.getElementById('individualMonth'); const rows = document.getElementById('individualReportRows'); const selection = document.getElementById('individualReportSelection');
   month.value = new Date().toISOString().slice(0, 7);
   month.max = month.value;
@@ -16,6 +16,16 @@ const mountIndividualReports = async () => {
     selection.classList.toggle('is-invalid', Boolean(input.value && !selected.length));
   };
   input.addEventListener('input', updateSelection); updateSelection();
+  const refreshEmployees = async () => {
+    users = (await window.ACEAuth.request('/v1/users')).filter(user => user.role === 'USER' && user.status === 'ACTIVE');
+    document.getElementById('individualEmployeeOptions').innerHTML = users.map(user => `<option value="${escapeHtml(employeeName(user))}"></option>`).join('');
+    updateSelection();
+  };
+  window.refreshIndividualReportEmployees = refreshEmployees;
+  if (!document.body.dataset.individualReportsLiveBound) {
+    document.body.dataset.individualReportsLiveBound = 'true';
+    window.addEventListener('ace:live-data', () => { if (!document.querySelector('form:focus-within')) void window.refreshIndividualReportEmployees?.().catch(() => {}); });
+  }
   const run = (employee, format) => {
     const [year, mon] = month.value.split('-').map(Number);
     const lastDay = new Date(year, mon, 0).getDate();

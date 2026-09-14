@@ -237,6 +237,13 @@ function downloadCsv(records) {
 }
 async function renderAdminSection() {
   const key = document.body.dataset.adminView; const config = ADMIN_SECTION_CONFIG[key]; if (!config) return;
+  // A live redraw must not stack filters or click handlers from the previous
+  // pass. It only runs while no form or dialog is being edited.
+  document.querySelectorAll('.admin-user-filters').forEach(node => node.remove());
+  const existingAction = document.getElementById('sectionAction');
+  if (existingAction?.parentNode) existingAction.parentNode.replaceChild(existingAction.cloneNode(true), existingAction);
+  const existingSearch = document.getElementById('sectionSearch');
+  if (existingSearch?.parentNode) existingSearch.parentNode.replaceChild(existingSearch.cloneNode(true), existingSearch);
   const view = { ...config, records: [], stats: [] };
   try { await applyLiveData(key, view); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); }
   document.title = view.title + ' · ACE Outsource Solutions';
@@ -316,4 +323,10 @@ async function renderAdminSection() {
 // Also expose the renderer for the persistent dashboard shell. The normal
 // document-ready path remains for a direct browser refresh.
 window.renderAdminSection = renderAdminSection;
+if (!window.adminSectionLiveRefreshBound) {
+  window.adminSectionLiveRefreshBound = true;
+  window.addEventListener('ace:live-data', () => {
+    if (document.body.dataset.adminView && !document.querySelector('.modal.active, input:focus, textarea:focus, select:focus')) void renderAdminSection();
+  });
+}
 document.addEventListener('DOMContentLoaded', renderAdminSection);

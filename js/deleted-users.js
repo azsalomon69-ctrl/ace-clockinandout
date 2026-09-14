@@ -16,4 +16,5 @@ async function loadDeletedUsers() {
   } catch (error) { showToast(error.message || 'Could not load deleted users.', 'error'); }
 }
 window.mountDeletedUsers = loadDeletedUsers;
+window.addEventListener('ace:live-data', () => { if (document.getElementById('deletedUsersTable')) void loadDeletedUsers(); });
 document.addEventListener('DOMContentLoaded', window.mountDeletedUsers);

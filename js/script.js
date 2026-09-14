@@ -12,6 +12,8 @@ const AppState = {
     presenceInterval: null,
     presenceVisibilityHandler: null,
     onlineCountInterval: null,
+    liveDataInterval: null,
+    liveRefreshInFlight: false,
     clockInTime: null,
     timerInterval: null,
     remarkNotificationInterval: null,
@@ -299,6 +301,7 @@ async function initApp() {
         initializeUXEnhancements();
         initializeEmployeeChat();
         startRemarkNotifications();
+        startLiveDataRefresh();
     }
     clearInitialSkeletons();
     requestAnimationFrame(() => {
@@ -1584,6 +1587,7 @@ async function performLogout() {
     stopPresenceHeartbeat();
     if (AppState.onlineCountInterval) window.clearInterval(AppState.onlineCountInterval);
     AppState.onlineCountInterval = null;
+    stopLiveDataRefresh();
     AppState.isAuthenticated = false;
     AppState.isClockedIn = false;
     
@@ -1615,6 +1619,71 @@ function stopPresenceHeartbeat() {
     if (AppState.presenceVisibilityHandler) document.removeEventListener('visibilitychange', AppState.presenceVisibilityHandler);
     AppState.presenceInterval = null;
     AppState.presenceVisibilityHandler = null;
+}
+
+// Presence only tells us that a browser is open. Operational information needs
+// a separate, quiet refresh so admins see new clock-ins, clock-outs, breaks,
+// people coming online, and new remarks without reloading the workspace.
+async function refreshLiveWorkspaceData() {
+    if (AppState.liveRefreshInFlight || document.visibilityState !== 'visible' || !window.ACEAuth || !AppState.currentUser) return;
+    if (document.querySelector('.modal.active, input:focus, textarea:focus, select:focus')) return;
+    AppState.liveRefreshInFlight = true;
+    try {
+        const admin = AppState.currentUser.Role === 'ADMIN';
+        const requests = [
+            window.ACEAuth.request(`/v1/time-entries${admin ? '' : '?mine=true'}`),
+            window.ACEAuth.request('/v1/admin-remarks'),
+            window.ACEAuth.request('/v1/my-schedule'),
+            window.ACEAuth.request('/v1/user-projects')
+        ];
+        if (admin) requests.push(
+            window.ACEAuth.request('/v1/users'),
+            window.ACEAuth.request('/v1/departments'),
+            window.ACEAuth.request('/v1/projects'),
+            window.ACEAuth.request('/v1/reports')
+        );
+        const results = await Promise.all(requests);
+        AppState.timeEntries = results[0].map(timeEntryRecord);
+        AppState.adminRemarks = results[1].map(adminRemarkRecord);
+        AppState.assignedSchedule = results[2];
+        AppState.userProjects = results[3].map(item => ({ UserId: item.user_id, ProjectId: item.project_id, AssignedAt: item.assigned_at, IsActive: true }));
+        if (admin) {
+            AppState.users = results[4].map(profileRecord);
+            AppState.departments = results[5].map(departmentRecord);
+            AppState.projects = results[6].map(projectRecord);
+            AppState.reports = results[7].map(reportRecord);
+        }
+        const active = AppState.timeEntries.find(entry => !entry.ClockOutAt && entry.UserId === AppState.currentUser.UserId);
+        AppState.currentSession = active || null;
+        AppState.isClockedIn = Boolean(active);
+        AppState.isOnBreak = Boolean(active?.BreakStartedAt);
+        AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
+        updateUI();
+        loadPageSpecificData();
+        window.dispatchEvent(new CustomEvent('ace:live-data'));
+    } catch (error) {
+        // Do not interrupt someone working with a transient status toast. The
+        // next scheduled pass recovers when a sleeping service wakes up.
+        console.warn('Could not refresh live workspace data.', error);
+    } finally {
+        AppState.liveRefreshInFlight = false;
+    }
+}
+
+function startLiveDataRefresh() {
+    stopLiveDataRefresh();
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') void refreshLiveWorkspaceData(); };
+    AppState.liveDataInterval = window.setInterval(() => void refreshLiveWorkspaceData(), 20000);
+    AppState.liveRefreshVisibilityHandler = refreshWhenVisible;
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+}
+
+function stopLiveDataRefresh() {
+    if (AppState.liveDataInterval) window.clearInterval(AppState.liveDataInterval);
+    if (AppState.liveRefreshVisibilityHandler) document.removeEventListener('visibilitychange', AppState.liveRefreshVisibilityHandler);
+    AppState.liveDataInterval = null;
+    AppState.liveRefreshVisibilityHandler = null;
+    AppState.liveRefreshInFlight = false;
 }
 
 async function beginGoogleAccessRequest() {
@@ -2798,16 +2867,9 @@ function updateOnlineUserCount() {
 }
 
 function startOnlineUserCountRefresh() {
-    if (AppState.onlineCountInterval || AppState.currentUser?.Role !== 'ADMIN' || !document.getElementById('activeUsers')) return;
-    AppState.onlineCountInterval = window.setInterval(async () => {
-        try {
-            const users = await window.ACEAuth.request('/v1/users');
-            AppState.users = users.map(profileRecord);
-            updateOnlineUserCount();
-        } catch (error) {
-            console.warn('Could not refresh the online user count.', error);
-        }
-    }, 45 * 1000);
+    // The shared live-data loop updates the complete dashboard every 20
+    // seconds, including online status. Keep this wrapper for existing calls.
+    if (!AppState.liveDataInterval) startLiveDataRefresh();
 }
 
 function loadReportsList() {
