@@ -135,6 +135,17 @@ app.param('id', (req, res, next, id) => isUuid(id) ? next() : fail(res, 400, 'In
 app.param('projectId', (req, res, next, id) => isUuid(id) ? next() : fail(res, 400, 'Invalid project ID'));
 const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
 const isAllowedCompanyEmail = email => !allowedDomains.length || allowedDomains.some(domain => email.endsWith(`@${domain}`));
+const googleAvatarUrl = user => {
+  const candidates = [
+    user?.user_metadata?.avatar_url,
+    user?.user_metadata?.picture,
+    ...((user?.identities || []).flatMap(identity => [identity.identity_data?.avatar_url, identity.identity_data?.picture]))
+  ];
+  return candidates.find(value => {
+    if (typeof value !== 'string' || value.length > 2048) return false;
+    try { return new URL(value).protocol === 'https:'; } catch { return false; }
+  }) || null;
+};
 
 async function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
@@ -143,6 +154,18 @@ async function authenticate(req, res, next) {
   if (error || !user) return fail(res, 401, 'Invalid or expired session');
   try {
     req.profile = await query(db.from('profiles').select('*').eq('id', user.id).is('permanently_deleted_at', null).single());
+    // Backfill an older Google account that was created before avatar metadata
+    // was stored. A Cloudinary upload always wins and is never overwritten.
+    const googleAvatar = googleAvatarUrl(user);
+    if (!req.profile.profile_picture_url && !req.profile.profile_picture_public_id && googleAvatar) {
+      const { data, error: avatarError } = await db.from('profiles')
+        .update({ profile_picture_url: googleAvatar })
+        .eq('id', req.profile.id)
+        .is('profile_picture_url', null)
+        .select()
+        .maybeSingle();
+      if (!avatarError && data) req.profile = data;
+    }
     req.authUser = user;
     next();
   } catch { return fail(res, 403, 'User profile is not available'); }
@@ -369,10 +392,7 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   // Older Google profiles may predate avatar persistence. Use their trusted
   // Supabase Auth metadata as a read-time fallback without overwriting an
   // employee's own uploaded profile picture.
-  const googleAvatarById = new Map(authResult.data.users.map(user => [
-    user.id,
-    user.user_metadata?.avatar_url || user.user_metadata?.picture || null
-  ]));
+  const googleAvatarById = new Map(authResult.data.users.map(user => [user.id, googleAvatarUrl(user)]));
   res.json(profiles.map(profile => ({
     ...profile,
     profile_picture_url: profile.profile_picture_url || googleAvatarById.get(profile.id) || null
