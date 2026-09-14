@@ -4614,3 +4614,28 @@ html[data-theme="dark"] .schedule-card-heading > p, html[data-theme="dark"] .sch
 html[data-theme="dark"] .schedule-validation-message { color: #ffaca6; }
 @media (max-width: 1040px) { .schedule-workspace { grid-template-columns: 1fr; } #assignmentForm { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; } #assignmentForm .btn { grid-column: 1 / -1; width: fit-content; min-width: 164px; } }
 @media (max-width: 600px) { .schedule-page-header { padding-block: 18px; } #assignmentForm { grid-template-columns: 1fr; } #assignmentForm .btn { width: 100%; } }
+
+/* Navigation rail: stable hierarchy, obvious current location, and usable drawer controls. */
+.shell-nav { min-height: 0; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.shell-nav-group { position: relative; }
+.shell-nav-group-toggle { width: 100%; min-height: 44px; justify-content: space-between; color: #4d6e78; text-align: left; background: transparent; border: 1px solid transparent; border-radius: 10px; cursor: pointer; }
+.shell-nav-group-toggle > b { display: inline-grid; place-items: center; width: 24px; height: 24px; color: var(--ace-cyan-dark); font-size: 1.05rem; line-height: 1; transition: transform .18s ease; }
+.shell-nav-group.is-open .shell-nav-group-toggle > b { transform: rotate(180deg); }
+.shell-nav-group.has-active-route .shell-nav-group-toggle { color: #0b485a; }
+.shell-nav-group-toggle:hover { background: rgba(255,255,255,.45); border-color: rgba(132,199,211,.35); }
+.shell-nav-group-items { display: grid; gap: 3px; }
+.shell-link:focus-visible, .shell-nav-group-toggle:focus-visible, .shell-collapse:focus-visible, .shell-mobile-toggle:focus-visible, .shell-account:focus-visible { outline: 3px solid rgba(0,158,191,.7); outline-offset: 2px; }
+.shell-link.active { font-weight: 800; }
+@media (max-width: 1180px) {
+  body.shell-mobile-open { overflow: hidden; touch-action: none; }
+  .shell-mobile-open .shell-overlay { display: block; cursor: default; }
+  .shell-mobile-open .app-sidebar { overscroll-behavior: contain; }
+  .shell-mobile-toggle { min-width: 46px; min-height: 46px; }
+}
+@media (max-width: 640px) {
+  .app-sidebar, .shell-collapsed .app-sidebar { width: min(324px, calc(100vw - 28px)); padding-top: env(safe-area-inset-top); }
+  .shell-account-wrap { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar, .shell-overlay, .shell-nav-group-toggle > b { transition-duration: .01ms !important; }
+}

@@ -548,9 +548,24 @@ function installPageFadeNavigation() {
 
     const updateShellRoute = destination => {
         const currentFile = (destination.pathname.split('/').pop() || '').toLowerCase();
+        const routeFile = currentFile && !currentFile.includes('.') ? `${currentFile}.html` : currentFile;
         document.querySelectorAll('.shell-link').forEach(link => {
             const linkFile = (new URL(link.href, window.location.href).pathname.split('/').pop() || '').toLowerCase();
-            link.classList.toggle('active', linkFile === currentFile);
+            const active = linkFile === routeFile;
+            link.classList.toggle('active', active);
+            if (active) link.setAttribute('aria-current', 'page');
+            else link.removeAttribute('aria-current');
+        });
+        document.querySelectorAll('.shell-nav-group').forEach(group => {
+            const hasActiveChild = Boolean(group.querySelector('.shell-link.active'));
+            group.classList.toggle('has-active-route', hasActiveChild);
+            const toggle = group.querySelector('.shell-nav-group-toggle');
+            const items = group.querySelector('.shell-nav-group-items');
+            if (hasActiveChild && toggle && items) {
+                items.hidden = false;
+                group.classList.add('is-open');
+                toggle.setAttribute('aria-expanded', 'true');
+            }
         });
         document.querySelectorAll('.employee-bottom-nav-item[href]').forEach(link => {
             const linkFile = (new URL(link.href, window.location.href).pathname.split('/').pop() || '').toLowerCase();
@@ -560,11 +575,11 @@ function installPageFadeNavigation() {
             else link.removeAttribute('aria-current');
         });
         const moreButton = document.querySelector('[data-bottom-nav-more]');
-        const moreIsActive = currentFile === 'settings.html';
+        const moreIsActive = routeFile === 'settings.html';
         moreButton?.classList.toggle('is-active', moreIsActive);
         if (moreIsActive) moreButton?.setAttribute('aria-current', 'page');
         else moreButton?.removeAttribute('aria-current');
-        document.body.classList.remove('shell-mobile-open');
+        window.ACECloseMobileNavigation?.({ restoreFocus: false });
     };
 
     const updateBottomNavRoute = destination => {
@@ -845,10 +860,10 @@ function initializeAppShell() {
     const user = AppState.currentUser || { FullName: isAdmin ? 'ACE Administrator' : 'ACE Employee', Role: isAdmin ? 'ADMIN' : 'USER' };
     const initials = String(user.FullName || '').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
     const unreadRemarks = !isAdmin ? AppState.adminRemarks.filter(remark => !remark.SeenAt).length : 0;
-    const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => file === href); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}"><span>${groupLabel}</span><b aria-hidden="true">⌄</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; return `<section class="shell-nav-group${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}<div class="shell-nav-group-items"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
+    const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const groupId = `shell-nav-group-${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => file === href); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}" aria-controls="${groupId}"><span>${groupLabel}</span><b aria-hidden="true">⌄</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; return `<section class="shell-nav-group${hasActive ? ' has-active-route' : ''}${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}<div class="shell-nav-group-items" id="${groupId}"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
         const active = file === href || (file === 'admin-management.html' && new URLSearchParams(location.search).get('view') === href.replace('.html', '').replace('admin-time-entries', 'entries').replace('audit-logs', 'audit'));
         const remarkBadge = href === 'remarks.html' && unreadRemarks ? `<b class="shell-notification-badge" aria-label="${unreadRemarks} new administrator remark${unreadRemarks === 1 ? '' : 's'}">${unreadRemarks > 9 ? '9+' : unreadRemarks}</b>` : '';
-        return `<a class="shell-link${active ? ' active' : ''}" href="${href}" title="${label}">${icon(iconName)}<span class="shell-label">${label}</span>${remarkBadge}</a>`;
+        return `<a class="shell-link${active ? ' active' : ''}" href="${href}" title="${label}"${active ? ' aria-current="page"' : ''}>${icon(iconName)}<span class="shell-label">${label}</span>${remarkBadge}</a>`;
     }).join('')}</div></section>`; }).join('');
 
     document.body.classList.add('has-app-shell');
@@ -861,11 +876,12 @@ function initializeAppShell() {
     }
     const sidebar = document.createElement('aside');
     sidebar.className = 'app-sidebar';
+    sidebar.id = 'appSidebar';
     sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-account-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div>`;
     const overlay = document.createElement('button');
     overlay.className = 'shell-overlay'; overlay.type = 'button'; overlay.setAttribute('aria-label', 'Close navigation');
     const mobileToggle = document.createElement('button');
-    mobileToggle.className = 'shell-mobile-toggle'; mobileToggle.type = 'button'; mobileToggle.setAttribute('aria-label', 'Open navigation'); mobileToggle.setAttribute('aria-expanded', 'false');
+    mobileToggle.className = 'shell-mobile-toggle'; mobileToggle.type = 'button'; mobileToggle.setAttribute('aria-label', 'Open navigation'); mobileToggle.setAttribute('aria-expanded', 'false'); mobileToggle.setAttribute('aria-controls', 'appSidebar');
     mobileToggle.innerHTML = suppliedIconMarkup('menu', 'shell-icon');
     const topbar = document.createElement('header');
     topbar.className = 'shell-topbar';
@@ -900,20 +916,77 @@ function initializeAppShell() {
 
     const setCollapsed = collapsed => {
         document.body.classList.toggle('shell-collapsed', collapsed);
-        sidebar.querySelector('.shell-collapse').setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        const collapseButton = sidebar.querySelector('.shell-collapse');
+        collapseButton.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        collapseButton.setAttribute('aria-expanded', String(!collapsed));
+        collapseButton.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
         localStorage.setItem('ace_sidebar_collapsed', collapsed ? '1' : '0');
     };
     setCollapsed(localStorage.getItem('ace_sidebar_collapsed') === '1');
     sidebar.querySelector('.shell-collapse').addEventListener('click', () => setCollapsed(!document.body.classList.contains('shell-collapsed')));
-    sidebar.querySelectorAll('.shell-nav-group-toggle').forEach(button => button.addEventListener('click', () => { const group = button.closest('.shell-nav-group'); const content = group.querySelector('.shell-nav-group-items'); const open = content.hidden; content.hidden = !open; group.classList.toggle('is-open', open); button.setAttribute('aria-expanded', String(open)); localStorage.setItem(group.dataset.groupKey, open ? '1' : '0'); }));
-    const setMobileNavigation = open => {
+    const setGroupOpen = (group, open) => {
+        const content = group.querySelector('.shell-nav-group-items');
+        const button = group.querySelector('.shell-nav-group-toggle');
+        if (!content || !button) return;
+        content.hidden = !open;
+        group.classList.toggle('is-open', open);
+        button.setAttribute('aria-expanded', String(open));
+        localStorage.setItem(group.dataset.groupKey, open ? '1' : '0');
+    };
+    sidebar.querySelectorAll('.shell-nav-group-toggle').forEach(button => button.addEventListener('click', () => {
+        const group = button.closest('.shell-nav-group');
+        setGroupOpen(group, group.querySelector('.shell-nav-group-items').hidden);
+    }));
+    let mobileReturnFocus = null;
+    const compactNavigation = window.matchMedia('(max-width: 1180px)');
+    const setMobileNavigation = (open, { restoreFocus = true } = {}) => {
+        if (open && !document.body.classList.contains('shell-mobile-open')) mobileReturnFocus = document.activeElement;
         document.body.classList.toggle('shell-mobile-open', open);
+        sidebar.setAttribute('aria-hidden', String(!open && compactNavigation.matches));
         mobileToggle.setAttribute('aria-expanded', String(open));
         mobileToggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
         employeeBottomNav?.querySelector('[data-bottom-nav-more]')?.setAttribute('aria-expanded', String(open));
+        if (open) requestAnimationFrame(() => sidebar.querySelector('.shell-link.active, .shell-nav-group-toggle, .shell-link, .shell-account')?.focus());
+        else if (restoreFocus && mobileReturnFocus instanceof HTMLElement && document.contains(mobileReturnFocus)) mobileReturnFocus.focus();
     };
+    window.ACECloseMobileNavigation = setMobileNavigation.bind(null, false);
+    setMobileNavigation(false, { restoreFocus: false });
+    compactNavigation.addEventListener('change', () => sidebar.setAttribute('aria-hidden', String(!document.body.classList.contains('shell-mobile-open') && compactNavigation.matches)));
     mobileToggle.addEventListener('click', () => setMobileNavigation(!document.body.classList.contains('shell-mobile-open')));
     overlay.addEventListener('click', () => setMobileNavigation(false));
+    sidebar.querySelectorAll('.shell-link').forEach(link => link.addEventListener('click', () => setMobileNavigation(false, { restoreFocus: false })));
+    document.addEventListener('keydown', event => {
+        if (!document.body.classList.contains('shell-mobile-open')) return;
+        if (event.key === 'Escape') { event.preventDefault(); setMobileNavigation(false); return; }
+        if (event.key !== 'Tab') return;
+        const focusable = [...sidebar.querySelectorAll('a[href], button:not([disabled])')].filter(element => !element.closest('[hidden]'));
+        if (!focusable.length) return;
+        const first = focusable[0]; const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    });
+    sidebar.addEventListener('keydown', event => {
+        const controls = [...sidebar.querySelectorAll('.shell-nav-group-toggle, .shell-link')].filter(element => !element.closest('[hidden]'));
+        const index = controls.indexOf(document.activeElement);
+        if (index < 0) return;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault(); controls[(index + (event.key === 'ArrowDown' ? 1 : controls.length - 1)) % controls.length].focus();
+        } else if (event.key === 'ArrowRight' && document.activeElement.matches('.shell-nav-group-toggle')) {
+            event.preventDefault(); const group = document.activeElement.closest('.shell-nav-group'); setGroupOpen(group, true); group.querySelector('.shell-link')?.focus();
+        } else if (event.key === 'ArrowLeft' && document.activeElement.matches('.shell-nav-group-toggle')) {
+            event.preventDefault(); setGroupOpen(document.activeElement.closest('.shell-nav-group'), false);
+        }
+    });
+    let touchStartX = null;
+    document.addEventListener('touchstart', event => { touchStartX = event.touches[0]?.clientX ?? null; }, { passive: true });
+    document.addEventListener('touchend', event => {
+        if (touchStartX === null) return;
+        const deltaX = (event.changedTouches[0]?.clientX ?? touchStartX) - touchStartX;
+        const isOpen = document.body.classList.contains('shell-mobile-open');
+        if (!isOpen && touchStartX <= 24 && deltaX >= 64) setMobileNavigation(true);
+        if (isOpen && touchStartX <= sidebar.getBoundingClientRect().right && deltaX <= -64) setMobileNavigation(false);
+        touchStartX = null;
+    }, { passive: true });
     const accountButton = sidebar.querySelector('.shell-account');
     const accountMenu = sidebar.querySelector('.shell-account-menu');
     const setAccountMenu = open => {
