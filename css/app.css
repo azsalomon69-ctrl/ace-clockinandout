@@ -4519,3 +4519,26 @@ html[data-theme="dark"] .mobile-clock-action-modal .mobile-clock-action:hover { 
         display: none !important;
     }
 }
+
+/* Schedule builder: make working days an obvious, touch-friendly choice. */
+#scheduleForm { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; align-items: end; }
+#scheduleForm > label { margin: 0; }
+#scheduleForm > .btn { width: fit-content; min-width: 164px; margin-top: 2px; }
+.schedule-workdays { grid-column: 1 / -1; min-width: 0; margin: 2px 0 0; padding: 18px; border: 1px solid #cfe5ea; border-radius: 14px; background: linear-gradient(135deg, #f8fdfe, #eef8fa); }
+.schedule-workdays-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
+.schedule-workdays legend { padding: 0; color: #083e53; font-size: 1rem; font-weight: 750; }
+.schedule-workdays p { margin: 0; color: #5b7680; font-size: .84rem; line-height: 1.35; }
+.schedule-day-selector { display: grid; grid-template-columns: repeat(7, minmax(72px, 1fr)); gap: 10px; }
+.schedule-day-chip { position: relative; display: block; margin: 0; cursor: pointer; }
+.schedule-day-chip input { position: absolute; opacity: 0; inset: 0; }
+.schedule-day-chip span { display: grid; min-height: 42px; place-items: center; padding: 0 10px; border: 1px solid #bfd8df; border-radius: 10px; color: #365660; background: #fff; font-size: .88rem; font-weight: 700; transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease; }
+.schedule-day-chip:hover span { border-color: #72b8c7; transform: translateY(-1px); }
+.schedule-day-chip input:checked + span { color: #fff; background: #0C5069; border-color: #0C5069; box-shadow: 0 4px 10px rgba(12,80,105,.18); }
+.schedule-day-chip input:focus-visible + span { outline: 3px solid rgba(8,162,194,.3); outline-offset: 2px; }
+html[data-theme="dark"] .schedule-workdays { border-color: var(--ace-border); background: var(--ace-surface-raised); }
+html[data-theme="dark"] .schedule-workdays legend { color: #e4f7fa; }
+html[data-theme="dark"] .schedule-workdays p { color: #a8c4ca; }
+html[data-theme="dark"] .schedule-day-chip span { color: #d5eef2; border-color: var(--ace-border); background: var(--ace-surface); }
+html[data-theme="dark"] .schedule-day-chip input:checked + span { color: #fff; background: var(--ace-accent); border-color: var(--ace-accent); }
+@media (max-width: 720px) { #scheduleForm { grid-template-columns: 1fr; } .schedule-workdays-heading { display: block; } .schedule-workdays p { margin-top: 5px; } .schedule-day-selector { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .schedule-day-selector { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
