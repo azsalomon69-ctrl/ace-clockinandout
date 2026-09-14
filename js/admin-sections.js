@@ -204,6 +204,17 @@ function modal(view, primary, record) {
   });
   node.querySelector('form').addEventListener('submit', async event => {
     event.preventDefault();
+    const form = event.currentTarget;
+    const submitButton = form.querySelector('button[type="submit"]');
+    // A slow email/database response used to leave this button active, making a
+    // second click look like the first invitation had failed.
+    if (submitButton?.disabled) return;
+    const originalSubmitLabel = submitButton?.innerHTML;
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.setAttribute('aria-busy', 'true');
+      submitButton.textContent = 'Saving…';
+    }
     try {
       const first = document.getElementById('adminField0').value;
       let invitation;
@@ -223,9 +234,26 @@ function modal(view, primary, record) {
       }
       else if (review) await liveRequest('/v1/users/' + record.id + '/approval', { method: 'PATCH', body: JSON.stringify({ status: first }) });
       closeModal('adminActionModal');
-      showToast(invitation ? (invitation.email_sent ? 'Invitation and onboarding email sent.' : `Invitation created. ${invitation.email_issue || 'Email delivery needs attention.'}`) : 'Saved to the live database.', invitation && !invitation.email_sent ? 'warning' : 'success');
-      window.setTimeout(() => window.location.reload(), 2600);
-    } catch (error) { showToast(error.message || 'Could not save changes.', 'error'); }
+      if (invitation) {
+        const message = invitation.email_sent
+          ? `Invitation added for ${invitation.email}. An onboarding email was sent.`
+          : `Invitation added for ${invitation.email}. ${invitation.email_issue || 'Email delivery needs attention.'}`;
+        showToast(message, invitation.email_sent ? 'success' : 'warning');
+        // Keep the confirmation visible and update the records without a page
+        // reload, so the newly added invitation is immediately verifiable.
+        renderAdminSection().catch(error => console.error('Could not refresh invitations after creation.', error));
+      } else {
+        showToast('Saved to the live database.', 'success');
+        window.setTimeout(() => window.location.reload(), 350);
+      }
+    } catch (error) {
+      showToast(error.message || 'Could not save changes.', 'error');
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.removeAttribute('aria-busy');
+        submitButton.innerHTML = originalSubmitLabel;
+      }
+    }
   });
   openModal('adminActionModal');
 }
