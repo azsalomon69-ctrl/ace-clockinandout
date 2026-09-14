@@ -146,6 +146,22 @@ const googleAvatarUrl = user => {
     try { return new URL(value).protocol === 'https:'; } catch { return false; }
   }) || null;
 };
+// A custom Cloudinary photo is always preferred. Google metadata is used only
+// as a display fallback, so older accounts do not degrade to an initial while
+// their provider already has a picture available.
+const applyGoogleAvatarFallback = (profiles, authUsers = []) => {
+  const googleAvatarById = new Map(authUsers.map(user => [user.id, googleAvatarUrl(user)]));
+  return profiles.map(profile => ({
+    ...profile,
+    profile_picture_url: profile.profile_picture_url || googleAvatarById.get(profile.id) || null
+  }));
+};
+const listAuthUsersForAvatars = async () => {
+  const result = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  // Avatar enrichment must never take down a normal people list if Supabase
+  // Auth is temporarily unavailable.
+  return result.error ? [] : result.data.users;
+};
 
 async function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
@@ -389,30 +405,28 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   let request = db.from('profiles').select('*, departments(name)').order('created_at', { ascending: false });
   request = req.query.removed === 'true' ? request.eq('status', 'DENIED') : request.neq('status', 'DENIED');
   request = request.is('permanently_deleted_at', null);
-  const [profiles, authResult] = await Promise.all([
+  const [profiles, authUsers] = await Promise.all([
     query(request),
-    db.auth.admin.listUsers({ page: 1, perPage: 1000 })
+    listAuthUsersForAvatars()
   ]);
-  if (authResult.error) throw authResult.error;
   // Older Google profiles may predate avatar persistence. Use their trusted
   // Supabase Auth metadata as a read-time fallback without overwriting an
   // employee's own uploaded profile picture.
-  const googleAvatarById = new Map(authResult.data.users.map(user => [user.id, googleAvatarUrl(user)]));
-  res.json(profiles.map(profile => ({
+  res.json(applyGoogleAvatarFallback(profiles, authUsers).map(profile => ({
     ...profile,
-    is_head_admin: profile.email?.toLowerCase() === headAdminEmail,
-    profile_picture_url: profile.profile_picture_url || googleAvatarById.get(profile.id) || null
+    is_head_admin: profile.email?.toLowerCase() === headAdminEmail
   })));
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
   let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
   if (req.profile.role !== 'ADMIN') contactRequest = contactRequest.eq('role', 'ADMIN');
-  const [contacts, unread, pendingAccessRequests] = await Promise.all([
+  const [contacts, unread, pendingAccessRequests, authUsers] = await Promise.all([
     query(contactRequest),
     query(db.from('employee_messages').select('sender_id,body,created_at').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null).order('created_at', { ascending: false })),
     req.profile.role === 'ADMIN'
       ? db.from('access_requests').select('id', { count: 'exact', head: true }).eq('status', 'PENDING').gt('expires_at', new Date().toISOString())
-      : Promise.resolve({ count: 0, error: null })
+      : Promise.resolve({ count: 0, error: null }),
+    listAuthUsersForAvatars()
   ]);
   if (pendingAccessRequests.error) throw pendingAccessRequests.error;
   const allowedContactIds = new Set(contacts.map(contact => contact.id));
@@ -426,7 +440,7 @@ app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res,
     return summary;
   }, {});
   res.json({
-    contacts: contacts.map(contact => ({
+    contacts: applyGoogleAvatarFallback(contacts, authUsers).map(contact => ({
       ...contact,
       unread_count: unreadByContact[contact.id]?.count || 0,
       last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
@@ -586,12 +600,13 @@ app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { tr
 
 app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try { const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email,role), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)').order('clock_in_at', { ascending: false }); request = req.query.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null); if (own) request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
 app.get('/v1/time-leaderboard', authenticate, adminOnly, async (req, res, next) => { try {
-  const [people, entries] = await Promise.all([
+  const [people, entries, authUsers] = await Promise.all([
     query(db.from('profiles').select('id,full_name,profile_picture_url,role').eq('role', 'USER').eq('status', 'ACTIVE').is('permanently_deleted_at', null)),
-    query(db.from('time_entries').select('user_id,duration_seconds').is('deleted_at', null).not('duration_seconds', 'is', null))
+    query(db.from('time_entries').select('user_id,duration_seconds').is('deleted_at', null).not('duration_seconds', 'is', null)),
+    listAuthUsersForAvatars()
   ]);
   const totals = entries.reduce((result, entry) => ({ ...result, [entry.user_id]: (result[entry.user_id] || 0) + Number(entry.duration_seconds || 0) }), {});
-  const ranked = people.map(person => ({ ...person, tracked_seconds: totals[person.id] || 0 })).sort((a, b) => b.tracked_seconds - a.tracked_seconds || a.full_name.localeCompare(b.full_name));
+  const ranked = applyGoogleAvatarFallback(people, authUsers).map(person => ({ ...person, tracked_seconds: totals[person.id] || 0 })).sort((a, b) => b.tracked_seconds - a.tracked_seconds || a.full_name.localeCompare(b.full_name));
   res.json({ leaders: ranked.slice(0, 10), my_rank: Math.max(1, ranked.findIndex(person => person.id === req.profile.id) + 1), total_people: ranked.length });
 } catch (error) { next(error); } });
 app.get('/v1/admin-remarks', authenticate, activeOnly, async (req, res, next) => { try {
