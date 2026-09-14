@@ -4561,6 +4561,32 @@ html[data-theme="dark"] :is(.admin-dashboard .dashboard-header-copy > p:last-chi
 @media (max-width: 960px) { .dashboard-command-center { grid-template-columns: 1fr; } .admin-dashboard .dashboard-command-center .quick-actions { justify-content: flex-start; } }
 @media (max-width: 640px) { .dashboard-command-center { padding: 17px; border-radius: 13px; } .admin-dashboard .dashboard-command-center .quick-actions { grid-template-columns: 1fr; } .admin-dashboard .dashboard-command-center .quick-actions .btn { width: 100%; justify-content: center; } .admin-dashboard .dashboard-section > .dashboard-section-heading { align-items: stretch; flex-direction: column; padding: 18px; } .admin-dashboard .dashboard-section-heading > .btn { width: 100%; justify-content: center; } }
 
+/* Individual reports: make scope selection and export results visible together. */
+.individual-reports-header { padding-block: 22px; margin-bottom: 20px; }
+.individual-reports-header h1 { margin-bottom: 4px; }
+.individual-report-workspace { display: grid; grid-template-columns: minmax(280px, .75fr) minmax(0, 1.65fr); align-items: start; gap: 20px; }
+.individual-report-workspace > :is(.settings-section,.table-container) { margin: 0; }
+.individual-report-builder-heading { margin-bottom: 20px; }
+.individual-report-builder-heading .admin-section-kicker { margin-bottom: 5px; }
+.individual-report-builder-heading h2 { margin: 0 0 6px; color: #083e53; font-size: 1.12rem; }
+.individual-report-builder-heading > p:last-child { margin: 0; color: #5b7680; font-size: .86rem; line-height: 1.45; }
+#individualReportForm { display: grid; gap: 16px; }
+#individualReportForm > label { display: grid; gap: 7px; color: #244b57; font-size: .85rem; font-weight: 700; }
+#individualReportForm .btn { width: 100%; min-height: 44px; margin-top: 2px; }
+.individual-report-selection { min-height: 20px; margin: -3px 0 0; padding: 10px 11px; color: #31616e; background: #eef8fa; border: 1px solid #d3e8ed; border-radius: 9px; font-size: .82rem; line-height: 1.35; }
+.individual-report-selection.is-invalid { color: #a64040; background: #fff5f4; border-color: #f1c6c2; }
+.individual-report-results { overflow: hidden; }
+.individual-report-results-heading { display: flex; align-items: center; min-height: 122px; padding: 20px 22px; background: linear-gradient(135deg, #f8fdfe, #eef8fa); border-bottom: 1px solid var(--ace-line); }
+.individual-report-results-heading .admin-section-kicker { margin-bottom: 5px; }
+.individual-report-results-heading h2 { margin: 0; color: #083e53; font-size: 1.12rem; }
+.individual-report-results-heading p:last-child { margin: 6px 0 0; color: #5b7680; font-size: .85rem; line-height: 1.4; }
+html[data-theme="dark"] .individual-report-builder-heading h2, html[data-theme="dark"] .individual-report-results-heading h2 { color: var(--ace-text-primary); }
+html[data-theme="dark"] :is(.individual-report-builder-heading > p:last-child,.individual-report-results-heading p:last-child) { color: #a8c4ca; }
+html[data-theme="dark"] .individual-report-selection { color: #c9e6eb; background: var(--ace-surface-raised); border-color: var(--ace-border); }
+html[data-theme="dark"] .individual-report-results-heading { background: var(--ace-page-subtle); border-color: var(--ace-border); }
+@media (max-width: 920px) { .individual-report-workspace { grid-template-columns: 1fr; } .individual-report-results-heading { min-height: 0; } #individualReportForm { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; } #individualReportForm .individual-report-selection, #individualReportForm .btn { grid-column: 1 / -1; } #individualReportForm .btn { width: fit-content; min-width: 170px; } }
+@media (max-width: 560px) { .individual-reports-header { padding-block: 18px; } #individualReportForm { grid-template-columns: 1fr; } #individualReportForm .btn { width: 100%; } .individual-report-results-heading { padding: 18px; } }
+
 /* Schedule page workflow: create and assign are related tasks, not a long form stack. */
 .schedule-page-header { padding-block: 22px; margin-bottom: 20px; }
 .schedule-page-header h1 { margin-bottom: 4px; }
