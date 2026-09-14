@@ -2793,13 +2793,18 @@ function loadReportsList() {
                     <td>${formatAppDateTime(report.GeneratedAt)}</td>
                     <td>${report.TotalRecords}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline" onclick="exportReport('${report.ReportId}', 'XLSX')">Save Excel</button>
-                        <button class="btn btn-sm btn-primary" onclick="exportReport('${report.ReportId}', 'PDF')">Save PDF</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteReport('${report.ReportId}')">Delete</button>
+                        <button class="btn btn-sm btn-outline" type="button" data-report-action="export" data-report-id="${report.ReportId}" data-report-format="XLSX">Save Excel</button>
+                        <button class="btn btn-sm btn-primary" type="button" data-report-action="export" data-report-id="${report.ReportId}" data-report-format="PDF">Save PDF</button>
+                        <button class="btn btn-sm btn-danger" type="button" data-report-action="delete" data-report-id="${report.ReportId}">Delete</button>
                     </td>
                 </tr>
             `;
         }).join('');
+        reportsList.querySelectorAll('[data-report-action]').forEach(button => button.addEventListener('click', () => {
+            const reportId = button.dataset.reportId;
+            if (button.dataset.reportAction === 'export') exportReport(reportId, button.dataset.reportFormat);
+            else deleteReport(reportId);
+        }));
     }
 }
 
@@ -2902,7 +2907,8 @@ function clearFilters() {
     document.querySelectorAll('#reportsList tr, #timeEntriesList tr').forEach(row => { row.hidden = false; });
 }
 
-// Global functions for onclick handlers
+// Report and time-entry actions are attached with event listeners so the
+// frontend can keep a strict script CSP without inline event handlers.
 function viewTimeEntry(entryId) {
     const entry = AppState.timeEntries.find(te => te.TimeEntryId === entryId);
     if (entry) {

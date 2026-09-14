@@ -39,9 +39,11 @@ assert.match(header('Content-Security-Policy'), /frame-ancestors 'none'/, 'Front
 assert.equal(header('X-Frame-Options'), 'DENY', 'Legacy clickjacking protection must remain enabled');
 assert.equal(header('X-Content-Type-Options'), 'nosniff', 'MIME sniffing must remain disabled');
 assert.match(header('Strict-Transport-Security'), /max-age=/, 'HTTPS transport policy must remain enabled');
+assert.doesNotMatch(header('Content-Security-Policy'), /script-src[^;]*'unsafe-inline'/, 'Scripts must not allow inline execution');
 assert.doesNotMatch(header('Content-Security-Policy'), /cdn\.jsdelivr\.net/, 'The frontend must not permit jsDelivr scripts at runtime');
 assert.doesNotMatch(frontendScript, /cdn\.jsdelivr\.net\/npm\/xlsx/, 'Excel exports must not load XLSX from jsDelivr at runtime');
 for (const html of htmlPages) {
+  assert.doesNotMatch(html, /\son[a-z]+\s*=/i, 'HTML must not use inline event handlers');
   assert.doesNotMatch(html, /cdn\.jsdelivr\.net/, 'HTML pages must not load scripts from jsDelivr');
   assert.doesNotMatch(html, /@supabase\/supabase-js@2/, 'HTML pages must use the local Supabase UMD bundle');
 }
