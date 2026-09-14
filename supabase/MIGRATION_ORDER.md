@@ -17,9 +17,10 @@ Run these files in the Supabase SQL Editor, in this exact order:
 8. `supabase/migrations/0005_access_request_expiry_24_hours.sql`
 9. `supabase/migrations/0006_lock_down_time_entries_rls.sql`
 10. `supabase/migrations/0007_admin_time_entry_rpcs.sql`
-11. `supabase/r2-profile-photos.sql`
-12. `supabase/permanent-user-delete.sql`
-13. `supabase/admin-remark-notifications.sql`
+11. `supabase/migrations/0008_schedule_workdays.sql`
+12. `supabase/r2-profile-photos.sql`
+13. `supabase/permanent-user-delete.sql`
+14. `supabase/admin-remark-notifications.sql`
 
 Then configure the environment variables and run `npm run db:verify` from a
 machine with the target project's `SUPABASE_URL` and `SUPABASE_SECRET_KEY`.

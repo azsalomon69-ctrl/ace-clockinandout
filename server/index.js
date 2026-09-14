@@ -331,8 +331,10 @@ app.get('/v1/my-schedule', authenticate, activeOnly, async (req, res, next) => {
 app.post('/v1/schedules', authenticate, adminOnly, async (req, res, next) => { try {
   const name = requireText(req.body.name, 'Schedule name', 80); const scheduleType = req.body.scheduleType === 'FLEX' ? 'FLEX' : req.body.scheduleType === 'FIXED' ? 'FIXED' : null;
   const startTime = req.body.startTime || null; const endTime = req.body.endTime || null; const dailyElapsedMinutes = Number(req.body.dailyElapsedMinutes || 540); const breakLimitMinutes = Number(req.body.breakLimitMinutes ?? 60);
-  if (!scheduleType || !Number.isInteger(dailyElapsedMinutes) || dailyElapsedMinutes < 60 || dailyElapsedMinutes > 1440 || !Number.isInteger(breakLimitMinutes) || breakLimitMinutes < 0 || breakLimitMinutes > 360 || (scheduleType === 'FIXED' && (!isTime(startTime) || !isTime(endTime)))) return fail(res, 400, 'Provide valid schedule details');
-  const item = await query(db.from('work_schedules').insert({ name, schedule_type: scheduleType, start_time: scheduleType === 'FIXED' ? startTime : null, end_time: scheduleType === 'FIXED' ? endTime : null, daily_elapsed_minutes: dailyElapsedMinutes, break_limit_minutes: breakLimitMinutes, created_by_user_id: req.profile.id }).select().single());
+  const requestedWorkdays = req.body.workdays === undefined ? [1, 2, 3, 4, 5] : req.body.workdays;
+  const workdays = Array.isArray(requestedWorkdays) ? [...new Set(requestedWorkdays.map(Number))].sort((a, b) => a - b) : null;
+  if (!scheduleType || !Array.isArray(workdays) || !workdays.length || workdays.some(day => !Number.isInteger(day) || day < 0 || day > 6) || !Number.isInteger(dailyElapsedMinutes) || dailyElapsedMinutes < 60 || dailyElapsedMinutes > 1440 || !Number.isInteger(breakLimitMinutes) || breakLimitMinutes < 0 || breakLimitMinutes > 360 || (scheduleType === 'FIXED' && (!isTime(startTime) || !isTime(endTime)))) return fail(res, 400, 'Provide valid schedule details and at least one workday');
+  const item = await query(db.from('work_schedules').insert({ name, schedule_type: scheduleType, start_time: scheduleType === 'FIXED' ? startTime : null, end_time: scheduleType === 'FIXED' ? endTime : null, daily_elapsed_minutes: dailyElapsedMinutes, break_limit_minutes: breakLimitMinutes, scheduled_weekdays: workdays, created_by_user_id: req.profile.id }).select().single());
   await audit(req, 'CREATE_SCHEDULE', 'SCHEDULE', item.id, `Created ${scheduleType.toLowerCase()} schedule ${name}`); res.status(201).json(item);
 } catch (error) { next(error); } });
 app.delete('/v1/schedules/:id', authenticate, adminOnly, async (req, res, next) => { try {
@@ -591,7 +593,7 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
   if (note === undefined) return fail(res, 400, 'Clock-in note must be text up to 50 characters');
   const open = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('clock_out_at', null).maybeSingle());
   if (open) return fail(res, 409, 'You already have an active time entry');
-  const assignment = await query(db.from('user_schedule_assignments').select('work_schedules(id,schedule_type,start_time,end_time,daily_elapsed_minutes,break_limit_minutes)').eq('user_id', req.profile.id).maybeSingle());
+  const assignment = await query(db.from('user_schedule_assignments').select('work_schedules(id,schedule_type,start_time,end_time,daily_elapsed_minutes,break_limit_minutes,scheduled_weekdays)').eq('user_id', req.profile.id).maybeSingle());
   const schedule = assignment?.work_schedules;
   // Schedule time values are Asia/Manila wall-clock values by policy; copy
   // them as-is so later schedule edits cannot change this entry's snapshot.
@@ -601,14 +603,16 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
     scheduled_start_time: schedule.start_time,
     scheduled_end_time: schedule.end_time,
     target_seconds: schedule.daily_elapsed_minutes * 60,
-    break_limit_seconds: schedule.break_limit_minutes * 60
+    break_limit_seconds: schedule.break_limit_minutes * 60,
+    scheduled_weekdays: schedule.scheduled_weekdays
   } : {
     schedule_id: null,
     schedule_type: null,
     scheduled_start_time: null,
     scheduled_end_time: null,
     target_seconds: null,
-    break_limit_seconds: null
+    break_limit_seconds: null,
+    scheduled_weekdays: null
   };
   const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: projectId, user_note: note, ...scheduleSnapshot }).select().single());
   const device = clockingDevice(req);
