@@ -4705,3 +4705,31 @@ html[data-theme="dark"] .schedule-validation-message { color: #ffaca6; }
 html[data-theme="dark"] .shell-brand { background: linear-gradient(180deg, rgba(26,72,82,.9), rgba(10,45,55,.28)); }
 html[data-theme="dark"] .shell-nav-group-toggle { color: #d6edf1; background: rgba(19,63,73,.68); border-color: rgba(105,182,194,.38); }
 html[data-theme="dark"] .shell-nav-group-toggle:hover, html[data-theme="dark"] .shell-nav-group.is-open .shell-nav-group-toggle { color: #fff; background: rgba(29,82,94,.85); border-color: #60c7d8; }
+
+/* Keep the rail compact: the logo is a marker, not the page hero. */
+.shell-brand { height: 98px; padding: 6px 18px; }
+.shell-brand a { width: 136px; height: 82px; padding: 3px 7px; }
+.shell-brand a > img { width: 118px; height: 72px; }
+.shell-nav-group-toggle { min-height: 44px; padding: 0 11px 0 12px; }
+.shell-nav-group-toggle > span:first-child { font-size: .61rem; }
+.shell-nav-group-indicator { display: none; }
+.shell-nav-group-toggle > b,
+.shell-nav-group-toggle > .shell-nav-group-indicator > b {
+  width: 28px;
+  height: 28px;
+  color: #087f9d;
+  background: transparent;
+  border: 1px solid rgba(8,127,157,.28);
+  border-radius: 8px;
+  box-shadow: none;
+}
+.shell-nav-group-toggle:hover > b, .shell-nav-group-toggle:focus-visible > b, .shell-nav-group.is-open .shell-nav-group-toggle > b {
+  color: #063b4b;
+  background: rgba(8,162,194,.1);
+  border-color: rgba(8,127,157,.52);
+}
+@media (max-width: 1180px) {
+  .shell-brand { height: 94px; }
+  .shell-brand a { width: 132px; height: 78px; }
+  .shell-brand a > img { width: 114px; height: 68px; }
+}
