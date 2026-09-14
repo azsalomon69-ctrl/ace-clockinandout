@@ -4403,6 +4403,12 @@ html[data-theme="dark"] .schedule-assignment-person, html[data-theme="dark"] .sc
 html[data-theme="dark"] .schedule-assignment-person strong { color: var(--ace-text-primary); }
 @media (max-width: 680px) { .schedule-assignments-heading, .schedule-assignment-person { align-items: stretch; flex-direction: column; } .schedule-assignments-heading .btn, .schedule-assignment-person .btn { width: 100%; } .schedule-row-actions { min-width: 150px; flex-direction: column; } .schedule-row-actions .btn { width: 100%; } }
 
+/* Chat owns the bottom-right corner; confirmations sit above it so dismissal is never obstructed. */
+body:has(.employee-chat) .toast-container { bottom: 96px; }
+@media (max-width: 640px) {
+  body:has(.employee-chat) .toast-container { right: 12px; bottom: calc(82px + env(safe-area-inset-bottom)); width: min(390px, calc(100vw - 24px)); }
+}
+
 /* Employee mobile navigation is injected by the authenticated shell. */
 .employee-bottom-nav { display: none; }
 
