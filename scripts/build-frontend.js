@@ -130,4 +130,5 @@ await mkdir(dist, { recursive: true });
 await cp(path.join(root, 'assets'), path.join(dist, 'assets'), { recursive: true });
 const assetMap = new Map([...(await buildScripts()), ...(await buildStyles())]);
 await buildPages(assetMap);
-console.log(`Built ${dist} with ${assetMap.size} minified, hashed frontend assets.`);
+await cp(path.join(root, '_headers'), path.join(dist, '_headers'));
+console.log(`Built ${dist} with ${assetMap.size} minified, hashed frontend assets and Cloudflare headers.`);
