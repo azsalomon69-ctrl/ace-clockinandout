@@ -4929,6 +4929,10 @@ html[data-theme="dark"] {
   --ace-navy-2: var(--ace-surface);
   --ace-sky: var(--ace-page-subtle);
   --ace-sky-2: var(--ace-page-bg);
+  /* Older components still use these light-theme names for text. */
+  --ace-ink: var(--ace-text-primary);
+  --ace-pale: var(--ace-surface-raised);
+  --ace-navy: var(--ace-text-primary);
 }
 html[data-theme="dark"] .shell-topbar {
   background: rgba(5, 5, 5, .96);
@@ -4938,6 +4942,29 @@ html[data-theme="dark"] :is(.user-dashboard .clock-card, .employee-status-panel)
   background: var(--ace-surface) !important;
   border-color: var(--ace-border-strong) !important;
 }
+/* Shared results and menus must never inherit the original dark-blue text
+   colours on an already dark surface. */
+html[data-theme="dark"] :is(.shell-global-results a, .shell-global-results strong,
+  .shell-topbar-menu :is(a, button), .dropdown-item, .select-option) {
+  color: var(--ace-text-primary) !important;
+}
+html[data-theme="dark"] :is(.shell-global-results small, .shell-topbar-menu small,
+  .shell-topbar-menu span, .dropdown-item small, .select-option small) {
+  color: var(--ace-text-secondary) !important;
+}
+/* These elements legitimately use the original navigation tone as a surface,
+   so keep them teal while the shared text token is now light. */
+html[data-theme="dark"] .shell-account-menu { background: var(--ace-surface-nav); }
+html[data-theme="dark"] .shell-avatar { color: var(--ace-surface-nav); }
+/* Chat lives above every page; give it the same neutral dark hierarchy rather
+   than leaving an older blue/teal surface recipe behind. */
+html[data-theme="dark"] .employee-chat-panel,
+html[data-theme="dark"] :is(.employee-chat-panel > header, .employee-chat-thread-head,
+  .employee-chat-compose) { background: var(--ace-surface); border-color: var(--ace-border); }
+html[data-theme="dark"] :is(.employee-chat-layout > aside, .employee-chat-messages,
+  .employee-chat-compose input) { background: var(--ace-surface-input); border-color: var(--ace-border-strong); }
+html[data-theme="dark"] :is(.employee-chat-contact:hover, .employee-chat-contact.active,
+  .employee-chat-message, .employee-chat-message.deleted) { background: var(--ace-surface-raised); border-color: var(--ace-border-strong); }
 
 /* SVG chevrons have a centered viewbox; this avoids the visual offset of a CSS corner. */
 .shell-nav-group-toggle > b::before,
