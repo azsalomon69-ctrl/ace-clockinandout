@@ -7,6 +7,7 @@
   let schedules = [];
   let allUsers = [];
   let selectedScheduleId = null;
+  let employeeOptions = new Map();
   const assignedPeople = schedule => (schedule.user_schedule_assignments || []).map(assignment => allUsers.find(user => user.id === assignment.user_id) || { id: assignment.user_id, full_name: 'Unknown employee', email: 'Employee record unavailable', status: 'UNKNOWN' });
   const renderAssignments = () => {
     const panel = document.getElementById('scheduleAssignmentsPanel');
@@ -27,11 +28,13 @@
   const load = async () => {
     const [items, users] = await Promise.all([request('/v1/schedules'), request('/v1/users')]); schedules = items; allUsers = users;
     const employees = allUsers.filter(user => user.role === 'USER' && user.status === 'ACTIVE');
-    const employeeSelect = document.getElementById('scheduleEmployee'); const assignmentSelect = document.getElementById('scheduleAssignment'); const assignButton = document.querySelector('#assignmentForm button[type="submit"]');
-    employeeSelect.innerHTML = employees.length ? `<option value="" selected disabled>Select employee</option>${employees.map(user => `<option value="${user.id}">${escapeHtml(user.full_name || user.email)}</option>`).join('')}` : '<option value="">No active employees available</option>';
+    const employeeInput = document.getElementById('scheduleEmployee'); const employeeList = document.getElementById('scheduleEmployeeOptions'); const assignmentSelect = document.getElementById('scheduleAssignment'); const assignButton = document.querySelector('#assignmentForm button[type="submit"]');
+    employeeOptions = new Map(employees.map(user => [`${user.full_name || user.email} — ${user.email}`, user.id]));
+    employeeInput.value = '';
+    employeeList.innerHTML = employees.map(user => `<option value="${escapeHtml(user.full_name || user.email)} — ${escapeHtml(user.email)}"></option>`).join('');
     const activeSchedules = schedules.filter(item => item.is_active);
     assignmentSelect.innerHTML = activeSchedules.length ? `<option value="" selected disabled>Select schedule</option>${activeSchedules.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}` : '<option value="">Create a schedule first</option>';
-    employeeSelect.disabled = !employees.length; assignmentSelect.disabled = !activeSchedules.length; assignButton.disabled = !employees.length || !activeSchedules.length;
+    employeeInput.disabled = !employees.length; employeeInput.placeholder = employees.length ? 'Search employees by name or email' : 'No active employees available'; assignmentSelect.disabled = !activeSchedules.length; assignButton.disabled = !employees.length || !activeSchedules.length;
     document.getElementById('scheduleRows').innerHTML = schedules.length ? schedules.map(item => { const count = item.user_schedule_assignments?.length || 0; return `<tr><td>${escapeHtml(item.name)}</td><td>${item.schedule_type === 'FLEX' ? 'Flextime' : `${escapeHtml(item.start_time?.slice(0,5) || '—')}–${escapeHtml(item.end_time?.slice(0,5) || '—')}`}</td><td>${workdayLabel(item.scheduled_weekdays)}</td><td>${item.daily_elapsed_minutes / 60}h</td><td>${item.break_limit_minutes}m</td><td><button class="schedule-assignment-count" type="button" data-view-assignees="${item.id}">${count ? `View ${count} employee${count === 1 ? '' : 's'}` : 'No employees'}</button></td><td><div class="schedule-row-actions"><button class="btn btn-sm btn-outline" data-view-assignees="${item.id}" type="button">View employees</button><button class="btn btn-sm btn-danger delete-schedule" data-id="${item.id}" data-assigned="${count}" type="button">Delete</button></div></td></tr>`; }).join('') : '<tr><td colspan="7">No schedules yet.</td></tr>';
     document.querySelectorAll('[data-view-assignees]').forEach(button => button.addEventListener('click', () => { selectedScheduleId = button.dataset.viewAssignees; renderAssignments(); document.getElementById('scheduleAssignmentsPanel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }));
     document.querySelectorAll('.delete-schedule').forEach(button => button.addEventListener('click', async () => {
@@ -54,7 +57,7 @@
     const validateWorkdays = () => { const valid = workdayInputs.some(input => input.checked); workdayError.hidden = valid; createButton.disabled = !valid; return valid; };
     type.addEventListener('change', toggle); workdayInputs.forEach(input => input.addEventListener('change', validateWorkdays)); toggle(); validateWorkdays();
     scheduleForm.addEventListener('submit', async event => { event.preventDefault(); if (!validateWorkdays()) { workdayInputs[0].focus(); return; } try { const workdays = workdayInputs.filter(input => input.checked).map(input => Number(input.value)); await request('/v1/schedules', { method: 'POST', body: JSON.stringify({ name: document.getElementById('scheduleName').value, scheduleType: type.value, startTime: document.getElementById('scheduleStart').value, endTime: document.getElementById('scheduleEnd').value, dailyElapsedMinutes: Number(document.getElementById('scheduleHours').value) * 60, breakLimitMinutes: Number(document.getElementById('scheduleBreak').value), workdays }) }); toast('Schedule created.'); event.target.reset(); toggle(); validateWorkdays(); await load(); } catch (error) { toast(error.message || 'Could not create schedule.', 'error'); } });
-    document.getElementById('assignmentForm').addEventListener('submit', async event => { event.preventDefault(); try { await request(`/v1/users/${document.getElementById('scheduleEmployee').value}/schedule`, { method: 'PUT', body: JSON.stringify({ scheduleId: document.getElementById('scheduleAssignment').value }) }); toast('Schedule assigned.'); await load(); } catch (error) { toast(error.message || 'Could not assign schedule.', 'error'); } });
+    document.getElementById('assignmentForm').addEventListener('submit', async event => { event.preventDefault(); const employeeInput = document.getElementById('scheduleEmployee'); const employeeId = employeeOptions.get(employeeInput.value); if (!employeeId) { toast('Choose an employee from the search results.', 'warning'); employeeInput.focus(); return; } try { await request(`/v1/users/${employeeId}/schedule`, { method: 'PUT', body: JSON.stringify({ scheduleId: document.getElementById('scheduleAssignment').value }) }); toast('Schedule assigned.'); await load(); } catch (error) { toast(error.message || 'Could not assign schedule.', 'error'); } });
     window.refreshScheduleFlex = load;
     if (!document.body.dataset.scheduleLiveBound) {
       document.body.dataset.scheduleLiveBound = 'true';
