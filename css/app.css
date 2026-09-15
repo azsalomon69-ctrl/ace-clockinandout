@@ -4910,6 +4910,35 @@ html[data-theme="dark"] .shell-nav { scrollbar-color: rgba(126, 204, 216, .48) r
 html[data-theme="dark"] .shell-nav::-webkit-scrollbar-track { background: rgba(17,57,67,.55); }
 html[data-theme="dark"] .shell-nav::-webkit-scrollbar-thumb { background: rgba(126, 204, 216, .52); border-color: rgba(10,45,55,.9); }
 
+/* Dark workspace: keep the navigation rail teal, but make all working areas
+   neutral black/charcoal. This prevents the dashboard canvas and cards from
+   reading as a second blue sidebar. */
+html[data-theme="dark"] {
+  --ace-page-bg: #050505;
+  --ace-page-subtle: #0b0b0b;
+  --ace-surface: #121212;
+  --ace-surface-raised: #1a1a1a;
+  --ace-surface-input: #0e0e0e;
+  --ace-surface-modal: #1c1c1c;
+  --ace-text-primary: #f2f2f2;
+  --ace-text-secondary: #c7c7c7;
+  --ace-text-tertiary: #929292;
+  --ace-text-disabled: #6d6d6d;
+  --ace-border: #2b2b2b;
+  --ace-border-strong: #484848;
+  --ace-navy-2: var(--ace-surface);
+  --ace-sky: var(--ace-page-subtle);
+  --ace-sky-2: var(--ace-page-bg);
+}
+html[data-theme="dark"] .shell-topbar {
+  background: rgba(5, 5, 5, .96);
+  border-color: var(--ace-border);
+}
+html[data-theme="dark"] :is(.user-dashboard .clock-card, .employee-status-panel) {
+  background: var(--ace-surface) !important;
+  border-color: var(--ace-border-strong) !important;
+}
+
 /* SVG chevrons have a centered viewbox; this avoids the visual offset of a CSS corner. */
 .shell-nav-group-toggle > b::before,
 .shell-nav-group-toggle > .shell-nav-group-indicator > b::before { content: none; }
