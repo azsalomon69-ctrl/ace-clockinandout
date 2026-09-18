@@ -20,7 +20,7 @@ window.ACEAuth = (() => {
         localStorage.removeItem('ace_current_user');
         localStorage.removeItem('ace_current_session');
         sessionStorage.setItem('ace_login_notice', sessionExpiredMessage);
-        window.location.replace('login.html');
+        window.location.replace('/login');
         const error = new Error(sessionExpiredMessage);
         error.status = 401;
         throw error;

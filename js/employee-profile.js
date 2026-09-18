@@ -25,7 +25,7 @@
     if (!id) { root.innerHTML = '<p class="empty-state">Choose an employee from the Users page.</p>'; return; }
     try {
       const me = await window.ACEAuth.request('/v1/me');
-      if (me.profile.role !== 'ADMIN') { window.location.replace('user-dashboard.html'); return; }
+      if (me.profile.role !== 'ADMIN') { window.location.replace('/user-dashboard'); return; }
       const [users, entries, projects, departments] = await Promise.all([
         window.ACEAuth.request('/v1/users'), window.ACEAuth.request('/v1/time-entries'),
         window.ACEAuth.request('/v1/projects'), window.ACEAuth.request('/v1/departments')

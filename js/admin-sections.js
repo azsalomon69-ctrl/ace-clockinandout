@@ -289,7 +289,7 @@ async function renderAdminSection() {
     body.querySelectorAll('.admin-view-employee').forEach(button => button.addEventListener('click', () => {
       const record = records[Number(button.dataset.row)];
       if (!record) return;
-      const href = 'employee-profile.html?user=' + encodeURIComponent(record.id);
+      const href = '/employee-profile?user=' + encodeURIComponent(record.id);
       if (window.ACEDashboardNavigate && document.body.classList.contains('has-app-shell')) window.ACEDashboardNavigate(href);
       else window.location.assign(href);
     }));

@@ -34,6 +34,28 @@ const AppState = {
 };
 
 const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, LastSeenAt: item.last_seen_at, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin) });
+// Render serves the real .html files, while these clean routes are resolved by
+// the Static Site rewrite rules. Keep every internal page link canonical.
+const cleanInternalRoute = value => {
+    const url = new URL(value, window.location.href);
+    if (url.origin !== window.location.origin || !/\.html$/i.test(url.pathname)) return value;
+    url.pathname = url.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i, '');
+    return `${url.pathname}${url.search}${url.hash}`;
+};
+const cleanInternalPageLinks = root => root.querySelectorAll?.('a[href]').forEach(link => {
+    const href = link.getAttribute('href');
+    if (!href || /^(?:#|mailto:|tel:|javascript:)/i.test(href)) return;
+    const cleaned = cleanInternalRoute(href);
+    if (cleaned !== href) link.setAttribute('href', cleaned);
+});
+const enableCleanInternalPageLinks = () => {
+    cleanInternalPageLinks(document);
+    new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => {
+        if (node.nodeType === Node.ELEMENT_NODE) cleanInternalPageLinks(node);
+    }))).observe(document.body, { childList: true, subtree: true });
+};
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enableCleanInternalPageLinks, { once: true });
+else enableCleanInternalPageLinks();
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, BreakStartedAt: item.break_started_at, BreakSeconds: item.break_seconds || 0, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
@@ -383,7 +405,7 @@ async function initApp() {
             localStorage.removeItem('ace_current_user');
             localStorage.removeItem('ace_current_session');
             sessionStorage.removeItem('ace_login_audited');
-            window.location.replace('login.html');
+            window.location.replace('/login');
             return;
         }
         throw error;
@@ -471,7 +493,7 @@ async function resumePublicSession() {
     localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
     if (AppState.currentUser.Status === 'ACTIVE') {
         await recordLoginOnce();
-        window.location.replace(AppState.currentUser.Role === 'ADMIN' ? 'admin-dashboard.html' : 'user-dashboard.html');
+        window.location.replace(AppState.currentUser.Role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard');
     } else if (AppState.currentUser.Status === 'DENIED') {
         sessionStorage.setItem('ace_login_notice', deniedAccessRequestMessage);
     } else {
@@ -493,7 +515,7 @@ function redirectAuthenticatedPublicRoute() {
     const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
     const isPublicRoute = !routeName || routeName === 'index.html' || routeName === 'login.html' || routeName === 'index' || routeName === 'login';
     if (!isPublicRoute || AppState.currentUser?.Status !== 'ACTIVE') return;
-    window.location.replace(AppState.currentUser.Role === 'ADMIN' ? 'admin-dashboard.html' : 'user-dashboard.html');
+    window.location.replace(AppState.currentUser.Role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard');
 }
 
 function applyStoredAppearance() {
@@ -934,11 +956,11 @@ function initializeAppShell() {
     const isEmployee = employeeFiles.includes(file) && !isAdmin;
     if (!isAdmin && !isEmployee) return true;
     if (AppState.currentUser && isAdmin && AppState.currentUser.Role !== 'ADMIN') {
-        window.location.replace('user-dashboard.html');
+        window.location.replace('/user-dashboard');
         return false;
     }
     if (AppState.currentUser && isEmployee && AppState.currentUser.Role === 'ADMIN') {
-        window.location.replace('admin-dashboard.html');
+        window.location.replace('/admin-dashboard');
         return false;
     }
 
@@ -1321,7 +1343,7 @@ function initializeNavigation() {
     document.querySelectorAll('#navLoginBtn, #heroLoginBtn, #footerLoginLink').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            window.location.href = 'login.html';
+            window.location.href = '/login';
         });
     });
 
@@ -1473,7 +1495,7 @@ function initializeModals() {
         control.addEventListener('click', event => {
             event.preventDefault();
             if (window.ACEDashboardNavigate && document.body.classList.contains('has-app-shell')) window.ACEDashboardNavigate(href);
-            else window.location.href = href;
+            else window.location.href = cleanInternalRoute(href);
         });
     });
 
@@ -1538,7 +1560,7 @@ function initializeHomePreview() {
     if (!button || button.dataset.bound) return;
     button.dataset.bound = 'true';
     button.addEventListener('click', () => {
-        window.location.assign('login');
+        window.location.assign('/login');
     });
 }
 
@@ -1696,8 +1718,8 @@ function initializeForms() {
     const viewAllEntriesBtn = document.getElementById('viewAllEntriesBtn');
     if (viewAllEntriesBtn) {
         viewAllEntriesBtn.addEventListener('click', () => {
-            if (window.ACEDashboardNavigate && document.body.classList.contains('has-app-shell')) window.ACEDashboardNavigate('time-entries.html');
-            else window.location.href = 'time-entries.html';
+        if (window.ACEDashboardNavigate && document.body.classList.contains('has-app-shell')) window.ACEDashboardNavigate('/time-entries');
+        else window.location.href = '/time-entries';
         });
     }
 
@@ -1781,7 +1803,7 @@ async function performLogout() {
     showToast('Logged out successfully', 'success');
     
     setTimeout(() => {
-        window.location.href = 'login.html';
+        window.location.href = '/login';
     }, 450);
 }
 

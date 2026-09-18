@@ -1,6 +1,6 @@
 const mountIndividualReports = async () => {
   const me = await window.ACEAuth.request('/v1/me');
-  if (me.profile.role !== 'ADMIN') return location.replace('user-dashboard.html');
+  if (me.profile.role !== 'ADMIN') return location.replace('/user-dashboard');
   let users = (await window.ACEAuth.request('/v1/users')).filter(user => user.role === 'USER' && user.status === 'ACTIVE');
   const input = document.getElementById('individualEmployee'); const month = document.getElementById('individualMonth'); const rows = document.getElementById('individualReportRows'); const selection = document.getElementById('individualReportSelection');
   month.value = new Date().toISOString().slice(0, 7);
