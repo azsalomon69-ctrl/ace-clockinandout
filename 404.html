@@ -8,35 +8,41 @@
     <title>Page not found · ACE Outsource Solutions</title>
     <link rel="stylesheet" href="css/app.css">
 </head>
-<body class="home-page">
+<body class="not-found-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
 
     <nav class="navbar" aria-label="Primary navigation">
         <div class="nav-container">
-            <a class="nav-brand" href="index.html" aria-label="ACE home">
-                <svg class="nav-logo" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+            <a class="nav-brand" href="/" aria-label="ACE home">
                 <span class="nav-title">ACE Clock In/Out</span>
             </a>
             <div class="nav-links">
-                <a href="index.html" class="nav-link">Home</a>
-                <a href="login.html" class="nav-link">Sign in</a>
+                <a href="/" class="nav-link">Home</a>
+                <a href="/login" class="nav-link">Sign in</a>
             </div>
         </div>
     </nav>
 
     <main class="main-content" id="main-content">
-        <section class="hero-section home-hero" aria-labelledby="page-title">
-            <div class="hero-content">
-                <p class="hero-eyebrow">PAGE NOT FOUND</p>
-                <h1 class="hero-title" id="page-title">That page is not<br>available.</h1>
-                <p class="hero-subtitle">The link may be out of date, or the page may have moved. You can return home or sign in to your workspace.</p>
-                <div class="hero-actions">
-                    <a class="btn btn-primary btn-lg" href="index.html">Return to home</a>
-                    <a class="btn btn-outline btn-lg" href="login.html">Sign in</a>
+        <section class="not-found-card" aria-labelledby="page-title">
+            <div class="not-found-copy">
+                <p class="not-found-eyebrow"><span aria-hidden="true"></span> ERROR 404</p>
+                <p class="not-found-code" aria-hidden="true">404</p>
+                <h1 id="page-title">We couldn’t find that page.</h1>
+                <p class="not-found-lede">The page may have moved, or the link may be out of date. Your workspace is still here when you’re ready.</p>
+                <div class="not-found-actions">
+                    <a class="btn btn-primary btn-lg" href="/">Return home <span aria-hidden="true">→</span></a>
+                    <a class="btn btn-outline btn-lg" href="/login">Sign in</a>
                 </div>
+                <p class="not-found-help">Need workspace access? <a href="/login">Sign in to your dashboard.</a></p>
+            </div>
+            <div class="not-found-art" aria-hidden="true">
+                <div class="not-found-clock">
+                    <span class="not-found-clock-dot"></span>
+                    <span class="not-found-hand not-found-hour"></span>
+                    <span class="not-found-hand not-found-minute"></span>
+                </div>
+                <p>ACE CLOCK IN/OUT</p>
             </div>
         </section>
     </main>
