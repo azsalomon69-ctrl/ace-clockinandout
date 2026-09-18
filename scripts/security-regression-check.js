@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const server = await readFile(path.join(root, 'server', 'index.js'), 'utf8');
 const frontendScript = await readFile(path.join(root, 'js', 'script.js'), 'utf8');
 const schema = await readFile(path.join(root, 'supabase', 'schema.sql'), 'utf8');
-const vercel = JSON.parse(await readFile(path.join(root, 'vercel.json'), 'utf8'));
+const headerSource = await readFile(path.join(root, '_headers'), 'utf8');
 const htmlPages = await Promise.all((await readdir(root))
   .filter(file => file.endsWith('.html'))
   .map(file => readFile(path.join(root, file), 'utf8')));
@@ -33,8 +33,8 @@ for (const grant of browserTimeEntryGrants) {
   assert.doesNotMatch(grant, /\b(insert|update|delete|truncate|references|trigger)\b/i, 'Time entries must not grant browser write privileges');
 }
 
-const headers = vercel.headers.flatMap(rule => rule.headers || []);
-const header = key => headers.find(item => item.key === key)?.value || '';
+const headers = new Map([...headerSource.matchAll(/^\s{2}([^:]+):\s*(.+)$/gm)].map(([, key, value]) => [key.toLowerCase(), value]));
+const header = key => headers.get(key.toLowerCase()) || '';
 assert.match(header('Content-Security-Policy'), /frame-ancestors 'none'/, 'Frontend framing must be blocked');
 assert.equal(header('X-Frame-Options'), 'DENY', 'Legacy clickjacking protection must remain enabled');
 assert.equal(header('X-Content-Type-Options'), 'nosniff', 'MIME sniffing must remain disabled');

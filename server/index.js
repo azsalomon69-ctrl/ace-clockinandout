@@ -87,7 +87,7 @@ const mailTransport = smtpConfigured ? nodemailer.createTransport({
   secure: true,
   auth: { user: smtpUser, pass: smtpAppPassword }
 }) : null;
-const applicationUrl = (frontendOrigins[0] || 'https://ace-clock.vercel.app').replace(/\/$/, '');
+const applicationUrl = (frontendOrigins[0] || 'https://aceclock.onrender.com').replace(/\/$/, '');
 const sendInvitationEmail = async ({ email, role, invitedBy }) => {
   if (!mailTransport) return false;
   const recipient = htmlEscape(email);

@@ -1,11 +1,11 @@
 # ACE Clock In/Out
 
-Time tracking web app with a static frontend for Vercel, a Node.js API for Render, and Supabase for authentication and Postgres.
+Time tracking web app with a Render Static Site frontend, a Node.js API on Render, and Supabase for authentication and Postgres.
 
 ## Architecture
 
-- **Vercel:** the HTML/CSS/JS frontend in this repository.
-- **Render:** `server/index.js`, the protected Node.js/Express API.
+- **Render Static Site:** the HTML/CSS/JS frontend in this repository.
+- **Render Web Service:** `server/index.js`, the protected Node.js/Express API.
 - **Supabase:** Auth, Postgres database, invitations, and Row Level Security.
 
 The database model is in [supabase/schema.sql](supabase/schema.sql). It implements the supplied flow diagram: profiles/users, invitations, approvals, departments, projects, user-project assignments, time entries, remarks, audit logs, reports, and report exports.
@@ -23,8 +23,8 @@ The database model is in [supabase/schema.sql](supabase/schema.sql). It implemen
 1. Create a new Supabase project.
 2. Apply the database files in the required order in [supabase/MIGRATION_ORDER.md](supabase/MIGRATION_ORDER.md). For an existing project, follow that guide's existing-project path instead of re-running the base schema.
 3. Under **Authentication → Providers**, enable Google if Google sign-in is required.
-4. Add your Vercel production URL and local development URL under **Authentication → URL Configuration**.
-5. Copy the Project URL, publishable key, and a server-only `sb_secret_...` key into Render. Do not put the secret key in Vercel or any browser JavaScript.
+4. Add your Render Static Site production URL and local development URL under **Authentication → URL Configuration**.
+5. Copy the Project URL, publishable key, and a server-only `sb_secret_...` key into Render. Do not put the secret key in any browser JavaScript.
 6. Run `npm run seed:admin` locally once after SQL setup. It creates only `ace@admin.com` and delegates password hashing to Supabase Auth. Set its password through `INITIAL_ADMIN_PASSWORD` in `.env`.
 7. Set `ACE_API_URL` or `ACE_API_URL_FALLBACK` before building the frontend. The build generates the browser's `window.ACE_API_URL` configuration; do not create or edit `js/api-config.js` manually.
 8. Before API deployment, run `npm run db:verify`. It verifies the deployed Supabase project has the tables, columns, and RPCs used by the API.
@@ -74,19 +74,17 @@ Do not commit `.env` or Supabase secret keys.
    - `SUPABASE_SECRET_KEY`
    - `SUPABASE_PUBLISHABLE_KEY`
    - `HEAD_ADMIN_EMAIL` — the email address of the protected head administrator
-   - `FRONTEND_ORIGIN` — your Vercel URL, for example `https://ace-clock.vercel.app`
+   - `FRONTEND_ORIGIN` — your Render Static Site URL, for example `https://aceclock.onrender.com`
 3. Deploy, then confirm `https://YOUR-RENDER-SERVICE.onrender.com/health` returns `{ "ok": true }`.
 
-## Deploy the frontend to Vercel
+## Deploy the frontend to Render
 
-1. In Vercel, import the same GitHub repository.
-2. Set the framework preset to **Other** and set the build command to `npm run build`. Vercel deploys the generated `dist` directory configured in `vercel.json`, not the readable source HTML, CSS, or JavaScript files.
-3. In **Project Settings → Environment Variables**, set both values for each deployment environment:
-   - `ACE_API_URL` — the primary HTTPS API base URL for that environment.
-   - `ACE_API_URL_FALLBACK` — the current production API base URL, used only when `ACE_API_URL` is unset.
-   The build uses `ACE_API_URL` first, then `ACE_API_URL_FALLBACK`; it fails clearly if neither exists. The CSP API origin remains hardcoded in `vercel.json`; if the API host changes, update both the Vercel environment variables and that `connect-src` origin.
-4. Deploy. The production build minifies HTML, CSS, and JavaScript; uses hashed frontend asset filenames; and deliberately creates no source maps.
-5. Add the deployed Vercel URL to Render's `FRONTEND_ORIGIN` and Supabase Auth redirect URLs.
+1. In Render, create a **Static Site** from the same GitHub repository.
+2. Set the build command to `npm ci && npm run build` and publish directory to `dist`.
+3. Add `ACE_API_URL` with the HTTPS URL of the Render API service. The build uses `ACE_API_URL` first, then `ACE_API_URL_FALLBACK`, and fails clearly if neither is set.
+4. In **Headers**, configure the response headers in `_headers` for `/*`; then add clean URL rewrite rules such as `/login` → `/login.html`.
+5. Deploy. The production build minifies HTML, CSS, and JavaScript; uses hashed frontend asset filenames; and deliberately creates no source maps.
+6. Add the deployed Render Static Site URL to the API's `FRONTEND_ORIGIN` and Supabase Auth redirect URLs.
 
 ## Cache-busting source assets
 

@@ -394,7 +394,7 @@ async function initApp() {
     try {
         loaded = await loadDatabaseWhenServiceIsReady();
     } catch (error) {
-        // Static files on Vercel can be requested directly, but protected page
+        // Static files can be requested directly, but protected page
         // content must never be mounted unless the Render API confirms a valid
         // Supabase session.  A missing, expired, or disallowed session belongs
         // on the sign-in page instead of briefly exposing a dashboard shell.
@@ -946,8 +946,8 @@ function initializeEmployeeChat() {
 function initializeAppShell() {
     if (document.body.classList.contains('has-app-shell')) return true;
     const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
-    // Vercel cleanUrls removes .html while the local static server preserves it.
-    // Normalize both forms before selecting the application shell.
+    // Render rewrites clean URLs to the deployed .html files. Normalize both
+    // forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
     const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
