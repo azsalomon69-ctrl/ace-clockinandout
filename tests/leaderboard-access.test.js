@@ -1,14 +1,57 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import vm from 'node:vm';
 
-const server = await readFile(new URL('../server/index.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../server/index.js', import.meta.url), 'utf8');
+const routeStart = source.indexOf("app.get('/v1/time-leaderboard',");
+const routeEnd = source.indexOf("app.get('/v1/admin-remarks'", routeStart);
+const routeSource = source.slice(routeStart, routeEnd);
+const people = [...Array.from({ length: 10 }, (_, index) => ({ id: `leader-${index}`, full_name: `Leader ${index}`, role: 'USER', status: 'ACTIVE', permanently_deleted_at: null })), { id: 'employee', full_name: 'Outside Top Ten', role: 'USER', status: 'ACTIVE', permanently_deleted_at: null }, { id: 'inactive', full_name: 'Inactive Person', role: 'USER', status: 'DENIED', permanently_deleted_at: null }, { id: 'archived', full_name: 'Archived Person', role: 'USER', status: 'ACTIVE', permanently_deleted_at: '2026-01-01T00:00:00.000Z' }];
+const entries = people.map((person, index) => ({ user_id: person.id, duration_seconds: (people.length - index) * 3600 }));
 
-test('active employees can receive only the scoped leaderboard response', () => {
-  const route = server.match(/app\.get\('\/v1\/time-leaderboard',[\s\S]*?\n}\s*catch \(error\) \{ next\(error\); \} \}\);/);
-  assert.ok(route, 'time leaderboard route must exist');
-  assert.match(route[0], /authenticate, activeOnly/, 'active employees must be allowed to request their rank');
-  assert.match(route[0], /leaders: ranked\.slice\(0, 10\)\.map\(person => \(\{ full_name: person\.full_name, tracked_seconds: person\.tracked_seconds \}\)\)/, 'employee leaders must expose only name and hours');
-  assert.match(route[0], /my_hours: ranked\.find\(person => person\.id === req\.profile\.id\)\?\.tracked_seconds \|\| 0/, 'response must include the caller\'s hours');
-  assert.doesNotMatch(route[0], /profile_picture_url/, 'employee leaderboard response must not expose profile media');
+function leaderboardHarness(profile) {
+  let handler;
+  let middleware;
+  const builder = table => ({
+    table, filters: [], select() { return this; },
+    eq(field, value) { this.filters.push(row => row[field] === value); return this; },
+    is(field, value) { this.filters.push(row => row[field] === value); return this; },
+    not(field, _operator, value) { this.filters.push(row => row[field] !== value); return this; }
+  });
+  const context = vm.createContext({
+    app: { get(path, ...handlers) { assert.equal(path, '/v1/time-leaderboard'); middleware = handlers.slice(0, -1); handler = handlers.at(-1); } },
+    authenticate() {}, activeOnly() {}, adminOnly() {}, db: { from: builder },
+    query: async request => (request.table === 'profiles' ? people : entries).filter(row => request.filters.every(filter => filter(row))),
+    listAuthUsersForAvatars: async () => [], applyGoogleAvatarFallback: profiles => profiles
+  });
+  vm.runInContext(routeSource, context);
+  const res = { json(body) { this.body = structuredClone(body); } };
+  return { middleware, res, run: () => handler({ profile }, res, error => { throw error; }) };
+}
+
+function assertScopedResponse(body) {
+  assert.deepEqual(Object.keys(body).sort(), ['top', 'you']);
+  assert.deepEqual(Object.keys(body.you).sort(), ['hours', 'of', 'rank']);
+  assert.equal(body.you.rank, 11, 'caller rank must use the full ranked list');
+  assert.equal(body.you.hours, 3 * 3600);
+  assert.equal(body.you.of, 11);
+  assert.equal(body.top.length, 10);
+  assert.ok(body.top.every(person => Object.keys(person).sort().join(',') === 'hours,name'), 'leaders must contain only name and hours');
+  assert.ok(!body.top.some(person => ['Inactive Person', 'Archived Person'].includes(person.name)), 'inactive and archived people must not appear in the top list');
+}
+
+test('leaderboard uses the active-account gate for employees and administrators', () => {
+  const employeeRoute = leaderboardHarness({ id: 'employee', role: 'USER', status: 'ACTIVE' });
+  assert.ok(employeeRoute.middleware.some(item => item.name === 'activeOnly'), 'route must use the active-account gate');
+  assert.ok(!employeeRoute.middleware.some(item => item.name === 'adminOnly'), 'route must not require administrator access');
+});
+
+test('leaderboard returns scoped rankings to an employee outside the top ten and an administrator', async () => {
+  const employeeRoute = leaderboardHarness({ id: 'employee', role: 'USER', status: 'ACTIVE' });
+  const adminRoute = leaderboardHarness({ id: 'admin', role: 'ADMIN', status: 'ACTIVE' });
+  await employeeRoute.run();
+  await adminRoute.run();
+  assertScopedResponse(employeeRoute.res.body);
+  assertScopedResponse(adminRoute.res.body);
 });
