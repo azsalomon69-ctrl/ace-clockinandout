@@ -1596,6 +1596,20 @@ html[data-theme="dark"] .time-leaderboard-avatar { color: #bceef3; background: v
   .admin-dashboard .time-leaderboard-row strong, .admin-dashboard .time-leaderboard-row > span:last-child { font-size: .69rem; }
   .admin-dashboard .time-leaderboard-row strong small { font-size: .58rem; }
 }
+
+/* Landing-page art direction: workspace environment, desktop and mobile views. */
+.home-page .main-content { max-width: none; padding: 0; }
+.home-v2-hero { grid-template-columns: minmax(390px, .82fr) minmax(540px, 1.18fr); max-width: none; min-height: calc(100vh - 144px); padding-inline: max(8vw, calc((100vw - 1240px) / 2)); border-radius: 0; background-image: linear-gradient(90deg, rgba(3,49,62,.94) 0%, rgba(4,65,79,.82) 43%, rgba(3,51,64,.2) 100%), url('../assets/images/ace-office-hero-v2.png'); background-position: center; background-size: cover; box-shadow: none; }
+.home-v2-hero::before { top: -165px; right: 10%; border-color: rgba(128,236,243,.18); }
+.home-v2-hero-copy { max-width: 530px; }.home-v2-hero h1 { font-size: clamp(3.4rem, 5.2vw, 5.8rem); }
+.home-v2-preview { justify-self: end; width: min(100%, 690px); padding: 11px; border-color: rgba(220,252,253,.42); background: rgba(236,254,255,.12); transform: rotate(.6deg); }.home-v2-preview img { border-radius: 8px; }
+.home-v2-status { top: -21px; left: 31px; }.home-v2-time-card { right: 18px; bottom: 23px; transform: rotate(-2deg); }
+.home-v2-phone { position: absolute; z-index: 5; right: -37px; bottom: -50px; width: clamp(112px, 11vw, 168px); padding: 6px; overflow: hidden; background: #f9ffff; border: 5px solid #062f3a; border-radius: 25px; box-shadow: 0 22px 35px rgba(0,17,25,.44); transform: rotate(3deg); }.home-v2-phone::before { position: absolute; z-index: 2; top: 7px; left: 50%; width: 38%; height: 11px; content: ""; background: #062f3a; border-radius: 0 0 10px 10px; transform: translateX(-50%); }.home-v2-phone img { display: block; width: 100%; border-radius: 16px; }
+.home-v2-band { max-width: 1240px; min-height: 66px; margin: 0 auto; padding: 18px 20px; }
+.home-page .nav-links a[href="/login"] { color: #fff; background: #087187; border-color: #087187; }.home-page .nav-links a[href="/login"]:hover { color: #fff; background: #075d70; }
+@media (min-width: 901px) { .home-page .main-content { min-height: 0; display: block; padding: 0; }.home-v2-hero { min-height: calc(100vh - 144px); }.home-v2-band { padding-top: 15px; padding-bottom: 15px; } }
+@media (max-width: 900px) { .home-page .main-content { padding: 0 12px 40px; }.home-v2-hero { min-height: 0; padding: 46px 26px 60px; border-radius: 20px; background-position: 66% center; }.home-v2-preview { margin-top: 36px; }.home-v2-phone { right: -16px; bottom: -30px; width: 122px; } }
+@media (max-width: 600px) { .home-v2-phone { display: none; }.home-v2-preview { transform: none; }.home-v2-time-card { right: 10px; bottom: 13px; } }
 .shell-user { min-width: 0; display: flex; flex-direction: column; }
 .shell-user strong { overflow: hidden; text-overflow: ellipsis; color: var(--ace-ink); font-size: .82rem; white-space: nowrap; }
 .shell-user span { color: #66858e; font-size: .72rem; }
@@ -4849,6 +4863,14 @@ html[data-theme="dark"] .individual-report-results-heading { background: var(--a
 .home-v2-cta { position: relative; margin-top: clamp(64px, 10vw, 120px); padding: clamp(42px, 6vw, 76px); overflow: hidden; color: #fff; background: linear-gradient(120deg,#07536a,#098fa3); border-radius: 22px; }.home-v2-cta::after { position: absolute; right: -80px; bottom: -200px; width: 460px; height: 460px; content: ""; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; box-shadow: 0 0 0 65px rgba(255,255,255,.06); }.home-v2-cta .home-v2-kicker { color: #b9f4f7; }.home-v2-cta h2 { position: relative; z-index: 1; max-width: 600px; color: #fff; }.home-v2-cta > p:not(.home-v2-kicker) { position: relative; z-index: 1; max-width: 510px; margin: 0 0 27px; color: #d1f0f2; line-height: 1.65; }.home-v2-cta .btn { position: relative; z-index: 1; color: #075266; background: #fff; border-color: #fff; }.home-v2-cta .btn:hover { color: #073b4c; background: #dffbfc; }
 @media (max-width: 900px) { .home-v2-hero { grid-template-columns: 1fr; }.home-v2-preview { max-width: 640px; width: calc(100% - 18px); margin: 20px auto 0; }.home-v2-story { grid-template-columns: 1fr; }.home-v2-story-image { min-height: 300px; }.home-v2-story-copy { padding: 20px; }.home-v2-steps { grid-template-columns: 1fr; }.home-v2-steps article { min-height: 0; }.home-v2-steps img { margin-bottom: 28px; } }
 @media (max-width: 600px) { .home-page .main-content { padding: 16px 12px 55px; }.home-v2-hero { min-height: 0; padding: 42px 26px 52px; border-radius: 18px; }.home-v2-hero h1 { font-size: clamp(2.85rem, 14vw, 4.1rem); }.home-v2-actions { align-items: flex-start; flex-direction: column; gap: 17px; }.home-v2-proof { gap: 18px; }.home-v2-preview { width: calc(100% - 2px); }.home-v2-time-card { right: -8px; bottom: 14px; min-width: 112px; padding: 10px 12px; }.home-v2-band { justify-content: flex-start; padding: 24px 8px; }.home-v2-band i { display: none; }.home-v2-band p { width: 100%; }.home-v2-story { margin-top: 64px; padding: 12px; }.home-v2-story-image { min-height: 230px; }.home-v2-story-copy { padding: 22px 14px 28px; }.home-v2-cta { margin-top: 64px; padding: 40px 26px; } }
+
+/* The public entry page intentionally stays a one-screen introduction. */
+@media (min-width: 901px) {
+  .home-page { overflow: hidden; }
+  .home-page .main-content { min-height: calc(100vh - 78px); display: grid; align-content: center; padding-top: 26px; padding-bottom: 22px; }
+  .home-v2-hero { min-height: min(570px, calc(100vh - 168px)); }
+  .home-v2-band { padding-top: 18px; padding-bottom: 0; }
+}
 #assignmentForm { display: grid; grid-template-columns: 1fr; gap: 15px; }
 #assignmentForm .btn { width: 100%; min-height: 44px; margin-top: 4px; }
 html[data-theme="dark"] .schedule-card-heading > p, html[data-theme="dark"] .schedule-field-help { color: #a8c4ca; }
@@ -5090,3 +5112,75 @@ html[data-theme="dark"] :is(.employee-chat-contact:hover, .employee-chat-contact
   transition: transform .18s ease;
 }
 .shell-nav-group.is-open .shell-nav-group-chevron { transform: rotate(-90deg); }
+
+/* Public home: the office scene is deliberately a full-bleed canvas, not a card.
+   This remains at the end of the sheet so legacy landing-page rules cannot reclaim
+   the rounded panel layout. */
+body.home-page:not(.has-app-shell) .main-content {
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+body.home-page:not(.has-app-shell) .home-v2-hero {
+  grid-template-columns: minmax(390px, .82fr) minmax(540px, 1.18fr);
+  width: 100%;
+  max-width: none;
+  min-height: calc(100vh - 144px);
+  padding-inline: max(8vw, calc((100vw - 1240px) / 2));
+  border-radius: 0;
+  background-image: url('../assets/images/ace-office-hero-v2.png');
+  background-position: center;
+  background-size: cover;
+  box-shadow: none;
+}
+body.home-page:not(.has-app-shell) .home-v2-hero::before { display: none; }
+body.home-page:not(.has-app-shell) .home-v2-hero-copy { max-width: 610px; }
+body.home-page:not(.has-app-shell) .home-v2-hero h1 { font-size: clamp(3.4rem, 5.2vw, 5.8rem); }
+body.home-page:not(.has-app-shell) .home-v2-hero h1 em { white-space: nowrap; }
+body.home-page:not(.has-app-shell) .home-v2-preview { max-width: 670px; margin-left: auto; }
+body.home-page:not(.has-app-shell) .home-v2-preview-glow { display: none; }
+body.home-page:not(.has-app-shell) .home-v2-proof div { display: flex; align-items: center; gap: 11px; padding-left: 0; border-left: 0; }
+body.home-page:not(.has-app-shell) .home-v2-proof-icon { flex: 0 0 auto; width: 32px; height: 32px; fill: none; stroke: #c8f7fa; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.9; filter: drop-shadow(0 1px 5px rgba(104,230,238,.32)); }
+body.home-page:not(.has-app-shell) .home-v2-actions { gap: 24px; }
+body.home-page:not(.has-app-shell) .home-v2-actions .btn-primary { min-height: 40px; padding: 10px 25px; border-radius: 999px; font-size: .78rem; }
+body.home-page:not(.has-app-shell) .home-v2-text-link { color: #e7f9fa; font-size: .76rem; font-weight: 600; }
+body.home-page:not(.has-app-shell) .home-v2-text-link span { margin-left: 3px; font-weight: 600; }
+body.home-page:not(.has-app-shell) .nav-brand { gap: 11px; }
+body.home-page:not(.has-app-shell) .nav-brand::before { width: 48px; height: 48px; border: 1px solid #d8ecef; border-radius: 8px; background-color: #fff; background-size: 42px auto; box-shadow: 0 3px 10px rgba(7,59,76,.08); }
+body.home-page:not(.has-app-shell) .nav-brand .nav-title { display: block; color: #0b4252; font: 700 .76rem 'Montserrat', Arial, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+
+/* Shared app rail: one compact square brand tile for both admin and employee views. */
+.has-app-shell .shell-brand {
+  height: 104px;
+  padding: 12px;
+  background: linear-gradient(180deg, #f8fcfd, #edf8fa);
+}
+.has-app-shell .shell-brand a {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  padding: 6px;
+  place-items: center;
+  background: #fff;
+  border: 1px solid #d6ecef;
+  border-radius: 12px;
+  box-shadow: 0 5px 14px rgba(13,77,89,.1);
+}
+.has-app-shell .shell-brand a > img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+body.home-page:not(.has-app-shell) .home-v2-time-card { right: 12px; bottom: 20px; }
+body.home-page:not(.has-app-shell) .home-v2-phone { right: -37px; bottom: -50px; width: clamp(155px, 13vw, 220px); padding: 7px; border: 5px solid #092e39; border-radius: 29px; background: #092e39; box-shadow: 0 24px 42px rgba(0,18,25,.45); transform: rotate(4.5deg); }
+body.home-page:not(.has-app-shell) .home-v2-phone::before { position: absolute; z-index: 2; top: 7px; left: 50%; width: 43%; height: 13px; content: ''; background: #092e39; border-radius: 0 0 10px 10px; transform: translateX(-50%); }
+body.home-page:not(.has-app-shell) .home-v2-phone img { border-radius: 18px; }
+body.home-page:not(.has-app-shell) .home-v2-band { padding: 15px 18px; }
+@media (max-width: 900px) {
+  body.home-page:not(.has-app-shell) .main-content { padding: 0 12px 40px; }
+  body.home-page:not(.has-app-shell) .home-v2-hero { grid-template-columns: 1fr; min-height: 0; padding: 46px 26px 60px; border-radius: 20px; background-position: 66% center; }
+  body.home-page:not(.has-app-shell) .home-v2-preview { margin-top: 36px; }
+  body.home-page:not(.has-app-shell) .home-v2-phone { right: -16px; bottom: -30px; width: 122px; }
+}
