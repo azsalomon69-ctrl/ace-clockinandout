@@ -5355,10 +5355,16 @@ body.home-page:not(.has-app-shell) .nav-brand .nav-title { display: block; color
 .login-view .login-auth-topbar { top: 27px; right: 40px; }
 
 @media (max-width: 900px) {
-  .login-view .login-container { display: block; min-height: 100vh; background: rgba(3,48,61,.92); }
+  .login-view .login-container { display: block; min-height: 100vh; background: rgba(3,48,61,.92); isolation: isolate; }
   .login-view .login-info-panel { display: none; }
-  .login-view .login-card { width: min(100% - 36px, 480px); min-height: 0; margin: 0 auto; padding: 120px 28px 36px; background: rgba(255,255,255,.97); }
-  .login-view .login-auth-topbar { top: 18px; right: 16px; }
+  .login-view .login-card {
+    width: min(100% - 36px, 480px);
+    min-height: 0;
+    margin: clamp(76px, 14vh, 120px) auto 32px;
+    padding: 44px 28px 36px;
+    background: rgba(255,255,255,.97);
+  }
+  .login-view .login-auth-topbar { z-index: 10; top: 18px; right: 16px; }
 }
 body.home-page:not(.has-app-shell) .home-v2-time-card { right: 12px; bottom: 20px; }
 body.home-page:not(.has-app-shell) .home-v2-phone { right: -37px; bottom: -50px; width: clamp(155px, 13vw, 220px); padding: 7px; border: 5px solid #092e39; border-radius: 29px; background: #092e39; box-shadow: 0 24px 42px rgba(0,18,25,.45); transform: rotate(4.5deg); }
