@@ -5142,7 +5142,7 @@ body.home-page:not(.has-app-shell) .home-v2-hero h1 em { white-space: nowrap; }
 body.home-page:not(.has-app-shell) .home-v2-preview { max-width: 670px; margin-left: auto; }
 body.home-page:not(.has-app-shell) .home-v2-preview-glow { display: none; }
 body.home-page:not(.has-app-shell) .home-v2-proof div { display: flex; align-items: center; gap: 11px; padding-left: 0; border-left: 0; }
-body.home-page:not(.has-app-shell) .home-v2-proof-icon { flex: 0 0 auto; width: 32px; height: 32px; fill: none; stroke: #c8f7fa; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.9; filter: drop-shadow(0 1px 5px rgba(104,230,238,.32)); }
+body.home-page:not(.has-app-shell) .home-v2-proof-icon { flex: 0 0 auto; width: 32px; height: 32px; fill: none; stroke: #fff; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.9; filter: none; }
 body.home-page:not(.has-app-shell) .home-v2-actions { gap: 24px; }
 body.home-page:not(.has-app-shell) .home-v2-actions .btn-primary { min-height: 40px; padding: 10px 25px; border-radius: 999px; font-size: .78rem; }
 body.home-page:not(.has-app-shell) .home-v2-text-link { color: #e7f9fa; font-size: .76rem; font-weight: 600; }
