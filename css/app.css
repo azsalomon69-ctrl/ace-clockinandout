@@ -1662,6 +1662,35 @@ html[data-theme="dark"] .time-leaderboard-avatar { color: #bceef3; background: v
   .admin-section-page .table-search { width: 100%; max-width: none; }
 }
 
+/* Login hierarchy refinement: one focal task, supporting context second. */
+.login-view .login-container { grid-template-columns: minmax(460px, .92fr) minmax(520px, 1.08fr); }
+.login-view .login-info-panel { padding: clamp(34px, 4vw, 64px) clamp(42px, 6vw, 100px); }
+.login-view .login-brand-logo { width: 112px; padding: 7px; border-radius: 8px; }
+.login-view .login-brand-copy { max-width: 470px; padding: 30px 0; }
+.login-view .login-info-panel .info-title { margin-bottom: 16px; font-size: clamp(2.45rem, 3.35vw, 3.65rem); line-height: 1.06; }
+.login-view .login-info-panel .info-description { max-width: 390px; font-size: .93rem; }
+.login-view .login-value-points { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 32px; }
+.login-view .login-value-points > div { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.login-view .login-value-points .ui-icon { width: 25px; height: 25px; }
+.login-view .login-value-points strong { font-size: .66rem; }
+.login-view .login-value-points small { font-size: .64rem; }
+.login-view .login-card { width: min(100% - 110px, 470px); padding: 48px 44px 42px; }
+.login-view .login-auth-topbar { top: 26px; right: 34px; }
+
+@media (max-width: 900px) {
+  .login-view .login-container { position: relative; min-height: 100vh; padding: 0 16px 34px; background: #edf6f7 !important; overflow: hidden; }
+  .login-view .login-container::before { position: absolute; top: 0; right: 0; left: 0; height: 210px; content: ''; background: #063b4c; }
+  .login-view .login-card { position: relative; z-index: 1; width: min(100%, 440px); margin: 142px auto 0; padding: 48px 30px 34px; border: 1px solid #d9eaed; border-radius: 20px; box-shadow: 0 18px 42px rgba(8,61,73,.14); }
+  .login-view .login-mobile-brand { width: 76px; margin: 0 0 30px; padding: 6px; border: 0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,29,38,.08); }
+  .login-view .login-title { font-size: clamp(2rem, 10vw, 2.55rem); }
+  .login-view .login-subtitle { font-size: .92rem; }
+  .login-view .login-auth-topbar { z-index: 3; top: 13px; right: 12px; }
+  .login-view .login-auth-topbar a { display: none; }
+  .login-view .login-auth-topbar > span { display: none; }
+  .login-view .login-auth-topbar button { color: #dff7f9; font-size: .72rem; }
+  .login-view .login-auth-topbar button:hover { color: #fff; background: rgba(255,255,255,.1); }
+}
+
 /* Deliberately distinct from the public home: the login is an app entry screen,
    not another marketing hero. These final rules also prevent older theme blocks
    from weakening the content contrast. */
