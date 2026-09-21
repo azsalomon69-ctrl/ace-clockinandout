@@ -1662,6 +1662,66 @@ html[data-theme="dark"] .time-leaderboard-avatar { color: #bceef3; background: v
   .admin-section-page .table-search { width: 100%; max-width: none; }
 }
 
+/* Deliberately distinct from the public home: the login is an app entry screen,
+   not another marketing hero. These final rules also prevent older theme blocks
+   from weakening the content contrast. */
+.login-view { background: #eaf5f6 !important; }
+.login-view .login-experience { display: block; min-height: 100vh; padding: clamp(20px, 3vw, 44px) !important; background: transparent !important; }
+.login-view .login-container {
+  width: min(100%, 1280px);
+  min-height: min(760px, calc(100vh - clamp(40px, 6vw, 88px)));
+  grid-template-columns: minmax(0, 1fr) minmax(430px, .82fr);
+  margin: 0 auto !important;
+  background: #fff !important;
+  border: 1px solid #d5e9ec;
+  border-radius: 22px;
+  box-shadow: 0 18px 46px rgba(16,74,85,.12);
+  overflow: hidden;
+}
+.login-view .login-info-panel {
+  min-height: 100%;
+  padding: clamp(38px, 5vw, 76px);
+  background: #063b4c !important;
+  overflow: hidden;
+}
+.login-view .login-info-panel::before,
+.login-view .login-info-panel::after { display: none !important; }
+.login-view .login-brand-logo { width: 152px; padding: 9px; background: #fff; border-radius: 9px; box-shadow: none; }
+.login-view .login-brand-copy { max-width: 500px; margin: auto 0; padding: 46px 0; }
+.login-view .login-info-panel .login-eyebrow { color: #78e0e8 !important; }
+.login-view .login-info-panel .info-title { color: #fff !important; font-size: clamp(2.5rem, 4vw, 4.1rem); text-shadow: none; }
+.login-view .login-info-panel .info-title span { color: #78e0e8 !important; }
+.login-view .login-info-panel .info-description { color: #cce7ea !important; }
+.login-view .login-value-points { grid-template-columns: 1fr; gap: 16px; margin-top: 36px; }
+.login-view .login-value-points > div { grid-template-columns: 32px 1fr; align-items: center; gap: 12px; }
+.login-view .login-value-points strong { color: #fff; }
+.login-view .login-value-points small { color: #b9dce1; }
+.login-view .login-card {
+  width: min(100% - 80px, 470px);
+  padding: 48px 42px 38px;
+  background: #fff !important;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.login-view .login-title { color: #083f4e !important; }
+.login-view .login-subtitle { color: #67848d !important; }
+.login-view .btn-google { color: #0b4252 !important; background: #f8fcfd !important; border-color: #b9dce2 !important; }
+.login-view .btn-google:hover { background: #e9f8fa !important; border-color: #5fc8d6 !important; }
+.login-view .login-footer { border-color: #dfedf0; }
+.login-view .login-auth-topbar { top: clamp(35px, 5vw, 68px); right: clamp(36px, 5vw, 72px); }
+
+@media (max-width: 900px) {
+  .login-view { background: #f1f8f9 !important; }
+  .login-view .login-experience { padding: 0 !important; }
+  .login-view .login-container { display: block; width: 100%; min-height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
+  .login-view .login-info-panel { display: none; }
+  .login-view .login-card { width: min(100% - 40px, 460px); padding: 138px 0 42px; margin: 0 auto; }
+  .login-view .login-mobile-brand { width: 84px; margin: 0 0 38px; padding: 7px; background: #fff; border: 1px solid #d9ebee; border-radius: 10px; }
+  .login-view .login-auth-topbar { top: 18px; right: 14px; }
+}
+
 
 /* ACE UI v2 — final visual layer. Flat colors only; no gradients. */
 :root {
