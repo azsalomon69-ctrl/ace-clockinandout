@@ -5142,7 +5142,7 @@ body.home-page:not(.has-app-shell) .home-v2-hero h1 em { white-space: nowrap; }
 body.home-page:not(.has-app-shell) .home-v2-preview { max-width: 670px; margin-left: auto; }
 body.home-page:not(.has-app-shell) .home-v2-preview-glow { display: none; }
 body.home-page:not(.has-app-shell) .home-v2-proof div { display: flex; align-items: center; gap: 11px; padding-left: 0; border-left: 0; }
-body.home-page:not(.has-app-shell) .home-v2-proof-icon { flex: 0 0 auto; width: 32px; height: 32px; fill: none; stroke: #fff; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.9; filter: none; }
+body.home-page:not(.has-app-shell) .home-v2-proof-icon { flex: 0 0 auto; width: 32px; height: 32px; filter: brightness(0) invert(1) !important; opacity: 1; }
 body.home-page:not(.has-app-shell) .home-v2-actions { gap: 24px; }
 body.home-page:not(.has-app-shell) .home-v2-actions .btn-primary { min-height: 40px; padding: 10px 25px; border-radius: 999px; font-size: .78rem; }
 body.home-page:not(.has-app-shell) .home-v2-text-link { color: #e7f9fa; font-size: .76rem; font-weight: 600; }
@@ -5190,7 +5190,8 @@ body.home-page:not(.has-app-shell) .nav-brand .nav-title { display: block; color
     min-height: 0;
     padding: 43px 26px 34px;
     border-radius: 0;
-    background-position: 23% center;
+    background-color: #063b4c;
+    background-image: none;
   }
   body.home-page:not(.has-app-shell) .home-v2-hero-copy { max-width: none; }
   body.home-page:not(.has-app-shell) .home-v2-hero h1 { margin-bottom: 18px; font-size: clamp(2.85rem, 13vw, 3.7rem); line-height: .96; }
@@ -5202,7 +5203,7 @@ body.home-page:not(.has-app-shell) .nav-brand .nav-title { display: block; color
   body.home-page:not(.has-app-shell) .home-v2-proof { display: grid; gap: 20px; margin-top: 38px; }
   body.home-page:not(.has-app-shell) .home-v2-proof div { gap: 12px; }
   body.home-page:not(.has-app-shell) .home-v2-proof-icon { width: 29px; height: 29px; }
-  body.home-page:not(.has-app-shell) .home-v2-preview { width: 100%; max-width: none; margin: 48px 0 0; padding: 8px; border-radius: 15px; transform: none; }
+  body.home-page:not(.has-app-shell) .home-v2-preview { width: 100%; max-width: none; margin: 48px 0 0; padding: 8px; border: 1px solid rgba(200,246,248,.42); border-radius: 15px; background: rgba(255,255,255,.09); transform: none; }
   body.home-page:not(.has-app-shell) .home-v2-preview img { border-radius: 9px; }
   body.home-page:not(.has-app-shell) .home-v2-status { top: -17px; left: 18px; }
   body.home-page:not(.has-app-shell) .home-v2-time-card { right: 10px; bottom: 17px; min-width: 110px; padding: 10px 12px; }
