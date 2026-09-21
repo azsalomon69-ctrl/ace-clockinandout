@@ -2116,8 +2116,8 @@ async function handleGenerateReport(e) {
 }
 
 function filterEntriesForReport(report) {
-    const from = report.DateFrom ? new Date(`${report.DateFrom}T00:00:00`).getTime() : -Infinity;
-    const to = report.DateTo ? new Date(`${report.DateTo}T23:59:59.999`).getTime() : Infinity;
+    const from = report.DateFrom ? new Date(`${report.DateFrom}T00:00:00+08:00`).getTime() : -Infinity;
+    const to = report.DateTo ? new Date(`${report.DateTo}T23:59:59.999+08:00`).getTime() : Infinity;
     const filters = report.Filters || {};
     const matchesId = (expected, actual) => !expected || String(expected) === String(actual);
     return AppState.timeEntries.filter(entry => {

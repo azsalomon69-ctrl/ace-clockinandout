@@ -5355,16 +5355,28 @@ body.home-page:not(.has-app-shell) .nav-brand .nav-title { display: block; color
 .login-view .login-auth-topbar { top: 27px; right: 40px; }
 
 @media (max-width: 900px) {
-  .login-view .login-container { display: block; min-height: 100vh; background: rgba(3,48,61,.92); isolation: isolate; }
+  .login-view .login-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: max(88px, calc(env(safe-area-inset-top) + 72px)) 18px max(32px, env(safe-area-inset-bottom));
+    background: rgba(3,48,61,.92);
+    isolation: isolate;
+  }
   .login-view .login-info-panel { display: none; }
   .login-view .login-card {
-    width: min(100% - 36px, 480px);
+    width: min(100%, 480px);
     min-height: 0;
-    margin: clamp(76px, 14vh, 120px) auto 32px;
+    margin: 0 auto;
     padding: 44px 28px 36px;
     background: rgba(255,255,255,.97);
   }
-  .login-view .login-auth-topbar { z-index: 10; top: 18px; right: 16px; }
+  .login-view .login-auth-topbar { z-index: 10; top: max(18px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
+  .login-view .login-auth-topbar a,
+  .login-view .login-auth-topbar > span { display: none; }
+  .login-view .login-auth-topbar button { min-height: 44px; color: #fff !important; background: #164e5e; }
 }
 body.home-page:not(.has-app-shell) .home-v2-time-card { right: 12px; bottom: 20px; }
 body.home-page:not(.has-app-shell) .home-v2-phone { right: -37px; bottom: -50px; width: clamp(155px, 13vw, 220px); padding: 7px; border: 5px solid #092e39; border-radius: 29px; background: #092e39; box-shadow: 0 24px 42px rgba(0,18,25,.45); transform: rotate(4.5deg); }

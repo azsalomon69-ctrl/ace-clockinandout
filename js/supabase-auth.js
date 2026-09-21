@@ -11,6 +11,9 @@ window.ACEAuth = (() => {
                 return window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, {
                     auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
                 });
+            }).catch(error => {
+                clientPromise = null;
+                throw error;
             });
         }
         return clientPromise;

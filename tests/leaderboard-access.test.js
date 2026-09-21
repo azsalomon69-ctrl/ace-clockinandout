@@ -8,7 +8,8 @@ const routeStart = source.indexOf("app.get('/v1/time-leaderboard',");
 const routeEnd = source.indexOf("app.get('/v1/admin-remarks'", routeStart);
 const routeSource = source.slice(routeStart, routeEnd);
 const people = [...Array.from({ length: 10 }, (_, index) => ({ id: `leader-${index}`, full_name: `Leader ${index}`, role: 'USER', status: 'ACTIVE', permanently_deleted_at: null })), { id: 'employee', full_name: 'Outside Top Ten', role: 'USER', status: 'ACTIVE', permanently_deleted_at: null }, { id: 'inactive', full_name: 'Inactive Person', role: 'USER', status: 'DENIED', permanently_deleted_at: null }, { id: 'archived', full_name: 'Archived Person', role: 'USER', status: 'ACTIVE', permanently_deleted_at: '2026-01-01T00:00:00.000Z' }];
-const entries = people.map((person, index) => ({ user_id: person.id, duration_seconds: (people.length - index) * 3600 }));
+const entries = people.map((person, index) => ({ user_id: person.id, duration_seconds: (people.length - index) * 3600, deleted_at: null }));
+entries.push({ user_id: 'employee', duration_seconds: 999999, deleted_at: '2026-01-01T00:00:00Z' });
 
 function leaderboardHarness(profile) {
   let handler;
@@ -31,27 +32,33 @@ function leaderboardHarness(profile) {
 }
 
 function assertScopedResponse(body) {
-  assert.deepEqual(Object.keys(body).sort(), ['top', 'you']);
-  assert.deepEqual(Object.keys(body.you).sort(), ['hours', 'of', 'rank']);
-  assert.equal(body.you.rank, 11, 'caller rank must use the full ranked list');
-  assert.equal(body.you.hours, 3 * 3600);
-  assert.equal(body.you.of, 11);
-  assert.equal(body.top.length, 10);
-  assert.ok(body.top.every(person => Object.keys(person).sort().join(',') === 'hours,name'), 'leaders must contain only name and hours');
-  assert.ok(!body.top.some(person => ['Inactive Person', 'Archived Person'].includes(person.name)), 'inactive and archived people must not appear in the top list');
+  assert.deepEqual(Object.keys(body).sort(), ['leaders', 'my_rank', 'total_people']);
+  assert.equal(body.my_rank, null, 'an administrator outside the employee ranking must not be shown as number one');
+  assert.equal(body.total_people, 11);
+  assert.equal(body.leaders.length, 10);
+  assert.equal(body.leaders[0].tracked_seconds, 13 * 3600);
+  assert.ok(!body.leaders.some(person => ['inactive', 'archived', 'employee'].includes(person.id)), 'removed entries must not boost rankings and inactive people must not appear');
 }
 
-test('leaderboard uses the active-account gate for employees and administrators', () => {
-  const employeeRoute = leaderboardHarness({ id: 'employee', role: 'USER', status: 'ACTIVE' });
-  assert.ok(employeeRoute.middleware.some(item => item.name === 'activeOnly'), 'route must use the active-account gate');
-  assert.ok(!employeeRoute.middleware.some(item => item.name === 'adminOnly'), 'route must not require administrator access');
+test('leaderboard requires authentication and administrator access', () => {
+  const route = leaderboardHarness({ id: 'admin', role: 'ADMIN', status: 'ACTIVE' });
+  assert.deepEqual(route.middleware.map(item => item.name), ['authenticate', 'adminOnly']);
 });
 
-test('leaderboard returns scoped rankings to an employee outside the top ten and an administrator', async () => {
-  const employeeRoute = leaderboardHarness({ id: 'employee', role: 'USER', status: 'ACTIVE' });
+test('leaderboard returns the current admin response and excludes removed work', async () => {
   const adminRoute = leaderboardHarness({ id: 'admin', role: 'ADMIN', status: 'ACTIVE' });
-  await employeeRoute.run();
   await adminRoute.run();
-  assertScopedResponse(employeeRoute.res.body);
   assertScopedResponse(adminRoute.res.body);
+});
+
+test('leaderboard handles tied totals when a profile has no display name', async () => {
+  people.push({ id: 'unnamed', full_name: null, role: 'USER', status: 'ACTIVE', permanently_deleted_at: null });
+  people.push({ id: 'zero', full_name: 'Zero', role: 'USER', status: 'ACTIVE', permanently_deleted_at: null });
+  try {
+    const route = leaderboardHarness({ id: 'admin', role: 'ADMIN', status: 'ACTIVE' });
+    await route.run();
+    assert.equal(route.res.body.total_people, 13);
+  } finally {
+    people.splice(-2);
+  }
 });

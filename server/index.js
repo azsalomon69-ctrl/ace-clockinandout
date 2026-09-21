@@ -113,8 +113,12 @@ const invitationMailIssue = error => {
 
 const fail = (res, status, message) => res.status(status).json({ error: message });
 const query = async builder => { const { data, error } = await builder; if (error) throw error; return data; };
-const isUuid = value => /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value || '');
-const isDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '') && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+const isUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+const isDate = value => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+};
 const isTimestamp = value => typeof value === 'string' && value.length <= 80 && !Number.isNaN(Date.parse(value));
 const isTime = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value || '');
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -605,9 +609,13 @@ app.get('/v1/time-leaderboard', authenticate, adminOnly, async (req, res, next) 
     query(db.from('time_entries').select('user_id,duration_seconds').is('deleted_at', null).not('duration_seconds', 'is', null)),
     listAuthUsersForAvatars()
   ]);
-  const totals = entries.reduce((result, entry) => ({ ...result, [entry.user_id]: (result[entry.user_id] || 0) + Number(entry.duration_seconds || 0) }), {});
-  const ranked = applyGoogleAvatarFallback(people, authUsers).map(person => ({ ...person, tracked_seconds: totals[person.id] || 0 })).sort((a, b) => b.tracked_seconds - a.tracked_seconds || a.full_name.localeCompare(b.full_name));
-  res.json({ leaders: ranked.slice(0, 10), my_rank: Math.max(1, ranked.findIndex(person => person.id === req.profile.id) + 1), total_people: ranked.length });
+  const totals = entries.reduce((result, entry) => {
+    result[entry.user_id] = (result[entry.user_id] || 0) + Number(entry.duration_seconds || 0);
+    return result;
+  }, {});
+  const ranked = applyGoogleAvatarFallback(people, authUsers).map(person => ({ ...person, tracked_seconds: totals[person.id] || 0 })).sort((a, b) => b.tracked_seconds - a.tracked_seconds || (a.full_name || '').localeCompare(b.full_name || ''));
+  const ownIndex = ranked.findIndex(person => person.id === req.profile.id);
+  res.json({ leaders: ranked.slice(0, 10), my_rank: ownIndex === -1 ? null : ownIndex + 1, total_people: ranked.length });
 } catch (error) { next(error); } });
 app.get('/v1/admin-remarks', authenticate, activeOnly, async (req, res, next) => { try {
   let visibleEntryIds = null;
@@ -752,7 +760,7 @@ app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try
   let entries = db.from('time_entries').select(
     departmentId ? 'id, profiles!time_entries_user_id_fkey!inner(department_id)' : 'id',
     { count: 'exact', head: true }
-  ).gte('clock_in_at', `${dateFrom}T00:00:00Z`).lte('clock_in_at', `${dateTo}T23:59:59Z`);
+  ).is('deleted_at', null).gte('clock_in_at', `${dateFrom}T00:00:00+08:00`).lt('clock_in_at', new Date(new Date(`${dateTo}T00:00:00+08:00`).getTime() + 86400000).toISOString());
   if (projectId) entries = entries.eq('project_id', projectId);
   if (userId) entries = entries.eq('user_id', userId);
   if (departmentId) entries = entries.eq('profiles.department_id', departmentId);
