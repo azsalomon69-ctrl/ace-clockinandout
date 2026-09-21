@@ -5210,6 +5210,67 @@ body.home-page:not(.has-app-shell) .nav-brand .nav-title { display: block; color
   body.home-page:not(.has-app-shell) .home-v2-phone { display: none; }
   body.home-page:not(.has-app-shell) .home-v2-band { min-height: 74px; padding: 21px 16px; text-align: center; }
 }
+
+/* Login welcome screen: a focused two-column entry page rather than a floating empty canvas. */
+.login-view {
+  background: #063b4c url('../assets/images/ace-office-hero-v2.png') center / cover no-repeat;
+}
+.login-view .login-experience { padding: 0 !important; background: transparent; }
+.login-view .login-container {
+  width: 100%;
+  max-width: none !important;
+  min-height: 100vh;
+  grid-template-columns: minmax(0, 1.12fr) minmax(430px, .88fr);
+  background: linear-gradient(90deg, rgba(3,48,61,.93), rgba(3,54,66,.73) 49%, rgba(240,251,252,.14));
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.login-view .login-info-panel {
+  min-height: 100vh;
+  padding: clamp(36px, 6vw, 92px) clamp(34px, 9vw, 150px);
+  background: transparent;
+  overflow: visible;
+}
+.login-view .login-info-panel::before,
+.login-view .login-info-panel::after { display: none; }
+.login-view .login-brand-logo { width: 198px; padding: 10px; background: rgba(255,255,255,.94); border-radius: 10px; box-shadow: 0 10px 26px rgba(0,23,30,.14); }
+.login-view .login-brand-copy { max-width: 550px; margin: auto 0; padding: 60px 0; }
+.login-view .login-info-panel .login-eyebrow { color: #7ce9ef; }
+.login-view .login-info-panel .info-title { font-size: clamp(2.6rem, 4vw, 4.5rem); text-shadow: 0 2px 18px rgba(0,28,36,.28); }
+.login-view .login-info-panel .info-description { max-width: 445px; color: #e0f5f7; font-size: 1rem; }
+.login-value-points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 42px; }
+.login-value-points > div { display: grid; gap: 11px; color: #fff; }
+.login-value-points .ui-icon { width: 30px; height: 30px; filter: brightness(0) invert(1); opacity: .95; }
+.login-value-points span { display: grid; gap: 4px; }
+.login-value-points strong { font: 700 .73rem 'Montserrat', Arial, sans-serif; }
+.login-value-points small { color: #c8e5e9; font-size: .7rem; line-height: 1.4; }
+.login-view .login-card {
+  grid-column: 2;
+  width: min(100% - 72px, 470px);
+  padding: 50px 44px 39px;
+  background: rgba(255,255,255,.94);
+  border: 1px solid rgba(255,255,255,.8);
+  border-radius: 20px;
+  box-shadow: 0 24px 56px rgba(0,26,34,.23);
+  backdrop-filter: blur(8px);
+}
+.login-view .login-header { margin-bottom: 28px; }
+.login-view .login-kicker { color: #079fba; }
+.login-view .login-title { font-size: clamp(2rem, 2.8vw, 2.7rem); }
+.login-view .login-subtitle { line-height: 1.6; }
+.login-view .btn-google { justify-content: space-between; min-height: 54px; padding-inline: 19px; background: #fff; border-color: #aad6df; border-radius: 12px; }
+.login-view .btn-google::after { content: '→'; color: #079fba; font-size: 1.1rem; }
+.login-view .login-footer { margin-top: 22px; }
+.login-view .login-auth-topbar { top: 27px; right: 40px; }
+
+@media (max-width: 900px) {
+  .login-view .login-container { display: block; min-height: 100vh; background: rgba(3,48,61,.92); }
+  .login-view .login-info-panel { display: none; }
+  .login-view .login-card { width: min(100% - 36px, 480px); min-height: 0; margin: 0 auto; padding: 120px 28px 36px; background: rgba(255,255,255,.97); }
+  .login-view .login-auth-topbar { top: 18px; right: 16px; }
+}
 body.home-page:not(.has-app-shell) .home-v2-time-card { right: 12px; bottom: 20px; }
 body.home-page:not(.has-app-shell) .home-v2-phone { right: -37px; bottom: -50px; width: clamp(155px, 13vw, 220px); padding: 7px; border: 5px solid #092e39; border-radius: 29px; background: #092e39; box-shadow: 0 24px 42px rgba(0,18,25,.45); transform: rotate(4.5deg); }
 body.home-page:not(.has-app-shell) .home-v2-phone::before { position: absolute; z-index: 2; top: 7px; left: 50%; width: 43%; height: 13px; content: ''; background: #092e39; border-radius: 0 0 10px 10px; transform: translateX(-50%); }
