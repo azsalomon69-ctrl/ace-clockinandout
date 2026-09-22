@@ -81,10 +81,15 @@ const smtpUser = process.env.SMTP_USER?.trim();
 // common Render configuration mistake.
 const smtpAppPassword = process.env.SMTP_APP_PASSWORD?.replace(/\s/g, '');
 const smtpConfigured = Boolean(smtpUser && smtpAppPassword);
+// Gmail supports TLS submission on 587 as well as implicit TLS on 465. Render
+// cannot reach Gmail's 465 endpoint from this service, so use 587 by default.
+const configuredSmtpPort = Number.parseInt(process.env.SMTP_PORT || '587', 10);
+const smtpPort = configuredSmtpPort === 465 ? 465 : 587;
 const mailTransport = smtpConfigured ? nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+  port: smtpPort,
+  secure: smtpPort === 465,
+  requireTLS: smtpPort === 587,
   // An unreachable SMTP service must not leave the invitation screen waiting
   // indefinitely after access has already been granted in the database.
   connectionTimeout: 8000,
