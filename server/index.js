@@ -90,6 +90,10 @@ const mailTransport = smtpConfigured ? nodemailer.createTransport({
   connectionTimeout: 8000,
   greetingTimeout: 8000,
   socketTimeout: 12000,
+  // Render exposes IPv4 through an internal interface. Tell Nodemailer to
+  // consider it when resolving Gmail so it does not attempt an unreachable
+  // IPv6-only route first.
+  allowInternalNetworkInterfaces: true,
   auth: { user: smtpUser, pass: smtpAppPassword }
 }) : null;
 const applicationUrl = (frontendOrigins[0] || 'https://aceclock.onrender.com').replace(/\/$/, '');
