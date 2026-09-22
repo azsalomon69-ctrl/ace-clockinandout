@@ -180,19 +180,25 @@ window.ACETutorial = (() => {
             if (targetRect.bottom + 12 > updatedSheetTop) centerCard(card, target, 'target too large to anchor');
             return;
         }
-        const gap = 6;
+        // Leave room for the coachmark arrow and keep the taught control visible.
+        const gap = 22;
         const margin = 12;
         const width = cardRect.width;
         const height = cardRect.height;
         const candidates = [
-            { top: targetRect.top - height - gap, left: targetRect.left + (targetRect.width - width) / 2 },
-            { top: targetRect.bottom + gap, left: targetRect.left + (targetRect.width - width) / 2 },
-            { top: targetRect.top + (targetRect.height - height) / 2, left: targetRect.right + gap },
-            { top: targetRect.top + (targetRect.height - height) / 2, left: targetRect.left - width - gap }
+            { placement: 'above', top: targetRect.top - height - gap, left: targetRect.left + (targetRect.width - width) / 2 },
+            { placement: 'below', top: targetRect.bottom + gap, left: targetRect.left + (targetRect.width - width) / 2 },
+            { placement: 'right', top: targetRect.top + (targetRect.height - height) / 2, left: targetRect.right + gap },
+            { placement: 'left', top: targetRect.top + (targetRect.height - height) / 2, left: targetRect.left - width - gap }
         ];
         const candidate = candidates.find(position => position.top >= margin && position.left >= margin && position.top + height <= viewportHeight - margin && position.left + width <= viewportWidth - margin) || candidates[0];
-        card.style.left = `${Math.max(margin, Math.min(candidate.left, viewportWidth - width - margin))}px`;
-        card.style.top = `${Math.max(margin, Math.min(candidate.top, viewportHeight - height - margin))}px`;
+        const left = Math.max(margin, Math.min(candidate.left, viewportWidth - width - margin));
+        const top = Math.max(margin, Math.min(candidate.top, viewportHeight - height - margin));
+        card.dataset.placement = candidate.placement;
+        card.style.left = `${left}px`;
+        card.style.top = `${top}px`;
+        card.style.setProperty('--ace-tutorial-arrow-x', `${Math.max(20, Math.min(targetRect.left + targetRect.width / 2 - left, width - 20))}px`);
+        card.style.setProperty('--ace-tutorial-arrow-y', `${Math.max(20, Math.min(targetRect.top + targetRect.height / 2 - top, height - 20))}px`);
         card.style.removeProperty('bottom');
     }
     function watchPlacement(target, card) {
