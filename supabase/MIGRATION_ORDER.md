@@ -21,6 +21,7 @@ Run these files in the Supabase SQL Editor, in this exact order:
 12. `supabase/r2-profile-photos.sql`
 13. `supabase/permanent-user-delete.sql`
 14. `supabase/admin-remark-notifications.sql`
+15. `supabase/migrations/0009_profile_tutorial_state.sql`
 
 Then configure the environment variables and run `npm run db:verify` from a
 machine with the target project's `SUPABASE_URL` and `SUPABASE_SECRET_KEY`.
@@ -37,3 +38,19 @@ already present.
 Record each applied file and timestamp in the deployment change record. A
 future migration tool may replace this manual sequence, but it must preserve
 the same order and run `npm run db:verify` before the API is released.
+
+## Re-offer the tutorial to existing users
+
+Migration `0009_profile_tutorial_state.sql` initially marks existing profiles
+as `SKIPPED`, so a new feature launch does not interrupt them. To re-offer
+version 1 to a chosen group, run this in Supabase SQL Editor:
+
+```sql
+update public.profiles
+set tutorial_status = 'NOT_STARTED', tutorial_step = 0,
+    tutorial_version = 1, tutorial_started_at = null,
+    tutorial_completed_at = null, tutorial_skipped_at = null
+where role = 'USER';
+```
+
+Change or remove the `where` clause to target a different group.

@@ -21,7 +21,7 @@ async function requireRpc(name, args) {
   if (error && error.code !== 'P0001') throw new Error(`RPC ${name} is missing or incompatible: ${error.message}`);
 }
 
-await requireQuery('profiles columns', db.from('profiles').select('id,last_seen_at,profile_picture_url,profile_picture_public_id,permanently_deleted_at').limit(1));
+await requireQuery('profiles columns', db.from('profiles').select('id,last_seen_at,profile_picture_url,profile_picture_public_id,permanently_deleted_at,tutorial_status,tutorial_step,tutorial_version').limit(1));
 await requireQuery('time entry schedule columns', db.from('time_entries').select('id,break_started_at,break_seconds,deleted_at,schedule_id,schedule_type,scheduled_start_time,scheduled_end_time,target_seconds,break_limit_seconds').limit(1));
 await requireQuery('employee chat table', db.from('employee_messages').select('id,sender_id,recipient_id,body,edited_at,deleted_at,read_at').limit(1));
 await requireQuery('admin remark notification column', db.from('admin_remarks').select('id,seen_at').limit(1));

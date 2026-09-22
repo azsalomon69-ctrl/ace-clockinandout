@@ -5,6 +5,23 @@
 
 begin;
 
+do $$ begin
+  create type public.tutorial_status as enum ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED');
+exception when duplicate_object then null;
+end $$;
+
+alter table public.profiles
+  add column if not exists tutorial_status public.tutorial_status not null default 'NOT_STARTED',
+  add column if not exists tutorial_step integer not null default 0 check (tutorial_step >= 0),
+  add column if not exists tutorial_version integer not null default 1 check (tutorial_version >= 1),
+  add column if not exists tutorial_started_at timestamptz,
+  add column if not exists tutorial_completed_at timestamptz,
+  add column if not exists tutorial_skipped_at timestamptz;
+
+update public.profiles
+set tutorial_status = 'SKIPPED', tutorial_step = 0, tutorial_skipped_at = now()
+where tutorial_status = 'NOT_STARTED';
+
 -- Make Google sign-in resilient: a profile is created first, and a malformed
 -- legacy invitation can never make Supabase Auth reject the new user.
 alter table public.profiles add column if not exists profile_picture_url text;

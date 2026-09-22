@@ -275,6 +275,27 @@ app.patch('/v1/me', authenticate, activeOnly, async (req, res, next) => { try {
   await audit(req, 'UPDATE_PROFILE', 'PROFILE', profile.id, 'Updated profile name');
   res.json({ profile });
 } catch (error) { next(error); } });
+app.patch('/v1/me/tutorial', authenticate, activeOnly, async (req, res, next) => { try {
+  const statuses = ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED'];
+  const status = req.body.status;
+  const step = Number(req.body.step);
+  const version = Number(req.body.version);
+  if (!statuses.includes(status) || !Number.isInteger(step) || step < 0 || !Number.isInteger(version) || version < 1) {
+    return fail(res, 400, 'Tutorial status, step, and version are invalid');
+  }
+  const now = new Date().toISOString();
+  const changes = {
+    tutorial_status: status,
+    tutorial_step: step,
+    tutorial_version: version,
+    ...(status === 'NOT_STARTED' ? { tutorial_started_at: null, tutorial_completed_at: null, tutorial_skipped_at: null } : {}),
+    ...(status === 'IN_PROGRESS' ? { tutorial_started_at: req.profile.tutorial_started_at || now } : {}),
+    ...(status === 'COMPLETED' ? { tutorial_completed_at: now } : {}),
+    ...(status === 'SKIPPED' ? { tutorial_skipped_at: now } : {})
+  };
+  const profile = await query(db.from('profiles').update(changes).eq('id', req.profile.id).select().single());
+  res.json({ profile: { ...profile, is_head_admin: isHeadAdmin(req) } });
+} catch (error) { next(error); } });
 app.post('/v1/me/avatar-upload', authenticate, activeOnly, async (req, res, next) => { try {
   if (!cloudinaryConfigured) return fail(res, 503, 'Profile photo uploads are not configured yet');
   const contentType = String(req.body.contentType || '');
