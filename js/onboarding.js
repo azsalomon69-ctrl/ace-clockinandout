@@ -106,6 +106,12 @@ window.ACETutorial = (() => {
         clearFocusContainment();
         document.body.classList.remove('ace-tutorial-welcome-open');
         overlay?.remove(); overlay = null;
+        document.querySelectorAll('.shell-collapse[data-tutorial-forced-visible]').forEach(element => {
+            element.style.removeProperty('display');
+            element.style.removeProperty('visibility');
+            element.style.removeProperty('opacity');
+            element.removeAttribute('data-tutorial-forced-visible');
+        });
         document.querySelectorAll('.ace-tutorial-target').forEach(element => element.classList.remove('ace-tutorial-target'));
         firstFocus?.focus?.();
     }
@@ -296,8 +302,10 @@ window.ACETutorial = (() => {
         if (isMobile()) document.querySelector('.shell-mobile-toggle')?.click();
     }
     async function showNavigationStep(stepIndex, step) {
-        const target = navigationTarget(step);
         const needsSidebarExpand = isDesktopSidebarCollapsed();
+        // Read the state once so the words and the highlighted control cannot
+        // disagree while the shell is restoring its saved sidebar preference.
+        const target = needsSidebarExpand ? document.querySelector('.shell-collapse') : navigationTarget(step);
         const navigationActions = needsSidebarExpand
             ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`
             : `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>${isMobile() ? 'Open sidebar' : 'Use sidebar'}</button></span>`;
@@ -307,6 +315,12 @@ window.ACETutorial = (() => {
         ui.querySelector('[data-tutorial-navigate]')?.addEventListener('click', () => pauseForNavigation(stepIndex));
         if (target) {
             target.classList.add('ace-tutorial-target');
+            if (needsSidebarExpand && target.matches('.shell-collapse')) {
+                target.dataset.tutorialForcedVisible = 'true';
+                target.style.setProperty('display', 'grid', 'important');
+                target.style.setProperty('visibility', 'visible', 'important');
+                target.style.setProperty('opacity', '1', 'important');
+            }
             const card = ui.querySelector('.ace-tutorial-card');
             await positionStep(target, card, { reveal: true });
             if (overlay === ui && active) watchPlacement(target, card);

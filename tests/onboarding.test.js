@@ -82,6 +82,8 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /expand it first/, 'Tutorial should teach users to expand a collapsed sidebar before naming a destination');
   assert.match(engineSource, /\.shell-collapse/, 'Tutorial should highlight the collapsed sidebar control before a destination link');
   assert.match(engineSource, /needsSidebarExpand/, 'Tutorial should omit its duplicate navigation action while teaching the actual expand control');
+  assert.match(engineSource, /data-tutorial-forced-visible/, 'Tutorial should force the real expand control visible before measuring it');
+  assert.match(engineSource, /needsSidebarExpand \? document\.querySelector\('\.shell-collapse'\)/, 'Tutorial should use one sidebar-state decision for both its instruction and target');
   const styles = readFileSync(new URL('../css/app.css', import.meta.url), 'utf8');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse/, 'Tutorial should keep the actual sidebar expand control visible while highlighting it');
   assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');
