@@ -78,6 +78,9 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /ace:route-ready/, 'Tutorial should resume after shell navigation');
   assert.match(engineSource, /shell-mobile-open/, 'Tutorial should detect a closed mobile sidebar');
   assert.match(engineSource, /shell-collapsed/, 'Tutorial should detect a collapsed desktop sidebar');
+  assert.match(engineSource, /aria-label="Expand sidebar"/, 'Tutorial should recognize an icon-only desktop sidebar from its expand control');
+  assert.match(engineSource, /expand it first/, 'Tutorial should teach users to expand a collapsed sidebar before naming a destination');
+  assert.match(engineSource, /\.shell-collapse/, 'Tutorial should highlight the collapsed sidebar control before a destination link');
   assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');
   assert.match(engineSource, /navigationTarget/, 'Tutorial should identify the exact sidebar control to use');
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');

@@ -52,6 +52,13 @@ window.ACETutorial = (() => {
         }
     }
     const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+    // The body class is the normal source of truth. The control's accessible
+    // label is also checked because the sidebar can render before a retained
+    // collapsed preference has been reflected on the body.
+    const isDesktopSidebarCollapsed = () => !isMobile() && (
+        document.body.classList.contains('shell-collapsed') ||
+        document.querySelector('.shell-collapse[aria-label="Expand sidebar"]')?.getAttribute('aria-expanded') === 'false'
+    );
     const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
     const scrollBehavior = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
     const waitForScrollEnd = () => new Promise(resolve => {
@@ -255,7 +262,7 @@ window.ACETutorial = (() => {
         const groupClosed = Boolean(groupElement?.querySelector('.shell-nav-group-items')?.hidden);
         const parts = [];
         if (isMobile() && !document.body.classList.contains('shell-mobile-open')) parts.push('Tap Open sidebar below');
-        else if (!isMobile() && document.body.classList.contains('shell-collapsed')) parts.push('Click the arrow on the edge of the sidebar to expand it');
+        else if (isDesktopSidebarCollapsed()) parts.push('Click the arrow on the edge of the sidebar to expand it first');
         else if (!sidebar) parts.push('Open the sidebar');
         if (groupElement && groupClosed) parts.push(`open the ${group} section`);
         else if (groupElement) parts.push(`use the already-open ${group} section`);
@@ -267,6 +274,9 @@ window.ACETutorial = (() => {
     const navigationTarget = step => {
         if (!step.navigation) return null;
         const { group, label } = step.navigation;
+        // An icon-only desktop sidebar hides every destination label. Teach
+        // its expansion first instead of highlighting an unexplained icon.
+        if (isDesktopSidebarCollapsed()) return document.querySelector('.shell-collapse');
         const groupElement = [...document.querySelectorAll('.shell-nav-group')].find(element => element.dataset.groupLabel === group);
         if (groupElement?.querySelector('.shell-nav-group-items')?.hidden) return groupElement.querySelector('.shell-nav-group-toggle');
         const normalizedLabel = label.toLowerCase();
@@ -296,7 +306,7 @@ window.ACETutorial = (() => {
             const card = ui.querySelector('.ace-tutorial-card');
             await positionStep(target, card, { reveal: true });
             if (overlay === ui && active) watchPlacement(target, card);
-            if (target.matches('.shell-nav-group-toggle')) target.addEventListener('click', () => requestAnimationFrame(() => showNavigationStep(stepIndex, step)), { once: true });
+            if (target.matches('.shell-nav-group-toggle, .shell-collapse')) target.addEventListener('click', () => requestAnimationFrame(() => showNavigationStep(stepIndex, step)), { once: true });
         }
         ui.querySelector('[data-tutorial-navigate]').focus();
     }
