@@ -1011,7 +1011,7 @@ function initializeAppShell() {
     mobileToggle.innerHTML = suppliedIconMarkup('menu', 'shell-icon');
     const topbar = document.createElement('header');
     topbar.className = 'shell-topbar';
-    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" aria-label="Search employees and projects" autocomplete="off" placeholder="${isAdmin ? 'Search employees, projects…' : 'Search projects…'}"></label><div class="shell-global-results" role="listbox" hidden></div></div><div class="shell-topbar-actions"><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
+    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" aria-label="Search employees and projects" autocomplete="off" placeholder="${isAdmin ? 'Search employees, projects…' : 'Search projects…'}"></label><div class="shell-global-results" role="listbox" hidden></div></div><div class="shell-topbar-actions"><button class="shell-topbar-icon-button shell-help-button" type="button" aria-label="Open help" title="Need help?">${suppliedIconMarkup('info', 'shell-icon')}</button><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
     document.body.prepend(overlay); document.body.prepend(sidebar); document.body.prepend(topbar); document.body.prepend(mobileToggle);
 
     let employeeBottomNav = null;
@@ -1181,6 +1181,7 @@ function initializeAppShell() {
         setTopbarMenu(topbarAccountButton, topbarAccountMenu, false);
         setTopbarMenu(notificationButton, notificationMenu, notificationMenu.hidden);
     });
+    topbar.querySelector('.shell-help-button').addEventListener('click', () => openWorkspaceHelp(isAdmin));
 
     const searchInput = topbar.querySelector('#shellGlobalSearch');
     const searchResults = topbar.querySelector('.shell-global-results');
@@ -1256,6 +1257,33 @@ function openMobileClockActions() {
 
 function suppliedIconMarkup(name, className = 'ui-icon') {
     return `<img class="${className}" src="assets/icons/${name}.svg" alt="" aria-hidden="true">`;
+}
+
+function openWorkspaceHelp(isAdmin) {
+    const entries = isAdmin ? [
+        ['How do I invite someone?', 'Use Invite user on the dashboard. Review or cancel pending invitations in People → Invitations.'],
+        ['How do I approve access?', 'Open People → Access requests, review the request, then choose Approve or Deny.'],
+        ['How do I manage projects and schedules?', 'Use Work → Projects and Work → Schedule & flextime.'],
+        ['How do I correct time?', 'Use Work → Time entries, find the record, and choose Correct time only for genuine errors.'],
+        ['Where are reports and audit history?', 'Find reports in Insights and important changes in Administration → Audit log.']
+    ] : [
+        ['How do I clock in, out, or take a break?', 'Go to Dashboard. The time card lets you clock in, start or end a break, and clock out.'],
+        ['Where are my previous shifts?', 'Open Work → My time entries, then use filters or View to find a record.'],
+        ['Where are administrator remarks?', 'Open Work → Remarks to read feedback connected to your time entries.'],
+        ['How do I update my profile?', 'Open the sidebar account menu and choose Profile & settings.'],
+        ['Do I need to restart the tutorial?', 'No. Search this help panel for the task. Restart the tutorial only for the complete walkthrough.']
+    ];
+    let modal = document.getElementById('workspaceHelpModal');
+    if (!modal) { modal = document.createElement('div'); modal.id = 'workspaceHelpModal'; modal.className = 'modal workspace-help-modal'; document.body.append(modal); }
+    const render = query => {
+        const needle = String(query || '').toLowerCase().trim();
+        const matches = entries.filter(item => item.join(' ').toLowerCase().includes(needle));
+        modal.innerHTML = `<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="workspaceHelpTitle"><div class="modal-header"><div><p class="eyebrow">NEED HELP?</p><h3 class="modal-title" id="workspaceHelpTitle">${isAdmin ? 'Administrator help' : 'Employee help'}</h3></div><button class="modal-close" type="button" aria-label="Close">${suppliedIconMarkup('x')}</button></div><div class="modal-body"><label class="workspace-help-search">${suppliedIconMarkup('search')}<input type="search" placeholder="Search help, e.g. clock out or invite" value="${escapeHtml(query || '')}"></label><p class="workspace-help-count">${matches.length ? `${matches.length} answer${matches.length === 1 ? '' : 's'}` : 'No matching answers'}</p><div class="workspace-help-list">${matches.map(([q, a]) => `<article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">${escapeHtml(q)}</button><div class="faq-answer"><p>${escapeHtml(a)}</p></div></article>`).join('') || '<p class="workspace-help-empty">Try another word.</p>'}</div></div></div>`;
+        modal.querySelector('.modal-close').onclick = () => closeModal(modal.id);
+        modal.querySelector('input').oninput = event => render(event.target.value);
+        modal.querySelectorAll('.faq-question').forEach(button => button.onclick = () => { const open = button.getAttribute('aria-expanded') === 'true'; button.setAttribute('aria-expanded', String(!open)); button.classList.toggle('active', !open); });
+    };
+    render(''); openModal(modal.id);
 }
 
 function applySuppliedIcons() {

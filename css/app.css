@@ -3030,6 +3030,14 @@ body {
   width: 19px;
   height: 19px
 }
+.workspace-help-modal .modal-content { width: min(680px, calc(100vw - 32px)); }
+.workspace-help-search { display:flex; align-items:center; gap:10px; min-height:48px; padding:0 14px; border:1px solid var(--ace-line); border-radius:10px; background:#fff; }
+.workspace-help-search .ui-icon { width:19px; height:19px; }
+.workspace-help-search input { width:100%; border:0; outline:0; background:transparent; font:inherit; }
+.workspace-help-count { margin:14px 0 10px; color:var(--ace-muted); font-size:.88rem; }
+.workspace-help-list { max-height:min(52vh,460px); overflow:auto; padding-right:3px; }
+.workspace-help-empty { padding:20px; color:var(--ace-muted); text-align:center; }
+@media (max-width:640px) { .workspace-help-modal { align-items:end; padding:0; } .workspace-help-modal .modal-content { width:100%; max-height:82dvh; margin:0; border-radius:20px 20px 0 0; } .workspace-help-list { max-height:48dvh; } }
 .shell-topbar-badge {
   position: absolute;
   top: -5px;
