@@ -1275,15 +1275,27 @@ function openWorkspaceHelp(isAdmin) {
     ];
     let modal = document.getElementById('workspaceHelpModal');
     if (!modal) { modal = document.createElement('div'); modal.id = 'workspaceHelpModal'; modal.className = 'modal workspace-help-modal'; document.body.append(modal); }
-    const render = query => {
+    modal.innerHTML = `<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="workspaceHelpTitle"><div class="modal-header"><div><p class="eyebrow">NEED HELP?</p><h3 class="modal-title" id="workspaceHelpTitle">${isAdmin ? 'Administrator help' : 'Employee help'}</h3></div><button class="modal-close" type="button" aria-label="Close">${suppliedIconMarkup('x')}</button></div><div class="modal-body"><label class="workspace-help-search">${suppliedIconMarkup('search')}<input type="search" placeholder="Search help, e.g. clock out or invite"></label><p class="workspace-help-count"></p><div class="workspace-help-list"></div></div></div>`;
+    const input = modal.querySelector('input');
+    const count = modal.querySelector('.workspace-help-count');
+    const list = modal.querySelector('.workspace-help-list');
+    const renderResults = query => {
         const needle = String(query || '').toLowerCase().trim();
         const matches = entries.filter(item => item.join(' ').toLowerCase().includes(needle));
-        modal.innerHTML = `<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="workspaceHelpTitle"><div class="modal-header"><div><p class="eyebrow">NEED HELP?</p><h3 class="modal-title" id="workspaceHelpTitle">${isAdmin ? 'Administrator help' : 'Employee help'}</h3></div><button class="modal-close" type="button" aria-label="Close">${suppliedIconMarkup('x')}</button></div><div class="modal-body"><label class="workspace-help-search">${suppliedIconMarkup('search')}<input type="search" placeholder="Search help, e.g. clock out or invite" value="${escapeHtml(query || '')}"></label><p class="workspace-help-count">${matches.length ? `${matches.length} answer${matches.length === 1 ? '' : 's'}` : 'No matching answers'}</p><div class="workspace-help-list">${matches.map(([q, a]) => `<article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">${escapeHtml(q)}</button><div class="faq-answer"><p>${escapeHtml(a)}</p></div></article>`).join('') || '<p class="workspace-help-empty">Try another word.</p>'}</div></div></div>`;
-        modal.querySelector('.modal-close').onclick = () => closeModal(modal.id);
-        modal.querySelector('input').oninput = event => render(event.target.value);
-        modal.querySelectorAll('.faq-question').forEach(button => button.onclick = () => { const open = button.getAttribute('aria-expanded') === 'true'; button.setAttribute('aria-expanded', String(!open)); button.classList.toggle('active', !open); });
+        count.textContent = matches.length ? `${matches.length} answer${matches.length === 1 ? '' : 's'}` : 'No matching answers';
+        list.innerHTML = matches.map(([q, a]) => `<article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">${escapeHtml(q)}</button><div class="faq-answer"><p>${escapeHtml(a)}</p></div></article>`).join('') || '<p class="workspace-help-empty">Try another word.</p>';
+        list.querySelectorAll('.faq-question').forEach(button => button.addEventListener('click', () => {
+            const open = button.getAttribute('aria-expanded') === 'true';
+            button.setAttribute('aria-expanded', String(!open));
+            button.classList.toggle('active', !open);
+        }));
     };
-    render(''); openModal(modal.id);
+    modal.querySelector('.modal-close').onclick = () => closeModal(modal.id);
+    modal.onclick = event => { if (event.target === modal) closeModal(modal.id); };
+    input.addEventListener('input', () => renderResults(input.value));
+    renderResults('');
+    openModal(modal.id);
+    requestAnimationFrame(() => input.focus());
 }
 
 function applySuppliedIcons() {
