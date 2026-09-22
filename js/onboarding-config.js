@@ -5,8 +5,8 @@ window.ACETutorialConfig = {
     USER: {
         version: 3,
         steps: [
-            { page: 'user-dashboard.html', target: '#mainClockInBtn', title: 'Start your shift', body: 'Start your shift here. Clock out and breaks live in the same place.', forcePage: false },
-            { page: 'time-entries.html', target: '#timeEntriesList', title: 'Review your shifts', body: "Every shift you've worked, newest first.", navigation: { group: 'Workspace', label: 'My time entries' } },
+            { page: 'user-dashboard.html', target: '#mainClockInBtn', title: 'Start your shift', body: 'Start your shift here. Clock out and breaks live in the same place.', forcePage: false, navigation: { group: 'Workspace', label: 'Dashboard' } },
+            { page: 'time-entries.html', target: '#timeEntriesList', title: 'Review your shifts', body: "Every shift you've worked, newest first.", navigation: { group: 'Work', label: 'My time entries' } },
             { page: 'user-dashboard.html', target: '#employeeStatusPanel', title: 'Check your status', body: "Your current status, today's hours, and this week at a glance.", navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'settings.html', target: '#profileSettings', title: 'Keep your profile current', body: 'Update your name, photo, and notification preferences here.', navigation: { group: 'Account', label: 'Profile & settings' } }
         ]
@@ -16,7 +16,7 @@ window.ACETutorialConfig = {
         // existing admins are offered the improved tour again.
         version: 4,
         steps: [
-            { page: 'admin-dashboard.html', target: '#operationsTitle', title: 'Your admin dashboard', body: 'This is your daily control centre. Use it to see active staff, recent entries, and the actions that need attention.' },
+            { page: 'admin-dashboard.html', target: '#operationsTitle', title: 'Your admin dashboard', body: 'This is your daily control centre. Use it to see active staff, recent entries, and the actions that need attention.', navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'admin-dashboard.html', target: '#inviteUserBtn', title: 'Invite a team member', body: 'Choose Invite user to pre-authorize an employee or another administrator. Their access is created first, then the system sends the onboarding email.' },
             { page: 'admin-dashboard.html', target: '#generateReportBtn', title: 'Generate a company report', body: 'Choose a month, optional department or project filters, then save the report as a PDF or Excel workbook.' },
             { page: 'admin-dashboard.html', target: '#analyticsFilters', title: 'Filter the live analytics', body: 'Use the period, project, department, and employee filters here to focus the hours chart, allocation summary, and leaderboard.' },

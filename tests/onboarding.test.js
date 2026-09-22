@@ -84,8 +84,19 @@ test('tutorial guides navigation instead of forcing a page change', () => {
 });
 
 test('employee time-entry navigation matches the visible sidebar label', () => {
+    const context = { window: {} };
+    vm.runInNewContext(configSource, context);
+    const timeEntries = context.window.ACETutorialConfig.USER.steps.find(step => step.page === 'time-entries.html');
+    assert.equal(timeEntries.navigation.label, 'My time entries');
+    assert.equal(timeEntries.navigation.group, 'Work');
+});
+
+test('restarting a tutorial teaches users how to return to the dashboard first', () => {
   const context = { window: {} };
   vm.runInNewContext(configSource, context);
-  const timeEntries = context.window.ACETutorialConfig.USER.steps.find(step => step.page === 'time-entries.html');
-  assert.equal(timeEntries.navigation.label, 'My time entries');
+  for (const tutorial of Object.values(context.window.ACETutorialConfig)) {
+    const firstStep = tutorial.steps[0];
+    assert.equal(firstStep.navigation.label, 'Dashboard');
+    assert.equal(firstStep.navigation.group, 'Workspace');
+  }
 });
