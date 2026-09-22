@@ -86,6 +86,7 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /needsSidebarExpand \? document\.querySelector\('\.shell-collapse'\)/, 'Tutorial should use one sidebar-state decision for both its instruction and target');
   const styles = readFileSync(new URL('../css/app.css', import.meta.url), 'utf8');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse/, 'Tutorial should keep the actual sidebar expand control visible while highlighting it');
+  assert.match(styles, /\.ace-tutorial-target\.shell-collapse \{ position: fixed !important;/, 'Highlighting must preserve the real edge control position');
   assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');
   assert.match(engineSource, /navigationTarget/, 'Tutorial should identify the exact sidebar control to use');
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');
