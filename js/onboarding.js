@@ -324,7 +324,15 @@ window.ACETutorial = (() => {
             const card = ui.querySelector('.ace-tutorial-card');
             await positionStep(target, card, { reveal: true });
             if (overlay === ui && active) watchPlacement(target, card);
-            if (target.matches('.shell-nav-group-toggle, .shell-collapse')) target.addEventListener('click', () => requestAnimationFrame(() => showNavigationStep(stepIndex, step)), { once: true });
+            // The user can collapse the sidebar at any time. Re-evaluate the
+            // current instruction after the real toggle changes state, rather
+            // than leaving a coachmark aimed at a now-hidden destination.
+            const refreshNavigation = () => requestAnimationFrame(() => {
+                if (overlay === ui && active) showNavigationStep(stepIndex, step);
+            });
+            const sidebarToggle = document.querySelector('.shell-collapse');
+            sidebarToggle?.addEventListener('click', refreshNavigation, { once: true });
+            if (target.matches('.shell-nav-group-toggle') && target !== sidebarToggle) target.addEventListener('click', refreshNavigation, { once: true });
         }
         ui.querySelector('[data-tutorial-navigate]').focus();
     }
