@@ -79,4 +79,6 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /shell-mobile-open/, 'Tutorial should detect a closed mobile sidebar');
   assert.match(engineSource, /shell-collapsed/, 'Tutorial should detect a collapsed desktop sidebar');
   assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');
+  assert.match(engineSource, /navigationTarget/, 'Tutorial should identify the exact sidebar control to use');
+  assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');
 });

@@ -61,6 +61,8 @@
 
 /* Built-in onboarding tutorial */
 .ace-tutorial-overlay { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 24px; }
+.ace-tutorial-navigation-overlay { pointer-events: none; }
+.ace-tutorial-navigation-overlay .ace-tutorial-card { pointer-events: auto; }
 .ace-tutorial-scrim { position: absolute; inset: 0; background: transparent; }
 .ace-tutorial-card { position: fixed; z-index: 2; width: min(360px, calc(100vw - 32px)); padding: 28px; border: 1px solid #cfe7eb; border-radius: 18px; background: #fff; box-shadow: 0 24px 60px rgba(0, 0, 0, .32); color: #073b4c; animation: ace-tutorial-card-in .18s ease-out both; }
 .ace-tutorial-card.is-centered, .ace-tutorial-welcome { position: relative; left: auto!important; top: auto!important; bottom: auto!important; }
