@@ -85,6 +85,7 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /data-tutorial-forced-visible/, 'Tutorial should force the real expand control visible before measuring it');
   assert.match(engineSource, /needsSidebarExpand \? document\.querySelector\('\.shell-collapse'\)/, 'Tutorial should use one sidebar-state decision for both its instruction and target');
   assert.match(engineSource, /sidebarToggle\?\.addEventListener\('click', refreshNavigation/, 'Tutorial should re-check navigation guidance if the user closes the sidebar mid-step');
+  assert.match(engineSource, /MutationObserver/, 'Tutorial should refresh only after the shell has actually changed its sidebar state');
   const styles = readFileSync(new URL('../css/app.css', import.meta.url), 'utf8');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse/, 'Tutorial should keep the actual sidebar expand control visible while highlighting it');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse \{ position: fixed !important;/, 'Highlighting must preserve the real edge control position');

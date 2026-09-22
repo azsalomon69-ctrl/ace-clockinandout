@@ -249,6 +249,18 @@ window.ACETutorial = (() => {
             window.removeEventListener('scroll', update, true);
         };
     }
+    function watchNavigationState(ui, stepIndex, step) {
+        if (typeof MutationObserver === 'undefined') return;
+        const observer = new MutationObserver(() => requestAnimationFrame(() => {
+            if (overlay === ui && active) showNavigationStep(stepIndex, step);
+        }));
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        const previousCleanup = placementCleanup;
+        placementCleanup = () => {
+            previousCleanup?.();
+            observer.disconnect();
+        };
+    }
     function confirmExit() {
         const ui = overlay;
         const card = ui?.querySelector('.ace-tutorial-card');
@@ -333,6 +345,7 @@ window.ACETutorial = (() => {
             const sidebarToggle = document.querySelector('.shell-collapse');
             sidebarToggle?.addEventListener('click', refreshNavigation, { once: true });
             if (target.matches('.shell-nav-group-toggle') && target !== sidebarToggle) target.addEventListener('click', refreshNavigation, { once: true });
+            watchNavigationState(ui, stepIndex, step);
         }
         ui.querySelector('[data-tutorial-navigate]').focus();
     }
