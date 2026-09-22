@@ -32,6 +32,30 @@ test('every tutorial step has editable required content and a valid selector', (
   }
 });
 
+test('administrator tutorial covers every primary administration workspace', () => {
+  const context = { window: {} };
+  vm.runInNewContext(configSource, context);
+  const steps = context.window.ACETutorialConfig.ADMIN.steps;
+  const pages = new Set(steps.map(step => step.page));
+  for (const page of [
+    'admin-dashboard.html', 'access-requests.html', 'users.html', 'invitations.html',
+    'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html',
+    'deleted-time-entries.html', 'reports.html', 'individual-reports.html',
+    'audit-logs.html', 'settings.html'
+  ]) assert.ok(pages.has(page), `Admin tutorial should cover ${page}`);
+  assert.ok(steps.length >= 18, 'Admin tutorial should be detailed enough to explain its distinct tools');
+});
+
+test('every administrator tutorial target exists on its configured page', () => {
+  const context = { window: {} };
+  vm.runInNewContext(configSource, context);
+  for (const step of context.window.ACETutorialConfig.ADMIN.steps) {
+    assert.match(step.target, /^#[A-Za-z][A-Za-z0-9_-]*$/, 'Admin steps should use durable ID targets');
+    const markup = readFileSync(new URL(`../${step.page}`, import.meta.url), 'utf8');
+    assert.ok(markup.includes(`id="${step.target.slice(1)}"`), `${step.target} should exist in ${step.page}`);
+  }
+});
+
 test('tutorial launch rules welcome, resume, or stay quiet as appropriate', () => {
   const tutorial = engineHarness();
   const config = { version: 1, steps: [{}] };

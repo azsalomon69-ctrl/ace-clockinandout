@@ -5,8 +5,11 @@ employees (`USER`) and one for administrators (`ADMIN`). Each object has a
 `version` and a `steps` array.
 
 The current employee tour is version `2` with four steps. The administrator
-tour is version `2` with five steps. The employee remarks page is not part of
-the linear tour because it is empty until an administrator adds a note.
+tour is version `3` with twenty steps. It covers the dashboard, invitations
+and access approvals, people and organization setup, schedules, time-entry
+review and restoration, reporting, audit history, and administrator settings.
+The employee remarks page is not part of the linear tour because it is empty
+until an administrator adds a note.
 
 Each step requires `page`, `target`, `title`, and `body`:
 

@@ -12,13 +12,30 @@ window.ACETutorialConfig = {
         ]
     },
     ADMIN: {
-        version: 2,
+        // Bump this whenever administrator guidance materially changes so
+        // existing admins are offered the improved tour again.
+        version: 3,
         steps: [
-            { page: 'admin-dashboard.html', target: '.dashboard-command-center', title: 'Run the workspace', body: 'Your daily control panel — pending approvals, active staff, and quick actions.' },
-            { page: 'admin-dashboard.html', target: '#inviteUserBtn', title: 'Invite your team', body: 'Add a new employee or admin. They get an email and set up their own account.' },
-            { page: 'admin-time-entries.html', target: '.admin-edit-entry-time', title: 'Review team hours', body: 'Review and correct hours here.' },
-            { page: 'reports.html', target: '#reportsList', title: 'Create reports', body: 'Export hours by week, month, or project for payroll.' },
-            { page: 'settings.html', target: '#profileSettings', title: 'Your settings', body: 'Departments, projects, schedules, and admin preferences live here.' }
+            { page: 'admin-dashboard.html', target: '#operationsTitle', title: 'Your admin dashboard', body: 'This is your daily control centre. Use it to see active staff, recent entries, and the actions that need attention.' },
+            { page: 'admin-dashboard.html', target: '#inviteUserBtn', title: 'Invite a team member', body: 'Choose Invite user to pre-authorize an employee or another administrator. Their access is created first, then the system sends the onboarding email.' },
+            { page: 'admin-dashboard.html', target: '#generateReportBtn', title: 'Generate a company report', body: 'Choose a month, optional department or project filters, then save the report as a PDF or Excel workbook.' },
+            { page: 'admin-dashboard.html', target: '#dashboardRange', title: 'Filter the live analytics', body: 'Use the date range, project, department, and employee filters to focus the hours chart, allocation summary, and leaderboard.' },
+            { page: 'access-requests.html', target: '#accessRequestTable', title: 'Approve access requests', body: 'People who sign in before they are invited appear here. Review their Google account before the 24-hour request window expires, then approve or deny it.' },
+            { page: 'users.html', target: '#sectionSearch', title: 'Manage user accounts', body: 'Search staff, filter by department or account type, then use Review or Manage to approve pending people, change a role, assign a department, or archive an account.' },
+            { page: 'invitations.html', target: '#sectionAction', title: 'Track and cancel invitations', body: 'Use Invite user for another invitation. Select a pending invitation in the table to review it or cancel it when access is no longer needed.' },
+            { page: 'departments.html', target: '#sectionAction', title: 'Set up departments', body: 'Create departments before assigning employees to them. Use the table actions to edit a department or remove one that is no longer used.' },
+            { page: 'projects.html', target: '#sectionAction', title: 'Set up projects', body: 'Create the projects that employees can select while tracking time. Keep names clear so reports and time entries stay easy to read.' },
+            { page: 'schedule-flex.html', target: '#scheduleForm', title: 'Create schedules and flextime', body: 'Set the schedule name, fixed or flex type, workdays, expected hours, and break limit. At least one working day is required.' },
+            { page: 'schedule-flex.html', target: '#assignmentForm', title: 'Assign a schedule', body: 'After creating a schedule, choose an active employee and assign it here. This connects the employee to the working-day and break rules.' },
+            { page: 'admin-time-entries.html', target: '#sectionSearch', title: 'Review team time entries', body: 'Search entries and use the employee, project, and remarks filters to find a record. This view includes active entries, completed work, breaks, and administrator remarks.' },
+            { page: 'admin-time-entries.html', target: '#sectionTableBody', title: 'Correct or remove time safely', body: 'For an entry, use Correct time only for a genuine missed or incorrect clock-in or clock-out. Add an internal remark when context matters. Delete moves the entry to Deleted time entries so it can be restored.' },
+            { page: 'deleted-time-entries.html', target: '#deletedTimeEntriesTable', title: 'Restore deleted time entries', body: 'Deleted entries are excluded from normal dashboards and reports. Review this list and restore an entry when it was removed by mistake.' },
+            { page: 'reports.html', target: '#reportsList', title: 'Open generated reports', body: 'Every report created from the dashboard is kept here. Open a report to preview it, save it as PDF or Excel, or delete an obsolete export.' },
+            { page: 'individual-reports.html', target: '#individualReportForm', title: 'Prepare individual reports', body: 'Choose a reporting month and optionally one employee. Leave the employee blank to prepare a separate report for every active employee.' },
+            { page: 'audit-logs.html', target: '#sectionSearch', title: 'Review the audit log', body: 'Search the read-only history of important actions, such as approvals, account changes, time corrections, and report exports.' },
+            { page: 'settings.html', target: '#profileSettings', title: 'Update your administrator profile', body: 'Keep your own display name and photo current. This affects how your name appears across administrative records.' },
+            { page: 'settings.html', target: '#securityTab', title: 'Review account security', body: 'Open Security to see the sign-in and account-protection options available for your administrator account.' },
+            { page: 'settings.html', target: '#appearanceTab', title: 'Choose display preferences', body: 'Open Appearance to adjust display preferences such as text size and compact mode for your own workspace.' }
         ]
     }
 };
