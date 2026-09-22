@@ -76,4 +76,7 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.doesNotMatch(engineSource, /location\.assign\(`\/\$\{step\.page/, 'Tutorial steps must not navigate pages automatically');
   assert.match(engineSource, /showNavigationStep/, 'Tutorial should explain where to navigate');
   assert.match(engineSource, /ace:route-ready/, 'Tutorial should resume after shell navigation');
+  assert.match(engineSource, /shell-mobile-open/, 'Tutorial should detect a closed mobile sidebar');
+  assert.match(engineSource, /shell-collapsed/, 'Tutorial should detect a collapsed desktop sidebar');
+  assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');
 });

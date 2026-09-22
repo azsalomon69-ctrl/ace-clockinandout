@@ -247,9 +247,23 @@ window.ACETutorial = (() => {
         card.querySelector('[data-tutorial-leave]').addEventListener('click', () => finish('SKIPPED'));
         card.querySelector('[data-tutorial-keep]').focus();
     }
-    const navigationInstruction = step => step.navigation
-        ? `Open the ${step.navigation.group} section in the sidebar, then select ${step.navigation.label}. The tutorial will continue automatically when you arrive.`
-        : 'Use the sidebar to open this page. The tutorial will continue automatically when you arrive.';
+    const navigationInstruction = step => {
+        if (!step.navigation) return 'Use the sidebar to open this page. The tutorial will continue automatically when you arrive.';
+        const { group, label } = step.navigation;
+        const sidebar = document.getElementById('appSidebar');
+        const groupElement = [...document.querySelectorAll('.shell-nav-group')].find(element => element.dataset.groupLabel === group);
+        const groupClosed = Boolean(groupElement?.querySelector('.shell-nav-group-items')?.hidden);
+        const parts = [];
+        if (isMobile() && !document.body.classList.contains('shell-mobile-open')) parts.push('Tap Open sidebar below');
+        else if (!isMobile() && document.body.classList.contains('shell-collapsed')) parts.push('Click the arrow on the edge of the sidebar to expand it');
+        else if (!sidebar) parts.push('Open the sidebar');
+        if (groupElement && groupClosed) parts.push(`open the ${group} section`);
+        else if (groupElement) parts.push(`use the already-open ${group} section`);
+        else if (group === 'Account') parts.push('open your account menu at the bottom of the sidebar');
+        else parts.push(`find ${group} in the sidebar`);
+        parts.push(`select ${label}`);
+        return `${parts.join(', then ')}. The tutorial will continue automatically when you arrive.`;
+    };
     async function pauseForNavigation(stepIndex) {
         await persist({ status: 'IN_PROGRESS', step: stepIndex });
         close();
