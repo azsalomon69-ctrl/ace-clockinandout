@@ -1076,8 +1076,8 @@ function initializeAppShell() {
         mobileToggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
         employeeBottomNav?.querySelector('[data-bottom-nav-more]')?.setAttribute('aria-expanded', String(open));
         if (open) requestAnimationFrame(() => sidebar.querySelector('.shell-link.active, .shell-nav-group-toggle, .shell-link, .shell-account')?.focus());
-        window.dispatchEvent(new CustomEvent('ace:sidebar-state-change', { detail: { mobileOpen: open } }));
         else if (restoreFocus && mobileReturnFocus instanceof HTMLElement && document.contains(mobileReturnFocus)) mobileReturnFocus.focus();
+        window.dispatchEvent(new CustomEvent('ace:sidebar-state-change', { detail: { mobileOpen: open } }));
     };
     window.ACECloseMobileNavigation = setMobileNavigation.bind(null, false);
     setMobileNavigation(false, { restoreFocus: false });
