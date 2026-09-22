@@ -81,7 +81,9 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /aria-label="Expand sidebar"/, 'Tutorial should recognize an icon-only desktop sidebar from its expand control');
   assert.match(engineSource, /expand it first/, 'Tutorial should teach users to expand a collapsed sidebar before naming a destination');
   assert.match(engineSource, /\.shell-collapse/, 'Tutorial should highlight the collapsed sidebar control before a destination link');
-  assert.match(engineSource, /Expand sidebar/, 'Tutorial should provide an in-card action to expand the desktop sidebar');
+  assert.match(engineSource, /needsSidebarExpand/, 'Tutorial should omit its duplicate navigation action while teaching the actual expand control');
+  const styles = readFileSync(new URL('../css/app.css', import.meta.url), 'utf8');
+  assert.match(styles, /\.ace-tutorial-target\.shell-collapse/, 'Tutorial should keep the actual sidebar expand control visible while highlighting it');
   assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');
   assert.match(engineSource, /navigationTarget/, 'Tutorial should identify the exact sidebar control to use');
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');

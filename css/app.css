@@ -79,6 +79,9 @@
 .ace-tutorial-card [data-tutorial-start], .ace-tutorial-card [data-tutorial-skip], .ace-tutorial-card [data-tutorial-back], .ace-tutorial-card [data-tutorial-next], .ace-tutorial-card [data-tutorial-close], .ace-tutorial-card [data-tutorial-keep], .ace-tutorial-card [data-tutorial-leave], [data-restart-tutorial] { min-height: 44px; }
 .ace-tutorial-missing { margin-top: 14px !important; padding: 10px; border-radius: 8px; background: #eef7f8; font-size: .9rem; }
 .ace-tutorial-target { position: relative !important; z-index: 10001 !important; outline: 4px solid #08a2c2 !important; outline-offset: 5px; border-radius: 8px; box-shadow: 0 0 0 8px rgba(255,255,255,.92),0 0 0 12px rgba(8,162,194,.45),0 8px 20px rgba(3,45,61,.22) !important; }
+/* Some compact layouts hide the desktop edge toggle. It must remain visible
+   when the tutorial is specifically teaching the user to expand the sidebar. */
+.ace-tutorial-target.shell-collapse { display: grid !important; visibility: visible !important; opacity: 1 !important; }
 .ace-tutorial-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 html[data-theme="dark"] .ace-tutorial-card { background: #12313d; border-color: #35616d; color: #f1fbfc; }
 html[data-theme="dark"] .ace-tutorial-missing { background: #1b4552; }
