@@ -85,6 +85,11 @@ const mailTransport = smtpConfigured ? nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
   secure: true,
+  // An unreachable SMTP service must not leave the invitation screen waiting
+  // indefinitely after access has already been granted in the database.
+  connectionTimeout: 8000,
+  greetingTimeout: 8000,
+  socketTimeout: 12000,
   auth: { user: smtpUser, pass: smtpAppPassword }
 }) : null;
 const applicationUrl = (frontendOrigins[0] || 'https://aceclock.onrender.com').replace(/\/$/, '');
@@ -346,11 +351,17 @@ app.post('/v1/access-requests', sensitiveActionLimiter, authenticate, async (req
   const requestedDepartment = optionalText(req.body.department, 160);
   const message = optionalText(req.body.message, 1000);
   if (requestedDepartment === undefined || message === undefined) return fail(res, 400, 'Request text exceeds the allowed length');
-  const request = await query(db.from('access_requests').insert({
+  const requestValues = {
     profile_id: req.profile.id, email, full_name: req.profile.full_name || req.authUser.user_metadata?.full_name || '',
     requested_department: requestedDepartment, message,
     requested_role: 'USER', request_ip: req.ip, expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString()
-  }).select().single());
+  };
+  // The schema retains one row per email. Re-open an expired pending request
+  // rather than letting that historical row prevent the person from asking again.
+  const expired = await query(db.from('access_requests').select('id').eq('profile_id', req.profile.id).eq('status', 'PENDING').lte('expires_at', now.toISOString()).maybeSingle());
+  const request = expired
+    ? await query(db.from('access_requests').update(requestValues).eq('id', expired.id).select().single())
+    : await query(db.from('access_requests').insert(requestValues).select().single());
   await audit(req, 'REQUEST_ACCESS', 'ACCESS_REQUEST', request.id, 'Requested account approval');
   res.status(201).json({ request });
 } catch (error) { next(error); } });
@@ -365,6 +376,7 @@ app.patch('/v1/access-requests/:id', sensitiveActionLimiter, authenticate, admin
   if (!['APPROVE', 'DENY'].includes(decision)) return fail(res, 400, 'Decision must be APPROVE or DENY');
   const request = await query(db.from('access_requests').select('*').eq('id', req.params.id).single());
   if (request.status !== 'PENDING') return fail(res, 409, 'This request has already been reviewed.');
+  if (new Date(request.expires_at).getTime() <= Date.now()) return fail(res, 410, 'This request has expired and cannot be reviewed.');
   if (!request.profile_id) return fail(res, 409, 'This legacy request is not linked to a Google account.');
   const status = decision === 'APPROVE' ? 'ACTIVE' : 'DENIED';
   const departmentId = optionalUuid(req.body.department_id);

@@ -1906,13 +1906,29 @@ async function beginGoogleAccessRequest() {
 async function handleRequestAccess(e) {
     e.preventDefault();
     const form = e.currentTarget;
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton?.disabled) return;
+    const originalLabel = submitButton?.innerHTML;
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.setAttribute('aria-busy', 'true');
+        submitButton.textContent = 'Submitting request…';
+    }
     try {
         if (!window.ACEAuth) throw new Error('Request service is unavailable.');
         await window.ACEAuth.request('/v1/access-requests', { method: 'POST', body: JSON.stringify({ department: document.getElementById('requestDepartment').value.trim(), message: document.getElementById('requestMessage').value.trim() }) });
         closeModal('requestAccessModal');
         form.reset();
-        showToast('Access request submitted. It expires in two minutes if it is not reviewed.', 'success');
-    } catch (error) { showToast(error.message || 'Unable to submit access request', 'error'); }
+        showToast('Access request submitted. An administrator has 24 hours to review it.', 'success');
+    } catch (error) {
+        showToast(error.message || 'Unable to submit access request.', 'error');
+    } finally {
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.removeAttribute('aria-busy');
+            submitButton.innerHTML = originalLabel;
+        }
+    }
 }
 
 function openClockInModal() {
@@ -2063,21 +2079,40 @@ function showClockOutSummary() {
 // Admin Handlers
 async function handleInviteUser(e) {
     e.preventDefault();
-    
-    const email = document.getElementById('inviteEmail').value;
+    const form = e.currentTarget;
+    const submitButton = form.querySelector('button[type="submit"]');
+    // Prevent a slow mail/database response from being mistaken for a failed
+    // click, and make the in-progress state obvious to the administrator.
+    if (submitButton?.disabled) return;
+
+    const email = document.getElementById('inviteEmail').value.trim().toLowerCase();
     const departmentId = document.getElementById('inviteDepartment')?.value;
     const role = document.getElementById('inviteRole')?.value;
-    
+    const originalLabel = submitButton?.innerHTML;
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.setAttribute('aria-busy', 'true');
+        submitButton.textContent = 'Sending invitation…';
+    }
+
     try {
         const invitation = await window.ACEAuth.request('/v1/invitations', { method: 'POST', body: JSON.stringify({ email, departmentId: departmentId || null, role: role || 'USER' }) });
         if (Array.isArray(AppState.invitations)) AppState.invitations.unshift(invitation);
         closeModal('inviteUserModal');
-        document.getElementById('inviteUserForm').reset();
+        form.reset();
         const emailMessage = invitation.email_sent
-            ? `${email} was added and the onboarding email was sent.`
-            : `${email} was added, but the email was not sent. ${invitation.email_issue || 'Check the Render email settings.'}`;
+            ? `${email} now has access and the onboarding email was sent.`
+            : `${email} now has access. ${invitation.email_issue || 'The onboarding email needs attention.'}`;
         showToast(emailMessage, invitation.email_sent ? 'success' : 'warning');
-    } catch (error) { showToast(error.message || 'Unable to pre-authorize this account', 'error'); }
+    } catch (error) {
+        showToast(error.message || 'Unable to grant access to this account.', 'error');
+    } finally {
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.removeAttribute('aria-busy');
+            submitButton.innerHTML = originalLabel;
+        }
+    }
 }
 
 async function handleGenerateReport(e) {

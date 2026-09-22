@@ -4,6 +4,7 @@ let accessRequests = [];
 let departments = [];
 const requestDateTime = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
 const normalizedDepartmentName = value => String(value || '').trim().toLowerCase();
+const accessRequestEmpty = '<tr class="table-empty-row"><td colspan="6"><div class="empty-state empty-state-compact"><h3>No access requests yet</h3><p>Requests from new sign-ins will appear here for review.</p></div></td></tr>';
 
 function requestExpiry(value) {
   const seconds = Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 1000));
@@ -25,17 +26,26 @@ function departmentSelect(request, index) {
 }
 function renderAccessRequests() {
   const body = document.getElementById('accessRequestTable'); if (!body) return;
-  body.innerHTML = accessRequests.length ? accessRequests.map((request, index) => '<tr><td><strong>' + requestEsc(request.profiles?.full_name || request.full_name || 'Google user') + '</strong><br><small>' + requestEsc(request.email) + '</small></td><td>' + requestDateTime(request.created_at) + '</td><td>' + requestExpiry(request.expires_at) + '</td><td>' + requestBadge(request.state) + '</td><td>' + (request.state === 'PENDING' ? '<select class="form-select request-role" data-row="' + index + '" aria-label="Role"><option value="USER">Employee</option><option value="ADMIN">Admin</option></select> ' + departmentSelect(request, index) : '—') + '</td><td>' + (request.state === 'PENDING' ? '<button class="btn btn-sm btn-primary review-request" data-row="' + index + '" data-decision="APPROVE" type="button">Approve</button> <button class="btn btn-sm btn-outline review-request" data-row="' + index + '" data-decision="DENY" type="button">Deny</button>' : '—') + '</td></tr>').join('') : '<tr><td colspan="6">No access requests found.</td></tr>';
+  body.innerHTML = accessRequests.length ? accessRequests.map((request, index) => '<tr><td><strong>' + requestEsc(request.profiles?.full_name || request.full_name || 'Google user') + '</strong><br><small>' + requestEsc(request.email) + '</small></td><td>' + requestDateTime(request.created_at) + '</td><td>' + requestExpiry(request.expires_at) + '</td><td>' + requestBadge(request.state) + '</td><td>' + (request.state === 'PENDING' ? '<select class="form-select request-role" data-row="' + index + '" aria-label="Role"><option value="USER">Employee</option><option value="ADMIN">Admin</option></select> ' + departmentSelect(request, index) : '—') + '</td><td>' + (request.state === 'PENDING' ? '<button class="btn btn-sm btn-primary review-request" data-row="' + index + '" data-decision="APPROVE" type="button">Approve</button> <button class="btn btn-sm btn-outline review-request" data-row="' + index + '" data-decision="DENY" type="button">Deny</button>' : '—') + '</td></tr>').join('') : accessRequestEmpty;
   body.querySelectorAll('.review-request').forEach(button => button.addEventListener('click', () => {
     const row = button.dataset.row;
     reviewRequest(accessRequests[Number(row)], button.dataset.decision, body.querySelector('.request-role[data-row="' + row + '"]')?.value || 'USER', body.querySelector('.request-department[data-row="' + row + '"]')?.value || null);
   }));
 }
-function reviewRequest(request, decision, role, departmentId) {
+async function reviewRequest(request, decision, role, departmentId) {
+  const row = document.querySelector('#accessRequestTable .review-request[data-row="' + accessRequests.indexOf(request) + '"]')?.closest('tr');
+  const buttons = Array.from(row?.querySelectorAll('.review-request') || []);
+  if (buttons.some(button => button.disabled)) return;
+  const labels = buttons.map(button => button.innerHTML);
+  buttons.forEach(button => { button.disabled = true; button.setAttribute('aria-busy', 'true'); });
+  const activeButton = buttons.find(button => button.dataset.decision === decision);
+  if (activeButton) activeButton.textContent = decision === 'APPROVE' ? 'Approving…' : 'Denying…';
   const payload = decision === 'APPROVE' ? { decision, role, department_id: departmentId } : { decision, role };
-  requestApi('/v1/access-requests/' + request.id, { method: 'PATCH', body: JSON.stringify(payload) })
-    .then(() => { showToast(decision === 'APPROVE' ? 'Access approved.' : 'Access denied.', 'success'); loadAccessRequests(); })
-    .catch(error => {
+  try {
+    await requestApi('/v1/access-requests/' + request.id, { method: 'PATCH', body: JSON.stringify(payload) });
+    showToast(decision === 'APPROVE' ? 'Access approved.' : 'Access denied.', 'success');
+    await loadAccessRequests();
+  } catch (error) {
       if (error.status === 401) {
         showToast('Your session expired. Redirecting to login.', 'warning');
         return;
@@ -51,7 +61,7 @@ function reviewRequest(request, decision, role, departmentId) {
         return;
       }
       if (error.status === 410) {
-        showToast('This request is no longer available.', 'warning');
+        showToast('This request has expired and can no longer be reviewed.', 'warning');
         loadAccessRequests();
         return;
       }
@@ -60,7 +70,9 @@ function reviewRequest(request, decision, role, departmentId) {
         return;
       }
       showToast(error.message || 'Unable to review request.', 'error');
-    });
+  } finally {
+    buttons.forEach((button, index) => { button.disabled = false; button.removeAttribute('aria-busy'); button.innerHTML = labels[index]; });
+  }
 }
 async function loadAccessRequests() {
   try {

@@ -155,12 +155,28 @@ function modal(view, primary, record) {
       } catch (error) { showToast(error.message || 'Could not archive user.', 'error'); }
     });
     node.querySelector('.admin-cancel-invitation')?.addEventListener('click', async () => {
+      const cancelButton = node.querySelector('.admin-cancel-invitation');
+      if (cancelButton?.disabled) return;
+      const originalLabel = cancelButton?.innerHTML;
+      if (cancelButton) {
+        cancelButton.disabled = true;
+        cancelButton.setAttribute('aria-busy', 'true');
+        cancelButton.textContent = 'Cancelling…';
+      }
       try {
         await liveRequest('/v1/invitations/' + record.id, { method: 'DELETE' });
         closeModal('adminActionModal');
         showToast('Invitation cancelled. This email can be invited again.', 'success');
-        window.setTimeout(() => window.location.reload(), 1200);
-      } catch (error) { showToast(error.message || 'Could not cancel this invitation.', 'error'); }
+        // Preserve the success message and remove the record immediately.
+        renderAdminSection().catch(error => console.error('Could not refresh invitations after cancellation.', error));
+      } catch (error) {
+        showToast(error.message || 'Could not cancel this invitation.', 'error');
+        if (cancelButton) {
+          cancelButton.disabled = false;
+          cancelButton.removeAttribute('aria-busy');
+          cancelButton.innerHTML = originalLabel;
+        }
+      }
     });
     openModal('adminActionModal'); return;
   }
