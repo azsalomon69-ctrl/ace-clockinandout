@@ -299,7 +299,10 @@ window.ACETutorial = (() => {
         else if (!sidebar) parts.push('Open the sidebar');
         if (groupElement && groupClosed) parts.push(`open the ${group} section`);
         else if (groupElement) parts.push(`use the already-open ${group} section`);
-        else if (group === 'Account') parts.push('open your account menu at the bottom of the sidebar');
+        else if (group === 'Account') {
+            const accountMenu = document.querySelector('.shell-account-menu');
+            parts.push(accountMenu?.hidden === false ? 'use the already-open account menu at the bottom of the sidebar' : 'open your account menu at the bottom of the sidebar');
+        }
         else parts.push(`find ${group} in the sidebar`);
         parts.push(`select ${label}`);
         return `${parts.join(', then ')}. The tutorial will continue automatically when you arrive.`;
@@ -318,7 +321,13 @@ window.ACETutorial = (() => {
             return linkLabel === normalizedLabel || linkLabel.includes(normalizedLabel) || normalizedLabel.includes(linkLabel);
         });
         if (link) return link;
-        if (group === 'Account') return document.querySelector('.shell-account');
+        if (group === 'Account') {
+            const accountLink = [...document.querySelectorAll('.shell-account-menu [role="menuitem"]')].find(element => {
+                const itemLabel = element.textContent.trim().toLowerCase();
+                return itemLabel === normalizedLabel || itemLabel.includes(normalizedLabel) || normalizedLabel.includes(itemLabel);
+            });
+            return accountLink || document.querySelector('.shell-account');
+        }
         return isMobile() ? document.querySelector('.shell-mobile-toggle') : null;
     };
     async function pauseForNavigation(stepIndex) {
@@ -359,6 +368,7 @@ window.ACETutorial = (() => {
             });
             const sidebarToggle = document.querySelector('.shell-collapse');
             sidebarToggle?.addEventListener('click', refreshNavigation, { once: true });
+            window.addEventListener('ace:sidebar-state-change', refreshNavigation, { once: true });
             if (target.matches('.shell-nav-group-toggle') && target !== sidebarToggle) target.addEventListener('click', refreshNavigation, { once: true });
             watchNavigationState(ui, stepIndex, step);
         }

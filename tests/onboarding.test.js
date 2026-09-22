@@ -86,6 +86,8 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /needsSidebarExpand \? document\.querySelector\('\.shell-collapse'\)/, 'Tutorial should use one sidebar-state decision for both its instruction and target');
   assert.match(engineSource, /sidebarToggle\?\.addEventListener\('click', refreshNavigation/, 'Tutorial should re-check navigation guidance if the user closes the sidebar mid-step');
   assert.match(engineSource, /MutationObserver/, 'Tutorial should refresh only after the shell has actually changed its sidebar state');
+  assert.match(engineSource, /ace:sidebar-state-change/, 'Tutorial should react to every state update emitted by the real sidebar controls');
+  assert.match(engineSource, /shell-account-menu \[role="menuitem"\]/, 'Tutorial should adapt after the account menu is opened');
   assert.match(engineSource, /target\.matches\('\.shell-collapse'\)/, 'Sidebar-edge control should receive dedicated pointer placement');
   assert.match(engineSource, /card\.dataset\.placement = 'right'/, 'Sidebar-edge tutorial card should point left at the real control');
   const styles = readFileSync(new URL('../css/app.css', import.meta.url), 'utf8');

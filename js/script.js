@@ -1047,6 +1047,7 @@ function initializeAppShell() {
         collapseButton.setAttribute('aria-expanded', String(!collapsed));
         collapseButton.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
         localStorage.setItem('ace_sidebar_collapsed', collapsed ? '1' : '0');
+        window.dispatchEvent(new CustomEvent('ace:sidebar-state-change', { detail: { collapsed } }));
     };
     setCollapsed(localStorage.getItem('ace_sidebar_collapsed') === '1');
     sidebar.querySelector('.shell-collapse').addEventListener('click', () => setCollapsed(!document.body.classList.contains('shell-collapsed')));
@@ -1059,6 +1060,7 @@ function initializeAppShell() {
         button.setAttribute('aria-expanded', String(open));
         button.setAttribute('aria-label', `${open ? 'Collapse' : 'Expand'} ${group.dataset.groupLabel}`);
         localStorage.setItem(group.dataset.groupKey, open ? '1' : '0');
+        window.dispatchEvent(new CustomEvent('ace:sidebar-state-change', { detail: { group: group.dataset.groupLabel, open } }));
     };
     sidebar.querySelectorAll('.shell-nav-group-toggle').forEach(button => button.addEventListener('click', () => {
         const group = button.closest('.shell-nav-group');
@@ -1074,6 +1076,7 @@ function initializeAppShell() {
         mobileToggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
         employeeBottomNav?.querySelector('[data-bottom-nav-more]')?.setAttribute('aria-expanded', String(open));
         if (open) requestAnimationFrame(() => sidebar.querySelector('.shell-link.active, .shell-nav-group-toggle, .shell-link, .shell-account')?.focus());
+        window.dispatchEvent(new CustomEvent('ace:sidebar-state-change', { detail: { mobileOpen: open } }));
         else if (restoreFocus && mobileReturnFocus instanceof HTMLElement && document.contains(mobileReturnFocus)) mobileReturnFocus.focus();
     };
     window.ACECloseMobileNavigation = setMobileNavigation.bind(null, false);
@@ -1122,6 +1125,7 @@ function initializeAppShell() {
         accountMenu.hidden = !open;
     };
     accountButton.addEventListener('click', () => setAccountMenu(accountMenu.hidden));
+        window.dispatchEvent(new CustomEvent('ace:sidebar-state-change', { detail: { accountOpen: open } }));
     sidebar.querySelector('[data-account-logout]').addEventListener('click', handleLogout);
     topbar.querySelector('[data-topbar-logout]').addEventListener('click', handleLogout);
     [...document.querySelectorAll('[data-restart-tutorial]')].forEach(button => button.addEventListener('click', () => window.ACETutorial?.restart()));
