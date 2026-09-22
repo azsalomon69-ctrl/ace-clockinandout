@@ -82,3 +82,10 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /navigationTarget/, 'Tutorial should identify the exact sidebar control to use');
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');
 });
+
+test('employee time-entry navigation matches the visible sidebar label', () => {
+  const context = { window: {} };
+  vm.runInNewContext(configSource, context);
+  const timeEntries = context.window.ACETutorialConfig.USER.steps.find(step => step.page === 'time-entries.html');
+  assert.equal(timeEntries.navigation.label, 'My time entries');
+});

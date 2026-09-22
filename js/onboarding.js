@@ -269,7 +269,11 @@ window.ACETutorial = (() => {
         const { group, label } = step.navigation;
         const groupElement = [...document.querySelectorAll('.shell-nav-group')].find(element => element.dataset.groupLabel === group);
         if (groupElement?.querySelector('.shell-nav-group-items')?.hidden) return groupElement.querySelector('.shell-nav-group-toggle');
-        const link = [...document.querySelectorAll('.shell-link')].find(element => element.textContent.trim() === label);
+        const normalizedLabel = label.toLowerCase();
+        const link = [...document.querySelectorAll('.shell-link')].find(element => {
+            const linkLabel = element.textContent.trim().toLowerCase();
+            return linkLabel === normalizedLabel || linkLabel.includes(normalizedLabel) || normalizedLabel.includes(linkLabel);
+        });
         if (link) return link;
         if (group === 'Account') return document.querySelector('.shell-account');
         return isMobile() ? document.querySelector('.shell-mobile-toggle') : null;
