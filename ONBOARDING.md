@@ -4,10 +4,14 @@ Tutorial copy lives in `js/onboarding-config.js`. The file has one object for
 employees (`USER`) and one for administrators (`ADMIN`). Each object has a
 `version` and a `steps` array.
 
+The current employee tour is version `2` with four steps. The administrator
+tour is version `2` with five steps. The employee remarks page is not part of
+the linear tour because it is empty until an administrator adds a note.
+
 Each step requires `page`, `target`, `title`, and `body`:
 
 ```js
-{ page: 'user-dashboard.html', target: '#employeeStatusPanel', title: 'Your workday starts here', body: 'Use this panel to clock in, take a break, and clock out.' }
+{ page: 'user-dashboard.html', target: '#mainClockInBtn', title: 'Start your shift', body: 'Start your shift here. Clock out and breaks live in the same place.' }
 ```
 
 Use a stable element ID as `target`. When a target is intentionally unavailable,

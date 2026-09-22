@@ -3,25 +3,22 @@
 // tour must begin on that page even if the user launched it elsewhere.
 window.ACETutorialConfig = {
     USER: {
-        version: 1,
+        version: 2,
         steps: [
-            { page: 'user-dashboard.html', target: '#employeeStatusPanel', title: 'Your workday starts here', body: 'Use this panel to clock in, take a break, and clock out.', forcePage: false },
-            { page: 'user-dashboard.html', target: '#recentActivity', title: 'See recent work', body: 'Your completed shifts appear here at a glance.' },
-            { page: 'time-entries.html', target: '#clockInBtn', title: 'Manage your time', body: 'Open a shift here and review your full time history.' },
-            { page: 'remarks.html', target: '#remarksPageList', title: 'Read administrator notes', body: 'Check this page for feedback about your time entries.' },
-            { page: 'settings.html', target: '#profileSettings', title: 'Keep your profile current', body: 'Update your name, photo, and workspace preferences here.' }
+            { page: 'user-dashboard.html', target: '#mainClockInBtn', title: 'Start your shift', body: 'Start your shift here. Clock out and breaks live in the same place.', forcePage: false },
+            { page: 'time-entries.html', target: '#timeEntriesList', title: 'Review your shifts', body: "Every shift you've worked, newest first." },
+            { page: 'user-dashboard.html', target: '#employeeStatusPanel', title: 'Check your status', body: "Your current status, today's hours, and this week at a glance." },
+            { page: 'settings.html', target: '#profileSettings', title: 'Keep your profile current', body: 'Update your name, photo, and notification preferences here.' }
         ]
     },
     ADMIN: {
-        version: 1,
+        version: 2,
         steps: [
-            { page: 'admin-dashboard.html', target: '#operationsTitle', title: 'Run the workspace', body: 'Start with these quick actions to invite people and set up work.' },
-            { page: 'admin-dashboard.html', target: '#analyticsTitle', title: 'Watch team activity', body: 'Use this overview to understand tracked time and team trends.' },
-            { page: 'users.html', target: '#sectionTableBody', title: 'Manage people', body: 'Review users, roles, and account status from this page.' },
-            { page: 'projects.html', target: '#sectionAction', title: 'Set up work', body: 'Create projects, departments, and schedules before assigning work.' },
-            { page: 'admin-time-entries.html', target: '#sectionTableBody', title: 'Review time entries', body: 'Inspect team time records and resolve issues when needed.' },
-            { page: 'reports.html', target: '#reportsList', title: 'Create reports', body: 'Generate, preview, and export reporting for the team.' },
-            { page: 'settings.html', target: '#profileSettings', title: 'Your settings', body: 'Update your administrator profile and workspace preferences here.' }
+            { page: 'admin-dashboard.html', target: '.dashboard-command-center', title: 'Run the workspace', body: 'Your daily control panel — pending approvals, active staff, and quick actions.' },
+            { page: 'admin-dashboard.html', target: '#inviteUserBtn', title: 'Invite your team', body: 'Add a new employee or admin. They get an email and set up their own account.' },
+            { page: 'admin-time-entries.html', target: '.admin-edit-entry-time', title: 'Review team hours', body: 'Review and correct hours here.' },
+            { page: 'reports.html', target: '#reportsList', title: 'Create reports', body: 'Export hours by week, month, or project for payroll.' },
+            { page: 'settings.html', target: '#profileSettings', title: 'Your settings', body: 'Departments, projects, schedules, and admin preferences live here.' }
         ]
     }
 };
