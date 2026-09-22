@@ -53,8 +53,25 @@ window.ACETutorial = (() => {
     }
     const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
     const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
-    // Use an immediate reveal so the card is measured only after the target reaches its final position.
-    const scrollBehavior = () => 'auto';
+    const scrollBehavior = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    const waitForScrollEnd = () => new Promise(resolve => {
+        let quietTimer;
+        let finished = false;
+        const finish = () => {
+            if (finished) return;
+            finished = true;
+            window.removeEventListener('scroll', onScroll, true);
+            clearTimeout(quietTimer);
+            resolve();
+        };
+        const onScroll = () => {
+            clearTimeout(quietTimer);
+            quietTimer = setTimeout(finish, 110);
+        };
+        window.addEventListener('scroll', onScroll, true);
+        quietTimer = setTimeout(finish, 160);
+        setTimeout(finish, 900);
+    });
     function clearPlacementListeners() {
         if (placementFrame) cancelAnimationFrame(placementFrame);
         placementFrame = null;
@@ -126,21 +143,27 @@ window.ACETutorial = (() => {
         if (!target) console.warn(`[onboarding] Target not found: ${selector}`);
         return target;
     }
-    async function revealTarget(target, mobile) {
+    async function revealTarget(target, mobile, card) {
         const rect = target.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         const isVisible = rect.bottom > 0 && rect.top < viewportHeight;
         const needsReveal = !isVisible || (mobile && (rect.top < 72 || rect.bottom > viewportHeight * .48));
         if (!needsReveal) return;
-        // Reveal every step's target once. Desktop centers it so the anchored card can fit;
-        // mobile places it in the upper half to leave room for the bottom sheet.
+        // Reveal a target once before placing the card. Waiting for smooth
+        // scrolling to settle prevents the mobile sheet and the page from
+        // fighting each other over several animation frames.
         target.scrollIntoView({ behavior: scrollBehavior(), block: mobile ? 'start' : 'center', inline: 'nearest' });
-        await nextFrame();
+        await waitForScrollEnd();
         if (mobile) {
             const afterScroll = target.getBoundingClientRect();
-            const desiredTop = Math.max(72, Math.min(viewportHeight * .18, 150));
-            window.scrollBy({ top: afterScroll.top - desiredTop, behavior: scrollBehavior() });
-            await nextFrame();
+            const sheetHeight = card?.getBoundingClientRect().height || viewportHeight * .42;
+            const availableHeight = viewportHeight - sheetHeight - 28;
+            const desiredTop = Math.max(72, Math.min(150, availableHeight - afterScroll.height - 12));
+            const adjustment = afterScroll.top - desiredTop;
+            if (Math.abs(adjustment) > 8) {
+                window.scrollBy({ top: adjustment, behavior: scrollBehavior() });
+                await waitForScrollEnd();
+            }
         }
     }
     function centerCard(card, target, reason) {
@@ -155,7 +178,7 @@ window.ACETutorial = (() => {
     async function positionStep(target, card, { reveal = false } = {}) {
         if (!target || !overlay || !active) return;
         const mobile = isMobile();
-        if (reveal) await revealTarget(target, mobile);
+        if (reveal) await revealTarget(target, mobile, card);
         if (!overlay || !active) return;
         card.classList.remove('is-centered');
         const viewportWidth = window.innerWidth;
@@ -170,12 +193,6 @@ window.ACETutorial = (() => {
         delete card.dataset.anchorFallback;
         target.classList.add('ace-tutorial-target');
         if (mobile) {
-            const sheetTop = cardRect.top;
-            if (targetRect.bottom + 12 > sheetTop) {
-                window.scrollBy({ top: targetRect.bottom + 12 - sheetTop, behavior: scrollBehavior() });
-                await nextFrame();
-                targetRect = target.getBoundingClientRect();
-            }
             const updatedSheetTop = card.getBoundingClientRect().top;
             if (targetRect.bottom + 12 > updatedSheetTop) centerCard(card, target, 'target too large to anchor');
             return;
@@ -211,7 +228,9 @@ window.ACETutorial = (() => {
             });
         };
         window.addEventListener('resize', update);
-        window.addEventListener('scroll', update, true);
+        // On mobile the card is a fixed bottom sheet. Repositioning it for
+        // every scroll event creates a scroll/reposition feedback loop.
+        if (!isMobile()) window.addEventListener('scroll', update, true);
         placementCleanup = () => {
             window.removeEventListener('resize', update);
             window.removeEventListener('scroll', update, true);
