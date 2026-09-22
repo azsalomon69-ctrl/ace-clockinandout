@@ -297,10 +297,18 @@ window.ACETutorial = (() => {
     }
     async function showNavigationStep(stepIndex, step) {
         const target = navigationTarget(step);
-        const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'} ace-tutorial-navigation"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>Go to ${escape(step.navigation?.label || step.title)}</h2><p>${escape(navigationInstruction(step))}</p><div class="ace-tutorial-actions"><button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>${isMobile() ? 'Open sidebar' : 'Use sidebar'}</button></span></div></div>`, `Navigate to ${step.navigation?.label || step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`, { navigation: Boolean(target) });
+        const needsSidebarExpand = isDesktopSidebarCollapsed();
+        const navigationAction = needsSidebarExpand ? 'Expand sidebar' : (isMobile() ? 'Open sidebar' : 'Use sidebar');
+        const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'} ace-tutorial-navigation"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>Go to ${escape(step.navigation?.label || step.title)}</h2><p>${escape(navigationInstruction(step))}</p><div class="ace-tutorial-actions"><button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>${navigationAction}</button></span></div></div>`, `Navigate to ${step.navigation?.label || step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`, { navigation: Boolean(target) });
         ui.querySelector('[data-tutorial-skip]').addEventListener('click', () => finish('SKIPPED'));
         ui.querySelector('[data-tutorial-back]').addEventListener('click', () => go(stepIndex - 1));
-        ui.querySelector('[data-tutorial-navigate]').addEventListener('click', () => pauseForNavigation(stepIndex));
+        ui.querySelector('[data-tutorial-navigate]').addEventListener('click', () => {
+            if (needsSidebarExpand) {
+                document.querySelector('.shell-collapse')?.click();
+                return;
+            }
+            pauseForNavigation(stepIndex);
+        });
         if (target) {
             target.classList.add('ace-tutorial-target');
             const card = ui.querySelector('.ace-tutorial-card');
