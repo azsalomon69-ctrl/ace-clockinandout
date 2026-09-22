@@ -210,6 +210,21 @@ window.ACETutorial = (() => {
             if (targetRect.bottom + 12 > updatedSheetTop) centerCard(card, target, 'target too large to anchor');
             return;
         }
+        // The sidebar control sits on the page edge. A normal "above" card
+        // gets clamped away from it, leaving its arrow pointing at empty
+        // space. Keep this card to the control's right instead.
+        if (target.matches('.shell-collapse')) {
+            const gap = 26;
+            const margin = 12;
+            const left = Math.max(margin, Math.min(targetRect.right + gap, viewportWidth - cardRect.width - margin));
+            const top = Math.max(margin, Math.min(targetRect.top + (targetRect.height - cardRect.height) / 2, viewportHeight - cardRect.height - margin));
+            card.dataset.placement = 'right';
+            card.style.left = `${left}px`;
+            card.style.top = `${top}px`;
+            card.style.setProperty('--ace-tutorial-arrow-y', `${Math.max(20, Math.min(targetRect.top + targetRect.height / 2 - top, cardRect.height - 20))}px`);
+            card.style.removeProperty('bottom');
+            return;
+        }
         // Leave room for the coachmark arrow and keep the taught control visible.
         const gap = 22;
         const margin = 12;
