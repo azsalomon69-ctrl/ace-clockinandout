@@ -81,6 +81,10 @@ const smtpUser = process.env.SMTP_USER?.trim();
 // common Render configuration mistake.
 const smtpAppPassword = process.env.SMTP_APP_PASSWORD?.replace(/\s/g, '');
 const smtpConfigured = Boolean(smtpUser && smtpAppPassword);
+const gmailClientId = process.env.GMAIL_CLIENT_ID?.trim();
+const gmailClientSecret = process.env.GMAIL_CLIENT_SECRET?.trim();
+const gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN?.trim();
+const gmailConfigured = Boolean(gmailClientId && gmailClientSecret && gmailRefreshToken);
 // Gmail supports TLS submission on 587 as well as implicit TLS on 465. Render
 // cannot reach Gmail's 465 endpoint from this service, so use 587 by default.
 const configuredSmtpPort = Number.parseInt(process.env.SMTP_PORT || '587', 10);
@@ -102,23 +106,86 @@ const mailTransport = smtpConfigured ? nodemailer.createTransport({
   auth: { user: smtpUser, pass: smtpAppPassword }
 }) : null;
 const applicationUrl = (frontendOrigins[0] || 'https://aceclock.onrender.com').replace(/\/$/, '');
+const base64Url = value => Buffer.from(value, 'utf8').toString('base64url');
+const gmailApiError = (message, status) => Object.assign(new Error(message), { code: 'EGMAILAPI', status });
+const getGmailAccessToken = async () => {
+  const body = new URLSearchParams({
+    client_id: gmailClientId,
+    client_secret: gmailClientSecret,
+    refresh_token: gmailRefreshToken,
+    grant_type: 'refresh_token'
+  });
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.access_token) {
+    throw gmailApiError(payload.error || 'Could not refresh the Gmail API authorization.', response.status);
+  }
+  return payload.access_token;
+};
+const sendWithGmailApi = async ({ from, to, subject, text, html }) => {
+  const accessToken = await getGmailAccessToken();
+  // RFC 2822 message encoded as base64url, as required by Gmail's send API.
+  // Values originate from validated email addresses and fixed application text.
+  const raw = [
+    `From: ${from}`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/alternative; boundary="ace-clock-invitation"',
+    '',
+    '--ace-clock-invitation',
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    text,
+    '--ace-clock-invitation',
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    html,
+    '--ace-clock-invitation--',
+    ''
+  ].join('\r\n');
+  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ raw: base64Url(raw) })
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw gmailApiError(payload.error?.message || 'Gmail API did not accept the message.', response.status);
+  }
+};
 const sendInvitationEmail = async ({ email, role, invitedBy }) => {
-  if (!mailTransport) return false;
+  if (!gmailConfigured && !mailTransport) return false;
   const recipient = htmlEscape(email);
   const inviter = htmlEscape(invitedBy || 'an ACE administrator');
   const roleName = role === 'ADMIN' ? 'Administrator' : 'Employee';
   const loginUrl = `${applicationUrl}/login`;
-  await mailTransport.sendMail({
-    from: process.env.SMTP_FROM || smtpUser,
+  const message = {
+    from: process.env.GMAIL_FROM?.trim() || process.env.SMTP_FROM || smtpUser,
     to: email,
     subject: 'You are invited to ACE Clock In/Out',
     text: `Hello,\n\n${invitedBy || 'An ACE administrator'} invited you to ACE Clock In/Out as an ${roleName}.\n\nStart here: ${loginUrl}\n\nGetting started:\n1. Sign in with the exact Google email that received this invitation.\n2. Complete your profile settings.\n3. Clock in when you start work.\n4. Start and end breaks from your dashboard.\n5. Clock out when your shift is complete.\n\nACE Outsource Solutions`,
     html: `<main style="max-width:620px;margin:0 auto;padding:32px 24px;font-family:Arial,sans-serif;color:#073b4c;background:#f4fbfc"><section style="overflow:hidden;background:#fff;border:1px solid #cfe7eb;border-radius:18px"><header style="padding:28px 30px;background:#073b4c;color:#fff"><p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:1.2px">ACE OUTSOURCE SOLUTIONS</p><h1 style="margin:0;font-size:26px">You’re invited</h1></header><div style="padding:30px"><p style="margin-top:0;font-size:16px">Hello,</p><p><strong>${inviter}</strong> invited <strong>${recipient}</strong> to ACE Clock In/Out as an <strong>${roleName}</strong>.</p><p style="margin:24px 0"><a href="${loginUrl}" style="display:inline-block;padding:13px 20px;color:#fff;background:#08a2c2;border-radius:8px;font-weight:bold;text-decoration:none">Sign in to ACE Clock</a></p><h2 style="margin:28px 0 12px;font-size:18px">Get started in five steps</h2><ol style="padding-left:22px;line-height:1.7"><li>Sign in with the exact Google email that received this invitation.</li><li>Open <strong>Profile &amp; settings</strong> and complete your account details.</li><li>Choose <strong>Clock In</strong> when you begin work.</li><li>Use <strong>Start Break</strong> and <strong>End Break</strong> to record break time.</li><li>Choose <strong>Clock Out</strong> after your shift, then review your time entries.</li></ol><p style="margin:28px 0 0;color:#587680;font-size:13px">If you cannot sign in, make sure you are using the same Google account this invitation was sent to.</p></div></section></main>`
-  });
+  };
+  if (gmailConfigured) await sendWithGmailApi(message);
+  else await mailTransport.sendMail(message);
   return true;
 };
 const invitationMailIssue = error => {
-  if (!smtpConfigured) return 'Email delivery is not configured on Render.';
+  if (!gmailConfigured && !smtpConfigured) return 'Email delivery is not configured on Render.';
+  if (error?.code === 'EGMAILAPI') {
+    if (error?.message === 'invalid_grant') return 'Gmail authorization expired. Generate and save a new Gmail refresh token in Render.';
+    return 'Gmail API could not send this invitation. Check the Render service logs.';
+  }
   if (error?.code === 'EAUTH') return 'Gmail rejected the sender sign-in. Check SMTP_USER and SMTP_APP_PASSWORD in Render.';
   if (error?.code === 'EENVELOPE') return 'Gmail rejected SMTP_FROM. Use the same Gmail address as SMTP_USER.';
   if (['ECONNECTION', 'ETIMEDOUT', 'ENOTFOUND'].includes(error?.code)) return 'Render could not reach Gmail. Check the Render service logs.';
