@@ -25,6 +25,10 @@ test('every tutorial step has editable required content and a valid selector', (
       assert.equal(typeof step.title, 'string'); assert.ok(step.title.trim());
       assert.equal(typeof step.body, 'string'); assert.ok(step.body.trim());
       assert.equal(typeof step.target, 'string'); assert.ok(step.target.trim());
+      if (step.navigation) {
+        assert.equal(typeof step.navigation.group, 'string'); assert.ok(step.navigation.group.trim());
+        assert.equal(typeof step.navigation.label, 'string'); assert.ok(step.navigation.label.trim());
+      }
       // Keep editable targets to one stable ID or class. Both are valid CSS
       // selectors without requiring a browser DOM in this unit test.
       assert.match(step.target, /^(?:#[A-Za-z][A-Za-z0-9_-]*|\.[A-Za-z][A-Za-z0-9_-]*)$/, `${role}: ${step.target}`);
@@ -66,4 +70,10 @@ test('tutorial launch rules welcome, resume, or stay quiet as appropriate', () =
   assert.equal(tutorial.launchMode(user, config, { status: 'SKIPPED' }), 'NONE');
   assert.equal(tutorial.launchMode({ Status: 'PENDING' }, config, { status: 'NOT_STARTED' }), 'NONE');
   assert.equal(tutorial.launchMode({ Status: 'DENIED' }, config, { status: 'IN_PROGRESS' }), 'NONE');
+});
+
+test('tutorial guides navigation instead of forcing a page change', () => {
+  assert.doesNotMatch(engineSource, /location\.assign\(`\/\$\{step\.page/, 'Tutorial steps must not navigate pages automatically');
+  assert.match(engineSource, /showNavigationStep/, 'Tutorial should explain where to navigate');
+  assert.match(engineSource, /ace:route-ready/, 'Tutorial should resume after shell navigation');
 });

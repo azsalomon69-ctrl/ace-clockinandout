@@ -247,13 +247,30 @@ window.ACETutorial = (() => {
         card.querySelector('[data-tutorial-leave]').addEventListener('click', () => finish('SKIPPED'));
         card.querySelector('[data-tutorial-keep]').focus();
     }
+    const navigationInstruction = step => step.navigation
+        ? `Open the ${step.navigation.group} section in the sidebar, then select ${step.navigation.label}. The tutorial will continue automatically when you arrive.`
+        : 'Use the sidebar to open this page. The tutorial will continue automatically when you arrive.';
+    async function pauseForNavigation(stepIndex) {
+        await persist({ status: 'IN_PROGRESS', step: stepIndex });
+        close();
+        // On phones, expose the sidebar after the guide closes so the next
+        // action is exactly the navigation instruction the user was given.
+        if (isMobile()) document.querySelector('.shell-mobile-toggle')?.click();
+    }
+    async function showNavigationStep(stepIndex, step) {
+        const ui = makeOverlay(`<div class="ace-tutorial-card is-centered ace-tutorial-navigation"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>Go to ${escape(step.navigation?.label || step.title)}</h2><p>${escape(navigationInstruction(step))}</p><div class="ace-tutorial-actions"><button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>Open sidebar</button></span></div></div>`, `Navigate to ${step.navigation?.label || step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`);
+        ui.querySelector('[data-tutorial-skip]').addEventListener('click', () => finish('SKIPPED'));
+        ui.querySelector('[data-tutorial-back]').addEventListener('click', () => go(stepIndex - 1));
+        ui.querySelector('[data-tutorial-navigate]').addEventListener('click', () => pauseForNavigation(stepIndex));
+        ui.querySelector('[data-tutorial-navigate]').focus();
+    }
     async function showStep(stepIndex) {
         const step = roleConfig.steps[stepIndex];
         if (!step) return finish('COMPLETED');
         currentStepIndex = stepIndex;
         if (pageName() !== step.page) {
             await persist({ status: 'IN_PROGRESS', step: stepIndex });
-            location.assign(`/${step.page.replace(/\.html$/, '')}`);
+            await showNavigationStep(stepIndex, step);
             return;
         }
         const target = await waitForTarget(step.target);
@@ -294,5 +311,6 @@ window.ACETutorial = (() => {
     }
     function restart() { if (!profile || profile.Status !== 'ACTIVE') return; close(); start({ fromBeginning: true }); }
     window.addEventListener(readyEvent, initialize);
+    window.addEventListener('ace:route-ready', initialize);
     return { restart, initialize, launchMode };
 })();

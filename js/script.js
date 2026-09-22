@@ -779,6 +779,7 @@ function installPageFadeNavigation() {
             await runMountedPage(parsed);
             await mountRouteModule(parsed);
             window.scrollTo({ top: 0, behavior: 'auto' });
+            window.dispatchEvent(new CustomEvent('ace:route-ready'));
         } catch (error) {
             console.warn('Dashboard content navigation fell back to a normal page load.', error);
             if (isEmployeeNavigation) updateBottomNavRoute(new URL(window.location.href));
