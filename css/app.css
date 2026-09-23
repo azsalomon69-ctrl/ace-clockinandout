@@ -2991,6 +2991,13 @@ body {
   color: var(--ace-muted);
   font-size: .65rem
 }
+.shell-search-highlight {
+  padding: 0 2px;
+  color: inherit;
+  background: #ffec9b;
+  border-radius: 3px;
+  font: inherit
+}
 .shell-search-result-avatar {
   width: 30px;
   height: 30px;

@@ -1011,7 +1011,7 @@ function initializeAppShell() {
     mobileToggle.innerHTML = suppliedIconMarkup('menu', 'shell-icon');
     const topbar = document.createElement('header');
     topbar.className = 'shell-topbar';
-    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" role="combobox" aria-label="Search the workspace" aria-autocomplete="list" aria-expanded="false" aria-controls="shellGlobalResults" autocomplete="off" placeholder="${isAdmin ? 'Search workspace, people, projects…' : 'Search workspace, projects, help…'}"></label><div class="shell-global-results" id="shellGlobalResults" role="listbox" hidden></div></div><div class="shell-topbar-actions"><button class="shell-topbar-icon-button shell-help-button" type="button" aria-label="Open help" title="Need help?">${suppliedIconMarkup('info', 'shell-icon')}</button><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
+    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch" title="Search workspace (Ctrl+K)">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" role="combobox" aria-label="Search the workspace. Press Control K to focus." aria-keyshortcuts="Control+K Meta+K" aria-autocomplete="list" aria-expanded="false" aria-controls="shellGlobalResults" autocomplete="off" placeholder="${isAdmin ? 'Search workspace, people, projects…' : 'Search workspace, projects, help…'}"></label><div class="shell-global-results" id="shellGlobalResults" role="listbox" hidden></div></div><div class="shell-topbar-actions"><button class="shell-topbar-icon-button shell-help-button" type="button" aria-label="Open help" title="Need help?">${suppliedIconMarkup('info', 'shell-icon')}</button><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
     document.body.prepend(overlay); document.body.prepend(sidebar); document.body.prepend(topbar); document.body.prepend(mobileToggle);
 
     let employeeBottomNav = null;
@@ -1330,6 +1330,23 @@ function initializeAppShell() {
     const renderSearchResults = ({ showSuggestions = false } = {}) => {
         const rawQuery = searchInput.value.trim();
         const query = rawQuery.toLowerCase();
+        const highlightSearchText = value => {
+            const source = String(value || '');
+            if (!query) return escapeHtml(source);
+            const terms = [rawQuery, ...rawQuery.split(/[^a-z0-9]+/i)]
+                .map(term => term.trim())
+                .filter(term => term.length > 1)
+                .filter((term, index, list) => list.findIndex(candidate => candidate.toLowerCase() === term.toLowerCase()) === index)
+                .sort((left, right) => right.length - left.length);
+            if (!terms.length) return escapeHtml(source);
+            const expression = new RegExp(`(${terms.map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+            let cursor = 0;
+            return source.replace(expression, (match, _group, offset) => {
+                const before = escapeHtml(source.slice(cursor, offset));
+                cursor = offset + match.length;
+                return `${before}<mark class="shell-search-highlight">${escapeHtml(match)}</mark>`;
+            }) + escapeHtml(source.slice(cursor));
+        };
         const matches = (item, value) => `${item.label || ''} ${item.detail || ''} ${item.keywords || ''}`.toLowerCase().includes(value);
         const matchesNaturalPhrase = action => {
             const words = query.replace(/[^a-z0-9]+/g, ' ').split(' ').filter(Boolean);
@@ -1376,7 +1393,7 @@ function initializeAppShell() {
         visibleSearchResults = results.slice(0, 8);
         if (!visibleSearchResults.length) { closeSearchResults(); searchResults.innerHTML = ''; return; }
         const heading = query ? 'Search results' : 'Recent & quick access';
-        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}<span>${query ? '↑↓ to move · Enter to open' : 'Stored only in this browser'}</span></p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${escapeHtml(result.label)}</strong><small>${escapeHtml(result.detail)}</small></span></button>`).join('')}`;
+        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}<span>${query ? '↑↓ to move · Enter to open' : 'Stored only in this browser'}</span></p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${highlightSearchText(result.label)}</strong><small>${highlightSearchText(result.detail)}</small></span></button>`).join('')}`;
         searchResults.hidden = false;
         searchInput.setAttribute('aria-expanded', 'true');
         searchResults.querySelectorAll('[data-search-result]').forEach(button => button.addEventListener('click', () => openSearchResult(visibleSearchResults[Number(button.dataset.searchResult)])));
@@ -1389,6 +1406,14 @@ function initializeAppShell() {
         if (event.key === 'ArrowDown') { event.preventDefault(); if (searchResults.hidden) renderSearchResults({ showSuggestions: true }); setActiveSearchResult(activeSearchIndex + 1); return; }
         if (event.key === 'ArrowUp') { event.preventDefault(); if (searchResults.hidden) renderSearchResults({ showSuggestions: true }); setActiveSearchResult(activeSearchIndex - 1); return; }
         if (event.key === 'Enter' && activeSearchIndex >= 0) { event.preventDefault(); openSearchResult(visibleSearchResults[activeSearchIndex]); }
+    });
+    document.addEventListener('keydown', event => {
+        if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+            event.preventDefault();
+            searchInput.focus();
+            searchInput.select();
+            renderSearchResults({ showSuggestions: true });
+        }
     });
     document.addEventListener('click', event => {
         if (!sidebar.contains(event.target)) setAccountMenu(false);
