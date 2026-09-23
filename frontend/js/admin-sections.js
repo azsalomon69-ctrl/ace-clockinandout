@@ -99,6 +99,7 @@ function formField(label, type, placeholder, value, index) {
     const options = label === 'Role' ? '<option value="USER"' + (value === 'Admin' ? '' : ' selected') + '>Employee</option><option value="ADMIN"' + (value === 'Admin' ? ' selected' : '') + '>Admin</option>'
       : label === 'Department' ? '<option value="">No department</option>' + (state?.departments || []).map(item => '<option value="' + item.DepartmentId + '"' + (value === item.DepartmentName ? ' selected' : '') + '>' + esc(item.DepartmentName) + '</option>').join('')
       : label === 'Project assignment' ? '<option value="">No project change</option>' + (state?.projects || []).filter(item => item.IsActive).map(item => '<option value="' + item.ProjectId + '">' + esc(item.ProjectName) + '</option>').join('')
+      : label === 'Schedule assignment' ? '<option value="">Leave schedule unchanged</option>'
       : '<option value="ACTIVE">Approve</option><option value="DENIED">Deny</option>';
     return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><select class="form-select" id="' + id + '">' + options + '</select></div>';
   }
@@ -154,7 +155,7 @@ function modal(view, primary, record) {
     : primary && ['users', 'invitations'].includes(key) ? [['Work email', 'email', 'name@example.com'], ['Role', 'select', 'USER']]
       : (primary || edit) && key === 'departments' ? [['Department name', 'text', 'e.g. Client Services'], ['Description', 'textarea', 'What does this department handle?'], ...(edit ? [['Add employee (optional)', 'user-search', 'Search by employee name or email']] : [])]
         : (primary || edit) && key === 'projects' ? [['Project name', 'text', 'e.g. Customer Portal'], ['Description', 'textarea', 'Describe the project scope']]
-          : manage ? [['Role', 'select', 'USER'], ['Department', 'select', ''], ['Project assignment', 'select', '']] : review ? [['Approval', 'select', 'ACTIVE']] : [];
+          : manage ? [['Role', 'select', 'USER'], ['Department', 'select', ''], ['Project assignment', 'select', ''], ['Schedule assignment', 'select', '']] : review ? [['Approval', 'select', 'ACTIVE']] : [];
   node.querySelector('.modal-title').textContent = primary ? view.action : label + ' ' + view.title.toLowerCase();
   const summary = record ? '<div class="detail-summary"><strong>' + esc(record.cells[0]) + '</strong><p>' + record.cells.slice(1, -1).map(esc).join(' · ') + '</p></div>' : '';
   if (!fields.length) {
@@ -194,6 +195,13 @@ function modal(view, primary, record) {
   }
   const buttonLabel = remark ? 'Add remark' : review ? 'Save decision' : manage ? 'Save role' : primary ? view.action : 'Save changes';
   node.querySelector('.modal-body').innerHTML = summary + '<form id="adminActionForm">' + fields.map((field, index) => formField(field[0], field[1], field[2], edit ? record.cells[index] : manage ? (index === 0 ? record.cells[2] : index === 1 ? record.cells[3] : '') : '', index)).join('') + '<div class="form-actions"><button class="btn btn-primary" type="submit">' + icon('check') + buttonLabel + '</button>' + (manage ? '<button class="btn btn-danger admin-remove-user" type="button">' + icon('folder') + 'Archive user</button>' : '') + (deleteRecord ? '<button class="btn btn-danger admin-delete-record" type="button">' + icon('trash') + 'Delete</button>' : '') + '<button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div></form>';
+  if (manage) {
+    const scheduleSelect = document.getElementById('adminField3');
+    liveRequest('/v1/schedules').then(schedules => {
+      const assigned = schedules.find(schedule => (schedule.user_schedule_assignments || []).some(assignment => String(assignment.user_id) === String(record.id)));
+      scheduleSelect.innerHTML = '<option value="">Leave schedule unchanged</option><option value="__REMOVE__">Remove schedule</option>' + schedules.filter(schedule => schedule.is_active).map(schedule => '<option value="' + esc(schedule.id) + '"' + (assigned?.id === schedule.id ? ' selected' : '') + '>' + esc(schedule.name) + '</option>').join('');
+    }).catch(() => { scheduleSelect.innerHTML = '<option value="">Schedule list unavailable</option>'; });
+  }
   const employeePicker = node.querySelector('#adminField2Add');
   if (employeePicker) {
     const search = document.getElementById('adminField2');
@@ -259,6 +267,8 @@ function modal(view, primary, record) {
         await liveRequest('/v1/users/' + record.id + '/department', { method: 'PATCH', body: JSON.stringify({ departmentId: document.getElementById('adminField1').value || null }) });
         const projectId = document.getElementById('adminField2').value;
         if (projectId) await liveRequest('/v1/users/' + record.id + '/projects/' + projectId, { method: 'PUT' });
+        const scheduleId = document.getElementById('adminField3').value;
+        if (scheduleId) await liveRequest('/v1/users/' + record.id + '/schedule', { method: 'PUT', body: JSON.stringify({ scheduleId: scheduleId === '__REMOVE__' ? null : scheduleId }) });
       }
       else if (review) await liveRequest('/v1/users/' + record.id + '/approval', { method: 'PATCH', body: JSON.stringify({ status: first }) });
       closeModal('adminActionModal');
