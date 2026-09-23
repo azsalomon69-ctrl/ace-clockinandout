@@ -324,14 +324,19 @@ window.ACETutorial = (() => {
         const links = [...(groupElement?.querySelectorAll('.shell-link') || document.querySelectorAll('.shell-link'))];
         const link = links.find(element => element.textContent.trim().toLowerCase() === normalizedLabel)
             || links.find(element => element.textContent.trim().toLowerCase().includes(normalizedLabel));
-        if (link) return link;
         if (group === 'Account') {
+            const accountMenu = document.querySelector('.shell-account-menu');
+            // The profile link exists in the DOM even when its menu is
+            // hidden. Highlight the visible account control first; after the
+            // user opens it, point to the actual Profile & settings item.
+            if (accountMenu?.hidden !== false) return document.querySelector('.shell-account');
             const accountLink = [...document.querySelectorAll('.shell-account-menu [role="menuitem"]')].find(element => {
                 const itemLabel = element.textContent.trim().toLowerCase();
                 return itemLabel === normalizedLabel || itemLabel.includes(normalizedLabel) || normalizedLabel.includes(itemLabel);
             });
             return accountLink || document.querySelector('.shell-account');
         }
+        if (link) return link;
         return isMobile() ? document.querySelector('.shell-mobile-toggle') : null;
     };
     async function pauseForNavigation(stepIndex) {
@@ -372,6 +377,8 @@ window.ACETutorial = (() => {
             });
             const sidebarToggle = document.querySelector('.shell-collapse');
             sidebarToggle?.addEventListener('click', refreshNavigation, { once: true });
+            const accountToggle = document.querySelector('.shell-account');
+            if (target === accountToggle) accountToggle?.addEventListener('click', refreshNavigation, { once: true });
             window.addEventListener('ace:sidebar-state-change', refreshNavigation, { once: true });
             if (target.matches('.shell-nav-group-toggle') && target !== sidebarToggle) target.addEventListener('click', refreshNavigation, { once: true });
             watchNavigationState(ui, stepIndex, step);

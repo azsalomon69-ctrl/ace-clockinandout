@@ -94,6 +94,8 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /MutationObserver/, 'Tutorial should refresh only after the shell has actually changed its sidebar state');
   assert.match(engineSource, /ace:sidebar-state-change/, 'Tutorial should react to every state update emitted by the real sidebar controls');
   assert.match(engineSource, /shell-account-menu \[role="menuitem"\]/, 'Tutorial should adapt after the account menu is opened');
+  assert.match(engineSource, /accountMenu\?\.hidden !== false/, 'Tutorial should highlight the visible account control before its hidden menu item');
+  assert.match(engineSource, /target === accountToggle/, 'Tutorial should update its highlight after the account menu opens');
   assert.match(engineSource, /target\.matches\('\.shell-collapse'\)/, 'Sidebar-edge control should receive dedicated pointer placement');
   assert.match(engineSource, /card\.dataset\.placement = 'right'/, 'Sidebar-edge tutorial card should point left at the real control');
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
