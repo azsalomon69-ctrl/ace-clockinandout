@@ -92,6 +92,7 @@ body.ace-tutorial-welcome-open { overflow: hidden; }
   .ace-tutorial-overlay { align-items: end; padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
   .ace-tutorial-card { right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px; width: auto; max-height: calc(100dvh - 24px); padding: 22px; overflow-y: auto; overscroll-behavior: contain; border-radius: 18px 18px 14px 14px; animation: ace-tutorial-sheet-in .22s ease-out both; }
   .ace-tutorial-card.is-centered { position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px !important; width: auto; }
+  .ace-tutorial-card.ace-tutorial-mobile-top-card { top: calc(72px + env(safe-area-inset-top)); right: 12px; bottom: auto; left: 12px; }
   .ace-tutorial-card[data-placement]::after { display: none; }
   .ace-tutorial-actions { align-items: stretch; flex-direction: column-reverse; }
   .ace-tutorial-actions > span { justify-content: stretch; }

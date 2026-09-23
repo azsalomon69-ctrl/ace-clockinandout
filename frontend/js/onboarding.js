@@ -158,6 +158,10 @@ window.ACETutorial = (() => {
         return target;
     }
     async function revealTarget(target, mobile, card) {
+        // Account controls live at the bottom of the mobile sidebar. They are
+        // already fixed in view, so scrolling them would only move the page
+        // behind the drawer and make the guidance harder to follow.
+        if (mobile && target.matches('.shell-account, .shell-account-menu [role="menuitem"]')) return;
         const rect = target.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         const isVisible = rect.bottom > 0 && rect.top < viewportHeight;
@@ -172,7 +176,10 @@ window.ACETutorial = (() => {
             const afterScroll = target.getBoundingClientRect();
             const sheetHeight = card?.getBoundingClientRect().height || viewportHeight * .42;
             const availableHeight = viewportHeight - sheetHeight - 28;
-            const desiredTop = Math.max(72, Math.min(150, availableHeight - afterScroll.height - 12));
+            // Keep the taught control comfortably visible without forcing it
+            // against the fixed header. The previous 150px cap scrolled the
+            // page farther than necessary on a phone.
+            const desiredTop = Math.max(96, Math.min(235, availableHeight - afterScroll.height - 12));
             const adjustment = afterScroll.top - desiredTop;
             if (Math.abs(adjustment) > 8) {
                 window.scrollBy({ top: adjustment, behavior: scrollBehavior() });
@@ -195,11 +202,23 @@ window.ACETutorial = (() => {
         if (reveal) await revealTarget(target, mobile, card);
         if (!overlay || !active) return;
         card.classList.remove('is-centered');
+        card.classList.remove('ace-tutorial-mobile-top-card');
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         let targetRect = target.getBoundingClientRect();
         const cardRect = card.getBoundingClientRect();
         const requiredHeight = cardRect.height + 48;
+        if (mobile && target.matches('.shell-account, .shell-account-menu [role="menuitem"]')) {
+            // Keep the bottom account panel and its pop-up menu out from
+            // behind the normal bottom-sheet tutorial card.
+            target.classList.add('ace-tutorial-target');
+            card.classList.add('ace-tutorial-mobile-top-card');
+            card.style.removeProperty('bottom');
+            card.style.removeProperty('left');
+            card.style.removeProperty('right');
+            card.style.removeProperty('top');
+            return;
+        }
         if (targetRect.height > viewportHeight - requiredHeight) {
             centerCard(card, target, 'target too large to anchor');
             return;
@@ -344,16 +363,24 @@ window.ACETutorial = (() => {
         close();
         // On phones, expose the sidebar after the guide closes so the next
         // action is exactly the navigation instruction the user was given.
-        if (isMobile()) document.querySelector('.shell-mobile-toggle')?.click();
+        // Then recreate the navigation guide so it can highlight the exact
+        // destination instead of leaving the current Dashboard active state
+        // looking like the tutorial target.
+        if (isMobile()) {
+            document.querySelector('.shell-mobile-toggle')?.click();
+            await nextFrame();
+            return showNavigationStep(stepIndex, roleConfig.steps[stepIndex]);
+        }
     }
     async function showNavigationStep(stepIndex, step) {
         const needsSidebarExpand = isDesktopSidebarCollapsed();
         // Read the state once so the words and the highlighted control cannot
         // disagree while the shell is restoring its saved sidebar preference.
         const target = needsSidebarExpand ? document.querySelector('.shell-collapse') : navigationTarget(step);
+        const mobileSidebarOpen = isMobile() && document.body.classList.contains('shell-mobile-open');
         const navigationActions = needsSidebarExpand
             ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`
-            : isMobile()
+            : isMobile() && !mobileSidebarOpen
                 ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>Open sidebar</button></span>`
                 : `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`;
         const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'} ace-tutorial-navigation"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>Go to ${escape(step.navigation?.label || step.title)}</h2><p>${escape(navigationInstruction(step))}</p><div class="ace-tutorial-actions">${navigationActions}</div></div>`, `Navigate to ${step.navigation?.label || step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`, { navigation: Boolean(target) });

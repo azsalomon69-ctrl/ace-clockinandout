@@ -79,6 +79,7 @@ test('tutorial updates preserve a prior skip or completion choice', () => {
 });
 
 test('tutorial guides navigation instead of forcing a page change', () => {
+  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
   assert.doesNotMatch(engineSource, /location\.assign\(`\/\$\{step\.page/, 'Tutorial steps must not navigate pages automatically');
   assert.match(engineSource, /showNavigationStep/, 'Tutorial should explain where to navigate');
   assert.match(engineSource, /ace:route-ready/, 'Tutorial should resume after shell navigation');
@@ -96,16 +97,20 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /shell-account-menu \[role="menuitem"\]/, 'Tutorial should adapt after the account menu is opened');
   assert.match(engineSource, /accountMenu\?\.hidden !== false/, 'Tutorial should highlight the visible account control before its hidden menu item');
   assert.match(engineSource, /target === accountToggle/, 'Tutorial should update its highlight after the account menu opens');
+  assert.match(engineSource, /return showNavigationStep\(stepIndex, roleConfig\.steps\[stepIndex\]\)/, 'Mobile navigation should reopen the guide and highlight the requested destination after opening the sidebar');
+  assert.match(engineSource, /mobileSidebarOpen/, 'Mobile navigation should remove the open-sidebar action after the drawer is visible');
+  assert.match(engineSource, /Math\.min\(235, availableHeight - afterScroll\.height - 12\)/, 'Mobile target positioning should avoid unnecessary scrolling');
+  assert.match(engineSource, /ace-tutorial-mobile-top-card/, 'Mobile account guidance should keep bottom account controls visible above the tutorial card');
+  assert.match(styles, /\.ace-tutorial-card\.ace-tutorial-mobile-top-card/, 'Mobile account tutorial cards should render at the top of the screen');
   assert.match(engineSource, /target\.matches\('\.shell-collapse'\)/, 'Sidebar-edge control should receive dedicated pointer placement');
   assert.match(engineSource, /card\.dataset\.placement = 'right'/, 'Sidebar-edge tutorial card should point left at the real control');
-  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse/, 'Tutorial should keep the actual sidebar expand control visible while highlighting it');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse \{ position: fixed !important;/, 'Highlighting must preserve the real edge control position');
   assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');
   assert.match(engineSource, /navigationTarget/, 'Tutorial should identify the exact sidebar control to use');
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');
   assert.doesNotMatch(engineSource, /\$\{isMobile\(\) \? 'Open sidebar' : 'Use sidebar'\}/, 'Desktop navigation should not show a redundant Use sidebar button');
-  assert.match(engineSource, /: isMobile\(\)\s*\?/, 'Only mobile navigation should show an action to open the sidebar');
+  assert.match(engineSource, /: isMobile\(\) && !mobileSidebarOpen/, 'Only a closed mobile sidebar should show an action to open it');
 });
 
 test('employee time-entry navigation matches the visible sidebar label', () => {
