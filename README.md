@@ -1,161 +1,165 @@
 # ACE Clock In/Out
 
-Time tracking web app with a Render Static Site frontend, a Node.js API on Render, and Supabase for authentication and Postgres.
+ACE Clock In/Out is a role-based time-tracking workspace for administrators and employees. It has a static frontend, a Node.js API, and Supabase for authentication and data.
+
+## What the project currently includes
+
+- Secure employee clock-in/clock-out, breaks, time-entry notes, and remarks.
+- Administrator tools for users, invitations, access requests, departments, projects, schedules, reports, audit history, deleted records, and employee chat logs.
+- Role-specific onboarding tutorials: 20 steps for administrators and 4 steps for employees.
+- A role-specific **Need help** center with searchable FAQ answers, so users can find one task without restarting an entire tutorial.
+- Profile photos through Cloudinary when its environment variables are configured.
+- Invitation delivery through Gmail API when configured, with Gmail SMTP as a fallback. Access is still created if delivery fails, and the UI shows a clear delivery warning.
+- Production-friendly frontend builds with minified, hashed assets.
 
 ## Architecture
 
-- **Render Static Site:** the HTML/CSS/JS frontend in this repository.
-- **Render Web Service:** `server/index.js`, the protected Node.js/Express API.
-- **Supabase:** Auth, Postgres database, invitations, and Row Level Security.
+| Layer | Technology | Responsibility |
+| --- | --- | --- |
+| Frontend | Static HTML, CSS, and browser JavaScript | Dashboard, role-specific navigation, tutorial, help center, forms, reports, and responsive UI |
+| API | Node.js, Express | Authentication-aware API, validation, invitations, mail delivery, reporting, audit/security rules |
+| Data and auth | Supabase | Auth users, profiles, clock records, projects, departments, schedules, and app data |
+| Media | Cloudinary | Optional uploaded profile photos |
+| Hosting | Render | Static Site for the built frontend and Web Service for the API |
 
-The database model is in [supabase/schema.sql](supabase/schema.sql). It implements the supplied flow diagram: profiles/users, invitations, approvals, departments, projects, user-project assignments, time entries, remarks, audit logs, reports, and report exports.
+## Requirements
+
+- Node.js 20 or later
+- A Supabase project with the migrations in `supabase/MIGRATION_ORDER.md` applied
+- A Supabase secret/service key for the API (never expose it in the frontend)
+
+Optional integrations:
+
+- Cloudinary for profile photos
+- Gmail API or Gmail SMTP for invitation email delivery
 
 ## Local setup
 
-1. Install Node.js 20 or newer.
-2. Copy `.env.example` to `.env` and enter your Supabase project URL, publishable key, and **secret key**.
-3. Apply the database files in the required order in [supabase/MIGRATION_ORDER.md](supabase/MIGRATION_ORDER.md). Do not deploy after running only `supabase/schema.sql`. If Google sign-in shows “Database error saving new user”, run `supabase/auth-profile-trigger-fix.sql` once to repair the Auth profile trigger.
-4. Run `npm install` and then `npm run dev`.
-5. Serve the frontend files with a local static server. Configure `FRONTEND_ORIGIN` with that server's address.
+1. Install dependencies:
 
-## Supabase setup
+   ```bash
+   npm ci
+   ```
 
-1. Create a new Supabase project.
-2. Apply the database files in the required order in [supabase/MIGRATION_ORDER.md](supabase/MIGRATION_ORDER.md). For an existing project, follow that guide's existing-project path instead of re-running the base schema.
-3. Under **Authentication → Providers**, enable Google if Google sign-in is required.
-4. Add your Render Static Site production URL and local development URL under **Authentication → URL Configuration**.
-5. Copy the Project URL, publishable key, and a server-only `sb_secret_...` key into Render. Do not put the secret key in any browser JavaScript.
-6. Run `npm run seed:admin` locally once after SQL setup. It creates only `ace@admin.com` and delegates password hashing to Supabase Auth. Set its password through `INITIAL_ADMIN_PASSWORD` in `.env`.
-7. Set `ACE_API_URL` or `ACE_API_URL_FALLBACK` before building the frontend. The build generates the browser's `window.ACE_API_URL` configuration; do not create or edit `js/api-config.js` manually.
-8. Before API deployment, run `npm run db:verify`. It verifies the deployed Supabase project has the tables, columns, and RPCs used by the API.
+2. Copy `.env.example` to `.env` and provide the required values:
 
-If you need to promote a different administrator later, use SQL Editor:
+   ```env
+   PORT=3000
+   NODE_ENV=development
+   FRONTEND_ORIGIN=http://localhost:5500
 
-```sql
-update public.profiles
-set role = 'ADMIN', status = 'ACTIVE'
-where email = 'your-admin-email@example.com';
-```
+   SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+   SUPABASE_SECRET_KEY=sb_secret_...
+   SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+   HEAD_ADMIN_EMAIL=admin@example.com
+   ```
 
-## Staging security integration tests
+3. Apply the database migrations in the documented order:
 
-The automated integration suite is deliberately separate from normal development and production credentials. Create a dedicated staging Supabase project plus isolated `ADMIN` and `USER` accounts, then copy `.env.test.example` to `.env.test` in the repository root (the same folder as `package.json`) and fill in the values there. `.env.test` is explicitly ignored by Git and is loaded automatically by the test command.
+   ```bash
+   npm run db:verify
+   ```
 
-Run:
+4. Start the API:
+
+   ```bash
+   npm run dev
+   ```
+
+5. Serve the project folder with a local static server, such as VS Code Live Server. The frontend needs the API available at `http://localhost:3000` unless `ACE_API_URL` is supplied when building.
+
+## Frontend build and preview
+
+The production frontend is generated into `dist/`; it is intentionally not committed.
 
 ```bash
+set ACE_API_URL=https://your-api.onrender.com
+npm run build
+npm run preview:build
+```
+
+The build validates the API URL, minifies JavaScript and CSS, fingerprints assets for cache-safe deploys, copies static files, and writes the generated page references. A production build must use the real API URL.
+
+## Tests and verification
+
+```bash
+npm test
+npm run test:security
 npm run test:security:integration
+npm run test:concurrency
+npm run db:verify
 ```
 
-The suite uses real HTTP requests to verify that unauthenticated requests receive `401`, a real USER receives `403` for admin reads and mutations, and a real ADMIN succeeds for normal admin reads. It also verifies forged client role claims, invalid bearer tokens, inactive-account denial when an optional inactive fixture is supplied, and optional resource-ID mutation attempts. It never prints access tokens, passwords, cookies, or secrets.
+`npm test` is the normal local test suite. The security and concurrency commands are additional checks for deployments where the relevant Supabase configuration is available.
 
-By default it performs only safe reads plus denied-request checks. Set `ACE_TEST_RUN_MUTATIONS=true` only for an isolated staging environment with the supplied fixture IDs; that mode creates a test remark and briefly assigns then removes a test project assignment.
+## Render deployment
 
-## GitHub
+### API Web Service
 
-Create an empty GitHub repository, then run these commands from this folder:
+The API service is defined by `render.yaml`.
 
-```bash
-git init
-git add .
-git commit -m "Build ACE Clock In/Out API foundation"
-git branch -M main
-git remote add origin https://github.com/YOUR-ACCOUNT/YOUR-REPOSITORY.git
-git push -u origin main
+- Build command: `npm install`
+- Start command: `npm start`
+- Health check: `/health`
+- Environment: Node 20+
+
+Set the required Supabase values, `HEAD_ADMIN_EMAIL`, and `FRONTEND_ORIGIN` to the exact deployed frontend origin. Configure Cloudinary and email variables only when those features are needed.
+
+### Frontend Static Site
+
+The frontend Static Site is configured in the Render dashboard rather than `render.yaml`.
+
+- Build command: `npm ci && npm run build`
+- Publish directory: `dist`
+- Environment variable: `ACE_API_URL=https://your-api.onrender.com`
+
+Do not point `ACE_API_URL` to the frontend URL. It must be the public URL of the Node API service.
+
+## Invitation email setup
+
+The server tries Gmail API first when all Gmail API values are present. If Gmail API is unavailable, it can fall back to SMTP.
+
+### Recommended: Gmail API
+
+```env
+GMAIL_CLIENT_ID=...
+GMAIL_CLIENT_SECRET=...
+GMAIL_REFRESH_TOKEN=...
+GMAIL_FROM=company@example.com
 ```
 
-Do not commit `.env` or Supabase secret keys.
+Use a Google Cloud OAuth client and a refresh token authorized for Gmail sending. On a Google OAuth app left in testing mode, refresh-token access can expire; publish the consent screen when the account and business policy allow it.
 
-## Deploy the API to Render
+### SMTP fallback
 
-1. In Render, choose **New → Blueprint** and select the GitHub repository. Render will find `render.yaml`.
-2. Add the required environment variables:
-   - `SUPABASE_URL`
-   - `SUPABASE_SECRET_KEY`
-   - `SUPABASE_PUBLISHABLE_KEY`
-   - `HEAD_ADMIN_EMAIL` — the email address of the protected head administrator
-   - `FRONTEND_ORIGIN` — your Render Static Site URL, for example `https://aceclock.onrender.com`
-3. Deploy, then confirm `https://YOUR-RENDER-SERVICE.onrender.com/health` returns `{ "ok": true }`.
-
-## Deploy the frontend to Render
-
-1. In Render, create a **Static Site** from the same GitHub repository.
-2. Set the build command to `npm ci && npm run build` and publish directory to `dist`.
-3. Add `ACE_API_URL` with the HTTPS URL of the Render API service. The build uses `ACE_API_URL` first, then `ACE_API_URL_FALLBACK`, and fails clearly if neither is set.
-4. In **Headers**, configure the response headers in `_headers` for `/*`; then add clean URL rewrite rules such as `/login` → `/login.html`.
-5. Deploy. The production build minifies HTML, CSS, and JavaScript; uses hashed frontend asset filenames; and deliberately creates no source maps.
-6. Add the deployed Render Static Site URL to the API's `FRONTEND_ORIGIN` and Supabase Auth redirect URLs.
-
-## Cache-busting source assets
-
-When committing changes to any `js/*.js` or `css/*.css` file, bump the `?v=` query string in every HTML file that loads it. Otherwise, returning visitors can receive a stale cached copy. The production build already uses hashed asset filenames; this manual version bump applies to the readable source pages and local/static deployments.
-
-## Local browser dependencies
-
-The production build bundles the exact Supabase UMD dependency (`@supabase/supabase-js` `2.112.4`) and Excel export dependency (`xlsx` `0.18.5`) as hashed `/assets/js/` files. Browser authentication and Excel exports therefore do not depend on jsDelivr or another third-party runtime script host.
-
-`script-src` currently allows `'unsafe-inline'` because the HTML uses inline event handlers (such as `onclick`). A future task should migrate these to `addEventListener` and then remove `'unsafe-inline'`.
-
-## Schedule compliance specification
-
-This section defines the schedule-compliance rules for the planned implementation. All scheduled-time comparisons use the `Asia/Manila` timezone.
-
-### Definitions
-
-- `duration_seconds` is the existing net-work duration: elapsed clock time minus recorded `break_seconds`.
-- `elapsed_seconds = duration_seconds + break_seconds`.
-- `target_seconds = daily_elapsed_minutes * 60`.
-- All resulting seconds values are non-negative integers.
-
-### Fixed schedules
-
-For a `FIXED` schedule, `scheduled_start` is the schedule's start time on the entry's clock-in date in `Asia/Manila`.
-
-- **Late:** `late_seconds = max(0, clock_in_at - scheduled_start)`. Late is strict: there is no grace period. Any clock-in after the scheduled start is late.
-- **Undertime:** `undertime_seconds = max(0, target_seconds - elapsed_seconds)`.
-- **Overtime / Above target:** `overtime_seconds = max(0, elapsed_seconds - target_seconds)`. It is informational only; it has no payroll, approval, or disciplinary meaning.
-- **Break overage:** `break_overage_seconds = max(0, break_seconds - (break_limit_minutes * 60))`. It is an informational administrator indicator only. It is not included in undertime and does not dock worked time.
-
-### Flextime schedules
-
-For a `FLEX` schedule, there is no late classification because it has no scheduled start time.
-
-- **Late:** not applicable; `late_seconds` is `null`.
-- **Undertime:** `undertime_seconds = max(0, target_seconds - elapsed_seconds)`.
-- **Overtime / Above target:** `overtime_seconds = max(0, elapsed_seconds - target_seconds)`. It is informational only; it has no payroll, approval, or disciplinary meaning.
-- **Break overage:** `break_overage_seconds = max(0, break_seconds - (break_limit_minutes * 60))`. It is informational only and remains separate from undertime.
-
-### Break-inclusive target example
-
-The daily target is elapsed time, including breaks. For a nine-hour schedule with a one-hour break allowance, an employee who records eight hours of net work and one hour of break has nine elapsed hours:
-
-```text
-duration_seconds = 8 hours
-break_seconds    = 1 hour
-elapsed_seconds  = 9 hours
-target_seconds   = 9 hours
-undertime_seconds = 0
+```env
+SMTP_USER=company@gmail.com
+SMTP_APP_PASSWORD=the16characterapppasswordwithoutspaces
+SMTP_FROM=company@gmail.com
+SMTP_PORT=587
 ```
 
-That employee is on target. The break is only flagged when it exceeds the configured break limit.
+For Gmail, create an App Password after enabling two-step verification. Use port `587` with TLS. Render commonly cannot reach Gmail on port `465`, so port `587` is the intended fallback configuration.
 
-### No schedule assigned
+Never commit an app password, OAuth secret, refresh token, Supabase secret key, or Cloudinary secret.
 
-An entry with no assigned schedule has the classification `NOT_APPLICABLE`. Its `late_seconds`, `undertime_seconds`, `overtime_seconds`, and `break_overage_seconds` are all `null`. It produces no employee penalty and no administrator alert.
+## Tutorial and help center
 
-## API routes
+- The tutorial persists each user’s progress in their profile and resumes after navigation or refresh.
+- Cross-page tutorial steps ask the user to use the actual sidebar; they continue automatically after the requested page is opened.
+- The tutorial adapts when the sidebar is collapsed or expanded and points to the relevant visible control.
+- **Need help** is available from the top bar for administrators and employees. It provides searchable, role-specific answers for one-off questions.
 
-All `/v1/*` routes require a Supabase user access token in `Authorization: Bearer <token>`.
+See `ONBOARDING.md` for authoring and reset details.
 
-- `GET /v1/me`
-- `POST /v1/access-requests`
-- `GET|POST|PATCH /v1/departments`
-- `GET|POST|PATCH /v1/projects`
-- `GET /v1/users`, `PATCH /v1/users/:id/approval`
-- `POST /v1/invitations`
-- `GET /v1/time-entries`, `POST /v1/time-entries/clock-in`, `POST /v1/time-entries/:id/clock-out`
-- `POST /v1/time-entries/:id/remarks`
-- `GET|POST /v1/reports`, `POST /v1/reports/:id/exports`
-- `GET /v1/audit-logs`
+## Database changes
 
-`database.json` and the frontend preview accounts have been removed. Login now uses Supabase Auth, and Request Access posts a real pending request to Supabase through the API.
+See `supabase/MIGRATION_ORDER.md` before creating a new Supabase project, upgrading an existing database, or re-offering the tutorial.
+
+## Security notes
+
+- Keep API credentials only in API environment variables.
+- The browser uses only the Supabase publishable key and the API public URL.
+- CORS is restricted through `FRONTEND_ORIGIN` in production.
+- Sensitive endpoints are rate-limited, authenticated, and validated by the API.
+- Use the managed delete/archive screens rather than manually removing authentication records.
