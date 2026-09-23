@@ -32,9 +32,15 @@ const duration = seconds => { const safe = Math.max(0, Number(seconds) || 0); re
 const icon = (name, className = 'ui-icon') => '<img class="' + className + '" src="assets/icons/' + name + '.svg" alt="" aria-hidden="true">';
 const emptyTable = (title, message, colspan) => '<tr class="table-empty-row"><td colspan="' + colspan + '"><div class="empty-state empty-state-compact"><div class="empty-state-icon">' + icon('folder') + '</div><h3>' + esc(title) + '</h3><p>' + esc(message) + '</p></div></td></tr>';
 
-async function applyLiveData(key, view) {
+async function applyLiveData(key, view, pageState = null, filters = {}) {
   if (key === 'users') {
-    const items = await liveRequest('/v1/users');
+    const params = new URLSearchParams();
+    if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); }
+    if (filters.q) params.set('q', filters.q);
+    if (filters.role) params.set('role', filters.role);
+    if (filters.departmentId) params.set('departmentId', filters.departmentId);
+    const response = await liveRequest('/v1/users' + (params.size ? '?' + params.toString() : ''));
+    const items = response.items || response; view.total = response.total ?? items.length;
     const onlineAfter = Date.now() - 2 * 60 * 1000;
     view.records = items.map(item => {
       const online = item.last_seen_at && new Date(item.last_seen_at).getTime() >= onlineAfter;
@@ -50,7 +56,16 @@ async function applyLiveData(key, view) {
     view.records = items.map(item => ({ id: item.id, cells: [item.name, item.description || '—', date(item.created_at), item.is_active ? 'Active' : 'Inactive', 'Edit'] }));
     view.stats = [[items.length, 'Total ' + key, key === 'projects' ? 'folder' : 'building'], [items.filter(item => item.is_active).length, 'Active ' + key, 'check']];
   } else if (key === 'entries') {
-    const [items, remarks] = await Promise.all([liveRequest('/v1/time-entries'), liveRequest('/v1/admin-remarks')]);
+    const params = new URLSearchParams();
+    if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); }
+    if (filters.q) params.set('q', filters.q);
+    if (filters.status) params.set('status', filters.status);
+    if (filters.employee) params.set('employee', filters.employee);
+    if (filters.project) params.set('project', filters.project);
+    if (filters.remarks) params.set('remarks', filters.remarks);
+    const response = await liveRequest('/v1/time-entries' + (params.size ? '?' + params.toString() : ''));
+    const items = response.items || response; view.total = response.total ?? items.length;
+    const remarks = items.length ? await liveRequest('/v1/admin-remarks?timeEntryIds=' + encodeURIComponent(items.map(item => item.id).join(','))) : [];
     const remarksByEntry = new Map();
     remarks.forEach(remark => {
       const list = remarksByEntry.get(remark.time_entry_id) || [];
@@ -329,6 +344,9 @@ function openTimeEntryExport(records) {
 }
 async function renderAdminSection() {
   const key = document.body.dataset.adminView; const config = ADMIN_SECTION_CONFIG[key]; if (!config) return;
+  const serverPaged = key === 'users' || key === 'entries';
+  const pageState = { page: 1, size: 25 };
+  const activeFilters = {};
   // A live redraw must not stack filters or click handlers from the previous
   // pass. It only runs while no form or dialog is being edited.
   document.querySelectorAll('.admin-user-filters').forEach(node => node.remove());
@@ -336,26 +354,28 @@ async function renderAdminSection() {
   if (existingAction?.parentNode) existingAction.parentNode.replaceChild(existingAction.cloneNode(true), existingAction);
   const existingSearch = document.getElementById('sectionSearch');
   if (existingSearch?.parentNode) existingSearch.parentNode.replaceChild(existingSearch.cloneNode(true), existingSearch);
-  const view = { ...config, records: [], stats: [] };
-  try { await applyLiveData(key, view); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); }
+  const view = { ...config, records: [], stats: [], total: 0 };
+  try { await applyLiveData(key, view, serverPaged ? pageState : null, activeFilters); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); }
   document.title = view.title + ' · ACE Outsource Solutions';
   document.getElementById('sectionTitle').textContent = view.title; document.getElementById('sectionDescription').textContent = view.description;
   const actionButton = document.getElementById('sectionAction'); actionButton.hidden = !view.action;
   if (view.action) actionButton.innerHTML = icon(view.actionIcon) + view.action;
-  document.getElementById('sectionStats').innerHTML = view.stats.map(item => '<div class="stat-card"><div class="stat-icon">' + icon(item[2]) + '</div><div class="stat-info"><div class="stat-number">' + esc(item[0]) + '</div><div class="stat-label">' + esc(item[1]) + '</div></div></div>').join('');
+  const renderStats = () => { document.getElementById('sectionStats').innerHTML = view.stats.map(item => '<div class="stat-card"><div class="stat-icon">' + icon(item[2]) + '</div><div class="stat-info"><div class="stat-number">' + esc(item[0]) + '</div><div class="stat-label">' + esc(item[1]) + '</div></div></div>').join(''); };
+  renderStats();
   const tableTitle = document.getElementById('sectionTableTitle'); tableTitle.textContent = view.title;
   document.getElementById('sectionTableHead').innerHTML = '<tr>' + view.columns.map(column => '<th>' + esc(column) + '</th>').join('') + '</tr>';
   const body = document.getElementById('sectionTableBody');
-  const pageState = { page: 1, size: 25 };
   let visibleRecords = [];
+  let loadPage = null;
   let pager = document.getElementById('sectionPagination');
   if (!pager) { pager = document.createElement('div'); pager.id = 'sectionPagination'; pager.className = 'admin-pagination'; body.closest('.table-responsive').insertAdjacentElement('afterend', pager); }
   const draw = records => {
     visibleRecords = records;
-    const pages = Math.max(1, Math.ceil(records.length / pageState.size));
+    const totalRecords = serverPaged ? view.total : records.length;
+    const pages = Math.max(1, Math.ceil(totalRecords / pageState.size));
     pageState.page = Math.min(pageState.page, pages);
-    const start = (pageState.page - 1) * pageState.size;
-    const pageRecords = records.slice(start, start + pageState.size);
+    const start = serverPaged ? (pageState.page - 1) * pageState.size : (pageState.page - 1) * pageState.size;
+    const pageRecords = serverPaged ? records : records.slice(start, start + pageState.size);
     const emptyCopy = {
       users: ['No people yet', 'Invite your first employee or administrator to get started.'],
       invitations: ['No invitations yet', 'Invite someone when you are ready to add them to the workspace.'],
@@ -366,9 +386,9 @@ async function renderAdminSection() {
     }[key] || ['Nothing here yet', 'New records will appear here.'];
     body.innerHTML = records.length ? pageRecords.map((record, rowIndex) => '<tr class="' + (key === 'entries' || key === 'users' ? 'admin-collapsible-row' : '') + '">' + record.cells.map((cell, index) => { const isEmployeeName = (key === 'users' && index === 0 && record.cells[2] === 'Employee') || (key === 'entries' && index === 0 && record.userRole === 'USER'); const nameCell = isEmployeeName ? '<a class="admin-employee-profile-link" href="employee-profile.html?user=' + encodeURIComponent(key === 'users' ? record.id : record.userId) + '">' + esc(cell) + '</a>' : '<strong>' + esc(cell) + '</strong>'; return '<td' + (key === 'entries' && index === 5 ? ' class="admin-entry-remarks"' : '') + '>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key, record) : key === 'entries' && index === 5 ? (record.remarks?.length ? record.remarks.map(remark => '<article class="admin-entry-remark"><strong>' + esc(remark.admin) + '</strong><span>' + esc(remark.text) + '</span></article>').join('') : '—') : key === 'users' && index === 0 ? '<span class="admin-user-identity"><span class="admin-user-avatar">' + (record.avatarUrl ? '<img src="' + esc(record.avatarUrl) + '" alt="">' : esc(String(cell).trim().slice(0, 1).toUpperCase())) + '</span>' + nameCell + '</span>' : key === 'entries' && index === 0 ? nameCell : status(cell)) + '</td>'; }).join('') + '</tr>').join('') : emptyTable(emptyCopy[0], emptyCopy[1], view.columns.length);
     const pageList = [...new Set([1, pageState.page - 1, pageState.page, pageState.page + 1, pages].filter(page => page >= 1 && page <= pages))];
-    pager.innerHTML = records.length > pageState.size ? '<span>Showing ' + (start + 1) + '–' + Math.min(start + pageState.size, records.length) + ' of ' + records.length + '</span><div class="pagination"><label class="sr-only" for="sectionPageSize">Rows per page</label><select class="form-select" id="sectionPageSize"><option value="25"' + (pageState.size === 25 ? ' selected' : '') + '>25</option><option value="50"' + (pageState.size === 50 ? ' selected' : '') + '>50</option><option value="100"' + (pageState.size === 100 ? ' selected' : '') + '>100</option></select><button type="button" data-section-page="' + (pageState.page - 1) + '" ' + (pageState.page === 1 ? 'disabled' : '') + ' aria-label="Previous page">‹</button>' + pageList.map(page => '<button type="button" data-section-page="' + page + '" class="' + (page === pageState.page ? 'active' : '') + '" aria-current="' + (page === pageState.page ? 'page' : 'false') + '">' + page + '</button>').join('') + '<button type="button" data-section-page="' + (pageState.page + 1) + '" ' + (pageState.page === pages ? 'disabled' : '') + ' aria-label="Next page">›</button></div>' : '';
-    pager.querySelectorAll('[data-section-page]').forEach(button => button.addEventListener('click', () => { pageState.page = Number(button.dataset.sectionPage); draw(visibleRecords); }));
-    pager.querySelector('#sectionPageSize')?.addEventListener('change', event => { pageState.size = Number(event.target.value); pageState.page = 1; draw(visibleRecords); });
+    pager.innerHTML = totalRecords > pageState.size ? '<span>Showing ' + (start + 1) + '–' + Math.min(start + pageState.size, totalRecords) + ' of ' + totalRecords + '</span><div class="pagination"><label class="sr-only" for="sectionPageSize">Rows per page</label><select class="form-select" id="sectionPageSize"><option value="25"' + (pageState.size === 25 ? ' selected' : '') + '>25</option><option value="50"' + (pageState.size === 50 ? ' selected' : '') + '>50</option><option value="100"' + (pageState.size === 100 ? ' selected' : '') + '>100</option></select><button type="button" data-section-page="' + (pageState.page - 1) + '" ' + (pageState.page === 1 ? 'disabled' : '') + ' aria-label="Previous page">‹</button>' + pageList.map(page => '<button type="button" data-section-page="' + page + '" class="' + (page === pageState.page ? 'active' : '') + '" aria-current="' + (page === pageState.page ? 'page' : 'false') + '">' + page + '</button>').join('') + '<button type="button" data-section-page="' + (pageState.page + 1) + '" ' + (pageState.page === pages ? 'disabled' : '') + ' aria-label="Next page">›</button></div>' : '';
+    pager.querySelectorAll('[data-section-page]').forEach(button => button.addEventListener('click', () => { pageState.page = Number(button.dataset.sectionPage); serverPaged ? loadPage?.() : draw(visibleRecords); }));
+    pager.querySelector('#sectionPageSize')?.addEventListener('change', event => { pageState.size = Number(event.target.value); pageState.page = 1; serverPaged ? loadPage?.() : draw(visibleRecords); });
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, pageRecords[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => editEntryTime(pageRecords[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-approve-overtime').forEach(button => button.addEventListener('click', async () => { const record = pageRecords[Number(button.dataset.row)]; if (!record || !await window.ACEUI.confirm({ title: 'Approve overtime?', message: 'Only time after the scheduled end will be approved as overtime.', confirmLabel: 'Approve overtime' })) return; try { const entry = await liveRequest('/v1/time-entries/' + record.id + '/overtime/approve', { method: 'POST' }); record.overtimeApprovedSeconds = entry.overtime_approved_seconds || 0; showToast('Overtime approved.', 'success'); renderAdminSection(); } catch (error) { showToast(error.message || 'Could not approve overtime.', 'error'); } }));
@@ -414,12 +434,12 @@ async function renderAdminSection() {
   }
   const search = document.getElementById('sectionSearch'); const count = document.getElementById('sectionResultCount') || document.createElement('span');
   count.id = 'sectionResultCount'; count.className = 'result-count'; tableTitle.append(' ', count);
-  const setCount = records => { count.textContent = records.length + ' record' + (records.length === 1 ? '' : 's'); }; setCount(initialRecords);
+  const setCount = records => { const total = serverPaged ? view.total : records.length; count.textContent = total + ' record' + (total === 1 ? '' : 's'); }; setCount(initialRecords);
   let departmentFilter = null; let roleFilter = null; let employeeFilter = null; let projectFilter = null; let remarksFilter = null;
   if (key === 'users') {
-    const departments = [...new Set(view.records.map(record => record.cells[3]))].sort((a, b) => a.localeCompare(b));
+    const departments = serverPaged ? await liveRequest('/v1/departments') : [...new Set(view.records.map(record => record.cells[3]))].sort((a, b) => a.localeCompare(b));
     const filters = document.createElement('div'); filters.className = 'admin-user-filters';
-    filters.innerHTML = '<label>Department<select class="form-select" id="userDepartmentFilter"><option value="">All departments</option>' + departments.map(department => '<option value="' + esc(department) + '">' + esc(department) + '</option>').join('') + '</select></label><label>Account type<select class="form-select" id="userRoleFilter"><option value="">All accounts</option><option value="Employee">Employees</option><option value="Admin">Administrators</option></select></label>';
+    filters.innerHTML = '<label>Department<select class="form-select" id="userDepartmentFilter"><option value="">All departments</option>' + departments.map(department => '<option value="' + esc(serverPaged ? department.id : department) + '">' + esc(serverPaged ? department.name : department) + '</option>').join('') + '</select></label><label>Account type<select class="form-select" id="userRoleFilter"><option value="">All accounts</option><option value="Employee">Employees</option><option value="Admin">Administrators</option></select></label>';
     search.insertAdjacentElement('beforebegin', filters);
     departmentFilter = filters.querySelector('#userDepartmentFilter'); roleFilter = filters.querySelector('#userRoleFilter');
   }
@@ -431,7 +451,22 @@ async function renderAdminSection() {
     search.insertAdjacentElement('beforebegin', filters);
     employeeFilter = filters.querySelector('#entryEmployeeFilter'); projectFilter = filters.querySelector('#entryProjectFilter'); remarksFilter = filters.querySelector('#entryRemarksFilter');
   }
+  loadPage = async () => {
+    try {
+      await applyLiveData(key, view, pageState, activeFilters);
+      renderStats(); draw(view.records); setCount(view.records);
+    } catch (error) { showToast(error.message || 'Could not load this page.', 'error'); }
+  };
   const applyFilters = () => {
+    if (serverPaged) {
+      activeFilters.q = search.value.trim();
+      activeFilters.role = roleFilter?.value === 'Admin' ? 'ADMIN' : roleFilter?.value === 'Employee' ? 'USER' : '';
+      activeFilters.departmentId = departmentFilter?.value || '';
+      activeFilters.employee = employeeFilter?.value.trim() || '';
+      activeFilters.project = projectFilter?.value.trim() || '';
+      activeFilters.remarks = remarksFilter?.value || '';
+      pageState.page = 1; void loadPage(); return;
+    }
     const term = search.value.trim().toLowerCase();
     const employeeTerm = employeeFilter?.value.trim().toLowerCase() || '';
     const projectTerm = projectFilter?.value.trim().toLowerCase() || '';

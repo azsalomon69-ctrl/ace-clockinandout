@@ -516,20 +516,29 @@ app.put('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req
 app.delete('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try { const target = await query(db.from('profiles').select('id,email').eq('id', req.params.id).single()); if (!protectHeadAdmin(req, res, target)) return; await query(db.from('user_projects').delete().eq('user_id', req.params.id).eq('project_id', req.params.projectId).select()); await audit(req, 'UNASSIGN_PROJECT', 'PROFILE', req.params.id, `Unassigned project ${req.params.projectId}`); res.status(204).end(); } catch (error) { next(error); } });
 
 app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
-  let request = db.from('profiles').select('*, departments(name)').order('created_at', { ascending: false });
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1); const pageSize = Math.min(100, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 25)); const paged = req.query.page !== undefined;
+  let request = db.from('profiles').select('*, departments(name)', paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false });
   request = req.query.removed === 'true' ? request.eq('status', 'DENIED') : request.neq('status', 'DENIED');
   request = request.is('permanently_deleted_at', null);
-  const [profiles, authUsers] = await Promise.all([
-    query(request),
+  if (req.query.role === 'ADMIN' || req.query.role === 'USER') request = request.eq('role', req.query.role);
+  if (req.query.departmentId) request = request.eq('department_id', req.query.departmentId);
+  if (req.query.q) {
+    const term = String(req.query.q).trim().replace(/[,()]/g, ' ');
+    if (term) request = request.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
+  }
+  if (paged) request = request.range((page - 1) * pageSize, page * pageSize - 1);
+  const [profileResponse, authUsers] = await Promise.all([
+    request,
     listAuthUsersForAvatars()
   ]);
   // Older Google profiles may predate avatar persistence. Use their trusted
   // Supabase Auth metadata as a read-time fallback without overwriting an
   // employee's own uploaded profile picture.
-  res.json(applyGoogleAvatarFallback(profiles, authUsers).map(profile => ({
+  if (profileResponse.error) throw profileResponse.error; const profiles = profileResponse.data || []; const items = applyGoogleAvatarFallback(profiles, authUsers).map(profile => ({
     ...profile,
     is_head_admin: profile.email?.toLowerCase() === headAdminEmail
-  })));
+  }));
+  res.json(paged ? { items, total: profileResponse.count || 0, page, pageSize } : items);
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
   let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
@@ -712,7 +721,46 @@ app.delete('/v1/invitations/:id', sensitiveActionLimiter, authenticate, adminOnl
 } catch (error) { next(error); } });
 app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)').order('invited_at', { ascending: false }))); } catch (error) { next(error); } });
 
-app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try { const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email,role), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)').order('clock_in_at', { ascending: false }); request = req.query.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null); if (own) request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
+app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try {
+  const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1); const pageSize = Math.min(100, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 25)); const paged = req.query.page !== undefined;
+  let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email,role), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)', paged ? { count: 'exact' } : undefined).order('clock_in_at', { ascending: false });
+  request = req.query.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null);
+  if (own) request = request.eq('user_id', req.profile.id);
+  if (req.query.userId) request = request.eq('user_id', req.query.userId);
+  if (req.query.projectId) request = request.eq('project_id', req.query.projectId);
+  if (req.query.status === 'ACTIVE') request = request.is('clock_out_at', null);
+  if (req.query.status === 'COMPLETED') request = request.not('clock_out_at', 'is', null);
+  const matchingIds = async (table, field, value) => {
+    const term = String(value || '').trim().replace(/[,()]/g, ' '); if (!term) return null;
+    const records = await query(db.from(table).select('id').ilike(field, `%${term}%`)); return records.map(record => record.id);
+  };
+  if (req.query.employee) { const ids = await matchingIds('profiles', 'full_name', req.query.employee); if (!ids?.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('user_id', ids); }
+  if (req.query.project) { const ids = await matchingIds('projects', 'name', req.query.project); if (!ids?.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('project_id', ids); }
+  if (req.query.remarks === 'with' || req.query.remarks === 'without') {
+    const remarks = await query(db.from('admin_remarks').select('time_entry_id'));
+    const ids = [...new Set(remarks.map(remark => remark.time_entry_id))];
+    if (req.query.remarks === 'with') { if (!ids.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('id', ids); }
+    else if (ids.length) request = request.not('id', 'in', `(${ids.join(',')})`);
+  }
+  if (req.query.q) {
+    const term = String(req.query.q).trim().replace(/[,()]/g, ' ');
+    if (term) {
+      const pattern = `%${term}%`;
+      const [people, projects] = await Promise.all([
+        query(db.from('profiles').select('id').or(`full_name.ilike.${pattern},email.ilike.${pattern}`)),
+        query(db.from('projects').select('id').ilike('name', pattern))
+      ]);
+      const userIds = people.map(person => person.id); const projectIds = projects.map(project => project.id);
+      const matches = [`final_note.ilike.${pattern}`];
+      if (userIds.length) matches.push(`user_id.in.(${userIds.join(',')})`);
+      if (projectIds.length) matches.push(`project_id.in.(${projectIds.join(',')})`);
+      request = request.or(matches.join(','));
+    }
+  }
+  if (!paged) return res.json(await query(request));
+  const response = await request.range((page - 1) * pageSize, page * pageSize - 1); if (response.error) throw response.error;
+  res.json({ items: response.data || [], total: response.count || 0, page, pageSize });
+} catch (error) { next(error); } });
 app.get('/v1/time-leaderboard', authenticate, adminOnly, async (req, res, next) => { try {
   const [people, entries, authUsers] = await Promise.all([
     query(db.from('profiles').select('id,full_name,profile_picture_url,role').eq('role', 'USER').eq('status', 'ACTIVE').is('permanently_deleted_at', null)),
@@ -736,6 +784,11 @@ app.get('/v1/admin-remarks', authenticate, activeOnly, async (req, res, next) =>
   }
   let request = db.from('admin_remarks').select('*, profiles!admin_remarks_admin_user_id_fkey(full_name,email)').order('created_at', { ascending: false });
   if (visibleEntryIds) request = request.in('time_entry_id', visibleEntryIds);
+  if (req.query.timeEntryIds && req.profile.role === 'ADMIN') {
+    const ids = String(req.query.timeEntryIds).split(',').filter(isUuid);
+    if (!ids.length) return res.json([]);
+    request = request.in('time_entry_id', ids);
+  }
   res.json(await query(request));
 } catch (error) { next(error); } });
 app.post('/v1/admin-remarks/mark-read', authenticate, activeOnly, async (req, res, next) => { try {
