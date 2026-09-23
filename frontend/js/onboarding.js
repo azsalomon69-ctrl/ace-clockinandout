@@ -317,10 +317,13 @@ window.ACETutorial = (() => {
         const groupElement = [...document.querySelectorAll('.shell-nav-group')].find(element => element.dataset.groupLabel === group);
         if (groupElement?.querySelector('.shell-nav-group-items')?.hidden) return groupElement.querySelector('.shell-nav-group-toggle');
         const normalizedLabel = label.toLowerCase();
-        const link = [...document.querySelectorAll('.shell-link')].find(element => {
-            const linkLabel = element.textContent.trim().toLowerCase();
-            return linkLabel === normalizedLabel || linkLabel.includes(normalizedLabel) || normalizedLabel.includes(linkLabel);
-        });
+        // Resolve within the requested sidebar group and prefer an exact
+        // destination label. Without this, "Archived users", "Deleted time
+        // entries", and "Individual reports" can incorrectly match the
+        // earlier, shorter links "Users", "Time entries", and "Reports".
+        const links = [...(groupElement?.querySelectorAll('.shell-link') || document.querySelectorAll('.shell-link'))];
+        const link = links.find(element => element.textContent.trim().toLowerCase() === normalizedLabel)
+            || links.find(element => element.textContent.trim().toLowerCase().includes(normalizedLabel));
         if (link) return link;
         if (group === 'Account') {
             const accountLink = [...document.querySelectorAll('.shell-account-menu [role="menuitem"]')].find(element => {
