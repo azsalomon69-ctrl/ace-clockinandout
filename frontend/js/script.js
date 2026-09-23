@@ -8,7 +8,6 @@ const AppState = {
     currentUser: null,
     isAuthenticated: false,
     isClockedIn: false,
-    isOnBreak: false,
     currentSession: null,
     presenceInterval: null,
     presenceVisibilityHandler: null,
@@ -60,7 +59,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else enableCleanInternalPageLinks();
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
-const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, BreakStartedAt: item.break_started_at, BreakSeconds: item.break_seconds || 0, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
+const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, SeenAt: item.seen_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
 const employeeTimeEntries = () => AppState.timeEntries.filter(entry => AppState.users.find(user => String(user.UserId) === String(entry.UserId))?.Role === 'USER');
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
@@ -319,7 +318,6 @@ async function loadDatabase() {
     );
     AppState.currentSession = active || null;
     AppState.isClockedIn = Boolean(active);
-    AppState.isOnBreak = Boolean(active?.BreakStartedAt);
     AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
     if (active) startTimer();
     return true;
@@ -1193,7 +1191,7 @@ function initializeAppShell() {
         ['Access requests', 'People · Approve or deny access', 'access-requests.html', 'requests approve deny pending'],
         ['Departments', 'People · Organize your team', 'departments.html', 'department team organization'],
         ['Projects', 'Work · Create and manage projects', 'projects.html', 'project assignment assign'],
-        ['Schedule & flextime', 'Work · Create or assign schedules', 'schedule-flex.html', 'schedule flextime workdays break limit'],
+        ['Schedule & flextime', 'Work · Create or assign schedules', 'schedule-flex.html', 'schedule flextime workdays'],
         ['Time entries', 'Work · Review and correct time', 'admin-time-entries.html', 'time clock clock out correct entry'],
         ['Deleted time entries', 'Work · Restore deleted records', 'deleted-time-entries.html', 'deleted restore time entries'],
         ['Reports', 'Insights · Reports and exports', 'reports.html', 'report export analytics'],
@@ -1201,7 +1199,7 @@ function initializeAppShell() {
         ['Audit log', 'Administration · Review changes', 'audit-logs.html', 'audit history activity'],
         ['Settings', 'Administration · Profile, security, appearance', 'settings.html', 'settings profile security appearance']
     ] : [
-        ['Dashboard', 'Workspace · Clock in, clock out, and breaks', 'user-dashboard.html', 'home start shift clock in clock out break'],
+        ['Dashboard', 'Workspace · Clock in and clock out', 'user-dashboard.html', 'home start shift clock in clock out'],
         ['My time entries', 'Work · Review your shifts', 'time-entries.html', 'time entries history shifts filters'],
         ['Remarks', 'Work · Read administrator feedback', 'remarks.html', 'remarks feedback admin note'],
         ['Profile & settings', 'Account · Profile, security, appearance', 'settings.html', 'settings profile password security appearance']
@@ -1458,19 +1456,15 @@ function openMobileClockActions() {
     if (!AppState.isClockedIn) {
         status.textContent = 'You are currently clocked out.';
         actions.innerHTML = actionButton('clock-in', 'Clock In');
-    } else if (AppState.isOnBreak) {
-        status.textContent = 'You are currently on break.';
-        actions.innerHTML = `${actionButton('end-break', 'End Break')}${actionButton('clock-out', 'Clock Out')}`;
     } else {
         const time = Number.isNaN(clockInTime.getTime()) ? '' : ` since ${clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
         status.textContent = `Clocked in${time}.`;
-        actions.innerHTML = `${actionButton('start-break', 'Start Break')}${actionButton('clock-out', 'Clock Out')}`;
+        actions.innerHTML = actionButton('clock-out', 'Clock Out');
     }
     actions.querySelectorAll('[data-mobile-clock-choice]').forEach(button => button.addEventListener('click', event => {
         closeModal(modal.id);
         if (button.dataset.mobileClockChoice === 'clock-in') openClockInModal();
         else if (button.dataset.mobileClockChoice === 'clock-out') openClockOutModal();
-        else handleBreakToggle(event);
     }));
     openModal(modal.id);
 }
@@ -1492,8 +1486,8 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I create or edit a department?', 'Open People → Departments and choose Add department. To update an existing one, choose Edit on its row. In that Edit form you can use Add employee (optional), or assign one employee at a time through People → Users → Manage.'],
         ['How do I create or edit a project?', 'Open Work → Projects and choose Add project. Enter the name and description, then save. Use Edit on an existing project to change those details; use Delete only when the project should be removed.'],
         ['How do I assign a person to a project?', 'Open People → Users, find the person, and choose Manage. In the Manage user form, select a value under Project assignment and choose Save role. The project then appears as an optional choice when that employee clocks in.'],
-        ['How do I create and assign a schedule?', 'Open Work → Schedule & flextime. First complete the Create schedule form: name, type, workdays, daily hours, and break limit. Then use the separate Assign employee section: choose an active employee from its search results, choose the schedule, and select Assign schedule.'],
-        ['What is the difference between fixed and flextime?', 'A fixed schedule has expected start and end times. Flextime tracks the required daily elapsed time and break limit without a fixed start time.'],
+        ['How do I create and assign a schedule?', 'Open Work → Schedule & flextime. First complete the Create schedule form: name, type, workdays, and daily hours. Then use the separate Assign employee section: choose an active employee from its search results, choose the schedule, and select Assign schedule.'],
+        ['What is the difference between fixed and flextime?', 'A fixed schedule has expected start and end times. Flextime tracks the required daily elapsed time without a fixed start time.'],
         ['How do I view or correct time entries?', 'Open Work → Time entries and use the Search time entries box to locate a person, project, or record. On the row, select Correct time, enter the correct clock-in and clock-out values, then choose Save corrected time.'],
         ['How do I handle an employee who forgot to clock out?', 'Open Work → Time entries, search for the employee or active entry, select Correct time, enter the verified clock-out time, then choose Save corrected time. Use this only after confirming the time with the employee.'],
         ['Where are deleted time entries?', 'Open Work → Deleted time entries. Select Restore to return a record to active history. Delete permanently cannot be undone, so use it only when the record must be removed for good.'],
@@ -1510,18 +1504,16 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. The Work section contains My time entries and Remarks.'],
         ['How do I clock in?', 'Open Dashboard and choose Clock in. Select a project when one is available, add an optional note if needed, then confirm.'],
         ['How do I clock out?', 'Open Dashboard and choose Clock out. Review the session details, add a note if needed, and confirm the clock-out action.'],
-        ['How do I start or end a break?', 'While clocked in, open Dashboard and use the break control on the time card. Use it again when you return.'],
         ['Why can I not clock in?', 'Check whether you already have an active session and whether your account has access. A project is optional, so you can choose No project when appropriate. If the problem continues, contact an administrator.'],
-        ['Why can I not clock out?', 'Make sure you have an active work session. End any active break first, then use Clock out on the dashboard.'],
+        ['Why can I not clock out?', 'Make sure you have an active work session, then use Clock out on the dashboard.'],
         ['How do I choose a project when clocking in?', 'In the Clock in form, select one of your assigned projects, or leave it as No project if your work does not need one. If a needed project is missing, ask an administrator to assign it through your user record.'],
         ['Where are my previous shifts?', 'Open Work → My time entries. Use the date, project, and status filters, then select View to inspect a record.'],
         ['How do I filter my time entries?', 'Open Work → My time entries, set a date range, project, or status, then choose Apply filters. Choose Clear filters to start again.'],
         ['Can I edit or delete my own time entry?', 'Do not change time records yourself after a mistake. Open the record to review it, then ask an administrator to correct it so the history remains accurate.'],
         ['Why does my entry show an administrator remark?', 'An administrator added feedback to that time entry. Open Work → Remarks to read it and check the related entry details.'],
         ['Where are administrator remarks?', 'Open Work → Remarks to read feedback connected to your time entries.'],
-        ['What does my schedule mean?', 'If an administrator assigned you a schedule, Dashboard shows it. Fixed schedules show expected start and end times; flextime shows the required daily time and break limit.'],
+        ['What does my schedule mean?', 'If an administrator assigned you a schedule, Dashboard shows it. Fixed schedules show expected start and end times; flextime shows the required daily time.'],
         ['Why am I marked late?', 'For a fixed schedule, the system compares your clock-in time with the scheduled start time. Contact an administrator if the schedule or recorded time is incorrect.'],
-        ['What happens if I exceed my break limit?', 'The system shows a warning when a flextime break exceeds its limit. End the break when you return and speak with your administrator if you need an exception.'],
         ['How do I update my profile?', 'Open the sidebar account menu and choose Profile & settings. Use the Profile tab to update the available information and save changes.'],
         ['How do I change my password or security settings?', 'Open Profile & settings, select Security, make the change, and save. Use a password you do not reuse elsewhere.'],
         ['How do I change dark mode or appearance?', 'Open Profile & settings and choose Appearance. Select your preferred theme or display options, then save.'],
@@ -1801,8 +1793,6 @@ function initializeModals() {
     const sessionClockOutBtn = document.getElementById('sessionClockOutBtn');
     if (sessionClockOutBtn) sessionClockOutBtn.addEventListener('click', openClockOutModal);
 
-    const breakButton = document.querySelectorAll('[data-break-toggle]');
-    breakButton.forEach(button => button.addEventListener('click', handleBreakToggle));
 
     initializeHomePreview();
 
@@ -2153,7 +2143,7 @@ function stopPresenceHeartbeat() {
 }
 
 // Presence only tells us that a browser is open. Operational information needs
-// a separate, quiet refresh so admins see new clock-ins, clock-outs, breaks,
+// a separate, quiet refresh so admins see new clock-ins and clock-outs,
 // people coming online, and new remarks without reloading the workspace.
 async function refreshLiveWorkspaceData() {
     if (AppState.liveRefreshInFlight || document.visibilityState !== 'visible' || !window.ACEAuth || !AppState.currentUser) return;
@@ -2187,7 +2177,6 @@ async function refreshLiveWorkspaceData() {
         const active = AppState.timeEntries.find(entry => !entry.ClockOutAt && entry.UserId === AppState.currentUser.UserId);
         AppState.currentSession = active || null;
         AppState.isClockedIn = Boolean(active);
-        AppState.isOnBreak = Boolean(active?.BreakStartedAt);
         AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
         updateUI();
         loadPageSpecificData();
@@ -2276,7 +2265,6 @@ async function handleClockIn(e) {
         AppState.currentSession = timeEntryRecord(entry);
         AppState.timeEntries.unshift(AppState.currentSession);
         AppState.isClockedIn = true; AppState.clockInTime = new Date(AppState.currentSession.ClockInAt);
-        AppState.isOnBreak = false;
         closeModal('clockInModal'); startTimer(); updateUI(); loadPageSpecificData();
         showToast('Clocked in successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
@@ -2295,29 +2283,12 @@ async function handleClockOut(e) {
         const saved = timeEntryRecord(entry);
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
         AppState.isClockedIn = false; AppState.currentSession = null; AppState.clockInTime = null;
-        AppState.isOnBreak = false;
         stopTimer(); closeModal('clockOutModal'); updateUI(); loadPageSpecificData();
         showToast('Clocked out successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
     finally { setActionBusy(submitButton, false); }
 }
 
-async function handleBreakToggle(event) {
-    if (!AppState.currentSession) return;
-    const button = event.currentTarget;
-    try {
-        setActionBusy(button, true, AppState.isOnBreak ? 'Ending break…' : 'Starting break…');
-        const action = AppState.isOnBreak ? 'end' : 'start';
-        const entry = await window.ACEAuth.request(`/v1/time-entries/${AppState.currentSession.TimeEntryId}/break/${action}`, { method: 'POST' });
-        const saved = timeEntryRecord(entry);
-        AppState.currentSession = saved;
-        AppState.isOnBreak = Boolean(saved.BreakStartedAt);
-        AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
-        updateTimerDisplay();
-        showToast(AppState.isOnBreak ? 'Break started. Work timer is paused.' : 'Break ended. Work timer resumed.', 'success');
-    } catch (error) { showToast(error.message || 'Unable to update break status.', 'error'); }
-    finally { setActionBusy(button, false); updateUI(); }
-}
 
 function setActionBusy(button, busy, label = '') {
     if (!button) return;
@@ -2346,8 +2317,7 @@ function updateTimerDisplay() {
     if (!AppState.isClockedIn || !AppState.clockInTime) return;
     
     const now = new Date();
-    const activeBreakSeconds = AppState.currentSession?.BreakStartedAt ? Math.max(0, Math.floor((now - new Date(AppState.currentSession.BreakStartedAt)) / 1000)) : 0;
-    const duration = Math.max(0, Math.floor((now - AppState.clockInTime) / 1000) - (AppState.currentSession?.BreakSeconds || 0) - activeBreakSeconds);
+    const duration = Math.max(0, Math.floor((now - AppState.clockInTime) / 1000));
     const hours = Math.floor(duration / 3600);
     const minutes = Math.floor((duration % 3600) / 60);
     const seconds = duration % 60;
@@ -2358,15 +2328,6 @@ function updateTimerDisplay() {
     timerElements.forEach(el => {
         if (el) el.textContent = timeString;
     });
-    const totalBreakSeconds = (AppState.currentSession?.BreakSeconds || 0) + activeBreakSeconds;
-    const schedule = AppState.assignedSchedule;
-    if (schedule?.schedule_type === 'FLEX' && isScheduledToday(schedule) && totalBreakSeconds > Number(schedule.break_limit_minutes ?? 60) * 60) {
-        const key = `break-${AppState.currentSession?.TimeEntryId}`;
-        if (!AppState.scheduleAlertKeys.has(key)) { AppState.scheduleAlertKeys.add(key); showToast(`Your ${schedule.break_limit_minutes ?? 60}-minute flextime break limit has been exceeded.`, 'warning'); }
-    }
-    document.querySelectorAll('#currentBreakDuration').forEach(el => { el.textContent = formatClockDuration(totalBreakSeconds); });
-    const sessionStateTime = document.getElementById('sessionStateTime');
-    if (sessionStateTime && AppState.isOnBreak) sessionStateTime.textContent = formatClockDuration(totalBreakSeconds);
 }
 
 function showClockOutSummary() {
@@ -2374,8 +2335,7 @@ function showClockOutSummary() {
     
     const clockInTime = new Date(AppState.currentSession.ClockInAt);
     const now = new Date();
-    const activeBreakSeconds = AppState.currentSession?.BreakStartedAt ? Math.max(0, Math.floor((now - new Date(AppState.currentSession.BreakStartedAt)) / 1000)) : 0;
-    const duration = Math.max(0, Math.floor((now - clockInTime) / 1000) - (AppState.currentSession?.BreakSeconds || 0) - activeBreakSeconds);
+    const duration = Math.max(0, Math.floor((now - clockInTime) / 1000));
     const hours = Math.floor(duration / 3600);
     const minutes = Math.floor((duration % 3600) / 60);
     const seconds = duration % 60;
@@ -2535,7 +2495,7 @@ function renderGeneratedReport(report, options = {}) {
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Break</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${formatDuration(entry.BreakSeconds || 0)}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="8">No entries match this report.</td></tr>'}</tbody></table></section>`;
+    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 
@@ -2600,7 +2560,7 @@ function updateUI() {
         
         if (AppState.isClockedIn) {
             statusDot?.classList.add('active');
-            if (statusText) statusText.textContent = AppState.isOnBreak ? 'On break' : 'Working now';
+            if (statusText) statusText.textContent = 'Working now';
         } else {
             statusDot?.classList.remove('active');
             if (statusText) statusText.textContent = 'Clocked out';
@@ -2616,21 +2576,19 @@ function updateUI() {
     const sessionFacts = document.getElementById('employeeSessionFacts');
     const sessionStarted = document.getElementById('sessionStartedAt');
     const sessionProject = document.getElementById('sessionProjectName');
-    if (statusPanel) statusPanel.dataset.state = AppState.isOnBreak ? 'break' : (AppState.isClockedIn ? 'active' : 'idle');
+    if (statusPanel) statusPanel.dataset.state = AppState.isClockedIn ? 'active' : 'idle';
     if (AppState.isClockedIn && AppState.clockInTime) {
-        if (shiftTitle) shiftTitle.textContent = AppState.isOnBreak ? 'You are on a break.' : 'Your shift is in progress.';
-        if (shiftDescription) shiftDescription.textContent = AppState.isOnBreak ? 'Your work timer is paused until you end your break.' : 'Your live session is running. Clock out when you have finished your work.';
-        if (sessionLabel) sessionLabel.textContent = AppState.isOnBreak ? 'Current break' : 'Clocked in at';
-        if (sessionTime) sessionTime.textContent = AppState.isOnBreak ? formatClockDuration((AppState.currentSession?.BreakSeconds || 0) + Math.max(0, Math.floor((Date.now() - new Date(AppState.currentSession.BreakStartedAt)) / 1000))) : AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        if (sessionDetailTime) sessionDetailTime.textContent = AppState.isOnBreak ? `Break began ${new Date(AppState.currentSession.BreakStartedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Active work session';
+        if (shiftTitle) shiftTitle.textContent = 'Your shift is in progress.';
+        if (shiftDescription) shiftDescription.textContent = 'Your live session is running. Clock out when you have finished your work.';
+        if (sessionLabel) sessionLabel.textContent = 'Clocked in at';
+        if (sessionTime) sessionTime.textContent = AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        if (sessionDetailTime) sessionDetailTime.textContent = 'Active work session';
         if (sessionFacts) sessionFacts.hidden = false;
         if (sessionStarted) sessionStarted.textContent = AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         if (sessionProject) {
             const project = AppState.projects.find(item => item.ProjectId === AppState.currentSession?.ProjectId);
             sessionProject.textContent = project?.ProjectName || 'No project';
         }
-        const breakDuration = document.getElementById('currentBreakDuration');
-        if (breakDuration) breakDuration.textContent = formatClockDuration((AppState.currentSession?.BreakSeconds || 0) + (AppState.currentSession?.BreakStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(AppState.currentSession.BreakStartedAt)) / 1000)) : 0));
     } else {
         if (shiftTitle) shiftTitle.textContent = 'Ready when you are.';
         if (shiftDescription) shiftDescription.textContent = 'Start a work session when you are ready to begin tracking time.';
@@ -2645,20 +2603,17 @@ function updateUI() {
     const clockOutBtn = document.getElementById('mainClockOutBtn');
     const clockInBtnAlt = document.getElementById('clockInBtn');
     const clockOutBtnAlt = document.getElementById('clockOutBtn');
-    const breakButtons = document.querySelectorAll('[data-break-toggle]');
     
     if (AppState.isClockedIn) {
         if (clockInBtn) clockInBtn.style.display = 'none';
         if (clockOutBtn) clockOutBtn.style.display = 'inline-flex';
         if (clockInBtnAlt) clockInBtnAlt.style.display = 'none';
         if (clockOutBtnAlt) clockOutBtnAlt.style.display = 'inline-flex';
-        breakButtons.forEach(button => { button.style.display = 'inline-flex'; button.textContent = AppState.isOnBreak ? 'End Break' : 'Start Break'; });
     } else {
         if (clockInBtn) clockInBtn.style.display = 'inline-flex';
         if (clockOutBtn) clockOutBtn.style.display = 'none';
         if (clockInBtnAlt) clockInBtnAlt.style.display = 'inline-flex';
         if (clockOutBtnAlt) clockOutBtnAlt.style.display = 'none';
-        breakButtons.forEach(button => { button.style.display = 'none'; });
     }
     
     // Update current session card
@@ -2711,7 +2666,7 @@ function updateClock() {
         });
     }
     const workDurationLabel = document.getElementById('workDurationLabel');
-    if (workDurationLabel) workDurationLabel.textContent = AppState.isOnBreak ? 'Worked (paused)' : 'Worked';
+    if (workDurationLabel) workDurationLabel.textContent = 'Worked';
     
     // Update date
     const currentDateElement = document.getElementById('currentDate');
@@ -2802,11 +2757,10 @@ function loadAdminTimeEntryDetails() {
     const user = AppState.users.find(item => String(item.UserId) === String(entry.UserId));
     const project = AppState.projects.find(item => String(item.ProjectId) === String(entry.ProjectId));
     const remarks = AppState.adminRemarks.filter(item => String(item.TimeEntryId) === String(entry.TimeEntryId));
-    const activeBreak = entry.BreakStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(entry.BreakStartedAt).getTime()) / 1000)) : 0;
     const worked = entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : entry.ClockOutAt ? '—' : 'Active';
     const dateTime = value => value ? new Date(value).toLocaleString() : '—';
     root.innerHTML = `<header class="time-entry-detail-header"><div><a class="time-entry-detail-back" href="admin-dashboard.html">← Back to dashboard</a><p class="admin-section-kicker">TIME ENTRY</p><h1>${escapeHtml(user?.FullName || entry.UserName || 'Employee')}’s work session</h1><p>${dateTime(entry.ClockInAt)}</p></div><span class="badge ${entry.ClockOutAt ? 'badge-success' : 'badge-warning'}">${entry.ClockOutAt ? 'Completed' : 'Active'}</span></header>
-        <section class="time-entry-detail-grid" aria-label="Time entry summary"><article><span>Clock in</span><strong>${dateTime(entry.ClockInAt)}</strong></article><article><span>Clock out</span><strong>${dateTime(entry.ClockOutAt)}</strong></article><article><span>Worked time</span><strong>${worked}</strong></article><article><span>Break time</span><strong>${formatDuration(Number(entry.BreakSeconds || 0) + activeBreak)}${entry.BreakStartedAt ? ' (active)' : ''}</strong></article><article><span>Project</span><strong>${escapeHtml(project?.ProjectName || entry.ProjectName || 'Unassigned')}</strong></article><article><span>Entry status</span><strong>${entry.ClockOutAt ? 'Completed' : 'Currently active'}</strong></article></section>
+        <section class="time-entry-detail-grid" aria-label="Time entry summary"><article><span>Clock in</span><strong>${dateTime(entry.ClockInAt)}</strong></article><article><span>Clock out</span><strong>${dateTime(entry.ClockOutAt)}</strong></article><article><span>Worked time</span><strong>${worked}</strong></article><article><span>Project</span><strong>${escapeHtml(project?.ProjectName || entry.ProjectName || 'Unassigned')}</strong></article><article><span>Entry status</span><strong>${entry.ClockOutAt ? 'Completed' : 'Currently active'}</strong></article></section>
         <section class="time-entry-detail-notes"><article><h2>Clock-out note</h2><p>${escapeHtml(entry.FinalNote || 'No clock-out note was added.')}</p></article>${entry.UserNote ? `<article><h2>Legacy clock-in note</h2><p>${escapeHtml(entry.UserNote)}</p></article>` : ''}</section>
         ${entry.StoppedByName ? `<section class="time-entry-stopped"><h2>Stopped by an administrator</h2><p>${escapeHtml(entry.StoppedByName)} stopped this session on ${dateTime(entry.StoppedByAt || entry.ClockOutAt)}.</p></section>` : ''}
         <section class="time-entry-detail-remarks"><div><p class="admin-section-kicker">ADMINISTRATOR NOTES</p><h2>Remarks</h2></div>${remarks.length ? `<div class="time-entry-remark-list">${remarks.map(remark => `<article><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${dateTime(remark.CreatedAt)}</small></article>`).join('')}</div>` : '<p class="time-entry-no-remarks">No administrator remarks were added to this entry.</p>'}</section>`;
@@ -2823,12 +2777,11 @@ function loadUserDashboard() {
             message = `${schedule.name}: no work is scheduled today.`;
         } else if (schedule.schedule_type === 'FLEX' && active) {
             const finish = new Date(new Date(active.ClockInAt).getTime() + Number(schedule.daily_elapsed_minutes || 540) * 60000);
-            const breakSeconds = Number(active.BreakSeconds || 0) + (active.BreakStartedAt ? Math.max(0, Math.floor((Date.now() - new Date(active.BreakStartedAt).getTime()) / 1000)) : 0);
-            message = `Flextime: expected finish ${finish.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Break limit: ${schedule.break_limit_minutes ?? 60} minutes${breakSeconds > Number(schedule.break_limit_minutes ?? 60) * 60 ? ' — your break limit has been exceeded.' : '.'}`;
+            message = `Flextime: expected finish ${finish.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
         } else if (schedule.schedule_type === 'FIXED') {
             const [hours, minutes] = String(schedule.start_time).slice(0, 5).split(':').map(Number); const start = new Date(); start.setHours(hours, minutes, 0, 0);
-            message = !active && now > start ? `You are late for ${schedule.name}. Scheduled start: ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : `${schedule.name}: ${String(schedule.start_time).slice(0, 5)}–${String(schedule.end_time).slice(0, 5)}. Break limit: ${schedule.break_limit_minutes ?? 60} minutes.`;
-        } else if (schedule.schedule_type === 'FLEX') message = `${schedule.name}: clock in for ${Math.floor(Number(schedule.daily_elapsed_minutes || 540) / 60)} hours total, including up to ${schedule.break_limit_minutes ?? 60} minutes of break.`;
+            message = !active && now > start ? `You are late for ${schedule.name}. Scheduled start: ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : `${schedule.name}: ${String(schedule.start_time).slice(0, 5)}–${String(schedule.end_time).slice(0, 5)}.`;
+        } else if (schedule.schedule_type === 'FLEX') message = `${schedule.name}: clock in for ${Math.floor(Number(schedule.daily_elapsed_minutes || 540) / 60)} hours total.`;
         notice.textContent = message; document.querySelector('.user-dashboard .employee-dashboard-intro')?.insertAdjacentElement('afterend', notice);
     }
     const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.DurationSeconds);
@@ -3290,7 +3243,6 @@ function loadAdminDashboard() {
                     <td>${clockIn.toLocaleTimeString()}</td>
                     <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
                     <td>${duration}</td>
-                    <td>${entry.BreakSeconds ? formatDuration(entry.BreakSeconds) : '—'}${entry.BreakStartedAt ? ' (active)' : ''}</td>
                     <td>${escapeHtml(entry.FinalNote || '—')}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span>${entry.StoppedByName ? `<small class="entry-admin-stop">Stopped by ${escapeHtml(entry.StoppedByName)} · ${new Date(entry.StoppedByAt || entry.ClockOutAt).toLocaleString()}</small>` : ''}</td>
                     <td>${remarks.length ? `${remarks.length} remark${remarks.length === 1 ? '' : 's'}` : '—'}</td>
@@ -3356,7 +3308,6 @@ function loadTimeEntries() {
                     <td>${formatAppTime(entry.ClockInAt)}</td>
                     <td>${clockOut ? formatAppTime(entry.ClockOutAt) : 'Active'}</td>
                     <td>${duration}</td>
-                    <td>${entry.BreakSeconds ? formatDuration(entry.BreakSeconds) : 'None'}${entry.BreakStartedAt ? ' (active)' : ''}</td>
                     <td>${escapeHtml(project?.ProjectName || 'None')}</td>
                     <td>${escapeHtml(entry.FinalNote || 'No clock-out note')}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
@@ -3622,7 +3573,6 @@ function viewTimeEntry(entryId) {
                     <p><strong>Clock In:</strong> ${new Date(entry.ClockInAt).toLocaleString()}</p>
                     <p><strong>Clock Out:</strong> ${entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active'}</p>
                     <p><strong>Worked:</strong> ${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</p>
-                    <p><strong>Break time:</strong> ${entry.BreakSeconds ? formatDuration(entry.BreakSeconds) : 'None'}${entry.BreakStartedAt ? ' (currently on break)' : ''}</p>
                     <p><strong>Clock-out note:</strong> ${escapeHtml(entry.FinalNote || 'No clock-out note')}</p>
                 </div>
             `;
@@ -3671,21 +3621,20 @@ function loadExcelLibrary() {
 }
 function reportWorkbookData(report) {
     const entries = filterEntriesForReport(report);
-    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Break seconds', 'Break time', 'Clock-out note', 'Status']];
+    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Clock-out note', 'Status']];
     entries.forEach(entry => {
         const user = AppState.users.find(item => item.UserId === entry.UserId);
         const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned';
         const workedSeconds = Number(entry.DurationSeconds || 0);
-        const breakSeconds = Number(entry.BreakSeconds || 0);
         timeEntries.push([
             user?.FullName || 'Unknown', project, reportDateTime(entry.ClockInAt),
             entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active',
-            workedSeconds, formatDuration(workedSeconds), breakSeconds, formatDuration(breakSeconds),
+            workedSeconds, formatDuration(workedSeconds),
             entry.FinalNote || '', entry.ClockOutAt ? 'Completed' : 'Active'
         ]);
     });
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    timeEntries.push(['Total worked', '', '', '', totalSeconds, formatDuration(totalSeconds), '', '', '', '']);
+    timeEntries.push(['Total worked', '', '', '', totalSeconds, formatDuration(totalSeconds), '', '']);
     return timeEntries;
 }
 async function exportExcelReport(reportId) {

@@ -87,8 +87,6 @@ create table public.time_entries (
   project_id uuid references public.projects(id) on delete set null,
   clock_in_at timestamptz not null default now(),
   clock_out_at timestamptz,
-  break_started_at timestamptz,
-  break_seconds integer not null default 0 check (break_seconds >= 0),
   planned_end_at timestamptz,
   user_note text,
   final_note text,
@@ -96,7 +94,7 @@ create table public.time_entries (
   stopped_by_at timestamptz,
   duration_seconds integer generated always as (
     case when clock_out_at is null then null
-    else greatest(0, extract(epoch from (clock_out_at - clock_in_at))::integer - break_seconds) end
+    else greatest(0, extract(epoch from (clock_out_at - clock_in_at))::integer) end
   ) stored,
   deleted_at timestamptz,
   deleted_by_user_id uuid references public.profiles(id) on delete set null,
@@ -115,7 +113,6 @@ create table public.work_schedules (
   start_time time,
   end_time time,
   daily_elapsed_minutes integer not null default 540 check (daily_elapsed_minutes between 60 and 1440),
-  break_limit_minutes integer not null default 60 check (break_limit_minutes between 0 and 360),
   is_active boolean not null default true,
   created_by_user_id uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),

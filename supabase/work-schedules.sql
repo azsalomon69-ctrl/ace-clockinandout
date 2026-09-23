@@ -7,7 +7,6 @@ create table if not exists public.work_schedules (
   start_time time,
   end_time time,
   daily_elapsed_minutes integer not null default 540 check (daily_elapsed_minutes between 60 and 1440),
-  break_limit_minutes integer not null default 60 check (break_limit_minutes between 0 and 360),
   is_active boolean not null default true,
   created_by_user_id uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),

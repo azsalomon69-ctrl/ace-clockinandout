@@ -21,7 +21,6 @@
           <label class="fixed-time">Start time<input class="form-input" id="scheduleStart" type="time" value="09:00"></label>
           <label class="fixed-time">End time<input class="form-input" id="scheduleEnd" type="time" value="18:00"></label>
           <label>Daily elapsed hours<input class="form-input" id="scheduleHours" type="number" min="1" max="24" value="9"></label>
-          <label>Break limit (minutes)<input class="form-input" id="scheduleBreak" type="number" min="0" max="360" value="60"></label>
           <fieldset class="schedule-workdays">
             <legend>Working days</legend>
             <div class="schedule-workdays-heading"><p>Select the days this schedule applies. Days left unselected are treated as days off.</p></div>
@@ -41,7 +40,7 @@
       </section>
       <section class="settings-section schedule-assign-card"><div class="schedule-card-heading"><div><p class="admin-section-kicker">NEXT STEP</p><h2>Assign employee</h2></div><p>Choose an active employee and their schedule.</p></div><form id="assignmentForm" class="form-grid"><label>Employee<input class="form-input" id="scheduleEmployee" list="scheduleEmployeeOptions" autocomplete="off" placeholder="Search employees by name or email" required><datalist id="scheduleEmployeeOptions"></datalist><small class="schedule-field-help">Type a name or email, then choose an employee from the results.</small></label><label>Schedule<select class="form-select" id="scheduleAssignment" required></select></label><button class="btn btn-primary" type="submit">Assign schedule</button></form></section>
       </div>
-      <section class="table-container"><div class="table-header"><h2>Schedules</h2></div><div class="table-responsive"><table class="table"><thead><tr><th>Name</th><th>Type</th><th>Workdays</th><th>Hours</th><th>Break limit</th><th>Assigned employees</th><th>Actions</th></tr></thead><tbody id="scheduleRows"></tbody></table></div></section>
+      <section class="table-container"><div class="table-header"><h2>Schedules</h2></div><div class="table-responsive"><table class="table"><thead><tr><th>Name</th><th>Type</th><th>Workdays</th><th>Hours</th><th>Assigned employees</th><th>Actions</th></tr></thead><tbody id="scheduleRows"></tbody></table></div></section>
       <section class="settings-section schedule-assignments-panel" id="scheduleAssignmentsPanel" hidden aria-live="polite"></section>
     </div>
   </main>

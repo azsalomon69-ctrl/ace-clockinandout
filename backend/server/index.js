@@ -174,8 +174,8 @@ const sendInvitationEmail = async ({ email, role, invitedBy }) => {
     from: process.env.GMAIL_FROM?.trim() || process.env.SMTP_FROM || smtpUser,
     to: email,
     subject: 'You are invited to ACE Clock In/Out',
-    text: `Hello,\n\n${invitedBy || 'An ACE administrator'} invited you to ACE Clock In/Out as an ${roleName}.\n\nStart here: ${loginUrl}\n\nGetting started:\n1. Sign in with the exact Google email that received this invitation.\n2. Complete your profile settings.\n3. Clock in when you start work.\n4. Start and end breaks from your dashboard.\n5. Clock out when your shift is complete.\n\nACE Outsource Solutions`,
-    html: `<main style="max-width:620px;margin:0 auto;padding:32px 24px;font-family:Arial,sans-serif;color:#073b4c;background:#f4fbfc"><section style="overflow:hidden;background:#fff;border:1px solid #cfe7eb;border-radius:18px"><header style="padding:28px 30px;background:#073b4c;color:#fff"><p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:1.2px">ACE OUTSOURCE SOLUTIONS</p><h1 style="margin:0;font-size:26px">You’re invited</h1></header><div style="padding:30px"><p style="margin-top:0;font-size:16px">Hello,</p><p><strong>${inviter}</strong> invited <strong>${recipient}</strong> to ACE Clock In/Out as an <strong>${roleName}</strong>.</p><p style="margin:24px 0"><a href="${loginUrl}" style="display:inline-block;padding:13px 20px;color:#fff;background:#08a2c2;border-radius:8px;font-weight:bold;text-decoration:none">Sign in to ACE Clock</a></p><h2 style="margin:28px 0 12px;font-size:18px">Get started in five steps</h2><ol style="padding-left:22px;line-height:1.7"><li>Sign in with the exact Google email that received this invitation.</li><li>Open <strong>Profile &amp; settings</strong> and complete your account details.</li><li>Choose <strong>Clock In</strong> when you begin work.</li><li>Use <strong>Start Break</strong> and <strong>End Break</strong> to record break time.</li><li>Choose <strong>Clock Out</strong> after your shift, then review your time entries.</li></ol><p style="margin:28px 0 0;color:#587680;font-size:13px">If you cannot sign in, make sure you are using the same Google account this invitation was sent to.</p></div></section></main>`
+    text: `Hello,\n\n${invitedBy || 'An ACE administrator'} invited you to ACE Clock In/Out as an ${roleName}.\n\nStart here: ${loginUrl}\n\nGetting started:\n1. Sign in with the exact Google email that received this invitation.\n2. Complete your profile settings.\n3. Clock in when you start work.\n4. Clock out when your shift is complete.\n\nACE Outsource Solutions`,
+    html: `<main style="max-width:620px;margin:0 auto;padding:32px 24px;font-family:Arial,sans-serif;color:#073b4c;background:#f4fbfc"><section style="overflow:hidden;background:#fff;border:1px solid #cfe7eb;border-radius:18px"><header style="padding:28px 30px;background:#073b4c;color:#fff"><p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:1.2px">ACE OUTSOURCE SOLUTIONS</p><h1 style="margin:0;font-size:26px">You’re invited</h1></header><div style="padding:30px"><p style="margin-top:0;font-size:16px">Hello,</p><p><strong>${inviter}</strong> invited <strong>${recipient}</strong> to ACE Clock In/Out as an <strong>${roleName}</strong>.</p><p style="margin:24px 0"><a href="${loginUrl}" style="display:inline-block;padding:13px 20px;color:#fff;background:#08a2c2;border-radius:8px;font-weight:bold;text-decoration:none">Sign in to ACE Clock</a></p><h2 style="margin:28px 0 12px;font-size:18px">Get started in four steps</h2><ol style="padding-left:22px;line-height:1.7"><li>Sign in with the exact Google email that received this invitation.</li><li>Open <strong>Profile &amp; settings</strong> and complete your account details.</li><li>Choose <strong>Clock In</strong> when you begin work.</li><li>Choose <strong>Clock Out</strong> after your shift, then review your time entries.</li></ol><p style="margin:28px 0 0;color:#587680;font-size:13px">If you cannot sign in, make sure you are using the same Google account this invitation was sent to.</p></div></section></main>`
   };
   if (gmailConfigured) await sendWithGmailApi(message);
   else await mailTransport.sendMail(message);
@@ -488,11 +488,11 @@ app.get('/v1/schedules', authenticate, adminOnly, async (req, res, next) => { tr
 app.get('/v1/my-schedule', authenticate, activeOnly, async (req, res, next) => { try { const assignment = await query(db.from('user_schedule_assignments').select('assigned_at, work_schedules(*)').eq('user_id', req.profile.id).maybeSingle()); res.json(assignment?.work_schedules || null); } catch (error) { next(error); } });
 app.post('/v1/schedules', authenticate, adminOnly, async (req, res, next) => { try {
   const name = requireText(req.body.name, 'Schedule name', 80); const scheduleType = req.body.scheduleType === 'FLEX' ? 'FLEX' : req.body.scheduleType === 'FIXED' ? 'FIXED' : null;
-  const startTime = req.body.startTime || null; const endTime = req.body.endTime || null; const dailyElapsedMinutes = Number(req.body.dailyElapsedMinutes || 540); const breakLimitMinutes = Number(req.body.breakLimitMinutes ?? 60);
+  const startTime = req.body.startTime || null; const endTime = req.body.endTime || null; const dailyElapsedMinutes = Number(req.body.dailyElapsedMinutes || 540);
   const requestedWorkdays = req.body.workdays === undefined ? [1, 2, 3, 4, 5] : req.body.workdays;
   const workdays = Array.isArray(requestedWorkdays) ? [...new Set(requestedWorkdays.map(Number))].sort((a, b) => a - b) : null;
-  if (!scheduleType || !Array.isArray(workdays) || !workdays.length || workdays.some(day => !Number.isInteger(day) || day < 0 || day > 6) || !Number.isInteger(dailyElapsedMinutes) || dailyElapsedMinutes < 60 || dailyElapsedMinutes > 1440 || !Number.isInteger(breakLimitMinutes) || breakLimitMinutes < 0 || breakLimitMinutes > 360 || (scheduleType === 'FIXED' && (!isTime(startTime) || !isTime(endTime)))) return fail(res, 400, 'Provide valid schedule details and at least one workday');
-  const item = await query(db.from('work_schedules').insert({ name, schedule_type: scheduleType, start_time: scheduleType === 'FIXED' ? startTime : null, end_time: scheduleType === 'FIXED' ? endTime : null, daily_elapsed_minutes: dailyElapsedMinutes, break_limit_minutes: breakLimitMinutes, scheduled_weekdays: workdays, created_by_user_id: req.profile.id }).select().single());
+  if (!scheduleType || !Array.isArray(workdays) || !workdays.length || workdays.some(day => !Number.isInteger(day) || day < 0 || day > 6) || !Number.isInteger(dailyElapsedMinutes) || dailyElapsedMinutes < 60 || dailyElapsedMinutes > 1440 || (scheduleType === 'FIXED' && (!isTime(startTime) || !isTime(endTime)))) return fail(res, 400, 'Provide valid schedule details and at least one workday');
+  const item = await query(db.from('work_schedules').insert({ name, schedule_type: scheduleType, start_time: scheduleType === 'FIXED' ? startTime : null, end_time: scheduleType === 'FIXED' ? endTime : null, daily_elapsed_minutes: dailyElapsedMinutes, scheduled_weekdays: workdays, created_by_user_id: req.profile.id }).select().single());
   await audit(req, 'CREATE_SCHEDULE', 'SCHEDULE', item.id, `Created ${scheduleType.toLowerCase()} schedule ${name}`); res.status(201).json(item);
 } catch (error) { next(error); } });
 app.delete('/v1/schedules/:id', authenticate, adminOnly, async (req, res, next) => { try {
@@ -750,7 +750,7 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
   if (projectId === undefined) return fail(res, 400, 'Invalid project ID');
   const open = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('clock_out_at', null).maybeSingle());
   if (open) return fail(res, 409, 'You already have an active time entry');
-  const assignment = await query(db.from('user_schedule_assignments').select('work_schedules(id,schedule_type,start_time,end_time,daily_elapsed_minutes,break_limit_minutes,scheduled_weekdays)').eq('user_id', req.profile.id).maybeSingle());
+  const assignment = await query(db.from('user_schedule_assignments').select('work_schedules(id,schedule_type,start_time,end_time,daily_elapsed_minutes,scheduled_weekdays)').eq('user_id', req.profile.id).maybeSingle());
   const schedule = assignment?.work_schedules;
   // Schedule time values are Asia/Manila wall-clock values by policy; copy
   // them as-is so later schedule edits cannot change this entry's snapshot.
@@ -760,7 +760,6 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
     scheduled_start_time: schedule.start_time,
     scheduled_end_time: schedule.end_time,
     target_seconds: schedule.daily_elapsed_minutes * 60,
-    break_limit_seconds: schedule.break_limit_minutes * 60,
     scheduled_weekdays: schedule.scheduled_weekdays
   } : {
     schedule_id: null,
@@ -768,33 +767,12 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
     scheduled_start_time: null,
     scheduled_end_time: null,
     target_seconds: null,
-    break_limit_seconds: null,
     scheduled_weekdays: null
   };
   const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: projectId, ...scheduleSnapshot }).select().single());
   const device = clockingDevice(req);
   await audit(req, `CLOCK_IN (${device})`, 'TIME_ENTRY', entry.id, `Started a time entry from ${device}`);
   res.status(201).json(entry);
-} catch (error) { next(error); } });
-app.post('/v1/time-entries/:id/break/start', authenticate, activeOnly, async (req, res, next) => { try {
-  let request = db.from('time_entries').update({ break_started_at: new Date().toISOString() }).eq('id', req.params.id).is('clock_out_at', null).is('break_started_at', null);
-  if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id);
-  const entry = await query(request.select().maybeSingle());
-  if (!entry) return fail(res, 409, 'This break cannot be started because the shift is not active');
-  await audit(req, 'BREAK_START', 'TIME_ENTRY', entry.id, 'Started a work break');
-  res.json(entry);
-} catch (error) { next(error); } });
-app.post('/v1/time-entries/:id/break/end', authenticate, activeOnly, async (req, res, next) => { try {
-  const { data: entry, error } = await db.rpc('end_break_entry', {
-    p_actor_user_id: req.profile.id, p_entry_id: req.params.id, p_actor_role: req.profile.role,
-    p_now: new Date().toISOString(), p_ip_address: req.ip, p_user_agent: req.get('user-agent')
-  });
-  if (error) {
-    if (error.code === 'P0001' && error.message === 'BREAK_NOT_ACTIVE') return fail(res, 409, 'BREAK_NOT_ACTIVE');
-    if (error.code === 'P0001' && error.message === 'NOT_FOUND_OR_FORBIDDEN') return fail(res, 404, 'ENTRY_NOT_FOUND');
-    throw error;
-  }
-  res.json(entry);
 } catch (error) { next(error); } });
 app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try {
   const note = requireText(req.body.note, 'A clock-out note', 50);
