@@ -3028,6 +3028,15 @@ body {
   letter-spacing: 0;
   text-transform: none
 }
+.time-entry-row.search-target {
+  outline: 3px solid rgba(8,162,194,.45);
+  outline-offset: -3px;
+  animation: ace-search-target 1.8s ease-out 1
+}
+@keyframes ace-search-target {
+  0%, 40% { background: rgba(8,162,194,.18); }
+  100% { background: transparent; }
+}
 .shell-topbar-actions {
   display: flex;
   align-items: center;
