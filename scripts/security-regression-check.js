@@ -4,13 +4,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const server = await readFile(path.join(root, 'server', 'index.js'), 'utf8');
-const frontendScript = await readFile(path.join(root, 'js', 'script.js'), 'utf8');
+const frontend = path.join(root, 'frontend');
+const server = await readFile(path.join(root, 'backend', 'server', 'index.js'), 'utf8');
+const frontendScript = await readFile(path.join(frontend, 'js', 'script.js'), 'utf8');
 const schema = await readFile(path.join(root, 'supabase', 'schema.sql'), 'utf8');
-const headerSource = await readFile(path.join(root, '_headers'), 'utf8');
-const htmlPages = await Promise.all((await readdir(root))
+const headerSource = await readFile(path.join(frontend, '_headers'), 'utf8');
+const htmlPages = await Promise.all((await readdir(frontend))
   .filter(file => file.endsWith('.html'))
-  .map(file => readFile(path.join(root, file), 'utf8')));
+  .map(file => readFile(path.join(frontend, file), 'utf8')));
 
 const requiredAdminRoutes = [
   '/v1/users', '/v1/invitations', '/v1/reports', '/v1/audit-logs',

@@ -22,6 +22,21 @@ ACE Clock In/Out is a role-based time-tracking workspace for administrators and 
 | Media | Cloudinary | Optional uploaded profile photos |
 | Hosting | Render | Static Site for the built frontend and Web Service for the API |
 
+## Project structure
+
+```text
+frontend/             Static pages, browser JavaScript, styles, images, icons, and headers
+backend/
+  server/              Express API entry point
+  tests/               Automated API, onboarding, and frontend-contract tests
+scripts/               Build, security, database, and maintenance tools
+supabase/              Database schema, migrations, and upgrade scripts
+deliverables/          Final presentation files kept for handoff
+dist/                  Generated production frontend (ignored by Git)
+```
+
+The root keeps only shared configuration, documentation, package files, and deployment settings. The temporary Codex presentation/finalizer work folders are intentionally not part of the project.
+
 ## Requirements
 
 - Node.js 20 or later

@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch server/index.js",
-    "start": "node server/index.js",
+    "dev": "node --watch backend/server/index.js",
+    "start": "node backend/server/index.js",
     "seed:admin": "node scripts/seed-admin.js",
     "build": "node scripts/build-frontend.js",
     "test": "node --test",
     "test:security": "node scripts/security-regression-check.js",
     "test:security:integration": "node scripts/security-integration.staging.js",
-    "test:concurrency": "node tests/time-entries.concurrency.staging.js",
+    "test:concurrency": "node backend/tests/time-entries.concurrency.staging.js",
     "db:verify": "node scripts/verify-database-contract.js",
     "preview:build": "npx serve dist"
   },

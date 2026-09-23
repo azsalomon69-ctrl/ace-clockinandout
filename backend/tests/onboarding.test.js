@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const configSource = readFileSync(new URL('../js/onboarding-config.js', import.meta.url), 'utf8');
-const engineSource = readFileSync(new URL('../js/onboarding.js', import.meta.url), 'utf8');
+const configSource = readFileSync(new URL('../../frontend/js/onboarding-config.js', import.meta.url), 'utf8');
+const engineSource = readFileSync(new URL('../../frontend/js/onboarding.js', import.meta.url), 'utf8');
 
 function engineHarness() {
   const listeners = {};
@@ -55,7 +55,7 @@ test('every administrator tutorial target exists on its configured page', () => 
   vm.runInNewContext(configSource, context);
   for (const step of context.window.ACETutorialConfig.ADMIN.steps) {
     assert.match(step.target, /^#[A-Za-z][A-Za-z0-9_-]*$/, 'Admin steps should use durable ID targets');
-    const markup = readFileSync(new URL(`../${step.page}`, import.meta.url), 'utf8');
+    const markup = readFileSync(new URL(`../../frontend/${step.page}`, import.meta.url), 'utf8');
     assert.ok(markup.includes(`id="${step.target.slice(1)}"`), `${step.target} should exist in ${step.page}`);
   }
 });
@@ -90,7 +90,7 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /shell-account-menu \[role="menuitem"\]/, 'Tutorial should adapt after the account menu is opened');
   assert.match(engineSource, /target\.matches\('\.shell-collapse'\)/, 'Sidebar-edge control should receive dedicated pointer placement');
   assert.match(engineSource, /card\.dataset\.placement = 'right'/, 'Sidebar-edge tutorial card should point left at the real control');
-  const styles = readFileSync(new URL('../css/app.css', import.meta.url), 'utf8');
+  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse/, 'Tutorial should keep the actual sidebar expand control visible while highlighting it');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse \{ position: fixed !important;/, 'Highlighting must preserve the real edge control position');
   assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');

@@ -34,7 +34,7 @@ test('saved reports count the full Manila day and exclude removed entries', asyn
 });
 
 test('report preview selects the same Manila midnight boundaries', () => {
-  const frontend = readFileSync(new URL('../js/script.js', import.meta.url), 'utf8');
+  const frontend = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
   const begin = frontend.indexOf('function filterEntriesForReport(');
   const fn = frontend.slice(begin, frontend.indexOf('function ensureGeneratedReportModal(', begin));
   const context = vm.createContext({ AppState: { users: [], timeEntries: timestamps.map(ClockInAt => ({ ClockInAt })) } });

@@ -14,9 +14,9 @@ The workspace has two separate support experiences:
 
 ## Source files
 
-- `js/onboarding-config.js` defines the role-specific steps, headings, copy, routes, selectors, and version numbers.
-- `js/onboarding.js` renders the popover, stores progress through the API, follows route changes, and adapts the tutorial to the live sidebar state.
-- `js/script.js` owns the shared shell, sidebar controls, and the Need help center.
+- `frontend/js/onboarding-config.js` defines the role-specific steps, headings, copy, routes, selectors, and version numbers.
+- `frontend/js/onboarding.js` renders the popover, stores progress through the API, follows route changes, and adapts the tutorial to the live sidebar state.
+- `frontend/js/script.js` owns the shared shell, sidebar controls, and the Need help center.
 
 ## How navigation steps behave
 
@@ -38,7 +38,7 @@ Restart is available from the profile menu. It resets the signed-in user to the 
 
 ## Editing the tutorial
 
-1. Update the appropriate role’s steps in `js/onboarding-config.js`.
+1. Update the appropriate role’s steps in `frontend/js/onboarding-config.js`.
 2. Keep instructions specific to what a user can actually see and click.
 3. Use a concrete selector only for a control that exists on every relevant screen state. Cross-page steps should use the navigation guidance flow instead.
 4. If users who already completed the changed tutorial should receive it again, increase that role’s version number.

@@ -7,6 +7,7 @@ import { minify as minifyHtml } from 'html-minifier-terser';
 import { minify as minifyJs } from 'terser';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const frontend = path.join(root, 'frontend');
 const dist = path.join(root, 'dist');
 const sourceHash = source => createHash('sha256').update(source).digest('hex').slice(0, 16);
 const filesIn = async directory => (await readdir(directory, { withFileTypes: true }))
@@ -25,7 +26,7 @@ async function buildScripts() {
   const output = new Map();
   const destination = path.join(dist, 'assets', 'js');
   await mkdir(destination, { recursive: true });
-  const sourceDirectory = path.join(root, 'js');
+  const sourceDirectory = path.join(frontend, 'js');
   const supabaseSource = await readFile(path.join(root, 'node_modules', '@supabase', 'supabase-js', 'dist', 'umd', 'supabase.js'), 'utf8');
   const supabaseTarget = `assets/js/${sourceHash(supabaseSource)}.js`;
   await writeFile(path.join(dist, supabaseTarget), supabaseSource);
@@ -74,8 +75,8 @@ async function buildStyles() {
   const output = new Map();
   const destination = path.join(dist, 'assets', 'css');
   await mkdir(destination, { recursive: true });
-  for (const file of (await filesIn(path.join(root, 'css'))).filter(file => file.endsWith('.css'))) {
-    const source = await readFile(path.join(root, 'css', file), 'utf8');
+  for (const file of (await filesIn(path.join(frontend, 'css'))).filter(file => file.endsWith('.css'))) {
+    const source = await readFile(path.join(frontend, 'css', file), 'utf8');
     const result = new CleanCSS({ level: 2, sourceMap: false }).minify(source);
     if (result.errors.length) throw new Error(`Could not minify css/${file}: ${result.errors.join('; ')}`);
     // Source styles live in /css while emitted styles live in /assets/css.
@@ -90,8 +91,8 @@ async function buildStyles() {
 }
 
 async function buildPages(assetMap) {
-  for (const file of (await filesIn(root)).filter(file => file.endsWith('.html'))) {
-    const source = await readFile(path.join(root, file), 'utf8');
+  for (const file of (await filesIn(frontend)).filter(file => file.endsWith('.html'))) {
+    const source = await readFile(path.join(frontend, file), 'utf8');
     const withProductionAssets = source.replace(/\b(src|href)=(['"])((?:\.\/)?(?:js|css)\/[^?'"\s]+)(?:\?[^'"]*)?\2/gi, (match, attribute, quote, sourcePath) => {
       const normalized = sourcePath.replace(/^\.\//, '');
       const target = assetMap.get(normalized);
@@ -127,8 +128,8 @@ async function buildPages(assetMap) {
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
-await cp(path.join(root, 'assets'), path.join(dist, 'assets'), { recursive: true });
+await cp(path.join(frontend, 'assets'), path.join(dist, 'assets'), { recursive: true });
 const assetMap = new Map([...(await buildScripts()), ...(await buildStyles())]);
 await buildPages(assetMap);
-await cp(path.join(root, '_headers'), path.join(dist, '_headers'));
+await cp(path.join(frontend, '_headers'), path.join(dist, '_headers'));
 console.log(`Built ${dist} with ${assetMap.size} minified, hashed frontend assets and Cloudflare headers.`);

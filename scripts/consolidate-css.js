@@ -7,7 +7,7 @@ import CleanCSS from 'clean-css';
 // A source-maintenance operation, not an extra production build step.
 // Dry run by default. Writes are allowed only if the normal production
 // optimizer emits exactly the same stylesheet before and after cleanup.
-const stylesheet = new URL('../css/app.css', import.meta.url);
+const stylesheet = new URL('../frontend/css/app.css', import.meta.url);
 const original = await readFile(stylesheet, 'utf8');
 const productionOptions = { level: 2, sourceMap: false };
 const sourceOptions = {

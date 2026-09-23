@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../js/supabase-auth.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../frontend/js/supabase-auth.js', import.meta.url), 'utf8');
 
 test('login retries configuration after a temporary service failure and shares successful clients', async () => {
   let calls = 0;
