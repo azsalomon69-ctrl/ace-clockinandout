@@ -15862,6 +15862,16 @@ html[data-theme="dark"] :is(.ace-select-option,.ace-autocomplete-option).is-acti
   color: #f5feff!important;
   background: var(--ace-accent-muted)!important
 }
+html[data-theme="dark"] .employee-schedule-notice {
+  color: #c7edf2!important;
+  background: #12353d!important;
+  border-color: #377884!important
+}
+html[data-theme="dark"] .employee-schedule-notice.is-late {
+  color: #ffe0a3!important;
+  background: #3b301a!important;
+  border-color: #927239!important
+}
 @media (max-width: 900px) {
   body.home-page:not(.has-app-shell) .main-content {
     padding: 0 12px 40px

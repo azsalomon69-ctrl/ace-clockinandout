@@ -2783,7 +2783,7 @@ function loadUserDashboard() {
     if (schedule && !existingNotice) {
         const notice = document.createElement('section'); notice.id = 'employeeScheduleNotice'; notice.className = 'employee-schedule-notice';
         const now = new Date(); const active = AppState.currentSession;
-        let message = '';
+        let message = ''; let isLate = false;
         if (!isScheduledToday(schedule, now)) {
             message = `${schedule.name}: no work is scheduled today.`;
         } else if (schedule.schedule_type === 'FLEX' && active) {
@@ -2791,8 +2791,10 @@ function loadUserDashboard() {
             message = `Flextime: expected finish ${finish.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
         } else if (schedule.schedule_type === 'FIXED') {
             const [hours, minutes] = String(schedule.start_time).slice(0, 5).split(':').map(Number); const start = new Date(); start.setHours(hours, minutes, 0, 0);
-            message = !active && now > start ? `You are late for ${schedule.name}. Scheduled start: ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : `${schedule.name}: ${String(schedule.start_time).slice(0, 5)}–${String(schedule.end_time).slice(0, 5)}.`;
+            isLate = !active && now > start;
+            message = isLate ? `You are late for ${schedule.name}. Scheduled start: ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : `${schedule.name}: ${String(schedule.start_time).slice(0, 5)}–${String(schedule.end_time).slice(0, 5)}.`;
         } else if (schedule.schedule_type === 'FLEX') message = `${schedule.name}: clock in for ${Math.floor(Number(schedule.daily_elapsed_minutes || 540) / 60)} hours total.`;
+        notice.classList.toggle('is-late', isLate);
         notice.textContent = message; document.querySelector('.user-dashboard .employee-dashboard-intro')?.insertAdjacentElement('afterend', notice);
     }
     const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.DurationSeconds);

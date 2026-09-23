@@ -139,6 +139,12 @@ test('every application page references the same shell-script version', () => {
   assert.ok([...versions][0], 'Pages must include a cache-busted shell script revision');
 });
 
+test('late schedule notices have a dedicated dark-theme treatment', () => {
+  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
+  assert.match(shellSource, /notice\.classList\.toggle\('is-late', isLate\)/, 'The dashboard should label late notices instead of treating every schedule message alike');
+  assert.match(styles, /html\[data-theme="dark"\] \.employee-schedule-notice\.is-late/, 'Late notices must have a readable dark-theme surface');
+});
+
 test('employee time-entry navigation matches the visible sidebar label', () => {
     const context = { window: {} };
     vm.runInNewContext(configSource, context);
