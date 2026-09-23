@@ -1291,7 +1291,7 @@ function initializeAppShell() {
         return {
             label: isAdmin ? `${personName} · ${projectName}` : `Time entry · ${projectName}`,
             detail: `Time entry · ${formatAppDate(entry.ClockInAt)} · ${status}`,
-            keywords: `${personName} ${person?.Email || ''} ${projectName} ${status} ${dateTerms} ${entry.UserNote || ''}`,
+            keywords: `${personName} ${person?.Email || ''} ${projectName} ${status} ${dateTerms} ${entry.FinalNote || ''}`,
             href: isAdmin
                 ? `time-entry-details.html?entry=${encodeURIComponent(entry.TimeEntryId)}`
                 : `time-entries.html#timeEntry-${encodeURIComponent(entry.TimeEntryId)}`,
