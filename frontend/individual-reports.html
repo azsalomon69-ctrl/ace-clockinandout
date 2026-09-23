@@ -17,8 +17,8 @@
           <div class="individual-report-builder-heading"><p class="admin-section-kicker">REPORT SETUP</p><h2>Choose report scope</h2><p>Leave the employee blank to prepare a report for every active employee.</p></div>
           <form id="individualReportForm">
             <label>Employee <input class="form-input" id="individualEmployee" list="individualEmployeeOptions" placeholder="All active employees" autocomplete="off"><datalist id="individualEmployeeOptions"></datalist></label>
-            <label>From <input class="form-input" id="individualDateFrom" type="date" required></label>
-            <label>To <input class="form-input" id="individualDateTo" type="date" required></label>
+            <fieldset class="individual-report-period" id="individualReportPeriod"><legend>Report period</legend><label class="individual-period-option"><input type="radio" name="individualReportRange" value="month" checked><span><strong>This month</strong><small>From the first day of this month through today</small></span></label><label class="individual-period-option"><input type="radio" name="individualReportRange" value="custom"><span><strong>Custom date range</strong><small>Choose any start and end date</small></span></label></fieldset>
+            <div class="individual-custom-dates" id="individualCustomDates" hidden><label>From <input class="form-input" id="individualDateFrom" type="date" required disabled></label><label>To <input class="form-input" id="individualDateTo" type="date" required disabled></label></div>
             <p class="individual-report-selection" id="individualReportSelection" aria-live="polite"></p>
             <button class="btn btn-primary" type="submit">Prepare reports</button>
           </form>

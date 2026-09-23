@@ -13707,6 +13707,42 @@ html[data-theme="dark"] .review-alert-copy time { color: #a8c4ca; }
   font-size: .85rem;
   font-weight: 700
 }
+.individual-report-period {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.individual-report-period legend {
+  padding: 0;
+  color: #244b57;
+  font-size: .85rem;
+  font-weight: 700;
+}
+.individual-period-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 1px solid #d3e8ed;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.individual-period-option:has(input:checked) {
+  background: #eef9fb;
+  border-color: var(--ace-cyan);
+}
+.individual-period-option input { margin: 3px 0 0; accent-color: var(--ace-cyan-dark); }
+.individual-period-option span { display: grid; gap: 2px; }
+.individual-period-option strong { color: var(--ace-navy); font-size: .82rem; }
+.individual-period-option small { color: var(--ace-muted); font-size: .73rem; line-height: 1.35; }
+.individual-custom-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.individual-custom-dates label { display: grid; gap: 7px; color: #244b57; font-size: .85rem; font-weight: 700; }
+html[data-theme="dark"] .individual-period-option { border-color: var(--ace-border); }
+html[data-theme="dark"] .individual-period-option:has(input:checked) { background: var(--ace-surface-raised); }
+html[data-theme="dark"] .individual-period-option strong,
+html[data-theme="dark"] .individual-report-period legend { color: var(--ace-text-primary); }
 #individualReportForm .btn {
   width: 100%;
   min-height: 44px;
@@ -13784,10 +13820,13 @@ html[data-theme="dark"] .individual-report-results-heading {
   #individualReportForm .individual-report-selection {
     grid-column: 1/-1
   }
+  .individual-report-period,
+  .individual-custom-dates { grid-column: 1/-1; }
   #individualReportForm .btn {
     width: fit-content;
     min-width: 170px
   }
+  .individual-custom-dates { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
   .individual-reports-header {
