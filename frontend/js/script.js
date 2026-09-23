@@ -548,7 +548,7 @@ function renderInitialSkeletons() {
     const shell = document.querySelector('.app-shell-skeleton');
     if (shell) {
         const page = (window.location.pathname.split('/').pop() || '').toLowerCase();
-        const managementPages = ['users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'audit-logs.html'];
+        const managementPages = ['users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'audit-logs.html', 'export-audit.html'];
         const rows = count => Array.from({ length: count }, () => '<div class="shell-skeleton-row"></div>').join('');
         const header = '<div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div>';
         if (page === 'admin-dashboard.html') {
@@ -951,7 +951,7 @@ function initializeAppShell() {
     // Render rewrites clean URLs to the deployed .html files. Normalize both
     // forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'export-audit.html', 'chat-log.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -974,7 +974,7 @@ function initializeAppShell() {
         ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['invitations.html', 'mail', 'Invitations'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
         ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['deleted-time-entries.html', 'clock', 'Deleted time entries']]],
         ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'chart', 'Individual reports']]],
-        ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]
+        ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ['export-audit.html', 'download', 'Export audit'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],
@@ -3200,6 +3200,16 @@ function renderAdminAnalytics(days = 7) {
     });
 }
 
+async function loadReviewAlerts() {
+    const section = document.getElementById('reviewAlertsSection'); const list = document.getElementById('reviewAlertsList');
+    if (!section || !list || AppState.currentUser?.Role !== 'ADMIN') return;
+    try {
+        const response = await window.ACEAuth.request('/v1/time-entry-review'); const alerts = response.items || [];
+        section.hidden = !alerts.length;
+        list.innerHTML = alerts.map(alert => `<article class="admin-remark"><div><strong>${escapeHtml(alert.label)}</strong><p>${escapeHtml(alert.detail)}</p><small>${new Date(alert.occurredAt).toLocaleString()}</small></div><a class="btn btn-sm btn-outline" href="time-entry-details.html?entry=${encodeURIComponent(alert.id)}">Review</a></article>`).join('');
+    } catch (error) { section.hidden = true; console.warn('Could not load time-entry review alerts.', error); }
+}
+
 function loadAdminDashboard() {
     // Update stats
     const clockedInUsers = document.getElementById('clockedInUsers');
@@ -3207,6 +3217,7 @@ function loadAdminDashboard() {
     
     updateOnlineUserCount();
     startOnlineUserCountRefresh();
+    void loadReviewAlerts();
     
     const todayEntries = document.getElementById('todayEntries');
     if (todayEntries) {

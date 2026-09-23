@@ -883,6 +883,18 @@ app.post('/v1/time-entries/:id/overtime/approve', authenticate, adminOnly, async
   if (error) { if (error.code === 'P0001') return fail(res, 400, error.message); throw error; }
   res.json(data);
 } catch (error) { next(error); } });
+app.get('/v1/time-entry-review', authenticate, adminOnly, async (req, res, next) => { try {
+  const overdueBefore = new Date(Date.now() - 16 * 60 * 60 * 1000).toISOString();
+  const [openEntries, correctedEntries] = await Promise.all([
+    query(db.from('time_entries').select('id,clock_in_at,profiles!time_entries_user_id_fkey(full_name,email)').is('deleted_at', null).is('clock_out_at', null).lt('clock_in_at', overdueBefore).order('clock_in_at')),
+    query(db.from('time_entries').select('id,clock_in_at,clock_out_at,stopped_by_at,profiles!time_entries_user_id_fkey(full_name,email)').is('deleted_at', null).not('stopped_by_at', 'is', null).order('stopped_by_at', { ascending: false }).limit(25))
+  ]);
+  const items = [
+    ...openEntries.map(entry => ({ id: entry.id, type: 'MISSED_CLOCK_OUT', label: 'Possible missed clock-out', detail: `${entry.profiles?.full_name || entry.profiles?.email || 'Employee'} has been clocked in for over 16 hours.`, occurredAt: entry.clock_in_at })),
+    ...correctedEntries.map(entry => ({ id: entry.id, type: 'ADMIN_STOP', label: 'Administrator-stopped shift', detail: `${entry.profiles?.full_name || entry.profiles?.email || 'Employee'} had a shift stopped by an administrator.`, occurredAt: entry.stopped_by_at }))
+  ].sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt));
+  res.json({ items, total: items.length });
+} catch (error) { next(error); } });
 
 app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try { const remarkText = requireText(req.body.remark, 'Remark', 2000); const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: remarkText }).select().single()); await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark'); res.status(201).json(remark); } catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try {
@@ -927,6 +939,8 @@ app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try
 } catch (error) { next(error); } });
 app.get('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); const request = db.from('reports').select('*, profiles!reports_created_by_user_id_fkey(full_name), report_exports(*)', paging.paged ? { count: 'exact' } : undefined).order('generated_at', { ascending: false }); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 app.post('/v1/reports/:id/exports', authenticate, adminOnly, async (req, res, next) => { try { const fileName = requireText(req.body.fileName, 'File name', 255); const fileType = req.body.fileType || 'PDF'; const fileUrl = optionalText(req.body.fileUrl, 2048); if (!['CSV', 'XLSX', 'PDF'].includes(fileType) || fileUrl === undefined) return fail(res, 400, 'Invalid export details'); const item = await query(db.from('report_exports').insert({ report_id: req.params.id, exported_by_user_id: req.profile.id, file_name: fileName, file_type: fileType, file_url: fileUrl }).select().single()); await audit(req, 'EXPORT_REPORT', 'REPORT', req.params.id, `Exported ${fileType} report`); res.status(201).json(item); } catch (error) { next(error); } });
+app.get('/v1/export-audit', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); const request = db.from('audit_logs').select('*, profiles(full_name,email)', paging.paged ? { count: 'exact' } : undefined).ilike('action', 'EXPORT%').order('created_at', { ascending: false }); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
+app.post('/v1/export-audit', authenticate, adminOnly, async (req, res, next) => { try { const format = ['PDF', 'XLSX', 'CSV'].includes(req.body.format) ? req.body.format : null; const dateFrom = req.body.dateFrom; const dateTo = req.body.dateTo; const count = Number(req.body.count); if (!format || !isDate(dateFrom) || !isDate(dateTo) || dateFrom > dateTo || !Number.isInteger(count) || count < 0) return fail(res, 400, 'Provide valid export details'); await audit(req, 'EXPORT_TIME_ENTRIES', 'TIME_ENTRY', null, `Exported ${count} time entries as ${format} for ${dateFrom} to ${dateTo}`); res.status(204).end(); } catch (error) { next(error); } });
 app.delete('/v1/reports/:id', authenticate, adminOnly, async (req, res, next) => { try {
   const report = await query(db.from('reports').delete().eq('id', req.params.id).select().single());
   await audit(req, 'DELETE_REPORT', 'REPORT', report.id, `Deleted generated ${report.report_type} report`);
