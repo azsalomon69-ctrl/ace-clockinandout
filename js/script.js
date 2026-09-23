@@ -1241,6 +1241,21 @@ function initializeAppShell() {
             icon: 'clock'
         };
     };
+    const reportSearchResult = report => {
+        const filters = report.Filters || {};
+        const creator = AppState.users.find(userItem => String(userItem.UserId) === String(report.CreatedByUserId));
+        const project = AppState.projects.find(projectItem => String(projectItem.ProjectId) === String(filters.projectId));
+        const department = AppState.departments.find(departmentItem => String(departmentItem.DepartmentId) === String(filters.departmentId));
+        const employee = AppState.users.find(userItem => String(userItem.UserId) === String(filters.userId));
+        const filterTerms = [project?.ProjectName, department?.DepartmentName, employee?.FullName].filter(Boolean).join(' ');
+        return {
+            label: `${formatReportType(report.ReportType)} report`,
+            detail: `Saved report · ${reportDate(report.DateFrom)} to ${reportDate(report.DateTo)} · ${report.TotalRecords} record${report.TotalRecords === 1 ? '' : 's'}`,
+            keywords: `${report.ReportType || ''} ${report.DateFrom || ''} ${report.DateTo || ''} ${formatAppDateTime(report.GeneratedAt)} ${creator?.FullName || ''} ${filterTerms}`,
+            href: `reports.html?report=${encodeURIComponent(report.ReportId)}`,
+            icon: 'chart'
+        };
+    };
     const setActiveSearchResult = index => {
         const options = [...searchResults.querySelectorAll('[data-search-result]')];
         if (!options.length) return;
@@ -1269,6 +1284,7 @@ function initializeAppShell() {
             // Put real work records first: someone searching a person, date,
             // project, or status is usually trying to reach that exact entry.
             AppState.timeEntries.map(timeEntrySearchResult).filter(entry => matches(entry, query)).slice(0, 4).forEach(entry => results.push(entry));
+            if (isAdmin) AppState.reports.map(reportSearchResult).filter(report => matches(report, query)).slice(0, 4).forEach(report => results.push(report));
             if (isAdmin) AppState.users.filter(person => `${person.FullName || ''} ${person.Email || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(person => results.push({ label: person.FullName || person.Email, detail: person.Role === 'ADMIN' ? 'Person · Administrator' : 'Person · Employee', href: person.Role === 'USER' ? `employee-profile.html?user=${encodeURIComponent(person.UserId)}` : 'users.html', picture: person.ProfilePictureUrl, icon: 'users' }));
             AppState.projects.filter(project => project.IsActive !== false && `${project.ProjectName || ''} ${project.Description || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(project => results.push({ label: project.ProjectName, detail: 'Project', href: isAdmin ? 'projects.html' : 'time-entries.html', icon: 'folder' }));
             workspaceSearchItems.filter(item => matches({ label: item[0], detail: item[1], keywords: item[3] }, query)).slice(0, 4).forEach(item => results.push({ label: item[0], detail: item[1], href: item[2], keywords: item[3], icon: 'search' }));
@@ -3330,6 +3346,13 @@ function loadReportsList() {
             if (button.dataset.reportAction === 'export') exportReport(reportId, button.dataset.reportFormat);
             else deleteReport(reportId);
         }));
+        const requestedReportId = new URLSearchParams(location.search).get('report');
+        if (requestedReportId && !reportsList.dataset.searchTargetHandled) {
+            reportsList.dataset.searchTargetHandled = 'true';
+            const requestedReport = AppState.reports.find(report => String(report.ReportId) === requestedReportId);
+            if (requestedReport) requestAnimationFrame(() => viewReport(requestedReport.ReportId));
+            else showToast('That saved report is no longer available.', 'warning');
+        }
     }
 }
 
