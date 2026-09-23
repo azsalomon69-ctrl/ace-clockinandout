@@ -343,10 +343,13 @@ async function renderAdminSection() {
       button.textContent = expanded ? 'Hide details' : 'Details';
     }));
   };
-  draw(view.records);
+  const quickAction = sessionStorage.getItem('ace_workspace_quick_action');
+  const correctionFlow = key === 'entries' && quickAction === 'correct-missing-clock-out';
+  const initialRecords = correctionFlow ? view.records.filter(record => !record.clockOutAt) : view.records;
+  draw(initialRecords);
   const search = document.getElementById('sectionSearch'); const count = document.getElementById('sectionResultCount') || document.createElement('span');
   count.id = 'sectionResultCount'; count.className = 'result-count'; tableTitle.append(' ', count);
-  const setCount = records => { count.textContent = records.length + ' record' + (records.length === 1 ? '' : 's'); }; setCount(view.records);
+  const setCount = records => { count.textContent = records.length + ' record' + (records.length === 1 ? '' : 's'); }; setCount(initialRecords);
   let departmentFilter = null; let roleFilter = null; let employeeFilter = null; let projectFilter = null; let remarksFilter = null;
   if (key === 'users') {
     const departments = [...new Set(view.records.map(record => record.cells[3]))].sort((a, b) => a.localeCompare(b));
@@ -371,8 +374,16 @@ async function renderAdminSection() {
     draw(records); setCount(records);
   };
   actionButton.addEventListener('click', () => /export/i.test(view.action) ? downloadCsv(view.records) : modal(view, true));
-  const quickAction = sessionStorage.getItem('ace_workspace_quick_action');
   const expectedQuickAction = key === 'invitations' ? 'invite-user' : key === 'projects' ? 'add-project' : '';
+  if (correctionFlow) {
+    sessionStorage.removeItem('ace_workspace_quick_action');
+    requestAnimationFrame(() => {
+      showToast(initialRecords.length
+        ? `Showing ${initialRecords.length} active time entr${initialRecords.length === 1 ? 'y' : 'ies'}. Select Correct time after confirming the employee's actual clock-out time.`
+        : 'There are no active time entries needing a clock-out correction.', initialRecords.length ? 'info' : 'success');
+      document.getElementById('sectionTableTitle')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
   if (quickAction && quickAction === expectedQuickAction) {
     sessionStorage.removeItem('ace_workspace_quick_action');
     requestAnimationFrame(() => actionButton.click());

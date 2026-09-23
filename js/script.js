@@ -1214,6 +1214,17 @@ function initializeAppShell() {
             ? { label: 'Clock out', detail: 'Quick action · Open clock-out confirmation', href: 'user-dashboard.html', quickAction: 'clock-out', keywords: 'clock out end shift finish work' }
             : { label: 'Clock in', detail: 'Quick action · Open clock-in form', href: 'user-dashboard.html', quickAction: 'clock-in', keywords: 'clock in start shift begin work' }
     ];
+    const naturalLanguageActions = isAdmin ? [
+        { label: 'Correct a missed clock-out', detail: 'Natural-language action · Show active entries that need review', href: 'admin-time-entries.html', quickAction: 'correct-missing-clock-out', keywords: 'employee forgot missed clock out clock-out active shift correction', phrases: [['forgot', 'clock', 'out'], ['missed', 'clock', 'out'], ['employee', 'clock', 'out']], icon: 'timer' },
+        { label: 'Review access requests', detail: 'Natural-language action · Open pending access requests', href: 'access-requests.html', keywords: 'approve access request pending sign in', phrases: [['approve', 'access'], ['approve', 'request'], ['pending', 'access']], icon: 'user-pen' },
+        { label: 'Invite a new employee', detail: 'Natural-language action · Open the invitation form', href: 'invitations.html', quickAction: 'invite-user', keywords: 'add invite new employee staff person', phrases: [['add', 'employee'], ['new', 'employee'], ['invite', 'employee']], icon: 'user-plus' },
+        { label: 'Create a project', detail: 'Natural-language action · Open the project form', href: 'projects.html', quickAction: 'add-project', keywords: 'create add new project', phrases: [['create', 'project'], ['new', 'project']], icon: 'folder' }
+    ] : [
+        { label: 'Get help with a missed clock-out', detail: 'Natural-language action · Learn what to do next', action: 'help', keywords: 'forgot missed clock out clock-out correction', phrases: [['forgot', 'clock', 'out'], ['missed', 'clock', 'out']], icon: 'info' },
+        AppState.isClockedIn
+            ? { label: 'Clock out', detail: 'Natural-language action · Open clock-out confirmation', href: 'user-dashboard.html', quickAction: 'clock-out', keywords: 'end finish shift work clock out', phrases: [['end', 'shift'], ['finish', 'work']], icon: 'timer' }
+            : { label: 'Clock in', detail: 'Natural-language action · Open clock-in form', href: 'user-dashboard.html', quickAction: 'clock-in', keywords: 'start begin shift work clock in', phrases: [['start', 'shift'], ['begin', 'work']], icon: 'timer' }
+    ];
     // Keep search convenience local to this browser and separate by signed-in
     // account and role, so a different person using this device does not see
     // someone else's recent page names or search terms.
@@ -1316,6 +1327,10 @@ function initializeAppShell() {
         const rawQuery = searchInput.value.trim();
         const query = rawQuery.toLowerCase();
         const matches = (item, value) => `${item.label || ''} ${item.detail || ''} ${item.keywords || ''}`.toLowerCase().includes(value);
+        const matchesNaturalPhrase = action => {
+            const words = query.replace(/[^a-z0-9]+/g, ' ').split(' ').filter(Boolean);
+            return action.phrases?.some(phrase => phrase.every(word => words.includes(word)));
+        };
         const results = [];
         if (!query && showSuggestions) {
             quickActionItems.forEach(action => results.push({ ...action, icon: 'search' }));
@@ -1331,6 +1346,7 @@ function initializeAppShell() {
                 if (item && !results.some(result => result.href === item[2])) results.push({ label: item[0], detail: item[1], href: item[2], keywords: item[3], icon: 'search' });
             });
         } else if (query) {
+            naturalLanguageActions.filter(matchesNaturalPhrase).forEach(action => results.push({ ...action, icon: action.icon || 'search' }));
             quickActionItems.filter(action => matches(action, query)).forEach(action => results.push({ ...action, icon: 'search' }));
             // Put real work records first: someone searching a person, date,
             // project, or status is usually trying to reach that exact entry.
