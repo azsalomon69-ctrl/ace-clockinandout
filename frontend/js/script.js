@@ -2448,9 +2448,12 @@ function filterEntriesForReport(report) {
         return time >= from && time <= to &&
             matchesId(filters.projectId, entry.ProjectId) &&
             matchesId(filters.userId, entry.UserId) &&
-            matchesId(filters.departmentId, user?.DepartmentId);
+            matchesId(filters.departmentId, user?.DepartmentId) &&
+            (!filters.status || (filters.status === 'COMPLETED' ? Boolean(entry.ClockOutAt) : !entry.ClockOutAt));
     });
 }
+
+if (typeof window !== 'undefined') window.filterEntriesForReport = filterEntriesForReport;
 
 function ensureGeneratedReportModal() {
     let modal = document.getElementById('generatedReportModal');

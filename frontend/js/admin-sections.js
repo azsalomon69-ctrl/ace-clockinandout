@@ -282,6 +282,23 @@ function downloadCsv(records) {
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a'); link.href = url; link.download = 'ace-time-entries.csv'; link.click(); URL.revokeObjectURL(url);
 }
+function openTimeEntryExport(records) {
+  const existing = document.getElementById('timeEntryExportModal');
+  existing?.remove();
+  const users = [...new Map(records.map(record => [record.userId, record.cells[0]])).entries()].filter(([id]) => id);
+  const projects = [...new Map(records.map(record => [record.cells[1], record.cells[1]])).keys()].filter(name => name && name !== '—');
+  const today = new Date(); const from = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10); const to = today.toISOString().slice(0, 10);
+  const modal = document.createElement('div');
+  modal.id = 'timeEntryExportModal'; modal.className = 'modal'; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true'); modal.setAttribute('aria-labelledby', 'timeEntryExportTitle');
+  modal.innerHTML = '<div class="modal-content"><div class="modal-header"><div><p class="eyebrow">TIME ENTRIES</p><h3 class="modal-title" id="timeEntryExportTitle">Export entries</h3></div><button class="modal-close" type="button" aria-label="Close">' + icon('x') + '</button></div><form class="modal-body" id="timeEntryExportForm"><p class="modal-description">Choose the entries to include, then save a PDF or Excel workbook.</p><div class="form-grid"><div class="form-group"><label class="form-label" for="exportDateFrom">From</label><input class="form-input" id="exportDateFrom" type="date" value="' + from + '" required></div><div class="form-group"><label class="form-label" for="exportDateTo">To</label><input class="form-input" id="exportDateTo" type="date" value="' + to + '" required></div><div class="form-group"><label class="form-label" for="exportEntryEmployee">Employee</label><select class="form-select" id="exportEntryEmployee"><option value="">All employees</option>' + users.map(([id, name]) => '<option value="' + esc(id) + '">' + esc(name) + '</option>').join('') + '</select></div><div class="form-group"><label class="form-label" for="exportEntryProject">Project</label><select class="form-select" id="exportEntryProject"><option value="">All projects</option>' + projects.map(name => { const project = (AppState.projects || []).find(item => item.ProjectName === name); return '<option value="' + esc(project?.ProjectId || '') + '">' + esc(name) + '</option>'; }).join('') + '</select></div><div class="form-group"><label class="form-label" for="exportEntryStatus">Status</label><select class="form-select" id="exportEntryStatus"><option value="">All entries</option><option value="COMPLETED">Completed</option><option value="ACTIVE">Active</option></select></div></div><p class="export-entry-summary" id="exportEntrySummary"></p><div class="form-actions"><button class="btn btn-outline" type="button" data-export-format="XLSX">' + icon('download') + 'Save Excel</button><button class="btn btn-primary" type="button" data-export-format="PDF">' + icon('printer') + 'Save as PDF</button></div></form></div>';
+  document.body.appendChild(modal);
+  const close = () => closeModal(modal.id); modal.querySelector('.modal-close').addEventListener('click', close); modal.addEventListener('click', event => { if (event.target === modal) close(); });
+  const read = () => ({ dateFrom: modal.querySelector('#exportDateFrom').value, dateTo: modal.querySelector('#exportDateTo').value, filters: { userId: modal.querySelector('#exportEntryEmployee').value, projectId: modal.querySelector('#exportEntryProject').value, status: modal.querySelector('#exportEntryStatus').value } });
+  const updateSummary = () => { const config = read(); const count = (window.filterEntriesForReport ? window.filterEntriesForReport({ DateFrom: config.dateFrom, DateTo: config.dateTo, Filters: config.filters }) : []).length; modal.querySelector('#exportEntrySummary').textContent = count + ' entr' + (count === 1 ? 'y' : 'ies') + ' will be included.'; };
+  modal.querySelectorAll('input, select').forEach(input => input.addEventListener('change', updateSummary));
+  modal.querySelectorAll('[data-export-format]').forEach(button => button.addEventListener('click', () => { const config = read(); if (config.dateTo < config.dateFrom) return showToast('The end date must be on or after the start date.', 'warning'); window.ACEReportActions.preview({ ...config, format: button.dataset.exportFormat }); close(); }));
+  updateSummary(); openModal(modal.id);
+}
 async function renderAdminSection() {
   const key = document.body.dataset.adminView; const config = ADMIN_SECTION_CONFIG[key]; if (!config) return;
   // A live redraw must not stack filters or click handlers from the previous
@@ -374,7 +391,7 @@ async function renderAdminSection() {
     const records = view.records.filter(record => (!term || record.cells.join(' ').toLowerCase().includes(term)) && (!departmentFilter?.value || record.cells[3] === departmentFilter.value) && (!roleFilter?.value || record.cells[2] === roleFilter.value) && (!employeeTerm || record.cells[0].toLowerCase().includes(employeeTerm)) && (!projectTerm || record.cells[1].toLowerCase().includes(projectTerm)) && (!remarksFilter?.value || (remarksFilter.value === 'with' ? Boolean(record.remarks?.length) : !record.remarks?.length)));
     draw(records); setCount(records);
   };
-  actionButton.addEventListener('click', () => /export/i.test(view.action) ? downloadCsv(view.records) : modal(view, true));
+  actionButton.addEventListener('click', () => /export/i.test(view.action) ? openTimeEntryExport(view.records) : modal(view, true));
   const expectedQuickAction = key === 'invitations' ? 'invite-user' : key === 'projects' ? 'add-project' : '';
   if (correctionFlow) {
     sessionStorage.removeItem('ace_workspace_quick_action');
