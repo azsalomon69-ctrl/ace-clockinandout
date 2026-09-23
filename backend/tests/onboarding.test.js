@@ -123,6 +123,22 @@ test('the envelope button owns the notification menu handler', () => {
   assert.match(shellSource, /notificationButton\.addEventListener\('click'/, 'The envelope button must open and close its notification panel');
 });
 
+test('every application page references the same shell-script version', () => {
+  const pages = [
+    'access-requests.html', 'admin-dashboard.html', 'admin-time-entries.html', 'audit-logs.html',
+    'chat-log.html', 'deleted-time-entries.html', 'deleted-users.html', 'departments.html',
+    'employee-profile.html', 'index.html', 'individual-reports.html', 'invitations.html', 'login.html',
+    'projects.html', 'remarks.html', 'reports.html', 'schedule-flex.html', 'settings.html',
+    'time-entries.html', 'time-entry-details.html', 'user-dashboard.html', 'users.html'
+  ];
+  const versions = new Set(pages.map(page => {
+    const markup = readFileSync(new URL(`../../frontend/${page}`, import.meta.url), 'utf8');
+    return markup.match(/js\/script\.js\?v=([^'"\s]+)/)?.[1];
+  }));
+  assert.equal(versions.size, 1, 'Every page must request the same shell script revision');
+  assert.ok([...versions][0], 'Pages must include a cache-busted shell script revision');
+});
+
 test('employee time-entry navigation matches the visible sidebar label', () => {
     const context = { window: {} };
     vm.runInNewContext(configSource, context);
