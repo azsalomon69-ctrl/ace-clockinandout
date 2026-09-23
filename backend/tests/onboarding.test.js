@@ -104,6 +104,8 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');
   assert.match(engineSource, /navigationTarget/, 'Tutorial should identify the exact sidebar control to use');
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');
+  assert.doesNotMatch(engineSource, /\$\{isMobile\(\) \? 'Open sidebar' : 'Use sidebar'\}/, 'Desktop navigation should not show a redundant Use sidebar button');
+  assert.match(engineSource, /: isMobile\(\)\s*\?/, 'Only mobile navigation should show an action to open the sidebar');
 });
 
 test('employee time-entry navigation matches the visible sidebar label', () => {

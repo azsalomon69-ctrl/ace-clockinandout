@@ -353,7 +353,9 @@ window.ACETutorial = (() => {
         const target = needsSidebarExpand ? document.querySelector('.shell-collapse') : navigationTarget(step);
         const navigationActions = needsSidebarExpand
             ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`
-            : `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>${isMobile() ? 'Open sidebar' : 'Use sidebar'}</button></span>`;
+            : isMobile()
+                ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>Open sidebar</button></span>`
+                : `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`;
         const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'} ace-tutorial-navigation"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>Go to ${escape(step.navigation?.label || step.title)}</h2><p>${escape(navigationInstruction(step))}</p><div class="ace-tutorial-actions">${navigationActions}</div></div>`, `Navigate to ${step.navigation?.label || step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`, { navigation: Boolean(target) });
         ui.querySelector('[data-tutorial-skip]').addEventListener('click', () => finish('SKIPPED'));
         ui.querySelector('[data-tutorial-back]').addEventListener('click', () => go(stepIndex - 1));
@@ -383,7 +385,7 @@ window.ACETutorial = (() => {
             if (target.matches('.shell-nav-group-toggle') && target !== sidebarToggle) target.addEventListener('click', refreshNavigation, { once: true });
             watchNavigationState(ui, stepIndex, step);
         }
-        ui.querySelector('[data-tutorial-navigate]').focus();
+        (ui.querySelector('[data-tutorial-navigate]') || ui.querySelector('[data-tutorial-back]:not([disabled])') || ui.querySelector('[data-tutorial-skip]'))?.focus();
     }
     async function showStep(stepIndex) {
         const step = roleConfig.steps[stepIndex];
