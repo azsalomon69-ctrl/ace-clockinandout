@@ -1011,7 +1011,7 @@ function initializeAppShell() {
     mobileToggle.innerHTML = suppliedIconMarkup('menu', 'shell-icon');
     const topbar = document.createElement('header');
     topbar.className = 'shell-topbar';
-    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" aria-label="Search employees and projects" autocomplete="off" placeholder="${isAdmin ? 'Search employees, projects…' : 'Search projects…'}"></label><div class="shell-global-results" role="listbox" hidden></div></div><div class="shell-topbar-actions"><button class="shell-topbar-icon-button shell-help-button" type="button" aria-label="Open help" title="Need help?">${suppliedIconMarkup('info', 'shell-icon')}</button><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
+    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" role="combobox" aria-label="Search the workspace" aria-autocomplete="list" aria-expanded="false" aria-controls="shellGlobalResults" autocomplete="off" placeholder="${isAdmin ? 'Search workspace, people, projects…' : 'Search workspace, projects, help…'}"></label><div class="shell-global-results" id="shellGlobalResults" role="listbox" hidden></div></div><div class="shell-topbar-actions"><button class="shell-topbar-icon-button shell-help-button" type="button" aria-label="Open help" title="Need help?">${suppliedIconMarkup('info', 'shell-icon')}</button><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
     document.body.prepend(overlay); document.body.prepend(sidebar); document.body.prepend(topbar); document.body.prepend(mobileToggle);
 
     let employeeBottomNav = null;
@@ -1123,9 +1123,9 @@ function initializeAppShell() {
         accountButton.setAttribute('aria-expanded', String(open));
         accountButton.setAttribute('aria-label', open ? 'Close account menu' : 'Open account menu');
         accountMenu.hidden = !open;
+        window.dispatchEvent(new CustomEvent('ace:sidebar-state-change', { detail: { accountOpen: open } }));
     };
     accountButton.addEventListener('click', () => setAccountMenu(accountMenu.hidden));
-        window.dispatchEvent(new CustomEvent('ace:sidebar-state-change', { detail: { accountOpen: open } }));
     sidebar.querySelector('[data-account-logout]').addEventListener('click', handleLogout);
     topbar.querySelector('[data-topbar-logout]').addEventListener('click', handleLogout);
     [...document.querySelectorAll('[data-restart-tutorial]')].forEach(button => button.addEventListener('click', () => window.ACETutorial?.restart()));
@@ -1185,23 +1185,88 @@ function initializeAppShell() {
 
     const searchInput = topbar.querySelector('#shellGlobalSearch');
     const searchResults = topbar.querySelector('.shell-global-results');
-    const renderSearchResults = () => {
-        const query = searchInput.value.trim().toLowerCase();
-        if (!query) { searchResults.hidden = true; searchResults.innerHTML = ''; return; }
-        const results = [];
-        if (isAdmin) AppState.users.filter(person => `${person.FullName || ''} ${person.Email || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(person => results.push({ label: person.FullName || person.Email, detail: person.Role === 'ADMIN' ? 'Administrator' : 'Employee', href: person.Role === 'USER' ? `employee-profile.html?user=${encodeURIComponent(person.UserId)}` : 'users.html', picture: person.ProfilePictureUrl }));
-        AppState.projects.filter(project => project.IsActive !== false && `${project.ProjectName || ''} ${project.Description || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(project => results.push({ label: project.ProjectName, detail: 'Project', href: isAdmin ? 'projects.html' : 'time-entries.html' }));
-        searchResults.innerHTML = results.length ? results.slice(0, 6).map(result => `<a href="${result.href}" role="option"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : escapeHtml(result.label.slice(0, 1).toUpperCase())}</span><span><strong>${escapeHtml(result.label)}</strong><small>${escapeHtml(result.detail)}</small></span></a>`).join('') : '<p class="shell-topbar-empty">No matching people or projects.</p>';
-        searchResults.hidden = false;
+    const workspaceSearchItems = isAdmin ? [
+        ['Dashboard', 'Workspace', 'admin-dashboard.html', 'dashboard home overview'],
+        ['Invite user', 'People · Invite a team member', 'invitations.html', 'invite employee administrator email access'],
+        ['Users', 'People · Manage accounts', 'users.html', 'people employees staff manage accounts'],
+        ['Access requests', 'People · Approve or deny access', 'access-requests.html', 'requests approve deny pending'],
+        ['Departments', 'People · Organize your team', 'departments.html', 'department team organization'],
+        ['Projects', 'Work · Create and manage projects', 'projects.html', 'project assignment assign'],
+        ['Schedule & flextime', 'Work · Create or assign schedules', 'schedule-flex.html', 'schedule flextime workdays break limit'],
+        ['Time entries', 'Work · Review and correct time', 'admin-time-entries.html', 'time clock clock out correct entry'],
+        ['Deleted time entries', 'Work · Restore deleted records', 'deleted-time-entries.html', 'deleted restore time entries'],
+        ['Reports', 'Insights · Reports and exports', 'reports.html', 'report export analytics'],
+        ['Individual reports', 'Insights · Employee reports', 'individual-reports.html', 'individual employee report'],
+        ['Audit log', 'Administration · Review changes', 'audit-logs.html', 'audit history activity'],
+        ['Settings', 'Administration · Profile, security, appearance', 'settings.html', 'settings profile security appearance']
+    ] : [
+        ['Dashboard', 'Workspace · Clock in, clock out, and breaks', 'user-dashboard.html', 'home start shift clock in clock out break'],
+        ['My time entries', 'Work · Review your shifts', 'time-entries.html', 'time entries history shifts filters'],
+        ['Remarks', 'Work · Read administrator feedback', 'remarks.html', 'remarks feedback admin note'],
+        ['Profile & settings', 'Account · Profile, security, appearance', 'settings.html', 'settings profile password security appearance']
+    ];
+    let visibleSearchResults = [];
+    let activeSearchIndex = -1;
+    const closeSearchResults = () => {
+        searchResults.hidden = true;
+        searchInput.setAttribute('aria-expanded', 'false');
+        searchInput.removeAttribute('aria-activedescendant');
+        activeSearchIndex = -1;
     };
-    searchInput.addEventListener('input', renderSearchResults);
-    searchInput.addEventListener('keydown', event => { if (event.key === 'Escape') { searchInput.value = ''; renderSearchResults(); searchInput.blur(); } });
+    const openSearchResult = result => {
+        if (!result) return;
+        if (result.action === 'help') { closeSearchResults(); openWorkspaceHelp(isAdmin, searchInput.value.trim()); return; }
+        window.location.assign(result.href);
+    };
+    const setActiveSearchResult = index => {
+        const options = [...searchResults.querySelectorAll('[data-search-result]')];
+        if (!options.length) return;
+        activeSearchIndex = (index + options.length) % options.length;
+        options.forEach((option, optionIndex) => option.classList.toggle('is-active', optionIndex === activeSearchIndex));
+        const active = options[activeSearchIndex];
+        searchInput.setAttribute('aria-activedescendant', active.id);
+        active.scrollIntoView({ block: 'nearest' });
+    };
+    const renderSearchResults = ({ showSuggestions = false } = {}) => {
+        const rawQuery = searchInput.value.trim();
+        const query = rawQuery.toLowerCase();
+        const matches = (item, value) => `${item.label || ''} ${item.detail || ''} ${item.keywords || ''}`.toLowerCase().includes(value);
+        const results = [];
+        if (!query && showSuggestions) {
+            const suggested = isAdmin ? ['Dashboard', 'Invite user', 'Users', 'Time entries'] : ['Dashboard', 'My time entries', 'Remarks', 'Profile & settings'];
+            suggested.forEach(label => {
+                const item = workspaceSearchItems.find(candidate => candidate[0] === label);
+                if (item) results.push({ label: item[0], detail: item[1], href: item[2], keywords: item[3], icon: 'search' });
+            });
+        } else if (query) {
+            workspaceSearchItems.filter(item => matches({ label: item[0], detail: item[1], keywords: item[3] }, query)).slice(0, 5).forEach(item => results.push({ label: item[0], detail: item[1], href: item[2], keywords: item[3], icon: 'search' }));
+            if (isAdmin) AppState.users.filter(person => `${person.FullName || ''} ${person.Email || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(person => results.push({ label: person.FullName || person.Email, detail: person.Role === 'ADMIN' ? 'Person · Administrator' : 'Person · Employee', href: person.Role === 'USER' ? `employee-profile.html?user=${encodeURIComponent(person.UserId)}` : 'users.html', picture: person.ProfilePictureUrl, icon: 'users' }));
+            AppState.projects.filter(project => project.IsActive !== false && `${project.ProjectName || ''} ${project.Description || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(project => results.push({ label: project.ProjectName, detail: 'Project', href: isAdmin ? 'projects.html' : 'time-entries.html', icon: 'folder' }));
+            results.push({ label: `Search Need help for “${rawQuery}”`, detail: 'Get an answer instead of restarting the tutorial', action: 'help', icon: 'info' });
+        }
+        visibleSearchResults = results.slice(0, 8);
+        if (!visibleSearchResults.length) { closeSearchResults(); searchResults.innerHTML = ''; return; }
+        const heading = query ? 'Search results' : 'Quick access';
+        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}<span>${query ? '↑↓ to move · Enter to open' : 'Start typing to search everything'}</span></p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${escapeHtml(result.label)}</strong><small>${escapeHtml(result.detail)}</small></span></button>`).join('')}`;
+        searchResults.hidden = false;
+        searchInput.setAttribute('aria-expanded', 'true');
+        searchResults.querySelectorAll('[data-search-result]').forEach(button => button.addEventListener('click', () => openSearchResult(visibleSearchResults[Number(button.dataset.searchResult)])));
+        activeSearchIndex = -1;
+    };
+    searchInput.addEventListener('focus', () => renderSearchResults({ showSuggestions: true }));
+    searchInput.addEventListener('input', () => renderSearchResults({ showSuggestions: true }));
+    searchInput.addEventListener('keydown', event => {
+        if (event.key === 'Escape') { searchInput.value = ''; closeSearchResults(); searchInput.blur(); return; }
+        if (event.key === 'ArrowDown') { event.preventDefault(); if (searchResults.hidden) renderSearchResults({ showSuggestions: true }); setActiveSearchResult(activeSearchIndex + 1); return; }
+        if (event.key === 'ArrowUp') { event.preventDefault(); if (searchResults.hidden) renderSearchResults({ showSuggestions: true }); setActiveSearchResult(activeSearchIndex - 1); return; }
+        if (event.key === 'Enter' && activeSearchIndex >= 0) { event.preventDefault(); openSearchResult(visibleSearchResults[activeSearchIndex]); }
+    });
     document.addEventListener('click', event => {
         if (!sidebar.contains(event.target)) setAccountMenu(false);
         if (!topbar.contains(event.target)) {
             setTopbarMenu(topbarAccountButton, topbarAccountMenu, false);
             setTopbarMenu(notificationButton, notificationMenu, false);
-            searchResults.hidden = true;
+            closeSearchResults();
         }
     });
     return true;
@@ -1259,7 +1324,7 @@ function suppliedIconMarkup(name, className = 'ui-icon') {
     return `<img class="${className}" src="assets/icons/${name}.svg" alt="" aria-hidden="true">`;
 }
 
-function openWorkspaceHelp(isAdmin) {
+function openWorkspaceHelp(isAdmin, initialQuery = '') {
     const entries = isAdmin ? [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. Open People or Work to reveal their page links.'],
         ['How do I invite someone?', 'Use Invite user on the dashboard, enter the work email, choose the role, and send the invitation. The person can be granted access even if their invitation email has a delivery issue.'],
@@ -1333,7 +1398,8 @@ function openWorkspaceHelp(isAdmin) {
     modal.querySelector('.modal-close').onclick = () => closeModal(modal.id);
     modal.onclick = event => { if (event.target === modal) closeModal(modal.id); };
     input.addEventListener('input', () => renderResults(input.value));
-    renderResults('');
+    input.value = initialQuery;
+    renderResults(initialQuery);
     openModal(modal.id);
     requestAnimationFrame(() => input.focus());
 }
@@ -2187,8 +2253,10 @@ async function handleInviteUser(e) {
         form.reset();
         const emailMessage = invitation.email_sent
             ? `${email} now has access and the onboarding email was sent.`
-            : `${email} now has access. ${invitation.email_issue || 'The onboarding email needs attention.'}`;
-        showToast(emailMessage, invitation.email_sent ? 'success' : 'warning');
+            : `${email} now has access. The onboarding email was not delivered: ${invitation.email_issue || 'check the email service settings.'}`;
+        // Access is granted before the optional email is sent, so a delivery
+        // issue must not make a successful invitation look like it failed.
+        showToast(emailMessage, 'success');
     } catch (error) {
         showToast(error.message || 'Unable to grant access to this account.', 'error');
     } finally {
@@ -2652,7 +2720,7 @@ function loadUserDashboard() {
             const entry = entryById.get(remark.TimeEntryId);
             const session = entry ? new Date(entry.ClockInAt).toLocaleDateString() : 'Time entry';
             return `<article class="remark-item"><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${escapeHtml(session)} · ${new Date(remark.CreatedAt).toLocaleString()}</small></article>`;
-        }).join('') : '<p class="empty-state">No administrator remarks yet.</p>';
+        }).join('') : emptyState('No administrator notes yet', 'Notes from your administrator will appear here.');
     }
 }
 
@@ -2938,7 +3006,7 @@ function renderAdminAnalytics(days = 7) {
     const analyticsDetail = document.getElementById('analyticsDetail');
     if (analyticsDetail) analyticsDetail.textContent = [selectedProject?.ProjectName, selectedDepartment?.DepartmentName, selectedEmployee?.FullName].filter(Boolean).join(' · ') || 'Across all projects, departments, and employees';
     hoursChart.setAttribute('aria-label', `Tracked hours from ${toAnalyticsDateValue(periodStart)} to ${toAnalyticsDateValue(periodEnd)}: ${formatDuration(totalSeconds)}`);
-    hoursChart.innerHTML = buckets.map(bucket => {
+    hoursChart.innerHTML = inPeriod.length ? buckets.map(bucket => {
         const height = bucket.seconds ? Math.max(5, Math.round(bucket.seconds / maxSeconds * 100)) : 2;
         const label = selectedDays <= 7
             ? bucket.start.toLocaleDateString('en-US', { weekday: 'short' })
@@ -2949,7 +3017,7 @@ function renderAdminAnalytics(days = 7) {
             : `${bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${bucketEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
         const detail = `${periodLabel}: ${formatDuration(bucket.seconds)} tracked`;
         return `<div class="chart-column analytics-tooltip" tabindex="0" role="listitem" aria-label="${detail}" data-tooltip="${detail}"><div class="chart-column-track"><div class="chart-column-bar" style="height:${height}%"></div></div><span class="chart-column-label">${label}</span><span class="chart-column-value">${formatDuration(bucket.seconds)}</span></div>`;
-    }).join('');
+    }).join('') : '<div class="analytics-empty">No tracked hours match these filters yet.</div>';
 
     const projectTotals = new Map();
     inPeriod.forEach(entry => {
@@ -3046,7 +3114,7 @@ function loadAdminDashboard() {
                     </td>
                 </tr>
             `;
-            }).join('') : `<tr><td colspan="9">${emptyState('No time entries', 'Completed and active sessions will appear here.')}</td></tr>`;
+        }).join('') : `<tr class="table-empty-row"><td colspan="9">${emptyState('No time entries yet', 'Completed and active sessions will appear here.')}</td></tr>`;
             if (controls) controls.hidden = entries.length <= 3;
             if (pageSize) pageSize.value = String(size);
             if (pagination) {
@@ -3113,7 +3181,7 @@ function loadTimeEntries() {
                     </td>
                 </tr>
             `;
-        }).join('') : `<tr><td colspan="10">${emptyState('No time entries found', 'Your tracked sessions will appear here. Start by clocking in.', 'Clock in', '#')}</td></tr>`;
+        }).join('') : `<tr class="table-empty-row"><td colspan="10">${emptyState('No time entries yet', 'Your tracked sessions will appear here. Start by clocking in.', 'Clock in', '#')}</td></tr>`;
 
         timeEntriesList.querySelectorAll('.time-entry-details-toggle').forEach(button => {
             button.addEventListener('click', () => {
@@ -3142,7 +3210,7 @@ function loadRemarksPage() {
         const entryDate = entry ? new Date(entry.ClockInAt).toLocaleString() : 'Related time entry';
         const project = entry?.ProjectId ? AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName : null;
         return `<article class="remark-item"><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${escapeHtml(project || 'No project')} · Time entry: ${escapeHtml(entryDate)} · Added ${new Date(remark.CreatedAt).toLocaleString()}</small></article>`;
-    }).join('') : '<p class="empty-state">No administrator remarks yet.</p>';
+        }).join('') : emptyState('No administrator notes yet', 'Notes from your administrator will appear here.');
 }
 
 function updateRemarkNotificationBadge() {
@@ -3203,7 +3271,7 @@ function startOnlineUserCountRefresh() {
 function loadReportsList() {
     const reportsList = document.getElementById('reportsList');
     if (reportsList) {
-        reportsList.innerHTML = AppState.reports.map(report => {
+        reportsList.innerHTML = AppState.reports.length ? AppState.reports.map(report => {
             const user = AppState.users.find(u => u.UserId === report.CreatedByUserId);
             return `
                 <tr data-type="${report.ReportType}" data-from="${report.DateFrom}" data-to="${report.DateTo}" data-user="${report.CreatedByUserId}" data-department="${report.Filters?.departmentId || ''}" data-project="${report.Filters?.projectId || ''}"${report.TotalRecords === 0 ? ' style="color: var(--ace-muted); opacity: .62"' : ''}>
@@ -3219,7 +3287,7 @@ function loadReportsList() {
                     </td>
                 </tr>
             `;
-        }).join('');
+        }).join('') : `<tr class="table-empty-row"><td colspan="6">${emptyState('No reports yet', 'Generate a report from the dashboard when you need to export team time.', 'Open dashboard', 'admin-dashboard.html')}</td></tr>`;
         reportsList.querySelectorAll('[data-report-action]').forEach(button => button.addEventListener('click', () => {
             const reportId = button.dataset.reportId;
             if (button.dataset.reportAction === 'export') exportReport(reportId, button.dataset.reportFormat);

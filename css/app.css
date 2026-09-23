@@ -2954,17 +2954,25 @@ body {
 .shell-global-results[hidden] {
   display: none
 }
-.shell-global-results a {
+.shell-global-results a,
+.shell-global-result {
+  width: 100%;
   display: grid;
   grid-template-columns: 30px minmax(0,1fr);
   align-items: center;
   gap: 9px;
   padding: 7px;
   color: var(--ace-ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
   border-radius: 7px
 }
 .shell-global-results a:focus-visible,
-.shell-global-results a:hover {
+.shell-global-results a:hover,
+.shell-global-result:focus-visible,
+.shell-global-result:hover,
+.shell-global-result.is-active {
   background: #eaf8fa;
   outline: 0
 }
@@ -2998,6 +3006,27 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover
+}
+.shell-search-result-avatar .shell-icon {
+  width: 16px;
+  height: 16px
+}
+.shell-search-results-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 2px 5px 5px;
+  color: var(--ace-cyan-dark);
+  font: 800 .64rem 'Montserrat',Arial,sans-serif;
+  letter-spacing: .07em;
+  text-transform: uppercase
+}
+.shell-search-results-heading span {
+  color: var(--ace-muted);
+  font: 600 .59rem 'Open Sans',Arial,sans-serif;
+  letter-spacing: 0;
+  text-transform: none
 }
 .shell-topbar-actions {
   display: flex;
@@ -5700,6 +5729,11 @@ body.modal-open {
   margin: 0 0 16px;
   font-size: .82rem
 }
+.table-empty-row > td { padding: 0!important; }
+.table-empty-row > td::before { content: none!important; display: none!important; }
+.table-empty-row .empty-state { min-height: 154px; padding: 26px 20px; }
+.table-empty-row .empty-state-icon { width: 42px; height: 42px; }
+.table-empty-row .empty-state-icon img { width: 21px; height: 21px; }
 .projects-grid > .empty-state {
   grid-column: 1/-1
 }

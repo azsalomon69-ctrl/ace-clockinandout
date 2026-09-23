@@ -2,18 +2,28 @@ const mountIndividualReports = async () => {
   const me = await window.ACEAuth.request('/v1/me');
   if (me.profile.role !== 'ADMIN') return location.replace('/user-dashboard');
   let users = (await window.ACEAuth.request('/v1/users')).filter(user => user.role === 'USER' && user.status === 'ACTIVE');
-  const input = document.getElementById('individualEmployee'); const month = document.getElementById('individualMonth'); const rows = document.getElementById('individualReportRows'); const selection = document.getElementById('individualReportSelection');
+  const input = document.getElementById('individualEmployee'); const month = document.getElementById('individualMonth'); const rows = document.getElementById('individualReportRows'); const selection = document.getElementById('individualReportSelection'); const submitButton = document.querySelector('#individualReportForm button[type="submit"]');
   month.value = new Date().toISOString().slice(0, 7);
   month.max = month.value;
   const employeeName = user => user.full_name || user.email;
   const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
   document.getElementById('individualEmployeeOptions').innerHTML = users.map(user => `<option value="${escapeHtml(employeeName(user))}"></option>`).join('');
   const updateSelection = () => {
+    if (!users.length) {
+      selection.textContent = 'No active employees yet. Invite an employee before preparing reports.';
+      selection.classList.remove('is-invalid');
+      rows.innerHTML = '<tr class="table-empty-row"><td colspan="3"><div class="empty-state empty-state-compact"><h3>No active employees yet</h3><p>Invite an employee before preparing individual reports.</p></div></td></tr>';
+      input.disabled = true;
+      submitButton.disabled = true;
+      return;
+    }
     const selected = input.value ? users.filter(user => employeeName(user) === input.value) : users;
     selection.textContent = input.value && !selected.length
       ? 'Choose a name from the employee list, or clear this field for all employees.'
       : `${selected.length} active employee${selected.length === 1 ? '' : 's'} will be included.`;
     selection.classList.toggle('is-invalid', Boolean(input.value && !selected.length));
+    input.disabled = false;
+    submitButton.disabled = false;
   };
   input.addEventListener('input', updateSelection); updateSelection();
   const refreshEmployees = async () => {
