@@ -1480,7 +1480,7 @@ function workspaceHelpEntries(isAdmin) {
         ['Where do I see or cancel an invitation?', 'Open People → Invitations, find the email, select View, then choose Cancel invitation. The current workspace does not provide a resend button; create a new invitation if the old one is cancelled or expires.'],
         ['How do I approve access?', 'Open People → Access requests, review the person and requested role, then choose Approve or Deny.'],
         ['Why is someone pending or denied?', 'Open People → Users or People → Access requests to review their status. Pending users need approval; denied users cannot sign in until their status is changed by an administrator.'],
-        ['How do I manage users?', 'Open People → Users and choose Manage on the person’s row. The Manage form lets you update their role, department, and one project assignment; it also includes Archive user. Pending accounts use Review instead, where you choose Approve or Deny.'],
+        ['How do I manage users?', 'Open People → Users and choose Manage on the person’s row. The Manage form lets you update their role, department, project, and schedule. Employee profiles also link directly to that person’s department, projects, and schedule controls.'],
         ['How do I find an employee?', 'Use the top search box to find an employee or project quickly, or open People → Users and use that page’s filters.'],
         ['How do I archive or restore a user?', 'Open People → Users and use Manage to archive an account. To restore it later, open People → Archived users and choose Restore.'],
         ['How do I create or edit a department?', 'Open People → Departments and choose Add department. To update an existing one, choose Edit on its row. In that Edit form you can use Add employee (optional), or assign one employee at a time through People → Users → Manage.'],
@@ -1494,7 +1494,7 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I add a remark to a time entry?', 'Open Work → Time entries, search for the entry, then choose Add remark on its row. Write the internal administrator remark and save it. The employee can read the related feedback in Work → Remarks.'],
         ['How do I filter the dashboard analytics?', 'Use the Period, Project, Department, and Employee filters in the Team performance overview. The cards, chart, and leaderboard update to match the selection.'],
         ['How do I generate a report?', 'Use Generate report on the dashboard, choose the date range and any available employee, department, or project filters, then preview or export the result. Insights → Reports is where you can work with the reporting tools and exports.'],
-        ['Where do I find one employee’s report?', 'Open Insights → Individual reports. Choose an active employee from the list and select a reporting month, then choose Prepare reports. Use Preview, Save as PDF, or Save Excel on the prepared row. Leave the employee blank to prepare reports for every active employee.'],
+        ['Where do I find one employee’s report?', 'Open Insights → Individual reports. Choose a custom start and end date and optionally an active employee, then choose Prepare reports. Use Preview, Save as PDF, or Save Excel on the prepared row. Leave the employee blank to prepare reports for every active employee.'],
         ['Where is the audit history?', 'Open Administration → Audit log. It records important administrative actions so you can review what changed and when.'],
         ['Where is the employee chat log?', 'Head administrators can open Administration → Employee chat log. This page is intentionally unavailable to regular administrators.'],
         ['How do I update my own account or appearance?', 'Open Administration → Settings, then use Profile, Security, or Appearance. You can also select Settings from the Account section of the sidebar.'],
@@ -1502,8 +1502,8 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I get help without restarting the tutorial?', 'Use this Need help panel. Search a task such as invite, project, report, clock out, archive, or schedule, then open the matching answer.']
     ] : [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. The Work section contains My time entries and Remarks.'],
-        ['How do I clock in?', 'Open Dashboard and choose Clock in. Select a project when one is available, add an optional note if needed, then confirm.'],
-        ['How do I clock out?', 'Open Dashboard and choose Clock out. Review the session details, add a note if needed, and confirm the clock-out action.'],
+        ['How do I clock in?', 'Open Dashboard and choose Clock in. Select a project when one is available, then confirm.'],
+        ['How do I clock out?', 'Open Dashboard and choose Clock out. Review the session details, add the required clock-out note, and confirm the action.'],
         ['Why can I not clock in?', 'Check whether you already have an active session and whether your account has access. A project is optional, so you can choose No project when appropriate. If the problem continues, contact an administrator.'],
         ['Why can I not clock out?', 'Make sure you have an active work session, then use Clock out on the dashboard.'],
         ['How do I choose a project when clocking in?', 'In the Clock in form, select one of your assigned projects, or leave it as No project if your work does not need one. If a needed project is missing, ask an administrator to assign it through your user record.'],
