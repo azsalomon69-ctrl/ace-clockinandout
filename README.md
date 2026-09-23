@@ -1,6 +1,6 @@
 # ACE Clock In/Out
 
-ACE Clock In/Out is a role-based workforce time-tracking platform for ACE Outsource Solutions. Administrators manage people, access, projects, schedules, reports, and operational history; employees clock in and out, record breaks, review work history, and communicate with administrators.
+ACE Clock In/Out is a role-based workforce time-tracking platform for ACE Outsource Solutions. Administrators manage people, access, projects, schedules, reports, exports, and operational history; employees clock in and out, review work history, and communicate with administrators.
 
 It is designed as a production-minded web system rather than a single-page prototype: the browser UI, API, database, authentication service, media service, and deployment environment each have a clear job and security boundary.
 
@@ -39,20 +39,21 @@ This separation is valuable because a frontend bug cannot automatically grant ad
 ### Employee workspace
 
 - Google-based sign-in and profile settings.
-- Clock in, clock out, start/end breaks, add work notes, and review personal time entries.
+- Clock in and clock out with a required official clock-out note; full elapsed time is recorded from clock-in to clock-out.
 - Project-aware time recording and assigned schedule support.
 - Administrator remarks attached to relevant time entries.
 - Employee/admin chat and accessible historical records.
-- A four-step onboarding tutorial and searchable **Need help** center.
+- A guided onboarding tutorial and searchable **Need help** center.
 
 ### Administrator control center
 
 - Invite employees or administrators and approve/deny access requests.
 - Manage user status, roles, archived users, departments, projects, project assignments, and schedules.
-- Review live team activity, time entries, time corrections, breaks, remarks, reports, and individual reports.
-- Export time-report data to Excel.
-- Read audit logs and employee chat logs.
-- A 20-step onboarding tutorial plus a role-specific searchable help center.
+- Review live team activity, time entries, corrections, approved overtime, remarks, reports, and individual reports.
+- Receive review alerts for possible missed clock-outs and administrator-stopped shifts.
+- Export time-entry data to PDF or Excel and review a dedicated export-audit history.
+- Read paged audit logs and, for head administrators, employee chat logs.
+- Guided onboarding and role-specific searchable help that covers the visible workspace features.
 
 ### Optional integrations
 
@@ -170,6 +171,10 @@ The source is deliberately separated from generated output. `dist/` is rebuilt f
 - A Supabase project
 - Supabase migrations applied in the order described by [`supabase/MIGRATION_ORDER.md`](supabase/MIGRATION_ORDER.md)
 - A Supabase secret/service key for the API, stored privately
+
+### Current database migration
+
+Apply the numbered SQL migrations in [`supabase/MIGRATION_ORDER.md`](supabase/MIGRATION_ORDER.md). Existing deployments also need `supabase/migrations/0011_review_exports_and_reporting_indexes.sql`, which adds only performance indexes for paged lists, review alerts, reporting, audit history, and exports. It does not delete or modify existing records.
 
 Optional:
 

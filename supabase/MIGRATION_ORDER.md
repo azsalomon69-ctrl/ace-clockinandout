@@ -19,6 +19,9 @@ Run these files in this order:
 9. `migrations/0007_admin_time_entry_rpcs.sql`
 10. `migrations/0008_schedule_workdays.sql`
 11. `migrations/0009_profile_tutorial_state.sql`
+12. `migrations/0009_remove_break_tracking.sql`
+13. `migrations/0010_overtime_approval.sql`
+14. `migrations/0011_review_exports_and_reporting_indexes.sql`
 
 Then run:
 
@@ -47,7 +50,7 @@ Tutorial progress lives in `public.profiles`. Reset only the users who should re
 
 ### Reset selected users
 
-Replace the email list as needed. Use version `3` for employees and version `4` for administrators.
+Replace the email list as needed. Use version `4` for employees and version `6` for administrators.
 
 ```sql
 UPDATE public.profiles
@@ -55,8 +58,8 @@ SET
   tutorial_status = 'NOT_STARTED',
   tutorial_step = 0,
   tutorial_version = CASE
-    WHEN role = 'ADMIN' THEN 4
-    ELSE 3
+    WHEN role = 'ADMIN' THEN 6
+    ELSE 4
   END,
   tutorial_started_at = NULL,
   tutorial_completed_at = NULL,
@@ -75,7 +78,7 @@ UPDATE public.profiles
 SET
   tutorial_status = 'NOT_STARTED',
   tutorial_step = 0,
-  tutorial_version = 3,
+  tutorial_version = 4,
   tutorial_started_at = NULL,
   tutorial_completed_at = NULL,
   tutorial_skipped_at = NULL
@@ -89,7 +92,7 @@ UPDATE public.profiles
 SET
   tutorial_status = 'NOT_STARTED',
   tutorial_step = 0,
-  tutorial_version = 4,
+  tutorial_version = 6,
   tutorial_started_at = NULL,
   tutorial_completed_at = NULL,
   tutorial_skipped_at = NULL
