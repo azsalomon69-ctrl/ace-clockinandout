@@ -101,13 +101,20 @@ function action(label, index, key, record) {
       (canApprove ? '<button class="admin-approve-overtime" type="button" role="menuitem" data-row="' + index + '">' + icon('check') + 'Approve overtime</button>' : '') +
       '<button class="admin-edit-entry-time" type="button" role="menuitem" data-row="' + index + '">' + icon('square-pen') + 'Correct time</button><button class="admin-row-action" type="button" role="menuitem" data-row="' + index + '">' + icon('message-circle-plus') + 'Add remark</button><button class="admin-delete-entry is-danger" type="button" role="menuitem" data-row="' + index + '">' + icon('trash') + 'Move to deleted</button></div><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
   }
+  if (key === 'users') {
+    const canViewEmployee = record?.cells?.[2] === 'Employee';
+    const headTarget = record?.isHeadAdmin;
+    const canManage = !headTarget || Boolean(typeof AppState !== 'undefined' && AppState.currentUser?.IsHeadAdmin);
+    if (!canViewEmployee && !canManage) return '<span class="record-reference">Head administrator</span>';
+    return '<div class="admin-user-action-set"><button class="btn btn-sm btn-outline admin-user-actions-toggle" type="button" aria-expanded="false" aria-haspopup="menu">Actions ' + icon('chevron-down') + '</button><div class="admin-user-action-menu" role="menu" hidden>' +
+      (canViewEmployee ? '<button class="admin-view-employee" type="button" role="menuitem" data-row="' + index + '">' + icon('eye') + 'View employee</button>' : '') +
+      (canManage ? '<button class="admin-row-action" type="button" role="menuitem" data-row="' + index + '">' + icon('settings') + 'Manage account</button>' : '') +
+      '</div><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
+  }
   if (key === 'departments' || key === 'projects') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Edit</button><button class="btn btn-sm btn-danger admin-delete-section" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button></div>';
   const iconName = /remove/i.test(label) ? 'trash' : /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
   const style = /remove/i.test(label) ? 'btn-danger' : 'btn-outline';
-  const canViewEmployee = key === 'users' && record?.cells?.[2] === 'Employee';
-  const headTarget = key === 'users' && record?.isHeadAdmin;
-  const canManage = !headTarget || Boolean(typeof AppState !== 'undefined' && AppState.currentUser?.IsHeadAdmin);
-  return '<div class="table-actions">' + (canViewEmployee ? '<button class="btn btn-sm btn-outline admin-view-employee" type="button" data-row="' + index + '">' + icon('eye') + 'View employee</button>' : '') + (canManage ? '<button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button>' : '<span class="record-reference">Head administrator</span>') + (key === 'users' ? '<button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button>' : '') + '</div>';
+  return '<div class="table-actions"><button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button></div>';
 }
 function formField(label, type, placeholder, value, index) {
   const id = 'adminField' + index;
@@ -401,9 +408,13 @@ async function renderAdminSection() {
     body.querySelectorAll('.admin-entry-actions-toggle').forEach(button => button.addEventListener('click', event => {
       event.stopPropagation(); const set = button.closest('.admin-entry-action-set'); const open = !set.classList.contains('is-open'); closeEntryActionMenus(set); set.classList.toggle('is-open', open); button.setAttribute('aria-expanded', String(open)); set.querySelector('.admin-entry-action-menu').hidden = !open;
     }));
+    const closeUserActionMenus = except => body.querySelectorAll('.admin-user-action-set.is-open').forEach(item => { if (item !== except) { item.classList.remove('is-open'); item.querySelector('.admin-user-actions-toggle')?.setAttribute('aria-expanded', 'false'); item.querySelector('.admin-user-action-menu').hidden = true; } });
+    body.querySelectorAll('.admin-user-actions-toggle').forEach(button => button.addEventListener('click', event => {
+      event.stopPropagation(); const set = button.closest('.admin-user-action-set'); const open = !set.classList.contains('is-open'); closeUserActionMenus(set); set.classList.toggle('is-open', open); button.setAttribute('aria-expanded', String(open)); set.querySelector('.admin-user-action-menu').hidden = !open;
+    }));
     if (!document.body.dataset.entryActionMenuCloseBound) {
       document.body.dataset.entryActionMenuCloseBound = 'true';
-      document.addEventListener('click', event => { if (!event.target.closest('.admin-entry-action-set')) document.querySelectorAll('.admin-entry-action-set.is-open').forEach(item => { item.classList.remove('is-open'); item.querySelector('.admin-entry-actions-toggle')?.setAttribute('aria-expanded', 'false'); item.querySelector('.admin-entry-action-menu').hidden = true; }); });
+      document.addEventListener('click', event => { if (!event.target.closest('.admin-entry-action-set')) document.querySelectorAll('.admin-entry-action-set.is-open').forEach(item => { item.classList.remove('is-open'); item.querySelector('.admin-entry-actions-toggle')?.setAttribute('aria-expanded', 'false'); item.querySelector('.admin-entry-action-menu').hidden = true; }); if (!event.target.closest('.admin-user-action-set')) document.querySelectorAll('.admin-user-action-set.is-open').forEach(item => { item.classList.remove('is-open'); item.querySelector('.admin-user-actions-toggle')?.setAttribute('aria-expanded', 'false'); item.querySelector('.admin-user-action-menu').hidden = true; }); });
     }
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, pageRecords[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => editEntryTime(pageRecords[Number(button.dataset.row)])));
