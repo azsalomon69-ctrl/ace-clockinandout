@@ -1,62 +1,190 @@
 # ACE Clock In/Out
 
-ACE Clock In/Out is a role-based time-tracking workspace for administrators and employees. It has a static frontend, a Node.js API, and Supabase for authentication and data.
+ACE Clock In/Out is a role-based workforce time-tracking platform for ACE Outsource Solutions. Administrators manage people, access, projects, schedules, reports, and operational history; employees clock in and out, record breaks, review work history, and communicate with administrators.
 
-## What the project currently includes
+It is designed as a production-minded web system rather than a single-page prototype: the browser UI, API, database, authentication service, media service, and deployment environment each have a clear job and security boundary.
 
-- Secure employee clock-in/clock-out, breaks, time-entry notes, and remarks.
-- Administrator tools for users, invitations, access requests, departments, projects, schedules, reports, audit history, deleted records, and employee chat logs.
-- Role-specific onboarding tutorials: 20 steps for administrators and 4 steps for employees.
-- A role-specific **Need help** center with searchable FAQ answers, so users can find one task without restarting an entire tutorial.
-- Profile photos through Cloudinary when its environment variables are configured.
-- Invitation delivery through Gmail API when configured, with Gmail SMTP as a fallback. Access is still created if delivery fails, and the UI shows a clear delivery warning.
-- Production-friendly frontend builds with minified, hashed assets.
+## Why the infrastructure is strong
+
+The system uses managed services for the difficult parts—identity, hosted data, TLS, deployment, and media—while application code owns business rules such as time-entry rules, administrator permissions, report generation, and onboarding guidance.
+
+```text
+Employee or administrator browser
+        |
+        | HTTPS + Supabase session token
+        v
+Render Static Site                         Supabase Auth
+  - built HTML/CSS/JS                       - Google sign-in
+  - browser security headers                - signed user sessions
+        |                                            |
+        | authenticated API request                  |
+        v                                            v
+Render Node/Express API  ---------------->  Supabase Postgres
+  - validates token and role                  - application records
+  - validates request data                    - Row Level Security
+  - applies business rules                    - migrations and RPCs
+  - rate limits sensitive actions
+        |
+        +--------------------+-----------------------+
+        |                    |                       |
+        v                    v                       v
+  Gmail API / SMTP      Cloudinary             Audit and report data
+  invitation delivery   profile images          inside Supabase
+```
+
+This separation is valuable because a frontend bug cannot automatically grant administrator privileges, the browser never receives the Supabase secret key, and database/account rules do not depend solely on what the UI chooses to display.
+
+## What the application does
+
+### Employee workspace
+
+- Google-based sign-in and profile settings.
+- Clock in, clock out, start/end breaks, add work notes, and review personal time entries.
+- Project-aware time recording and assigned schedule support.
+- Administrator remarks attached to relevant time entries.
+- Employee/admin chat and accessible historical records.
+- A four-step onboarding tutorial and searchable **Need help** center.
+
+### Administrator control center
+
+- Invite employees or administrators and approve/deny access requests.
+- Manage user status, roles, archived users, departments, projects, project assignments, and schedules.
+- Review live team activity, time entries, time corrections, breaks, remarks, reports, and individual reports.
+- Export time-report data to Excel.
+- Read audit logs and employee chat logs.
+- A 20-step onboarding tutorial plus a role-specific searchable help center.
+
+### Optional integrations
+
+- **Gmail API** is the preferred invitation email path when configured.
+- **Gmail SMTP** is a TLS fallback when Gmail API is not configured or unavailable.
+- **Cloudinary** stores profile photos when its credentials are configured.
+
+An invitation/access record is still created if email delivery fails; the administrator sees a clear warning instead of losing the underlying access action.
 
 ## Architecture
 
 | Layer | Technology | Responsibility |
 | --- | --- | --- |
-| Frontend | Static HTML, CSS, and browser JavaScript | Dashboard, role-specific navigation, tutorial, help center, forms, reports, and responsive UI |
-| API | Node.js, Express | Authentication-aware API, validation, invitations, mail delivery, reporting, audit/security rules |
-| Data and auth | Supabase | Auth users, profiles, clock records, projects, departments, schedules, and app data |
-| Media | Cloudinary | Optional uploaded profile photos |
-| Hosting | Render | Static Site for the built frontend and Web Service for the API |
+| Browser application | Static HTML, CSS, browser JavaScript | Responsive UI, dashboards, forms, tutorials, help center, local interaction state |
+| API | Node.js 20 + Express | Authenticated business API, role checks, validation, reporting, invitations, audit handling, mail orchestration |
+| Authentication | Supabase Auth | Google identity and signed user sessions |
+| Database | Supabase Postgres | Profiles, time entries, projects, schedules, reports, messages, invitations, access requests, audit data |
+| Media | Cloudinary | Optional profile photo hosting and signed uploads |
+| API hosting | Render Web Service | Node process, HTTPS endpoint, environment-secret storage, health checks |
+| Frontend hosting | Render Static Site | Built static assets, caching, security headers, HTTPS delivery |
+
+## Request flow
+
+1. A user signs in through Supabase Auth and receives a session token.
+2. The frontend sends the token as `Authorization: Bearer ...` when it calls the API.
+3. Express validates that token with Supabase before accepting protected work.
+4. The API reads the user profile and enforces the action’s role and status rules.
+5. The API validates input, executes the allowed database operation or RPC, and records relevant audit information.
+6. The frontend receives only the result it needs; it never receives the Supabase secret/service key, mail secrets, or Cloudinary secret.
+
+This is intentionally server-authoritative. Hiding a button in the UI is helpful for usability, but the API is the actual enforcement point.
+
+## Security model
+
+### Authentication and authorization
+
+- Supabase validates user identity and signed sessions.
+- The API checks each protected Bearer token server-side.
+- Administrator-only endpoints require administrator authorization on the server.
+- Active/inactive and archived-account rules are checked before actions are allowed.
+- Safeguards prevent accidental removal, disabling, or demotion of the head/last active administrator.
+- Supabase Row Level Security is enabled for primary application tables; direct authenticated access is limited to appropriate personal data such as a user’s own profile and time entries.
+
+### API protections
+
+- `helmet` sets API security headers.
+- Production CORS permits only the configured `FRONTEND_ORIGIN`; an unconfigured production origin causes the API to refuse startup.
+- JSON request bodies are limited to 1 MB.
+- General `/v1` traffic is rate-limited to 600 requests per 15 minutes per visitor.
+- Sensitive actions have a stricter 30 requests per 15 minutes limit.
+- Request data is validated before records, reports, or administrative operations are created.
+- Time-sensitive database operations use protected database functions where appropriate to reduce race conditions.
+
+### Browser protections
+
+The frontend deployment includes headers that:
+
+- force HTTPS upgrades and set one-year HSTS;
+- block embedding in another site (`X-Frame-Options: DENY` and `frame-ancestors 'none'`);
+- block MIME sniffing;
+- restrict camera, microphone, geolocation, payment, and USB browser permissions;
+- use a Content Security Policy that loads scripts only from the application itself;
+- restrict API connections to the ACE API, Supabase, and Cloudinary;
+- disable automatic long-lived browser caching of pages so new releases are seen promptly.
+
+User-supplied values rendered into the UI are escaped before being inserted into HTML, reducing cross-site-scripting risk.
+
+### Secret handling
+
+The following values belong only in Render environment variables or local untracked `.env` files:
+
+- `SUPABASE_SECRET_KEY`
+- Gmail client secret, refresh token, SMTP app password
+- `CLOUDINARY_API_SECRET`
+- initial administrator password and any testing passwords
+
+The browser may receive the Supabase **publishable** key and public API URL. Those are designed to be public; the Supabase secret/service key is not.
+
+Never commit secrets, paste them into issues, place them in screenshots, or put them in frontend JavaScript.
+
+### Dependency and regression protection
+
+- Production dependencies are checked with `npm audit`.
+- The current production dependency audit reports zero known vulnerabilities after updating Morgan and moving Excel export to the official SheetJS `0.20.3` package.
+- Automated regression checks ensure important routes retain administrator authorization, token validation, rate limits, production headers, and safe local frontend bundles.
+- GitHub Dependabot can watch the public repository for future dependency alerts and updates.
+
+Security is an ongoing process, not a one-time checkbox. Keep secrets private, review Dependabot alerts, apply updates deliberately, and rotate a secret immediately if it is exposed.
 
 ## Project structure
 
 ```text
-frontend/             Static pages, browser JavaScript, styles, images, icons, and headers
+frontend/                         Static source for the browser application
+  css/                            Application styles and responsive rules
+  js/                             API client, auth, page behavior, tutorial, help, search
+  assets/                         Images, icons, fonts, and browser assets
+  _headers                        Static-site security and caching headers
+  *.html                          Role-specific pages
 backend/
-  server/              Express API entry point
-  tests/               Automated API, onboarding, and frontend-contract tests
-scripts/               Build, security, database, and maintenance tools
-supabase/              Database schema, migrations, and upgrade scripts
-deliverables/          Final presentation files kept for handoff
-dist/                  Generated production frontend (ignored by Git)
+  server/index.js                 Express API entry point
+  tests/                          API, onboarding, auth, and business-rule tests
+scripts/                          Build, security, database verification, and setup tooling
+supabase/                         Schema, migrations, RPCs, and upgrade documentation
+deliverables/                     Final handoff/presentation materials
+render.yaml                       Render API service definition
+.env.example                      Safe environment-variable template only
+dist/                             Generated production frontend; ignored by Git
 ```
 
-The root keeps only shared configuration, documentation, package files, and deployment settings. The temporary Codex presentation/finalizer work folders are intentionally not part of the project.
+The source is deliberately separated from generated output. `dist/` is rebuilt from `frontend/` for every deploy rather than manually edited or committed.
 
 ## Requirements
 
 - Node.js 20 or later
-- A Supabase project with the migrations in `supabase/MIGRATION_ORDER.md` applied
-- A Supabase secret/service key for the API (never expose it in the frontend)
+- A Supabase project
+- Supabase migrations applied in the order described by [`supabase/MIGRATION_ORDER.md`](supabase/MIGRATION_ORDER.md)
+- A Supabase secret/service key for the API, stored privately
 
-Optional integrations:
+Optional:
 
-- Cloudinary for profile photos
-- Gmail API or Gmail SMTP for invitation email delivery
+- Cloudinary account for profile photos
+- Gmail API OAuth configuration or Gmail SMTP app password for invitation delivery
 
 ## Local setup
 
-1. Install dependencies:
+1. Install exact locked dependencies:
 
    ```bash
    npm ci
    ```
 
-2. Copy `.env.example` to `.env` and provide the required values:
+2. Copy `.env.example` to `.env` and provide private values:
 
    ```env
    PORT=3000
@@ -69,7 +197,7 @@ Optional integrations:
    HEAD_ADMIN_EMAIL=admin@example.com
    ```
 
-3. Apply the database migrations in the documented order:
+3. Confirm the configured database matches the expected contract:
 
    ```bash
    npm run db:verify
@@ -81,11 +209,11 @@ Optional integrations:
    npm run dev
    ```
 
-5. Serve the project folder with a local static server, such as VS Code Live Server. The frontend needs the API available at `http://localhost:3000` unless `ACE_API_URL` is supplied when building.
+5. Serve the root with a local static web server, such as VS Code Live Server. The browser uses `http://localhost:3000` by default unless a production API URL is supplied during build.
 
-## Frontend build and preview
+## Build pipeline
 
-The production frontend is generated into `dist/`; it is intentionally not committed.
+The frontend is built instead of shipped as raw source:
 
 ```bash
 set ACE_API_URL=https://your-api.onrender.com
@@ -93,9 +221,11 @@ npm run build
 npm run preview:build
 ```
 
-The build validates the API URL, minifies JavaScript and CSS, fingerprints assets for cache-safe deploys, copies static files, and writes the generated page references. A production build must use the real API URL.
+The build validates the API URL, bundles required third-party browser libraries locally, minifies JavaScript/CSS/HTML, fingerprints assets with content hashes, rewrites page references, and copies static files/security headers into `dist/`.
 
-## Tests and verification
+Content-hashed assets mean a changed file receives a new filename, so a new release does not accidentally serve an old JavaScript or stylesheet file from cache.
+
+## Testing and verification
 
 ```bash
 npm test
@@ -105,34 +235,56 @@ npm run test:concurrency
 npm run db:verify
 ```
 
-`npm test` is the normal local test suite. The security and concurrency commands are additional checks for deployments where the relevant Supabase configuration is available.
+| Command | What it verifies |
+| --- | --- |
+| `npm test` | Auth recovery, permissions, tutorials, reports, head-admin safeguards, and business rules |
+| `npm run test:security` | Security headers, protected administrator routes, token validation, rate limits, and no untrusted runtime bundles |
+| `npm run test:security:integration` | Real staging API authorization behavior when test credentials are configured |
+| `npm run test:concurrency` | Time-entry race-condition behavior against a configured test environment |
+| `npm run db:verify` | Required Supabase tables, columns, functions, and configuration expectations |
+
+Run the full local test and security checks before pushing or deploying. Run integration/concurrency checks against a safe staging/test environment, never casually against production.
 
 ## Render deployment
 
 ### API Web Service
 
-The API service is defined by `render.yaml`.
+The API service is defined in [`render.yaml`](render.yaml).
 
+- Runtime: Node.js
+- Plan configured: Render Free
 - Build command: `npm install`
 - Start command: `npm start`
-- Health check: `/health`
-- Environment: Node 20+
+- Health endpoint: `/health`
 
-Set the required Supabase values, `HEAD_ADMIN_EMAIL`, and `FRONTEND_ORIGIN` to the exact deployed frontend origin. Configure Cloudinary and email variables only when those features are needed.
+Set these required API variables in Render:
+
+```text
+NODE_ENV=production
+SUPABASE_URL
+SUPABASE_SECRET_KEY
+SUPABASE_PUBLISHABLE_KEY
+HEAD_ADMIN_EMAIL
+FRONTEND_ORIGIN=https://your-frontend-domain
+```
+
+`FRONTEND_ORIGIN` must exactly match the real frontend origin. This is part of the CORS protection; do not use a placeholder or a free public domain if company policy requires an owned domain.
 
 ### Frontend Static Site
 
-The frontend Static Site is configured in the Render dashboard rather than `render.yaml`.
+Configure the Render Static Site with:
 
-- Build command: `npm ci && npm run build`
-- Publish directory: `dist`
-- Environment variable: `ACE_API_URL=https://your-api.onrender.com`
+```text
+Build command: npm ci && npm run build
+Publish directory: dist
+Environment variable: ACE_API_URL=https://your-api.onrender.com
+```
 
-Do not point `ACE_API_URL` to the frontend URL. It must be the public URL of the Node API service.
+`ACE_API_URL` is the public URL of the **Node API service**, not the frontend website URL.
 
-## Invitation email setup
+## Email delivery
 
-The server tries Gmail API first when all Gmail API values are present. If Gmail API is unavailable, it can fall back to SMTP.
+The API tries Gmail API first when all Gmail API settings exist. If Gmail API is not configured or cannot send, SMTP can be used as a fallback.
 
 ### Recommended: Gmail API
 
@@ -143,7 +295,7 @@ GMAIL_REFRESH_TOKEN=...
 GMAIL_FROM=company@example.com
 ```
 
-Use a Google Cloud OAuth client and a refresh token authorized for Gmail sending. On a Google OAuth app left in testing mode, refresh-token access can expire; publish the consent screen when the account and business policy allow it.
+Use a Google Cloud OAuth client authorized for Gmail sending. A Google OAuth consent screen left in testing mode can cause refresh-token access to expire; publish/verify the consent screen when business policy permits it.
 
 ### SMTP fallback
 
@@ -154,27 +306,37 @@ SMTP_FROM=company@gmail.com
 SMTP_PORT=587
 ```
 
-For Gmail, create an App Password after enabling two-step verification. Use port `587` with TLS. Render commonly cannot reach Gmail on port `465`, so port `587` is the intended fallback configuration.
+For Gmail, enable two-step verification, create an App Password, and use port `587` with TLS. The server accepts the app password with or without Google’s visual spaces. Render often cannot reach Gmail port `465`, so port `587` is the intended SMTP setting.
 
-Never commit an app password, OAuth secret, refresh token, Supabase secret key, or Cloudinary secret.
+## Tutorials and help center
 
-## Tutorial and help center
+- Tutorial progress is stored per user in their profile, so it can resume after navigation or refresh.
+- Navigation steps teach users to use the actual sidebar rather than secretly redirecting them.
+- The tutorial detects the sidebar’s expanded/collapsed state and points to the correct visible control.
+- Administrators receive a 20-step role-specific guide; employees receive a focused four-step guide.
+- **Need help** opens from the top bar and provides searchable, role-specific answers for one-off tasks without restarting the whole tutorial.
 
-- The tutorial persists each user’s progress in their profile and resumes after navigation or refresh.
-- Cross-page tutorial steps ask the user to use the actual sidebar; they continue automatically after the requested page is opened.
-- The tutorial adapts when the sidebar is collapsed or expanded and points to the relevant visible control.
-- **Need help** is available from the top bar for administrators and employees. It provides searchable, role-specific answers for one-off questions.
+See [`ONBOARDING.md`](ONBOARDING.md) for authoring and reset details.
 
-See `ONBOARDING.md` for authoring and reset details.
+## Database changes and upgrades
 
-## Database changes
+Read [`supabase/MIGRATION_ORDER.md`](supabase/MIGRATION_ORDER.md) before creating a new Supabase project, upgrading an existing database, or resetting/re-offering tutorials.
 
-See `supabase/MIGRATION_ORDER.md` before creating a new Supabase project, upgrading an existing database, or re-offering the tutorial.
+Database changes should be additive and migration-based. Do not manually delete authentication users or production rows to “clean up” an issue; use the managed archive/delete flows or a reviewed migration so audit history and related records remain consistent.
 
-## Security notes
+## Operational checklist
 
-- Keep API credentials only in API environment variables.
-- The browser uses only the Supabase publishable key and the API public URL.
-- CORS is restricted through `FRONTEND_ORIGIN` in production.
-- Sensitive endpoints are rate-limited, authenticated, and validated by the API.
-- Use the managed delete/archive screens rather than manually removing authentication records.
+Before making the repository public or deploying a major release:
+
+- [ ] Confirm `.env` and test credential files are ignored and untracked.
+- [ ] Confirm Render/Supabase contain real secrets; GitHub contains placeholders only.
+- [ ] Confirm `FRONTEND_ORIGIN` and `ACE_API_URL` use the correct owned production domains.
+- [ ] Run `npm test`, `npm run test:security`, and `npm run build`.
+- [ ] Review Dependabot alerts and production `npm audit` output.
+- [ ] Verify Supabase migrations/RLS are applied.
+- [ ] Test administrator and employee flows with non-production test accounts.
+- [ ] Verify invitation delivery with the chosen Gmail integration.
+
+## License and ownership
+
+Project source is maintained by **Akio Zaki Salomon** for ACE Outsource Solutions. Check the repository’s intended company licensing/usage policy before reusing it outside the organization.
