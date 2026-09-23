@@ -90,7 +90,7 @@ function formField(label, type, placeholder, value, index) {
   const id = 'adminField' + index;
   if (type === 'textarea') return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><textarea class="form-textarea" id="' + id + '" placeholder="' + esc(placeholder) + '">' + esc(value === '—' ? '' : value) + '</textarea></div>';
   if (type === 'user-search') {
-    const users = (typeof AppState === 'undefined' ? [] : AppState.users || []).filter(user => user.Status === 'ACTIVE');
+    const users = (typeof AppState === 'undefined' ? [] : AppState.users || []).filter(user => user.Status === 'ACTIVE' && user.Role === 'USER');
     const listId = id + 'Options';
     return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><div class="input-group"><input class="form-input" id="' + id + '" type="search" list="' + listId + '" placeholder="' + esc(placeholder) + '" autocomplete="off"><button class="btn btn-outline" id="' + id + 'Add" type="button">Add</button></div><datalist id="' + listId + '">' + users.map(user => '<option value="' + esc((user.FullName || user.Email) + ' — ' + user.Email) + '" data-user-id="' + esc(user.UserId) + '"></option>').join('') + '</datalist><input id="' + id + 'Selected" type="hidden" value=""><div id="' + id + 'SelectedList" aria-live="polite">No employees selected.</div></div>';
   }
@@ -154,7 +154,7 @@ function modal(view, primary, record) {
   const fields = remark ? [['Administrator remark', 'textarea', 'Add a clear internal remark for this time entry']]
     : primary && ['users', 'invitations'].includes(key) ? [['Work email', 'email', 'name@example.com'], ['Role', 'select', 'USER']]
       : (primary || edit) && key === 'departments' ? [['Department name', 'text', 'e.g. Client Services'], ['Description', 'textarea', 'What does this department handle?'], ...(edit ? [['Add employee (optional)', 'user-search', 'Search by employee name or email']] : [])]
-        : (primary || edit) && key === 'projects' ? [['Project name', 'text', 'e.g. Customer Portal'], ['Description', 'textarea', 'Describe the project scope']]
+        : (primary || edit) && key === 'projects' ? [['Project name', 'text', 'e.g. Customer Portal'], ['Description', 'textarea', 'Describe the project scope'], ...(edit ? [['Add employee (optional)', 'user-search', 'Search by employee name or email']] : [])]
           : manage ? [['Role', 'select', 'USER'], ['Department', 'select', ''], ['Project assignment', 'select', ''], ['Schedule assignment', 'select', '']] : review ? [['Approval', 'select', 'ACTIVE']] : [];
   node.querySelector('.modal-title').textContent = primary ? view.action : label + ' ' + view.title.toLowerCase();
   const summary = record ? '<div class="detail-summary"><strong>' + esc(record.cells[0]) + '</strong><p>' + record.cells.slice(1, -1).map(esc).join(' · ') + '</p></div>' : '';
@@ -260,7 +260,11 @@ function modal(view, primary, record) {
         const department = await liveRequest(edit ? '/v1/departments/' + record.id : '/v1/departments', { method: edit ? 'PATCH' : 'POST', body: JSON.stringify({ name: first, description: document.getElementById('adminField1').value }) });
         await Promise.all(userIds.map(userId => liveRequest('/v1/users/' + userId + '/department', { method: 'PATCH', body: JSON.stringify({ departmentId: department.id }) })));
       }
-      else if (key === 'projects') await liveRequest(edit ? '/v1/projects/' + record.id : '/v1/projects', { method: edit ? 'PATCH' : 'POST', body: JSON.stringify({ name: first, description: document.getElementById('adminField1').value }) });
+      else if (key === 'projects') {
+        const project = await liveRequest(edit ? '/v1/projects/' + record.id : '/v1/projects', { method: edit ? 'PATCH' : 'POST', body: JSON.stringify({ name: first, description: document.getElementById('adminField1').value }) });
+        const userIds = (document.getElementById('adminField2Selected')?.value || '').split(',').filter(Boolean);
+        await Promise.all(userIds.map(userId => liveRequest('/v1/users/' + userId + '/projects/' + project.id, { method: 'PUT' })));
+      }
       else if (remark) await liveRequest('/v1/time-entries/' + record.id + '/remarks', { method: 'POST', body: JSON.stringify({ remark: first }) });
       else if (manage) {
         await liveRequest('/v1/users/' + record.id + '/role', { method: 'PATCH', body: JSON.stringify({ role: first }) });
