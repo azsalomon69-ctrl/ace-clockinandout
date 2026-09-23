@@ -398,6 +398,11 @@ async function renderAdminSection() {
   const correctionFlow = key === 'entries' && quickAction === 'correct-missing-clock-out';
   const initialRecords = correctionFlow ? view.records.filter(record => !record.clockOutAt) : view.records;
   draw(initialRecords);
+  const manageUserId = key === 'users' ? new URLSearchParams(window.location.search).get('manage') : null;
+  if (manageUserId) {
+    const target = view.records.find(record => String(record.id) === String(manageUserId));
+    if (target) requestAnimationFrame(() => modal(view, false, target));
+  }
   const search = document.getElementById('sectionSearch'); const count = document.getElementById('sectionResultCount') || document.createElement('span');
   count.id = 'sectionResultCount'; count.className = 'result-count'; tableTitle.append(' ', count);
   const setCount = records => { count.textContent = records.length + ' record' + (records.length === 1 ? '' : 's'); }; setCount(initialRecords);
