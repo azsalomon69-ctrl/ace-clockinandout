@@ -1,4 +1,4 @@
--- Akio <3: Database script maintained by Akio Salomon.
+-- Akio <3: Database script maintained by Akio Zaki Salomon.
 -- Run this once in Supabase SQL Editor when Google sign-in reports:
 -- duplicate key value violates unique constraint "profiles_email_key".
 --

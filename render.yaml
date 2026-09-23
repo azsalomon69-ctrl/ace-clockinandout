@@ -1,4 +1,4 @@
-# Akio <3: Deployment configuration maintained by Akio Salomon.
+# Akio <3: Deployment configuration maintained by Akio Zaki Salomon.
 services:
   - type: web
     name: ace-clock-api

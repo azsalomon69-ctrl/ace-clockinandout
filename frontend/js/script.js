@@ -1,4 +1,4 @@
-// Akio <3: Project source maintained by Akio Salomon.
+// Akio <3: Project source maintained by Akio Zaki Salomon.
 // ============================================
 // ACE Clock In/Out System - Main JavaScript
 // ============================================

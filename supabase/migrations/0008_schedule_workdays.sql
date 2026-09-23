@@ -1,4 +1,4 @@
--- Akio <3: Database script maintained by Akio Salomon.
+-- Akio <3: Database script maintained by Akio Zaki Salomon.
 -- Schedules apply only on explicitly selected weekdays: 0 = Sunday through 6 = Saturday.
 -- Existing schedules default to Monday through Friday so they do not create
 -- weekend late, undertime, or break-overage classifications.

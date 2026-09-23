@@ -1,4 +1,4 @@
-// Akio <3: Project source maintained by Akio Salomon.
+// Akio <3: Project source maintained by Akio Zaki Salomon.
 const deletedEscape = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 async function loadDeletedUsers() {
   const body = document.getElementById('deletedUsersTable');

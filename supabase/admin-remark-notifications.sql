@@ -1,4 +1,4 @@
--- Akio <3: Database script maintained by Akio Salomon.
+-- Akio <3: Database script maintained by Akio Zaki Salomon.
 -- Run once in the Supabase SQL Editor to persist employee remark notifications.
 alter table public.admin_remarks add column if not exists seen_at timestamptz;
 update public.admin_remarks set seen_at = now() where seen_at is null;

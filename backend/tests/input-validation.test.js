@@ -1,4 +1,4 @@
-// Akio <3: Project source maintained by Akio Salomon.
+// Akio <3: Project source maintained by Akio Zaki Salomon.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';

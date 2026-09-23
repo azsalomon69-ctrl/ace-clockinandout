@@ -1,4 +1,4 @@
-// Akio <3: Project source maintained by Akio Salomon.
+// Akio <3: Project source maintained by Akio Zaki Salomon.
 // Built-in tutorial content. Each step needs a page (the source .html page),
 // target (a CSS selector), title, and body. Set forcePage to true only when a
 // tour must begin on that page even if the user launched it elsewhere.

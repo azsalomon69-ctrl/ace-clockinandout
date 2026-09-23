@@ -1,4 +1,4 @@
--- Akio <3: Database script maintained by Akio Salomon.
+-- Akio <3: Database script maintained by Akio Zaki Salomon.
 -- Run this once in Supabase SQL Editor to allow a former employee whose
 -- Google login was permanently removed to be invited again. Company records
 -- and accepted invitation history are preserved.

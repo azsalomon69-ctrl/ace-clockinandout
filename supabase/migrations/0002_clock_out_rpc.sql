@@ -1,4 +1,4 @@
--- Akio <3: Database script maintained by Akio Salomon.
+-- Akio <3: Database script maintained by Akio Zaki Salomon.
 -- Atomically closes an active time entry and records its audit event. The API
 -- supplies p_actor_role from its server-verified profile; clients never supply
 -- it, and direct calls are limited to the Supabase service role.

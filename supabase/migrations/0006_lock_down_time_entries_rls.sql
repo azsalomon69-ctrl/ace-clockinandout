@@ -1,4 +1,4 @@
--- Akio <3: Database script maintained by Akio Salomon.
+-- Akio <3: Database script maintained by Akio Zaki Salomon.
 -- Browser clients may read only their own entries. All time-entry writes use
 -- the API's service-role client so validation and audit logging cannot be bypassed.
 drop policy if exists "create own entries" on public.time_entries;

@@ -1,4 +1,4 @@
--- Akio <3: Database script maintained by Akio Salomon.
+-- Akio <3: Database script maintained by Akio Zaki Salomon.
 -- Stage 2: preserve the employee's assigned schedule when a shift begins.
 -- Existing entries intentionally remain NULL; no backfill is performed.
 alter table public.time_entries

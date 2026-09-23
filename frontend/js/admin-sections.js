@@ -1,4 +1,4 @@
-// Akio <3: Project source maintained by Akio Salomon.
+// Akio <3: Project source maintained by Akio Zaki Salomon.
 async function liveRequest(path, options = {}) {
   if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
   return window.ACEAuth.request(path, options);

@@ -1,4 +1,4 @@
--- Akio <3: Database script maintained by Akio Salomon.
+-- Akio <3: Database script maintained by Akio Zaki Salomon.
 -- Run once in Supabase SQL Editor before deploying scheduled clock-out.
 alter table public.time_entries
   add column if not exists planned_end_at timestamptz;
