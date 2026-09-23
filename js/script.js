@@ -1268,7 +1268,11 @@ function initializeAppShell() {
             return;
         }
         rememberQuery(searchInput.value);
-        if (result.action === 'help') { closeSearchResults(); openWorkspaceHelp(isAdmin, searchInput.value.trim()); return; }
+        if (result.action === 'help') {
+            closeSearchResults();
+            openWorkspaceHelp(isAdmin, result.helpQuery || searchInput.value.trim(), result.helpQuestion || '');
+            return;
+        }
         if (result.quickAction) sessionStorage.setItem('ace_workspace_quick_action', result.quickAction);
         window.location.assign(result.href);
     };
@@ -1348,6 +1352,18 @@ function initializeAppShell() {
         } else if (query) {
             naturalLanguageActions.filter(matchesNaturalPhrase).forEach(action => results.push({ ...action, icon: action.icon || 'search' }));
             quickActionItems.filter(action => matches(action, query)).forEach(action => results.push({ ...action, icon: 'search' }));
+            const helpMatches = workspaceHelpEntries(isAdmin)
+                .filter(entry => workspaceHelpEntryMatches(entry, query))
+                .slice(0, 3);
+            helpMatches.forEach(([question, answer]) => results.push({
+                label: question,
+                detail: `Help · ${answer.length > 96 ? `${answer.slice(0, 95).trim()}…` : answer}`,
+                action: 'help',
+                helpQuery: question,
+                helpQuestion: question,
+                keywords: `${question} ${answer}`,
+                icon: 'info'
+            }));
             // Put real work records first: someone searching a person, date,
             // project, or status is usually trying to reach that exact entry.
             AppState.timeEntries.map(timeEntrySearchResult).filter(entry => matches(entry, query)).slice(0, 4).forEach(entry => results.push(entry));
@@ -1355,7 +1371,7 @@ function initializeAppShell() {
             if (isAdmin) AppState.users.filter(person => `${person.FullName || ''} ${person.Email || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(person => results.push({ label: person.FullName || person.Email, detail: person.Role === 'ADMIN' ? 'Person · Administrator' : 'Person · Employee', href: person.Role === 'USER' ? `employee-profile.html?user=${encodeURIComponent(person.UserId)}` : 'users.html', picture: person.ProfilePictureUrl, icon: 'users' }));
             AppState.projects.filter(project => project.IsActive !== false && `${project.ProjectName || ''} ${project.Description || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(project => results.push({ label: project.ProjectName, detail: 'Project', href: isAdmin ? 'projects.html' : 'time-entries.html', icon: 'folder' }));
             workspaceSearchItems.filter(item => matches({ label: item[0], detail: item[1], keywords: item[3] }, query)).slice(0, 4).forEach(item => results.push({ label: item[0], detail: item[1], href: item[2], keywords: item[3], icon: 'search' }));
-            results.push({ label: `Search Need help for “${rawQuery}”`, detail: 'Get an answer instead of restarting the tutorial', action: 'help', icon: 'info' });
+            if (!helpMatches.length) results.push({ label: `Search Need help for “${rawQuery}”`, detail: 'Search all Help answers instead of restarting the tutorial', action: 'help', icon: 'info' });
         }
         visibleSearchResults = results.slice(0, 8);
         if (!visibleSearchResults.length) { closeSearchResults(); searchResults.innerHTML = ''; return; }
@@ -1437,8 +1453,8 @@ function suppliedIconMarkup(name, className = 'ui-icon') {
     return `<img class="${className}" src="assets/icons/${name}.svg" alt="" aria-hidden="true">`;
 }
 
-function openWorkspaceHelp(isAdmin, initialQuery = '') {
-    const entries = isAdmin ? [
+function workspaceHelpEntries(isAdmin) {
+    return isAdmin ? [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. Open People or Work to reveal their page links.'],
         ['How do I invite someone?', 'Use Invite user on the dashboard, enter the work email, choose the role, and send the invitation. The person can be granted access even if their invitation email has a delivery issue.'],
         ['Where do I see or cancel an invitation?', 'Open People → Invitations, find the email, select View, then choose Cancel invitation. The current workspace does not provide a resend button; create a new invitation if the old one is cancelled or expires.'],
@@ -1491,6 +1507,20 @@ function openWorkspaceHelp(isAdmin, initialQuery = '') {
         ['How do I restart the tutorial?', 'Open your account menu and choose Restart tutorial. It starts from the dashboard and guides you through the main employee workflow.'],
         ['Do I need to restart the tutorial?', 'No. Search this Need help panel for one task at a time. Restart the tutorial only when you want the full walkthrough again.']
     ];
+}
+
+function workspaceHelpEntryMatches(entry, query) {
+    const needle = String(query || '').toLowerCase().trim();
+    if (!needle) return true;
+    const haystack = entry.join(' ').toLowerCase();
+    if (haystack.includes(needle)) return true;
+    const words = needle.replace(/[^a-z0-9]+/g, ' ').split(' ').filter(word => word.length > 1);
+    return words.length > 0 && words.every(word => haystack.includes(word));
+}
+
+function openWorkspaceHelp(isAdmin, initialQuery = '', openQuestion = '') {
+    const entries = workspaceHelpEntries(isAdmin);
+    let requestedQuestion = openQuestion;
     let modal = document.getElementById('workspaceHelpModal');
     if (!modal) { modal = document.createElement('div'); modal.id = 'workspaceHelpModal'; modal.className = 'modal workspace-help-modal'; document.body.append(modal); }
     modal.innerHTML = `<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="workspaceHelpTitle"><div class="modal-header"><div><p class="eyebrow">NEED HELP?</p><h3 class="modal-title" id="workspaceHelpTitle">${isAdmin ? 'Administrator help' : 'Employee help'}</h3></div><button class="modal-close" type="button" aria-label="Close">${suppliedIconMarkup('x')}</button></div><div class="modal-body"><label class="workspace-help-search">${suppliedIconMarkup('search')}<input type="search" placeholder="Search help, e.g. clock out or invite"></label><p class="workspace-help-count"></p><div class="workspace-help-list"></div></div></div>`;
@@ -1498,15 +1528,18 @@ function openWorkspaceHelp(isAdmin, initialQuery = '') {
     const count = modal.querySelector('.workspace-help-count');
     const list = modal.querySelector('.workspace-help-list');
     const renderResults = query => {
-        const needle = String(query || '').toLowerCase().trim();
-        const matches = entries.filter(item => item.join(' ').toLowerCase().includes(needle));
+        const matches = entries.filter(item => workspaceHelpEntryMatches(item, query));
         count.textContent = matches.length ? `${matches.length} answer${matches.length === 1 ? '' : 's'}` : 'No matching answers';
-        list.innerHTML = matches.map(([q, a]) => `<article class="faq-item"><button class="faq-question" type="button" aria-expanded="false">${escapeHtml(q)}</button><div class="faq-answer"><p>${escapeHtml(a)}</p></div></article>`).join('') || '<p class="workspace-help-empty">Try another word.</p>';
+        list.innerHTML = matches.map(([q, a]) => {
+            const open = requestedQuestion === q;
+            return `<article class="faq-item"><button class="faq-question${open ? ' active' : ''}" type="button" aria-expanded="${open}">${escapeHtml(q)}</button><div class="faq-answer"><p>${escapeHtml(a)}</p></div></article>`;
+        }).join('') || '<p class="workspace-help-empty">Try another word.</p>';
         list.querySelectorAll('.faq-question').forEach(button => button.addEventListener('click', () => {
             const open = button.getAttribute('aria-expanded') === 'true';
             button.setAttribute('aria-expanded', String(!open));
             button.classList.toggle('active', !open);
         }));
+        requestedQuestion = '';
     };
     modal.querySelector('.modal-close').onclick = () => closeModal(modal.id);
     modal.onclick = event => { if (event.target === modal) closeModal(modal.id); };
