@@ -1131,7 +1131,7 @@ function initializeAppShell() {
 
     const topbarAccountButton = topbar.querySelector('.shell-topbar-user-button');
     const topbarAccountMenu = topbar.querySelector('.shell-topbar-account-menu');
-    const notificationButton = topbar.querySelector('.shell-topbar-icon-button');
+    const notificationButton = topbar.querySelector('.shell-topbar-notification-wrap .shell-topbar-icon-button');
     const notificationMenu = topbar.querySelector('.shell-notification-menu');
     const notificationBadge = topbar.querySelector('.shell-topbar-badge');
     let unreadMessages = 0;

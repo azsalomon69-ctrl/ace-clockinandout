@@ -6,6 +6,7 @@ import vm from 'node:vm';
 
 const configSource = readFileSync(new URL('../../frontend/js/onboarding-config.js', import.meta.url), 'utf8');
 const engineSource = readFileSync(new URL('../../frontend/js/onboarding.js', import.meta.url), 'utf8');
+const shellSource = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
 
 function engineHarness() {
   const listeners = {};
@@ -114,6 +115,12 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');
   assert.doesNotMatch(engineSource, /\$\{isMobile\(\) \? 'Open sidebar' : 'Use sidebar'\}/, 'Desktop navigation should not show a redundant Use sidebar button');
   assert.match(engineSource, /: isMobile\(\) && !mobileSidebarOpen/, 'Only a closed mobile sidebar should show an action to open it');
+});
+
+test('the envelope button owns the notification menu handler', () => {
+  assert.match(shellSource, /topbar\.querySelector\('\.shell-topbar-notification-wrap \.shell-topbar-icon-button'\)/, 'Notification behavior must bind to the envelope button inside its own wrapper');
+  assert.doesNotMatch(shellSource, /const notificationButton = topbar\.querySelector\('\.shell-topbar-icon-button'\)/, 'Notification behavior must not bind to the first top-bar icon');
+  assert.match(shellSource, /notificationButton\.addEventListener\('click'/, 'The envelope button must open and close its notification panel');
 });
 
 test('employee time-entry navigation matches the visible sidebar label', () => {
