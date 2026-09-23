@@ -318,7 +318,16 @@ async function renderAdminSection() {
   const tableTitle = document.getElementById('sectionTableTitle'); tableTitle.textContent = view.title;
   document.getElementById('sectionTableHead').innerHTML = '<tr>' + view.columns.map(column => '<th>' + esc(column) + '</th>').join('') + '</tr>';
   const body = document.getElementById('sectionTableBody');
+  const pageState = { page: 1, size: 25 };
+  let visibleRecords = [];
+  let pager = document.getElementById('sectionPagination');
+  if (!pager) { pager = document.createElement('div'); pager.id = 'sectionPagination'; pager.className = 'admin-pagination'; body.closest('.table-responsive').insertAdjacentElement('afterend', pager); }
   const draw = records => {
+    visibleRecords = records;
+    const pages = Math.max(1, Math.ceil(records.length / pageState.size));
+    pageState.page = Math.min(pageState.page, pages);
+    const start = (pageState.page - 1) * pageState.size;
+    const pageRecords = records.slice(start, start + pageState.size);
     const emptyCopy = {
       users: ['No people yet', 'Invite your first employee or administrator to get started.'],
       invitations: ['No invitations yet', 'Invite someone when you are ready to add them to the workspace.'],
@@ -327,18 +336,22 @@ async function renderAdminSection() {
       entries: ['No time entries yet', 'Employee clock-ins will appear here for review.'],
       audit: ['No activity yet', 'Important workspace actions will appear here.']
     }[key] || ['Nothing here yet', 'New records will appear here.'];
-    body.innerHTML = records.length ? records.map((record, rowIndex) => '<tr class="' + (key === 'entries' || key === 'users' ? 'admin-collapsible-row' : '') + '">' + record.cells.map((cell, index) => { const isEmployeeName = (key === 'users' && index === 0 && record.cells[2] === 'Employee') || (key === 'entries' && index === 0 && record.userRole === 'USER'); const nameCell = isEmployeeName ? '<a class="admin-employee-profile-link" href="employee-profile.html?user=' + encodeURIComponent(key === 'users' ? record.id : record.userId) + '">' + esc(cell) + '</a>' : '<strong>' + esc(cell) + '</strong>'; return '<td' + (key === 'entries' && index === 6 ? ' class="admin-entry-remarks"' : '') + '>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key, record) : key === 'entries' && index === 6 ? (record.remarks?.length ? record.remarks.map(remark => '<article class="admin-entry-remark"><strong>' + esc(remark.admin) + '</strong><span>' + esc(remark.text) + '</span></article>').join('') : '—') : key === 'users' && index === 0 ? '<span class="admin-user-identity"><span class="admin-user-avatar">' + (record.avatarUrl ? '<img src="' + esc(record.avatarUrl) + '" alt="">' : esc(String(cell).trim().slice(0, 1).toUpperCase())) + '</span>' + nameCell + '</span>' : key === 'entries' && index === 0 ? nameCell : status(cell)) + '</td>'; }).join('') + '</tr>').join('') : emptyTable(emptyCopy[0], emptyCopy[1], view.columns.length);
-    body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, records[Number(button.dataset.row)])));
-    body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => editEntryTime(records[Number(button.dataset.row)])));
+    body.innerHTML = records.length ? pageRecords.map((record, rowIndex) => '<tr class="' + (key === 'entries' || key === 'users' ? 'admin-collapsible-row' : '') + '">' + record.cells.map((cell, index) => { const isEmployeeName = (key === 'users' && index === 0 && record.cells[2] === 'Employee') || (key === 'entries' && index === 0 && record.userRole === 'USER'); const nameCell = isEmployeeName ? '<a class="admin-employee-profile-link" href="employee-profile.html?user=' + encodeURIComponent(key === 'users' ? record.id : record.userId) + '">' + esc(cell) + '</a>' : '<strong>' + esc(cell) + '</strong>'; return '<td' + (key === 'entries' && index === 5 ? ' class="admin-entry-remarks"' : '') + '>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key, record) : key === 'entries' && index === 5 ? (record.remarks?.length ? record.remarks.map(remark => '<article class="admin-entry-remark"><strong>' + esc(remark.admin) + '</strong><span>' + esc(remark.text) + '</span></article>').join('') : '—') : key === 'users' && index === 0 ? '<span class="admin-user-identity"><span class="admin-user-avatar">' + (record.avatarUrl ? '<img src="' + esc(record.avatarUrl) + '" alt="">' : esc(String(cell).trim().slice(0, 1).toUpperCase())) + '</span>' + nameCell + '</span>' : key === 'entries' && index === 0 ? nameCell : status(cell)) + '</td>'; }).join('') + '</tr>').join('') : emptyTable(emptyCopy[0], emptyCopy[1], view.columns.length);
+    const pageList = [...new Set([1, pageState.page - 1, pageState.page, pageState.page + 1, pages].filter(page => page >= 1 && page <= pages))];
+    pager.innerHTML = records.length > pageState.size ? '<span>Showing ' + (start + 1) + '–' + Math.min(start + pageState.size, records.length) + ' of ' + records.length + '</span><div class="pagination"><label class="sr-only" for="sectionPageSize">Rows per page</label><select class="form-select" id="sectionPageSize"><option value="25"' + (pageState.size === 25 ? ' selected' : '') + '>25</option><option value="50"' + (pageState.size === 50 ? ' selected' : '') + '>50</option><option value="100"' + (pageState.size === 100 ? ' selected' : '') + '>100</option></select><button type="button" data-section-page="' + (pageState.page - 1) + '" ' + (pageState.page === 1 ? 'disabled' : '') + ' aria-label="Previous page">‹</button>' + pageList.map(page => '<button type="button" data-section-page="' + page + '" class="' + (page === pageState.page ? 'active' : '') + '" aria-current="' + (page === pageState.page ? 'page' : 'false') + '">' + page + '</button>').join('') + '<button type="button" data-section-page="' + (pageState.page + 1) + '" ' + (pageState.page === pages ? 'disabled' : '') + ' aria-label="Next page">›</button></div>' : '';
+    pager.querySelectorAll('[data-section-page]').forEach(button => button.addEventListener('click', () => { pageState.page = Number(button.dataset.sectionPage); draw(visibleRecords); }));
+    pager.querySelector('#sectionPageSize')?.addEventListener('change', event => { pageState.size = Number(event.target.value); pageState.page = 1; draw(visibleRecords); });
+    body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, pageRecords[Number(button.dataset.row)])));
+    body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => editEntryTime(pageRecords[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-view-employee').forEach(button => button.addEventListener('click', () => {
-      const record = records[Number(button.dataset.row)];
+      const record = pageRecords[Number(button.dataset.row)];
       if (!record) return;
       const href = '/employee-profile?user=' + encodeURIComponent(record.id);
       if (window.ACEDashboardNavigate && document.body.classList.contains('has-app-shell')) window.ACEDashboardNavigate(href);
       else window.location.assign(href);
     }));
     body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
-      const record = records[Number(button.dataset.row)];
+      const record = pageRecords[Number(button.dataset.row)];
       if (!record || !await window.ACEUI.confirm({ title: 'Move time entry to Deleted?', message: 'You can restore it later from Deleted time entries.', confirmLabel: 'Move to Deleted', danger: true })) return;
       try {
         await liveRequest('/v1/time-entries/' + record.id, { method: 'DELETE' });
@@ -349,7 +362,7 @@ async function renderAdminSection() {
       }
     }));
     body.querySelectorAll('.admin-delete-section').forEach(button => button.addEventListener('click', async () => {
-      const record = records[Number(button.dataset.row)];
+      const record = pageRecords[Number(button.dataset.row)];
       if (!record || !await window.ACEUI.confirm({ title: `Delete ${key.slice(0, -1)}?`, message: `Delete ${record.cells[0]}? This cannot be undone.`, confirmLabel: 'Delete', danger: true })) return;
       try { await liveRequest('/v1/' + key + '/' + record.id, { method: 'DELETE' }); closeModal('adminActionModal'); showToast(`${key.slice(0, -1)} deleted.`, 'success'); window.setTimeout(() => window.location.reload(), 350); }
       catch (error) { showToast(error.message || `Could not delete ${key.slice(0, -1)}.`, 'error'); }
@@ -389,7 +402,7 @@ async function renderAdminSection() {
     const employeeTerm = employeeFilter?.value.trim().toLowerCase() || '';
     const projectTerm = projectFilter?.value.trim().toLowerCase() || '';
     const records = view.records.filter(record => (!term || record.cells.join(' ').toLowerCase().includes(term)) && (!departmentFilter?.value || record.cells[3] === departmentFilter.value) && (!roleFilter?.value || record.cells[2] === roleFilter.value) && (!employeeTerm || record.cells[0].toLowerCase().includes(employeeTerm)) && (!projectTerm || record.cells[1].toLowerCase().includes(projectTerm)) && (!remarksFilter?.value || (remarksFilter.value === 'with' ? Boolean(record.remarks?.length) : !record.remarks?.length)));
-    draw(records); setCount(records);
+    pageState.page = 1; draw(records); setCount(records);
   };
   actionButton.addEventListener('click', () => /export/i.test(view.action) ? openTimeEntryExport(view.records) : modal(view, true));
   const expectedQuickAction = key === 'invitations' ? 'invite-user' : key === 'projects' ? 'add-project' : '';
