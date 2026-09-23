@@ -3415,8 +3415,13 @@ function startOnlineUserCountRefresh() {
     if (!AppState.liveDataInterval) startLiveDataRefresh();
 }
 
-function loadReportsList() {
+let reportsPage = 1; const reportsPageSize = 25; let reportsTotal = 0;
+async function loadReportsList() {
     const reportsList = document.getElementById('reportsList');
+    if (reportsList && window.ACEAuth) {
+        try { const response = await window.ACEAuth.request('/v1/reports?page=' + reportsPage + '&pageSize=' + reportsPageSize); AppState.reports = (response.items || response).map(reportRecord); reportsTotal = response.total ?? AppState.reports.length; }
+        catch (error) { showToast(error.message || 'Could not load reports.', 'error'); return; }
+    }
     if (reportsList) {
         reportsList.innerHTML = AppState.reports.length ? AppState.reports.map(report => {
             const user = AppState.users.find(u => u.UserId === report.CreatedByUserId);
@@ -3440,6 +3445,7 @@ function loadReportsList() {
             if (button.dataset.reportAction === 'export') exportReport(reportId, button.dataset.reportFormat);
             else deleteReport(reportId);
         }));
+        const pager = document.getElementById('reportsPagination'); const pages = Math.max(1, Math.ceil(reportsTotal / reportsPageSize)); if (pager) { pager.innerHTML = reportsTotal > reportsPageSize ? `<span>Showing ${(reportsPage - 1) * reportsPageSize + 1}–${Math.min(reportsPage * reportsPageSize, reportsTotal)} of ${reportsTotal}</span><button type="button" data-report-page="${reportsPage - 1}" ${reportsPage === 1 ? 'disabled' : ''}>Previous</button><button type="button" data-report-page="${reportsPage + 1}" ${reportsPage === pages ? 'disabled' : ''}>Next</button>` : ''; pager.querySelectorAll('[data-report-page]').forEach(button => button.addEventListener('click', () => { reportsPage = Number(button.dataset.reportPage); loadReportsList(); })); }
         const requestedReportId = new URLSearchParams(location.search).get('report');
         if (requestedReportId && !reportsList.dataset.searchTargetHandled) {
             reportsList.dataset.searchTargetHandled = 'true';

@@ -195,6 +195,13 @@ const invitationMailIssue = error => {
 
 const fail = (res, status, message) => res.status(status).json({ error: message });
 const query = async builder => { const { data, error } = await builder; if (error) throw error; return data; };
+const pageParams = req => ({ page: Math.max(1, Number.parseInt(req.query.page, 10) || 1), pageSize: Math.min(100, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 25)), paged: req.query.page !== undefined });
+const pagedResult = async (request, { page, pageSize, paged }) => {
+  if (!paged) return query(request);
+  const { data, error, count } = await request.range((page - 1) * pageSize, page * pageSize - 1);
+  if (error) throw error;
+  return { items: data || [], total: count || 0, page, pageSize };
+};
 const isUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const isDate = value => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -475,16 +482,16 @@ app.patch('/v1/access-requests/:id', sensitiveActionLimiter, authenticate, admin
   res.json(reviewed);
 } catch (error) { next(error); } });
 
-app.get('/v1/departments', authenticate, activeOnly, async (_, res, next) => { try { res.json(await query(db.from('departments').select('*').order('name'))); } catch (error) { next(error); } });
+app.get('/v1/departments', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('departments').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 app.post('/v1/departments', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Department name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('departments').insert({ name, description }).select().single()); await audit(req, 'CREATE', 'DEPARTMENT', item.id, `Created department ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
 app.patch('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Department name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable department fields supplied'); const item = await query(db.from('departments').update(changes).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'DEPARTMENT', item.id, `Updated department ${item.name}`); res.json(item); } catch (error) { next(error); } });
 app.delete('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('departments').delete().eq('id', req.params.id).select().single()); await audit(req, 'DELETE', 'DEPARTMENT', item.id, `Deleted department ${item.name}`); res.json(item); } catch (error) { next(error); } });
 
-app.get('/v1/projects', authenticate, activeOnly, async (_, res, next) => { try { res.json(await query(db.from('projects').select('*').order('name'))); } catch (error) { next(error); } });
+app.get('/v1/projects', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('projects').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 app.post('/v1/projects', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Project name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('projects').insert({ name, description }).select().single()); await audit(req, 'CREATE', 'PROJECT', item.id, `Created project ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
 app.patch('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Project name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable project fields supplied'); const item = await query(db.from('projects').update(changes).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'PROJECT', item.id, `Updated project ${item.name}`); res.json(item); } catch (error) { next(error); } });
 app.delete('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('projects').delete().eq('id', req.params.id).select().single()); await audit(req, 'DELETE', 'PROJECT', item.id, `Deleted project ${item.name}`); res.json(item); } catch (error) { next(error); } });
-app.get('/v1/schedules', authenticate, adminOnly, async (req, res, next) => { try { res.json(await query(db.from('work_schedules').select('*, user_schedule_assignments(user_id)').order('name'))); } catch (error) { next(error); } });
+app.get('/v1/schedules', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('work_schedules').select('*, user_schedule_assignments(user_id)', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.ilike('name', `%${String(req.query.q).replace(/[%_,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 app.get('/v1/my-schedule', authenticate, activeOnly, async (req, res, next) => { try { const assignment = await query(db.from('user_schedule_assignments').select('assigned_at, work_schedules(*)').eq('user_id', req.profile.id).maybeSingle()); res.json(assignment?.work_schedules || null); } catch (error) { next(error); } });
 app.post('/v1/schedules', authenticate, adminOnly, async (req, res, next) => { try {
   const name = requireText(req.body.name, 'Schedule name', 80); const scheduleType = req.body.scheduleType === 'FLEX' ? 'FLEX' : req.body.scheduleType === 'FIXED' ? 'FIXED' : null;
@@ -610,13 +617,17 @@ app.delete('/v1/employee-chat/messages/:messageId', authenticate, activeOnly, as
   if (!message) return fail(res, 404, 'Message is not available to delete');
   res.json(message);
 } catch (error) { next(error); } });
-app.get('/v1/admin/chat-log', authenticate, specialAdminOnly, async (_, res, next) => { try {
-  const [messages, profiles] = await Promise.all([
-    query(db.from('employee_messages').select('id,sender_id,recipient_id,body,created_at,edited_at,deleted_at,read_at').order('created_at', { ascending: false }).limit(500)),
+app.get('/v1/admin/chat-log', authenticate, specialAdminOnly, async (req, res, next) => { try {
+  const paging = pageParams(req);
+  const messageRequest = db.from('employee_messages').select('id,sender_id,recipient_id,body,created_at,edited_at,deleted_at,read_at', paging.paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false });
+  const [messageResult, profiles] = await Promise.all([
+    paging.paged ? pagedResult(messageRequest, paging) : query(messageRequest.limit(500)),
     query(db.from('profiles').select('id,full_name,email'))
   ]);
+  const messages = paging.paged ? messageResult.items : messageResult;
   const people = new Map(profiles.map(profile => [profile.id, profile]));
-  res.json(messages.map(message => ({ ...message, sender: people.get(message.sender_id) || null, recipient: people.get(message.recipient_id) || null })));
+  const items = messages.map(message => ({ ...message, sender: people.get(message.sender_id) || null, recipient: people.get(message.recipient_id) || null }));
+  res.json(paging.paged ? { ...messageResult, items } : items);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try {
   if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED');
@@ -719,7 +730,7 @@ app.delete('/v1/invitations/:id', sensitiveActionLimiter, authenticate, adminOnl
   await audit(req, 'CANCEL_INVITATION', 'INVITATION', invitation.id, `Cancelled invitation for ${invitation.email}`);
   res.status(204).end();
 } catch (error) { next(error); } });
-app.get('/v1/invitations', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)').order('invited_at', { ascending: false }))); } catch (error) { next(error); } });
+app.get('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)', paging.paged ? { count: 'exact' } : undefined).order('invited_at', { ascending: false }); if (req.query.q) request = request.ilike('email', `%${String(req.query.q).replace(/[%_,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 
 app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try {
   const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1); const pageSize = Math.min(100, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 25)); const paged = req.query.page !== undefined;
@@ -914,14 +925,14 @@ app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try
   await audit(req, 'GENERATE_REPORT', 'REPORT', report.id, `Generated ${reportType} report`);
   res.status(201).json(report);
 } catch (error) { next(error); } });
-app.get('/v1/reports', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('reports').select('*, profiles!reports_created_by_user_id_fkey(full_name), report_exports(*)').order('generated_at', { ascending: false }))); } catch (error) { next(error); } });
+app.get('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); const request = db.from('reports').select('*, profiles!reports_created_by_user_id_fkey(full_name), report_exports(*)', paging.paged ? { count: 'exact' } : undefined).order('generated_at', { ascending: false }); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 app.post('/v1/reports/:id/exports', authenticate, adminOnly, async (req, res, next) => { try { const fileName = requireText(req.body.fileName, 'File name', 255); const fileType = req.body.fileType || 'PDF'; const fileUrl = optionalText(req.body.fileUrl, 2048); if (!['CSV', 'XLSX', 'PDF'].includes(fileType) || fileUrl === undefined) return fail(res, 400, 'Invalid export details'); const item = await query(db.from('report_exports').insert({ report_id: req.params.id, exported_by_user_id: req.profile.id, file_name: fileName, file_type: fileType, file_url: fileUrl }).select().single()); await audit(req, 'EXPORT_REPORT', 'REPORT', req.params.id, `Exported ${fileType} report`); res.status(201).json(item); } catch (error) { next(error); } });
 app.delete('/v1/reports/:id', authenticate, adminOnly, async (req, res, next) => { try {
   const report = await query(db.from('reports').delete().eq('id', req.params.id).select().single());
   await audit(req, 'DELETE_REPORT', 'REPORT', report.id, `Deleted generated ${report.report_type} report`);
   res.json(report);
 } catch (error) { next(error); } });
-app.get('/v1/audit-logs', authenticate, adminOnly, async (_, res, next) => { try { res.json(await query(db.from('audit_logs').select('*, profiles(full_name,email)').order('created_at', { ascending: false }).limit(250))); } catch (error) { next(error); } });
+app.get('/v1/audit-logs', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('audit_logs').select('*, profiles(full_name,email)', paging.paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false }); if (req.query.q) request = request.or(`action.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); if (!paging.paged) request = request.limit(250); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 
 app.use((error, _, res, __) => {
   // Keep diagnostics server-side. Never return database/provider details,

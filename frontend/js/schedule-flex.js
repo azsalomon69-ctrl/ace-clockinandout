@@ -8,6 +8,7 @@
   let schedules = [];
   let allUsers = [];
   let selectedScheduleId = null;
+  let schedulePage = 1; let schedulePageSize = 25; let scheduleTotal = 0;
   let employeeOptions = new Map();
   const assignedPeople = schedule => (schedule.user_schedule_assignments || []).map(assignment => allUsers.find(user => user.id === assignment.user_id) || { id: assignment.user_id, full_name: 'Unknown employee', email: 'Employee record unavailable', status: 'UNKNOWN' });
   const renderAssignments = () => {
@@ -27,7 +28,7 @@
     }));
   };
   const load = async () => {
-    const [items, users] = await Promise.all([request('/v1/schedules'), request('/v1/users')]); schedules = items; allUsers = users;
+    const [scheduleResponse, users] = await Promise.all([request('/v1/schedules?page=' + schedulePage + '&pageSize=' + schedulePageSize), request('/v1/users')]); schedules = scheduleResponse.items || scheduleResponse; scheduleTotal = scheduleResponse.total ?? schedules.length; allUsers = users;
     const employees = allUsers.filter(user => user.role === 'USER' && user.status === 'ACTIVE');
     const employeeInput = document.getElementById('scheduleEmployee'); const employeeList = document.getElementById('scheduleEmployeeOptions'); const assignmentSelect = document.getElementById('scheduleAssignment'); const assignButton = document.querySelector('#assignmentForm button[type="submit"]');
     employeeOptions = new Map(employees.map(user => [`${user.full_name || user.email} — ${user.email}`, user.id]));
@@ -50,6 +51,9 @@
       try { await request(`/v1/schedules/${button.dataset.id}`, { method: 'DELETE' }); if (selectedScheduleId === button.dataset.id) selectedScheduleId = null; toast('Schedule deleted.'); await load(); }
       catch (error) { button.disabled = false; button.textContent = 'Delete'; if (error.status === 409) { selectedScheduleId = button.dataset.id; await load(); renderAssignments(); } toast(error.message || 'Could not delete schedule.', 'error'); }
     }));
+    let pager = document.getElementById('schedulePagination'); if (!pager) { pager = document.createElement('div'); pager.id = 'schedulePagination'; pager.className = 'admin-pagination'; document.getElementById('scheduleRows').closest('.table-responsive').insertAdjacentElement('afterend', pager); }
+    const pages = Math.max(1, Math.ceil(scheduleTotal / schedulePageSize)); pager.innerHTML = scheduleTotal > schedulePageSize ? '<span>Showing ' + ((schedulePage - 1) * schedulePageSize + 1) + '–' + Math.min(schedulePage * schedulePageSize, scheduleTotal) + ' of ' + scheduleTotal + '</span><div class="pagination"><select class="form-select"><option value="25"' + (schedulePageSize === 25 ? ' selected' : '') + '>25</option><option value="50"' + (schedulePageSize === 50 ? ' selected' : '') + '>50</option><option value="100"' + (schedulePageSize === 100 ? ' selected' : '') + '>100</option></select><button data-page="' + (schedulePage - 1) + '" ' + (schedulePage === 1 ? 'disabled' : '') + '>‹</button><button data-page="' + (schedulePage + 1) + '" ' + (schedulePage === pages ? 'disabled' : '') + '>›</button></div>' : '';
+    pager.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => { schedulePage = Number(button.dataset.page); load(); })); pager.querySelector('select')?.addEventListener('change', event => { schedulePageSize = Number(event.target.value); schedulePage = 1; load(); });
     renderAssignments();
   };
   const mount = async () => { try { const me = await request('/v1/me'); if (me.profile.role !== 'ADMIN') return location.replace('/user-dashboard'); await load(); } catch { location.replace('/login'); }

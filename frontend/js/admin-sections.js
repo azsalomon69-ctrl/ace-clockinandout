@@ -48,11 +48,13 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     });
     view.stats = [[items.filter(item => item.status === 'ACTIVE' && item.last_seen_at && new Date(item.last_seen_at).getTime() >= onlineAfter).length, 'Currently online', 'users'], [items.filter(item => item.status === 'ACTIVE').length, 'Active users', 'check'], [items.filter(item => item.status === 'PENDING').length, 'Pending review', 'circle-alert']];
   } else if (key === 'invitations') {
-    const items = await liveRequest('/v1/invitations');
+    const params = new URLSearchParams(); if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); } if (filters.q) params.set('q', filters.q);
+    const response = await liveRequest('/v1/invitations' + (params.size ? '?' + params : '')); const items = response.items || response; view.total = response.total ?? items.length;
     view.records = items.map(item => ({ id: item.id, cells: [item.email, item.profiles?.full_name || item.profiles?.email || 'Administrator', date(item.invited_at), date(item.expires_at), item.status[0] + item.status.slice(1).toLowerCase(), 'View'] }));
     view.stats = [[items.filter(item => item.status === 'PENDING').length, 'Pending', 'timer'], [items.filter(item => item.status === 'ACCEPTED').length, 'Accepted', 'check'], [items.filter(item => item.status === 'PENDING' && new Date(item.expires_at).toDateString() === new Date().toDateString()).length, 'Expires today', 'circle-alert']];
   } else if (key === 'departments' || key === 'projects') {
-    const items = await liveRequest('/v1/' + key);
+    const params = new URLSearchParams(); if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); } if (filters.q) params.set('q', filters.q);
+    const response = await liveRequest('/v1/' + key + (params.size ? '?' + params : '')); const items = response.items || response; view.total = response.total ?? items.length;
     view.records = items.map(item => ({ id: item.id, cells: [item.name, item.description || '—', date(item.created_at), item.is_active ? 'Active' : 'Inactive', 'Edit'] }));
     view.stats = [[items.length, 'Total ' + key, key === 'projects' ? 'folder' : 'building'], [items.filter(item => item.is_active).length, 'Active ' + key, 'check']];
   } else if (key === 'entries') {
@@ -78,7 +80,8 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     view.records = items.map(item => { const entryRemarks = remarksByEntry.get(item.id) || []; return { id: item.id, userId: item.user_id, userRole: item.profiles?.role, clockInAt: item.clock_in_at, clockOutAt: item.clock_out_at, scheduledEndTime: item.scheduled_end_time, scheduleType: item.schedule_type, overtimeApprovedSeconds: item.overtime_approved_seconds || 0, remarks: entryRemarks, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || '—', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : duration(liveWorkedSeconds(item)), entryRemarks.length ? `${entryRemarks.length} remark${entryRemarks.length === 1 ? '' : 's'}` : '—', 'Add remark'] }; });
     view.stats = [[duration(total), 'Tracked time', 'timer'], [items.filter(item => !item.clock_out_at).length, 'Open entries', 'circle-alert'], [items.length, 'Time entries', 'check']];
   } else if (key === 'audit') {
-    const items = await liveRequest('/v1/audit-logs');
+    const params = new URLSearchParams(); if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); } if (filters.q) params.set('q', filters.q);
+    const response = await liveRequest('/v1/audit-logs' + (params.size ? '?' + params : '')); const items = response.items || response; view.total = response.total ?? items.length;
     view.records = items.map(item => ({ id: item.id, cells: [time(item.created_at), item.profiles?.full_name || item.profiles?.email || 'System', auditAction(item.action), humanizeEnum(item.entity_type), item.description || '—', '#' + item.id] }));
     view.stats = [[items.length, 'Recorded events', 'brick-wall-shield'], [items.filter(item => item.action === 'LOGIN').length, 'Sign-ins', 'key-round'], [items.filter(item => /REPORT/i.test(item.action)).length, 'Reports exported', 'download']];
   }
@@ -344,7 +347,7 @@ function openTimeEntryExport(records) {
 }
 async function renderAdminSection() {
   const key = document.body.dataset.adminView; const config = ADMIN_SECTION_CONFIG[key]; if (!config) return;
-  const serverPaged = key === 'users' || key === 'entries';
+  const serverPaged = ['users', 'entries', 'invitations', 'departments', 'projects', 'audit'].includes(key);
   const pageState = { page: 1, size: 25 };
   const activeFilters = {};
   // A live redraw must not stack filters or click handlers from the previous
