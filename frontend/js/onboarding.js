@@ -190,6 +190,7 @@ window.ACETutorial = (() => {
     function centerCard(card, target, reason) {
         target?.classList.remove('ace-tutorial-target');
         card.classList.add('is-centered');
+        card.removeAttribute('data-placement');
         card.style.removeProperty('left');
         card.style.removeProperty('top');
         card.style.removeProperty('bottom');
@@ -203,6 +204,7 @@ window.ACETutorial = (() => {
         if (!overlay || !active) return;
         card.classList.remove('is-centered');
         card.classList.remove('ace-tutorial-mobile-top-card');
+        card.removeAttribute('data-placement');
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         let targetRect = target.getBoundingClientRect();
@@ -213,6 +215,8 @@ window.ACETutorial = (() => {
             // behind the normal bottom-sheet tutorial card.
             target.classList.add('ace-tutorial-target');
             card.classList.add('ace-tutorial-mobile-top-card');
+            card.dataset.placement = 'above';
+            card.style.setProperty('--ace-tutorial-arrow-x', `${Math.max(28, Math.min(targetRect.left + targetRect.width / 2 - 12, viewportWidth - 40))}px`);
             card.style.removeProperty('bottom');
             card.style.removeProperty('left');
             card.style.removeProperty('right');
@@ -228,6 +232,11 @@ window.ACETutorial = (() => {
         if (mobile) {
             const updatedSheetTop = card.getBoundingClientRect().top;
             if (targetRect.bottom + 12 > updatedSheetTop) centerCard(card, target, 'target too large to anchor');
+            else {
+                // The bottom-sheet card points upward to the taught control.
+                card.dataset.placement = 'below';
+                card.style.setProperty('--ace-tutorial-arrow-x', `${Math.max(28, Math.min(targetRect.left + targetRect.width / 2 - 12, viewportWidth - 40))}px`);
+            }
             return;
         }
         // The sidebar control sits on the page edge. A normal "above" card

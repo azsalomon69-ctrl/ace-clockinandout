@@ -101,7 +101,10 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /mobileSidebarOpen/, 'Mobile navigation should remove the open-sidebar action after the drawer is visible');
   assert.match(engineSource, /Math\.min\(235, availableHeight - afterScroll\.height - 12\)/, 'Mobile target positioning should avoid unnecessary scrolling');
   assert.match(engineSource, /ace-tutorial-mobile-top-card/, 'Mobile account guidance should keep bottom account controls visible above the tutorial card');
+  assert.match(engineSource, /card\.dataset\.placement = 'below'/, 'Mobile bottom-sheet guidance should point upward at its target');
+  assert.match(engineSource, /card\.dataset\.placement = 'above'/, 'Mobile top-card guidance should point downward at its target');
   assert.match(styles, /\.ace-tutorial-card\.ace-tutorial-mobile-top-card/, 'Mobile account tutorial cards should render at the top of the screen');
+  assert.match(styles, /\.ace-tutorial-card\[data-placement="below"\]::after/, 'Mobile tutorial cards should display a directional pointer arrow');
   assert.match(engineSource, /target\.matches\('\.shell-collapse'\)/, 'Sidebar-edge control should receive dedicated pointer placement');
   assert.match(engineSource, /card\.dataset\.placement = 'right'/, 'Sidebar-edge tutorial card should point left at the real control');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse/, 'Tutorial should keep the actual sidebar expand control visible while highlighting it');

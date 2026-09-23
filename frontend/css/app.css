@@ -93,7 +93,13 @@ body.ace-tutorial-welcome-open { overflow: hidden; }
   .ace-tutorial-card { right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px; width: auto; max-height: calc(100dvh - 24px); padding: 22px; overflow-y: auto; overscroll-behavior: contain; border-radius: 18px 18px 14px 14px; animation: ace-tutorial-sheet-in .22s ease-out both; }
   .ace-tutorial-card.is-centered { position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px !important; width: auto; }
   .ace-tutorial-card.ace-tutorial-mobile-top-card { top: calc(72px + env(safe-area-inset-top)); right: 12px; bottom: auto; left: 12px; }
-  .ace-tutorial-card[data-placement]::after { display: none; }
+  /* A small directional arrow makes the mobile sheet's relationship to the
+     highlighted control obvious. Bottom sheets point up; the account guide
+     uses a top card and points down. */
+  .ace-tutorial-card[data-placement="below"]::after,
+  .ace-tutorial-card[data-placement="above"]::after { display: block; }
+  .ace-tutorial-card[data-placement="below"]::after { top: -10px; bottom: auto; left: calc(var(--ace-tutorial-arrow-x) - 9px); }
+  .ace-tutorial-card[data-placement="above"]::after { top: auto; bottom: -10px; left: calc(var(--ace-tutorial-arrow-x) - 9px); }
   .ace-tutorial-actions { align-items: stretch; flex-direction: column-reverse; }
   .ace-tutorial-actions > span { justify-content: stretch; }
   .ace-tutorial-actions > span .btn { flex: 1; }
