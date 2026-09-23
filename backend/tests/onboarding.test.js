@@ -73,6 +73,11 @@ test('tutorial launch rules welcome, resume, or stay quiet as appropriate', () =
   assert.equal(tutorial.launchMode({ Status: 'DENIED' }, config, { status: 'IN_PROGRESS' }), 'NONE');
 });
 
+test('tutorial updates preserve a prior skip or completion choice', () => {
+  assert.match(engineSource, /\['SKIPPED', 'COMPLETED'\]\.includes\(state\.status\)/, 'A tutorial update must respect an existing skip or completion choice');
+  assert.match(engineSource, /await persist\(\{ status: state\.status, step: state\.step \}\)/, 'A skipped or completed tutorial should be silently updated to the current version');
+});
+
 test('tutorial guides navigation instead of forcing a page change', () => {
   assert.doesNotMatch(engineSource, /location\.assign\(`\/\$\{step\.page/, 'Tutorial steps must not navigate pages automatically');
   assert.match(engineSource, /showNavigationStep/, 'Tutorial should explain where to navigate');

@@ -418,7 +418,24 @@ window.ACETutorial = (() => {
         const local = fallback();
         if (local) await persist(local);
         const state = tutorialState();
-        if (state.version !== roleConfig.version) { await persist({ status: 'NOT_STARTED', step: 0 }); welcome(); return; }
+        if (state.version !== roleConfig.version) {
+            // A content update must never override an administrator's choice
+            // to skip or complete the tour. Quietly record the newer version
+            // so later deployments do not ask again. People who have an
+            // unfinished tour can continue it, while genuinely new accounts
+            // still receive the welcome prompt.
+            if (['SKIPPED', 'COMPLETED'].includes(state.status)) {
+                await persist({ status: state.status, step: state.step });
+                return;
+            }
+            if (state.status === 'IN_PROGRESS') {
+                await persist({ status: 'IN_PROGRESS', step: Math.min(state.step, roleConfig.steps.length - 1) });
+                return showStep(Math.min(state.step, roleConfig.steps.length - 1));
+            }
+            await persist({ status: 'NOT_STARTED', step: 0 });
+            welcome();
+            return;
+        }
         const mode = launchMode(profile, roleConfig, state);
         if (mode === 'WELCOME') return welcome();
         if (mode === 'RESUME') return showStep(Math.min(state.step, roleConfig.steps.length - 1));
