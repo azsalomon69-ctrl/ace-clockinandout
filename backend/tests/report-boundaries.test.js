@@ -53,3 +53,11 @@ test('report preview returns no data for a date range with no entries', () => {
   const result = context.filterEntriesForReport({ DateFrom: '2026-08-01', DateTo: '2026-08-31', Filters: {} });
   assert.equal(result.length, 0);
 });
+
+test('dashboard current-period filters anchor to today rather than the latest historical entry', () => {
+  const frontend = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
+  const begin = frontend.indexOf('function getAdminAnalyticsFilters(');
+  const fn = frontend.slice(begin, frontend.indexOf('function toAnalyticsDateValue(', begin));
+  assert.doesNotMatch(fn, /latestTimestamp/, 'Current-period analytics must not fall back to the newest recorded entry');
+  assert.match(fn, /const periodEnd = new Date\(\);/, 'Current-period analytics should use today as the period end');
+});

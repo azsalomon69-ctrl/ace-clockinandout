@@ -2976,9 +2976,10 @@ function getAdminAnalyticsFilters(fallbackDays = 7) {
     const dateFromInput = document.getElementById('analyticsDateFrom');
     const dateToInput = document.getElementById('analyticsDateTo');
     const selectedRange = range?.value || String(fallbackDays);
-    const completed = employeeTimeEntries().filter(entry => Number(entry.DurationSeconds) > 0);
-    const latestTimestamp = completed.length ? Math.max(...completed.map(entry => new Date(entry.ClockInAt).getTime())) : Date.now();
-    const periodEnd = new Date(latestTimestamp);
+    // "This week" and "This month" always mean the current calendar period.
+    // Do not anchor them to the newest historical record: doing so can make
+    // a quiet current month appear to contain entries from a previous month.
+    const periodEnd = new Date();
     periodEnd.setHours(23, 59, 59, 999);
     const periodStart = new Date(periodEnd);
     let days = Number(selectedRange) || fallbackDays;
