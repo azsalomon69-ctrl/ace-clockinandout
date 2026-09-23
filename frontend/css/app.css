@@ -15764,6 +15764,104 @@ body.home-page:not(.has-app-shell) .home-v2-phone img {
 body.home-page:not(.has-app-shell) .home-v2-band {
   padding: 15px 18px
 }
+
+/* Dark-theme contrast guardrails.  These rules intentionally live after the
+   legacy visual layers above so the shell, menus, and Help panel always share
+   the same readable dark surfaces. */
+html[data-theme="dark"] .shell-brand a > img {
+  filter: none!important;
+  opacity: 1
+}
+html[data-theme="dark"] .shell-brand a {
+  background: #fff;
+  border: 1px solid rgba(210, 242, 246, .28);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .22)
+}
+html[data-theme="dark"] .shell-nav-label {
+  color: #b8d8dd!important
+}
+html[data-theme="dark"] .shell-nav-group-toggle {
+  color: #dff7fa!important;
+  background: #153b44!important;
+  border-color: #34727e!important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06),0 5px 14px rgba(0,0,0,.18)!important
+}
+html[data-theme="dark"] .shell-nav-group-toggle > span:first-child {
+  color: inherit!important
+}
+html[data-theme="dark"] .shell-nav-group-toggle:hover,
+html[data-theme="dark"] .shell-nav-group-toggle[aria-expanded="true"],
+html[data-theme="dark"] .shell-nav-group.is-open .shell-nav-group-toggle {
+  color: #fff!important;
+  background: #1d4b56!important;
+  border-color: #69c9d8!important
+}
+html[data-theme="dark"] .shell-link .shell-icon,
+html[data-theme="dark"] .shell-nav-group-toggle .shell-icon {
+  filter: brightness(0) saturate(100%) invert(83%) sepia(20%) saturate(657%) hue-rotate(140deg) brightness(94%) contrast(91%)!important;
+  opacity: .96
+}
+html[data-theme="dark"] .shell-link:hover .shell-icon,
+html[data-theme="dark"] .shell-link.active .shell-icon,
+html[data-theme="dark"] .shell-nav-group-toggle:hover .shell-icon,
+html[data-theme="dark"] .shell-nav-group-toggle[aria-expanded="true"] .shell-icon {
+  filter: brightness(0) invert(1)!important;
+  opacity: 1
+}
+html[data-theme="dark"] .workspace-help-modal .modal-content {
+  background: var(--ace-surface-modal)!important;
+  border-color: var(--ace-border-strong)!important
+}
+html[data-theme="dark"] .workspace-help-search {
+  color: var(--ace-text-primary);
+  background: var(--ace-surface-input)!important;
+  border-color: var(--ace-border-strong)!important
+}
+html[data-theme="dark"] .workspace-help-search input {
+  color: var(--ace-text-primary)
+}
+html[data-theme="dark"] .workspace-help-search input::placeholder {
+  color: var(--ace-text-tertiary);
+  opacity: 1
+}
+html[data-theme="dark"] .faq-item {
+  background: var(--ace-surface)!important;
+  border-color: var(--ace-border-strong)!important
+}
+html[data-theme="dark"] .faq-question {
+  color: var(--ace-text-primary)!important;
+  background: var(--ace-surface)!important
+}
+html[data-theme="dark"] .faq-question::after {
+  filter: brightness(0) saturate(100%) invert(80%) sepia(25%) saturate(652%) hue-rotate(141deg) brightness(95%) contrast(91%)
+}
+html[data-theme="dark"] .faq-question:hover,
+html[data-theme="dark"] .faq-question.active {
+  color: #f5feff!important;
+  background: var(--ace-accent-muted)!important
+}
+html[data-theme="dark"] .faq-answer {
+  background: var(--ace-surface-raised)!important;
+  border-top-color: var(--ace-border)!important
+}
+html[data-theme="dark"] .faq-answer p,
+html[data-theme="dark"] .workspace-help-count,
+html[data-theme="dark"] .workspace-help-empty {
+  color: var(--ace-text-secondary)!important
+}
+html[data-theme="dark"] :is(.ace-select-menu,.ace-autocomplete-menu,.dropdown-menu,.select-options) {
+  background: var(--ace-surface-modal)!important;
+  border-color: var(--ace-border-strong)!important
+}
+html[data-theme="dark"] :is(.ace-select-option,.ace-autocomplete-option) {
+  color: var(--ace-text-primary)!important
+}
+html[data-theme="dark"] :is(.ace-select-option,.ace-autocomplete-option):hover,
+html[data-theme="dark"] :is(.ace-select-option,.ace-autocomplete-option).is-active {
+  color: #f5feff!important;
+  background: var(--ace-accent-muted)!important
+}
 @media (max-width: 900px) {
   body.home-page:not(.has-app-shell) .main-content {
     padding: 0 12px 40px
