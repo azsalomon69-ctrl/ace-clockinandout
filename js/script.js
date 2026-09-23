@@ -1205,6 +1205,33 @@ function initializeAppShell() {
         ['Remarks', 'Work · Read administrator feedback', 'remarks.html', 'remarks feedback admin note'],
         ['Profile & settings', 'Account · Profile, security, appearance', 'settings.html', 'settings profile password security appearance']
     ];
+    // Keep search convenience local to this browser and separate by signed-in
+    // account and role, so a different person using this device does not see
+    // someone else's recent page names or search terms.
+    // We deliberately retain page names and submitted search terms only; no
+    // entry, report, or employee record data is copied into local storage.
+    const searchHistoryPrefix = `ace_workspace_search_v1_${isAdmin ? 'admin' : 'employee'}_${encodeURIComponent(AppState.currentUser?.UserId || 'unknown')}`;
+    const recentPagesKey = `${searchHistoryPrefix}_pages`;
+    const recentQueriesKey = `${searchHistoryPrefix}_queries`;
+    const readSearchHistory = key => {
+        try {
+            const value = JSON.parse(localStorage.getItem(key) || '[]');
+            return Array.isArray(value) ? value : [];
+        } catch { return []; }
+    };
+    const writeSearchHistory = (key, value) => localStorage.setItem(key, JSON.stringify(value.slice(0, 5)));
+    const rememberPage = () => {
+        const current = workspaceSearchItems.find(item => item[2] === file);
+        if (!current) return;
+        const page = { label: current[0], detail: current[1], href: current[2], keywords: current[3] };
+        writeSearchHistory(recentPagesKey, [page, ...readSearchHistory(recentPagesKey).filter(item => item.href !== page.href)]);
+    };
+    const rememberQuery = value => {
+        const query = String(value || '').trim().replace(/\s+/g, ' ');
+        if (query.length < 2) return;
+        writeSearchHistory(recentQueriesKey, [query, ...readSearchHistory(recentQueriesKey).filter(item => String(item).toLowerCase() !== query.toLowerCase())]);
+    };
+    rememberPage();
     let visibleSearchResults = [];
     let activeSearchIndex = -1;
     const closeSearchResults = () => {
@@ -1215,6 +1242,12 @@ function initializeAppShell() {
     };
     const openSearchResult = result => {
         if (!result) return;
+        if (result.action === 'search') {
+            searchInput.value = result.query || '';
+            renderSearchResults({ showSuggestions: true });
+            return;
+        }
+        rememberQuery(searchInput.value);
         if (result.action === 'help') { closeSearchResults(); openWorkspaceHelp(isAdmin, searchInput.value.trim()); return; }
         window.location.assign(result.href);
     };
@@ -1238,7 +1271,7 @@ function initializeAppShell() {
             href: isAdmin
                 ? `time-entry-details.html?entry=${encodeURIComponent(entry.TimeEntryId)}`
                 : `time-entries.html#timeEntry-${encodeURIComponent(entry.TimeEntryId)}`,
-            icon: 'clock'
+            icon: 'timer'
         };
     };
     const reportSearchResult = report => {
@@ -1253,7 +1286,7 @@ function initializeAppShell() {
             detail: `Saved report · ${reportDate(report.DateFrom)} to ${reportDate(report.DateTo)} · ${report.TotalRecords} record${report.TotalRecords === 1 ? '' : 's'}`,
             keywords: `${report.ReportType || ''} ${report.DateFrom || ''} ${report.DateTo || ''} ${formatAppDateTime(report.GeneratedAt)} ${creator?.FullName || ''} ${filterTerms}`,
             href: `reports.html?report=${encodeURIComponent(report.ReportId)}`,
-            icon: 'chart'
+            icon: 'chart-column-big'
         };
     };
     const setActiveSearchResult = index => {
@@ -1275,10 +1308,16 @@ function initializeAppShell() {
         const matches = (item, value) => `${item.label || ''} ${item.detail || ''} ${item.keywords || ''}`.toLowerCase().includes(value);
         const results = [];
         if (!query && showSuggestions) {
+            readSearchHistory(recentPagesKey).forEach(page => {
+                if (page?.label && page?.href) results.push({ ...page, detail: `Recent page · ${page.detail || 'Workspace'}`, icon: 'timer' });
+            });
+            readSearchHistory(recentQueriesKey).forEach(previousQuery => {
+                if (typeof previousQuery === 'string' && previousQuery) results.push({ label: `Search again: “${previousQuery}”`, detail: 'Recent search on this device', action: 'search', query: previousQuery, icon: 'search' });
+            });
             const suggested = isAdmin ? ['Dashboard', 'Invite user', 'Users', 'Time entries'] : ['Dashboard', 'My time entries', 'Remarks', 'Profile & settings'];
             suggested.forEach(label => {
                 const item = workspaceSearchItems.find(candidate => candidate[0] === label);
-                if (item) results.push({ label: item[0], detail: item[1], href: item[2], keywords: item[3], icon: 'search' });
+                if (item && !results.some(result => result.href === item[2])) results.push({ label: item[0], detail: item[1], href: item[2], keywords: item[3], icon: 'search' });
             });
         } else if (query) {
             // Put real work records first: someone searching a person, date,
@@ -1292,8 +1331,8 @@ function initializeAppShell() {
         }
         visibleSearchResults = results.slice(0, 8);
         if (!visibleSearchResults.length) { closeSearchResults(); searchResults.innerHTML = ''; return; }
-        const heading = query ? 'Search results' : 'Quick access';
-        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}<span>${query ? '↑↓ to move · Enter to open' : 'Start typing to search everything'}</span></p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${escapeHtml(result.label)}</strong><small>${escapeHtml(result.detail)}</small></span></button>`).join('')}`;
+        const heading = query ? 'Search results' : 'Recent & quick access';
+        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}<span>${query ? '↑↓ to move · Enter to open' : 'Stored only in this browser'}</span></p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${escapeHtml(result.label)}</strong><small>${escapeHtml(result.detail)}</small></span></button>`).join('')}`;
         searchResults.hidden = false;
         searchInput.setAttribute('aria-expanded', 'true');
         searchResults.querySelectorAll('[data-search-result]').forEach(button => button.addEventListener('click', () => openSearchResult(visibleSearchResults[Number(button.dataset.searchResult)])));
