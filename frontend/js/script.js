@@ -548,7 +548,7 @@ function renderInitialSkeletons() {
     const shell = document.querySelector('.app-shell-skeleton');
     if (shell) {
         const page = (window.location.pathname.split('/').pop() || '').toLowerCase();
-        const managementPages = ['users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'audit-logs.html', 'export-audit.html'];
+        const managementPages = ['users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'audit-logs.html'];
         const rows = count => Array.from({ length: count }, () => '<div class="shell-skeleton-row"></div>').join('');
         const header = '<div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div>';
         if (page === 'admin-dashboard.html') {
@@ -648,7 +648,6 @@ function installPageFadeNavigation() {
         'deleted-time-entries.js': 'mountDeletedTimeEntries',
         'individual-reports.js': 'mountIndividualReports',
         'chat-log.js': 'mountChatLog',
-        'export-audit.js': 'mountExportAudit',
         'employee-profile.js': 'mountEmployeeProfile'
     };
 
@@ -952,7 +951,7 @@ function initializeAppShell() {
     // Render rewrites clean URLs to the deployed .html files. Normalize both
     // forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'export-audit.html', 'chat-log.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -975,7 +974,7 @@ function initializeAppShell() {
         ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['invitations.html', 'mail', 'Invitations'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
         ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['deleted-time-entries.html', 'clock', 'Deleted time entries']]],
         ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'chart', 'Individual reports']]],
-        ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ['export-audit.html', 'download', 'Export audit'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]
+        ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],
@@ -1501,7 +1500,7 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I generate a report?', 'Use Generate report on the dashboard, choose the date range and any available employee, department, or project filters, then preview or export the result. Insights → Reports is where you can work with the reporting tools and exports.'],
         ['Where do I find one employee’s report?', 'Open Insights → Individual reports. Choose a custom start and end date and optionally an active employee, then choose Prepare reports. Use Preview, Save as PDF, or Save Excel on the prepared row. Leave the employee blank to prepare reports for every active employee.'],
         ['Where is the audit history?', 'Open Administration → Audit log. It records important administrative actions so you can review what changed and when.'],
-        ['Where can I review exports?', 'Open Administration → Export audit. It records export activity only: the administrator, time, format, and selected date range for Time Entries exports and saved reports. Account changes and other administrator actions remain in the main Audit log.'],
+        ['Where can I review exports?', 'Open Administration → Audit log and search for export activity. It records the administrator, time, format, and selected date range for Time Entries exports and saved reports alongside other important administrator actions.'],
         ['Where is the employee chat log?', 'Head administrators can open Administration → Employee chat log. This page is intentionally unavailable to regular administrators.'],
         ['How do I update my own account or appearance?', 'Open Administration → Settings, then use Profile, Security, or Appearance. You can also select Settings from the Account section of the sidebar.'],
         ['How do I restart the tutorial?', 'Open your account menu and choose Restart tutorial. It starts from the dashboard and adapts to whether the sidebar is open or closed.'],

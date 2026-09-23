@@ -17,7 +17,7 @@ window.ACETutorialConfig = {
     ADMIN: {
         // Bump this whenever administrator guidance materially changes so
         // existing admins are offered the improved tour again.
-        version: 7,
+        version: 8,
         steps: [
             { page: 'admin-dashboard.html', target: '#operationsTitle', title: 'Your admin dashboard', body: 'This is your daily control centre. Use it to see active staff, recent entries, and the actions that need attention.', navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'admin-dashboard.html', target: '#inviteUserBtn', title: 'Invite a team member', body: 'Choose Invite user to pre-authorize an employee or another administrator. Their access is created first, then the system sends the onboarding email.' },
@@ -38,7 +38,6 @@ window.ACETutorialConfig = {
             { page: 'reports.html', target: '#reportsList', title: 'Open generated reports', body: 'Every report created from the dashboard is kept here. Open a report to preview it, save it as PDF or Excel, or delete an obsolete export.', navigation: { group: 'Insights', label: 'Reports' } },
             { page: 'individual-reports.html', target: '#individualReportForm', title: 'Prepare individual reports', body: 'Choose a custom start and end date, then optionally one employee. Leave the employee blank to prepare a separate report for every active employee.', navigation: { group: 'Insights', label: 'Individual reports' } },
             { page: 'audit-logs.html', target: '#sectionSearch', title: 'Review the audit log', body: 'Search the read-only history of important actions, such as approvals, account changes, time corrections, and report exports.', navigation: { group: 'Administration', label: 'Audit log' } },
-            { page: 'export-audit.html', target: '#exportAuditIntro', title: 'Review data exports', body: 'Export audit is a focused view: it records only PDF, Excel, and CSV exports, including who exported and the selected date range. Other administrator activity stays in the Audit log.', navigation: { group: 'Administration', label: 'Export audit' } },
             { page: 'settings.html', target: '#profileSettings', title: 'Update your administrator profile', body: 'Keep your own display name and photo current. This affects how your name appears across administrative records.', navigation: { group: 'Administration', label: 'Settings' } },
             { page: 'settings.html', target: '#securityTab', title: 'Review account security', body: 'Open Security to see the sign-in and account-protection options available for your administrator account.' },
             { page: 'settings.html', target: '#appearanceTab', title: 'Choose display preferences', body: 'Open Appearance to adjust display preferences such as text size and compact mode for your own workspace.' }

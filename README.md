@@ -51,7 +51,7 @@ This separation is valuable because a frontend bug cannot automatically grant ad
 - Manage user status, roles, archived users, departments, projects, project assignments, and schedules.
 - Review live team activity, time entries, corrections, approved overtime, remarks, reports, and individual reports.
 - Receive review alerts for possible missed clock-outs and administrator-stopped shifts.
-- Export time-entry data to PDF or Excel and review a dedicated export-audit history.
+- Export time-entry data to PDF or Excel; each export is recorded in Audit log.
 - Read paged audit logs and, for head administrators, employee chat logs.
 - Guided onboarding and role-specific searchable help that covers the visible workspace features.
 
