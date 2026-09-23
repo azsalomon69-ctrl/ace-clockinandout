@@ -967,7 +967,7 @@ function initializeAppShell() {
         return false;
     }
 
-    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', calendar: 'calendar-days', chart: 'chart-column-big', audit: 'brick-wall-shield', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
+    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', calendar: 'calendar-days', chart: 'chart-column-big', audit: 'brick-wall-shield', download: 'download', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
     const icon = name => suppliedIconMarkup(icons[name], 'shell-icon');
     const isSpecialAdmin = isAdmin && AppState.currentUser?.IsHeadAdmin;
     const adminGroups = [
@@ -3215,7 +3215,15 @@ async function loadReviewAlerts() {
     try {
         const response = await window.ACEAuth.request('/v1/time-entry-review'); const alerts = response.items || [];
         section.hidden = !alerts.length;
-        list.innerHTML = alerts.map(alert => `<article class="admin-remark"><div><strong>${escapeHtml(alert.label)}</strong><p>${escapeHtml(alert.detail)}</p><small>${new Date(alert.occurredAt).toLocaleString()}</small></div><a class="btn btn-sm btn-outline" href="time-entry-details.html?entry=${encodeURIComponent(alert.id)}">Review</a></article>`).join('');
+        list.innerHTML = alerts.map(alert => {
+            const isMissedClockOut = alert.type === 'MISSED_CLOCK_OUT';
+            const iconName = isMissedClockOut ? 'circle-alert' : 'user-pen';
+            return `<article class="review-alert-card review-alert-card--${isMissedClockOut ? 'warning' : 'info'}">
+                <span class="review-alert-icon">${suppliedIconMarkup(iconName)}</span>
+                <div class="review-alert-copy"><p class="review-alert-type">Needs attention</p><h3>${escapeHtml(alert.label)}</h3><p>${escapeHtml(alert.detail)}</p><time datetime="${escapeHtml(alert.occurredAt)}">${new Date(alert.occurredAt).toLocaleString()}</time></div>
+                <a class="btn btn-sm btn-outline review-alert-action" href="time-entry-details.html?entry=${encodeURIComponent(alert.id)}">Review entry</a>
+            </article>`;
+        }).join('');
     } catch (error) { section.hidden = true; console.warn('Could not load time-entry review alerts.', error); }
 }
 
