@@ -11,20 +11,21 @@
 <body class="app-shell-pending">
   <main class="main-content admin-section-page individual-reports-page">
     <div class="admin-section-wrap">
-      <header class="admin-section-header individual-reports-header"><div><p class="admin-section-kicker">REPORTS</p><h1>Individual employee reports</h1><p>Choose a month and employee, then preview or export the reports you need.</p></div></header>
+      <header class="admin-section-header individual-reports-header"><div><p class="admin-section-kicker">REPORTS</p><h1>Individual employee reports</h1><p>Choose a date range and employee, then preview or export the reports you need.</p></div></header>
       <div class="individual-report-workspace">
         <section class="settings-section individual-report-builder">
           <div class="individual-report-builder-heading"><p class="admin-section-kicker">REPORT SETUP</p><h2>Choose report scope</h2><p>Leave the employee blank to prepare a report for every active employee.</p></div>
           <form id="individualReportForm">
             <label>Employee <input class="form-input" id="individualEmployee" list="individualEmployeeOptions" placeholder="All active employees" autocomplete="off"><datalist id="individualEmployeeOptions"></datalist></label>
-            <label>Reporting month <input class="form-input" id="individualMonth" type="month" required></label>
+            <label>From <input class="form-input" id="individualDateFrom" type="date" required></label>
+            <label>To <input class="form-input" id="individualDateTo" type="date" required></label>
             <p class="individual-report-selection" id="individualReportSelection" aria-live="polite"></p>
             <button class="btn btn-primary" type="submit">Prepare reports</button>
           </form>
         </section>
         <section class="table-container individual-report-results">
-          <div class="individual-report-results-heading"><div><p class="admin-section-kicker">READY TO EXPORT</p><h2>Generated employee reports</h2><p id="individualReportCount">Choose a month to prepare reports.</p></div></div>
-          <div class="table-responsive"><table class="table"><thead><tr><th>Employee</th><th>Month</th><th>Actions</th></tr></thead><tbody id="individualReportRows"><tr class="table-empty-row"><td colspan="3"><div class="empty-state empty-state-compact"><h3>Choose report details</h3><p>Choose a month, then prepare reports.</p></div></td></tr></tbody></table></div>
+          <div class="individual-report-results-heading"><div><p class="admin-section-kicker">READY TO EXPORT</p><h2>Generated employee reports</h2><p id="individualReportCount">Choose a date range to prepare reports.</p></div></div>
+          <div class="table-responsive"><table class="table"><thead><tr><th>Employee</th><th>Date range</th><th>Actions</th></tr></thead><tbody id="individualReportRows"><tr class="table-empty-row"><td colspan="3"><div class="empty-state empty-state-compact"><h3>Choose report details</h3><p>Choose a date range, then prepare reports.</p></div></td></tr></tbody></table></div>
         </section>
       </div>
     </div>
