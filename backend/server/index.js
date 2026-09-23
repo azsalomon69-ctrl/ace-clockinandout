@@ -814,6 +814,11 @@ app.patch('/v1/time-entries/:id/admin-time', authenticate, adminOnly, async (req
   }
   res.json(entry);
 } catch (error) { next(error); } });
+app.post('/v1/time-entries/:id/overtime/approve', authenticate, adminOnly, async (req, res, next) => { try {
+  const { data, error } = await db.rpc('approve_entry_overtime', { p_entry_id: req.params.id, p_admin_id: req.profile.id });
+  if (error) { if (error.code === 'P0001') return fail(res, 400, error.message); throw error; }
+  res.json(data);
+} catch (error) { next(error); } });
 
 app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try { const remarkText = requireText(req.body.remark, 'Remark', 2000); const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: remarkText }).select().single()); await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark'); res.status(201).json(remark); } catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try {
