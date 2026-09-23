@@ -15872,6 +15872,49 @@ html[data-theme="dark"] .employee-schedule-notice.is-late {
   background: #3b301a!important;
   border-color: #927239!important
 }
+html[data-theme="dark"] .admin-dashboard #reviewAlertsSection {
+  background: #102a30!important;
+  border-color: #2b5b65!important
+}
+html[data-theme="dark"] .admin-dashboard #reviewAlertsSection .dashboard-section-heading {
+  background: #15363d!important;
+  border-bottom-color: #2b5b65!important
+}
+html[data-theme="dark"] .admin-dashboard #reviewAlertsSection .dashboard-section-heading p:last-child {
+  color: #b6d2d6!important
+}
+html[data-theme="dark"] .review-alert-card {
+  background: #17272b!important;
+  border-color: #31555d!important;
+  box-shadow: 0 8px 18px rgba(0,0,0,.18)
+}
+html[data-theme="dark"] .review-alert-card--info {
+  border-left-color: #38bed0!important
+}
+html[data-theme="dark"] .review-alert-card--warning {
+  border-left-color: #e9bd67!important
+}
+html[data-theme="dark"] .review-alert-type {
+  color: #b7d8dd!important
+}
+html[data-theme="dark"] .review-alert-copy > p:not(.review-alert-type) {
+  color: #c0d1d4!important
+}
+html[data-theme="dark"] .review-alert-icon {
+  background: #163d46!important;
+  border: 1px solid #347682
+}
+html[data-theme="dark"] .review-alert-icon .ui-icon {
+  filter: brightness(0) saturate(100%) invert(82%) sepia(27%) saturate(795%) hue-rotate(141deg) brightness(96%) contrast(90%)!important;
+  opacity: 1
+}
+html[data-theme="dark"] .review-alert-card--warning .review-alert-icon {
+  background: #3b301a!important;
+  border-color: #927239
+}
+html[data-theme="dark"] .review-alert-card--warning .review-alert-icon .ui-icon {
+  filter: brightness(0) saturate(100%) invert(85%) sepia(34%) saturate(692%) hue-rotate(342deg) brightness(102%) contrast(100%)!important
+}
 @media (max-width: 900px) {
   body.home-page:not(.has-app-shell) .main-content {
     padding: 0 12px 40px
