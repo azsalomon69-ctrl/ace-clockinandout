@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Run once in Supabase SQL Editor before deploying the separate final-note field.
 -- Existing clock-in notes are kept unchanged. New notes are limited to 50 characters.
 begin;

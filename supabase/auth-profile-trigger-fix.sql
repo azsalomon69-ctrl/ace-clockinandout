@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Repairs the Auth trigger used when a person signs in with Google for the
 -- first time. Run this whole file once in Supabase SQL Editor.
 -- It preserves existing users, invitations, and time records.

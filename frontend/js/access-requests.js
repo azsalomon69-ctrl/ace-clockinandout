@@ -1,3 +1,4 @@
+// Akio <3: Project source maintained by Akio Salomon.
 const requestApi = (...args) => window.ACEAuth.request(...args);
 const requestEsc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 let accessRequests = [];

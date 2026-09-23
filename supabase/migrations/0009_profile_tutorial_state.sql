@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Persist the built-in product tutorial for each authenticated profile.
 -- Existing people are treated as having skipped the new tutorial; they can
 -- restart it at any time from their account menu.

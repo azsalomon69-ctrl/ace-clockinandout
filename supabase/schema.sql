@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Run this file in Supabase SQL Editor before starting the API.
 create extension if not exists pgcrypto;
 

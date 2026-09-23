@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Run once in the Supabase SQL Editor for the existing project.
 alter table public.profiles
   add column if not exists last_seen_at timestamptz;

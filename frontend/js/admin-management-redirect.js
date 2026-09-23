@@ -1,3 +1,4 @@
+// Akio <3: Project source maintained by Akio Salomon.
 (() => {
   const view = new URLSearchParams(window.location.search).get('view') || 'users';
   const routes = {

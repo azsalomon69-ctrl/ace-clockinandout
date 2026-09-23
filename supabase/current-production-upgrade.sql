@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Run this once in Supabase SQL Editor for an existing ACE project before
 -- deploying the current backend. It is safe to run more than once.
 -- It adds every database object used by the current API that may be absent

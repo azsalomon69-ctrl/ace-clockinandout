@@ -1,3 +1,4 @@
+// Akio <3: Project source maintained by Akio Salomon.
 const deletedEntryEscape = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const deletedEntryDuration = value => Math.floor((value || 0) / 3600) + 'h ' + Math.floor(((value || 0) % 3600) / 60) + 'm';
 async function loadDeletedTimeEntries() {

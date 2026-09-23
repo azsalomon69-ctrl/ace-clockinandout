@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Stage 3: read-only schedule-compliance classification from entry snapshots.
 create or replace function public.compute_schedule_compliance(p_entry_id uuid)
 returns table (

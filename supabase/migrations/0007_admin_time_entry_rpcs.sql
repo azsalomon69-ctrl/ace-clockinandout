@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Atomically stop and correct employee shifts so concurrent break changes cannot
 -- be overwritten by a stale application-side read.
 create or replace function public.admin_stop_entry(

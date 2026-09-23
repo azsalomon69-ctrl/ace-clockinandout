@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Run once in Supabase SQL Editor before deploying the soft-delete feature.
 alter table public.time_entries
   add column if not exists deleted_at timestamptz,

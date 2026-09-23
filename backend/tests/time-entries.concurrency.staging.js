@@ -1,3 +1,4 @@
+// Akio <3: Project source maintained by Akio Salomon.
 import assert from 'node:assert/strict';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';

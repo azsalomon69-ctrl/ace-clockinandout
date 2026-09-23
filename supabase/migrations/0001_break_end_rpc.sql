@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Atomically ends an active break and records its audit event. This function
 -- is intentionally callable only by the server-side Supabase service role.
 create or replace function public.end_break_entry(

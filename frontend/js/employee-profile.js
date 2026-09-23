@@ -1,3 +1,4 @@
+// Akio <3: Project source maintained by Akio Salomon.
 (() => {
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
   const duration = seconds => { const value = Math.max(0, Number(seconds) || 0); return `${Math.floor(value / 3600)}h ${Math.floor((value % 3600) / 60)}m`; };

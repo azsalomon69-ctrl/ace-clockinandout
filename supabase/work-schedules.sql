@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Run once in the Supabase SQL Editor to enable fixed schedules and flextime.
 create table if not exists public.work_schedules (
   id uuid primary key default gen_random_uuid(),

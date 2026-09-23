@@ -1,3 +1,4 @@
+// Akio <3: Project source maintained by Akio Salomon.
 window.ACETutorial = (() => {
     const stateKey = userId => `ace_tutorial_fallback_${userId}`;
     const readyEvent = 'ace:app-ready';

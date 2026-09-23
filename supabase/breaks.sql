@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Run once in the Supabase SQL Editor for an existing ACE installation.
 -- Break time is excluded from duration_seconds, while clock-in/out history remains intact.
 begin;

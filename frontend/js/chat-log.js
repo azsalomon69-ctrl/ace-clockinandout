@@ -1,3 +1,4 @@
+// Akio <3: Project source maintained by Akio Salomon.
 (() => {
   const escape = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&gt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
   const name = person => person?.full_name || person?.email || 'Unknown employee';

@@ -1,3 +1,4 @@
+// Akio <3: Project source maintained by Akio Salomon.
 const mountIndividualReports = async () => {
   const me = await window.ACEAuth.request('/v1/me');
   if (me.profile.role !== 'ADMIN') return location.replace('/user-dashboard');

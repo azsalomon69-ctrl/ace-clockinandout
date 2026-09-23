@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Run this once in the Supabase SQL Editor.
 -- This keeps every public profile and all business records. It only breaks the
 -- profile-to-auth foreign key so deleting an Auth user does not cascade into

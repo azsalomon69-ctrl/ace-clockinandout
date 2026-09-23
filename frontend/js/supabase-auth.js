@@ -1,3 +1,4 @@
+// Akio <3: Project source maintained by Akio Salomon.
 window.ACEAuth = (() => {
     let clientPromise;
     let refreshPromise;

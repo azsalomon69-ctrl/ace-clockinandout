@@ -1,3 +1,4 @@
+// Akio <3: Project source maintained by Akio Salomon.
 (() => {
   const request = (...args) => window.ACEAuth.request(...args);
   const toast = (message, type = 'success') => window.showToast ? window.showToast(message, type) : alert(message);

@@ -1,3 +1,4 @@
+-- Akio <3: Database script maintained by Akio Salomon.
 -- Run once in the Supabase SQL Editor for existing ACE projects.
 -- It upgrades the original access-request table to the Google-account approval flow.
 
