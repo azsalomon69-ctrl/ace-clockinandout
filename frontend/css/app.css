@@ -13796,6 +13796,18 @@ html[data-theme="dark"] .individual-report-period legend { color: var(--ace-text
   font-size: .85rem;
   line-height: 1.4
 }
+.individual-report-entry-count {
+  display: block;
+  margin-top: 4px;
+  color: var(--ace-muted);
+  font-size: .72rem;
+  font-weight: 500;
+}
+.individual-report-empty {
+  color: var(--ace-muted);
+  font-size: .8rem;
+  font-weight: 600;
+}
 html[data-theme="dark"] .individual-report-builder-heading h2,
 html[data-theme="dark"] .individual-report-results-heading h2 {
   color: var(--ace-text-primary)

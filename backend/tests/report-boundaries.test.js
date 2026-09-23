@@ -43,3 +43,13 @@ test('report preview selects the same Manila midnight boundaries', () => {
   const result = context.filterEntriesForReport({ DateFrom: '2026-09-22', DateTo: '2026-09-22' });
   assert.deepEqual(Array.from(result, entry => entry.ClockInAt), timestamps.slice(1, 3));
 });
+
+test('report preview returns no data for a date range with no entries', () => {
+  const frontend = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
+  const begin = frontend.indexOf('function filterEntriesForReport(');
+  const fn = frontend.slice(begin, frontend.indexOf('function ensureGeneratedReportModal(', begin));
+  const context = vm.createContext({ AppState: { users: [], timeEntries: timestamps.map(ClockInAt => ({ ClockInAt })) } });
+  vm.runInContext(fn, context);
+  const result = context.filterEntriesForReport({ DateFrom: '2026-08-01', DateTo: '2026-08-31', Filters: {} });
+  assert.equal(result.length, 0);
+});

@@ -47,8 +47,14 @@ const mountIndividualReports = async () => {
     window.addEventListener('ace:live-data', () => { if (!document.querySelector('form:focus-within')) void window.refreshIndividualReportEmployees?.().catch(() => {}); });
   }
   const reportDates = () => selectedRange() === 'month' ? { from: monthStart, to: today } : { from: dateFrom.value, to: dateTo.value };
+  const reportEntries = (employee, dates = reportDates()) => window.filterEntriesForReport({
+    DateFrom: dates.from,
+    DateTo: dates.to,
+    Filters: { userId: employee.id }
+  });
   const run = (employee, format) => {
     const dates = reportDates();
+    if (!reportEntries(employee, dates).length) return showToast('There are no time entries for this employee in the selected date range.', 'warning');
     window.ACEReportActions.preview({ dateFrom: dates.from, dateTo: dates.to, filters: { userId: employee.id }, format });
   };
   document.getElementById('individualReportForm').addEventListener('submit', event => {
@@ -57,8 +63,10 @@ const mountIndividualReports = async () => {
     const dates = reportDates();
     if (!dates.from || !dates.to || dates.from > dates.to) return showToast('Choose a valid start and end date.', 'warning');
     const label = `${dates.from} to ${dates.to}`;
-    document.getElementById('individualReportCount').textContent = `${selected.length} report${selected.length === 1 ? '' : 's'}`;
-    rows.innerHTML = selected.map((employee, index) => `<tr><td><a class="admin-employee-profile-link" href="employee-profile.html?user=${encodeURIComponent(employee.id)}">${escapeHtml(employeeName(employee))}</a></td><td>${label}</td><td><button class="btn btn-sm btn-outline" data-format="VIEW" data-row="${index}">Preview</button><button class="btn btn-sm btn-primary" data-format="PDF" data-row="${index}">Save as PDF</button><button class="btn btn-sm btn-outline" data-format="XLSX" data-row="${index}">Save Excel</button></td></tr>`).join('');
+    const prepared = selected.map(employee => ({ employee, entries: reportEntries(employee, dates) }));
+    const matchingEntries = prepared.reduce((total, item) => total + item.entries.length, 0);
+    document.getElementById('individualReportCount').textContent = `${prepared.length} employee${prepared.length === 1 ? '' : 's'} · ${matchingEntries} matching time entr${matchingEntries === 1 ? 'y' : 'ies'}`;
+    rows.innerHTML = prepared.map(({ employee, entries }, index) => `<tr><td><a class="admin-employee-profile-link" href="employee-profile.html?user=${encodeURIComponent(employee.id)}">${escapeHtml(employeeName(employee))}</a></td><td>${label}<small class="individual-report-entry-count">${entries.length} matching entr${entries.length === 1 ? 'y' : 'ies'}</small></td><td>${entries.length ? `<button class="btn btn-sm btn-outline" data-format="VIEW" data-row="${index}">Preview</button><button class="btn btn-sm btn-primary" data-format="PDF" data-row="${index}">Save as PDF</button><button class="btn btn-sm btn-outline" data-format="XLSX" data-row="${index}">Save Excel</button>` : '<span class="individual-report-empty">No entries in this range</span>'}</td></tr>`).join('');
     rows.querySelectorAll('[data-format]').forEach(button => button.addEventListener('click', () => run(selected[Number(button.dataset.row)], button.dataset.format)));
     showToast(`${selected.length} individual report${selected.length === 1 ? '' : 's'} ready.`, 'success');
   });
