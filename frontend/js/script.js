@@ -2270,10 +2270,9 @@ async function handleClockIn(e) {
     const submitButton = e.currentTarget.querySelector('button[type="submit"]');
     if (submitButton?.disabled) return;
     const projectId = document.getElementById('clockInProject')?.value;
-    const note = document.getElementById('clockInNote')?.value;
     try {
         setActionBusy(submitButton, true, 'Clocking in…');
-        const entry = await window.ACEAuth.request('/v1/time-entries/clock-in', { method: 'POST', body: JSON.stringify({ projectId: projectId || null, note: note || null }) });
+        const entry = await window.ACEAuth.request('/v1/time-entries/clock-in', { method: 'POST', body: JSON.stringify({ projectId: projectId || null }) });
         AppState.currentSession = timeEntryRecord(entry);
         AppState.timeEntries.unshift(AppState.currentSession);
         AppState.isClockedIn = true; AppState.clockInTime = new Date(AppState.currentSession.ClockInAt);
@@ -2536,7 +2535,7 @@ function renderGeneratedReport(report, options = {}) {
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Break</th><th>Note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${formatDuration(entry.BreakSeconds || 0)}</td><td>${escapeHtml(entry.UserNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="8">No entries match this report.</td></tr>'}</tbody></table></section>`;
+    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Break</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${formatDuration(entry.BreakSeconds || 0)}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="8">No entries match this report.</td></tr>'}</tbody></table></section>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 
@@ -2669,7 +2668,6 @@ function updateUI() {
             currentSessionCard.style.display = 'block';
             const sessionClockInTime = document.getElementById('sessionClockInTime');
             const sessionProject = document.getElementById('sessionProject');
-            const sessionNote = document.getElementById('sessionNote');
             
             if (sessionClockInTime && AppState.clockInTime) {
                 sessionClockInTime.textContent = AppState.clockInTime.toLocaleTimeString();
@@ -2677,9 +2675,6 @@ function updateUI() {
             if (sessionProject && AppState.currentSession?.ProjectId) {
                 const project = AppState.projects.find(p => p.ProjectId === AppState.currentSession.ProjectId);
                 sessionProject.textContent = project ? project.ProjectName : 'None';
-            }
-            if (sessionNote && AppState.currentSession?.UserNote) {
-                sessionNote.textContent = AppState.currentSession.UserNote;
             }
         } else {
             currentSessionCard.style.display = 'none';
@@ -2812,7 +2807,7 @@ function loadAdminTimeEntryDetails() {
     const dateTime = value => value ? new Date(value).toLocaleString() : '—';
     root.innerHTML = `<header class="time-entry-detail-header"><div><a class="time-entry-detail-back" href="admin-dashboard.html">← Back to dashboard</a><p class="admin-section-kicker">TIME ENTRY</p><h1>${escapeHtml(user?.FullName || entry.UserName || 'Employee')}’s work session</h1><p>${dateTime(entry.ClockInAt)}</p></div><span class="badge ${entry.ClockOutAt ? 'badge-success' : 'badge-warning'}">${entry.ClockOutAt ? 'Completed' : 'Active'}</span></header>
         <section class="time-entry-detail-grid" aria-label="Time entry summary"><article><span>Clock in</span><strong>${dateTime(entry.ClockInAt)}</strong></article><article><span>Clock out</span><strong>${dateTime(entry.ClockOutAt)}</strong></article><article><span>Worked time</span><strong>${worked}</strong></article><article><span>Break time</span><strong>${formatDuration(Number(entry.BreakSeconds || 0) + activeBreak)}${entry.BreakStartedAt ? ' (active)' : ''}</strong></article><article><span>Project</span><strong>${escapeHtml(project?.ProjectName || entry.ProjectName || 'Unassigned')}</strong></article><article><span>Entry status</span><strong>${entry.ClockOutAt ? 'Completed' : 'Currently active'}</strong></article></section>
-        <section class="time-entry-detail-notes"><article><h2>Clock-in note</h2><p>${escapeHtml(entry.UserNote || 'No clock-in note was added.')}</p></article><article><h2>Clock-out note</h2><p>${escapeHtml(entry.FinalNote || 'No clock-out note was added.')}</p></article></section>
+        <section class="time-entry-detail-notes"><article><h2>Clock-out note</h2><p>${escapeHtml(entry.FinalNote || 'No clock-out note was added.')}</p></article>${entry.UserNote ? `<article><h2>Legacy clock-in note</h2><p>${escapeHtml(entry.UserNote)}</p></article>` : ''}</section>
         ${entry.StoppedByName ? `<section class="time-entry-stopped"><h2>Stopped by an administrator</h2><p>${escapeHtml(entry.StoppedByName)} stopped this session on ${dateTime(entry.StoppedByAt || entry.ClockOutAt)}.</p></section>` : ''}
         <section class="time-entry-detail-remarks"><div><p class="admin-section-kicker">ADMINISTRATOR NOTES</p><h2>Remarks</h2></div>${remarks.length ? `<div class="time-entry-remark-list">${remarks.map(remark => `<article><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${dateTime(remark.CreatedAt)}</small></article>`).join('')}</div>` : '<p class="time-entry-no-remarks">No administrator remarks were added to this entry.</p>'}</section>`;
 }
@@ -3296,6 +3291,7 @@ function loadAdminDashboard() {
                     <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
                     <td>${duration}</td>
                     <td>${entry.BreakSeconds ? formatDuration(entry.BreakSeconds) : '—'}${entry.BreakStartedAt ? ' (active)' : ''}</td>
+                    <td>${escapeHtml(entry.FinalNote || '—')}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span>${entry.StoppedByName ? `<small class="entry-admin-stop">Stopped by ${escapeHtml(entry.StoppedByName)} · ${new Date(entry.StoppedByAt || entry.ClockOutAt).toLocaleString()}</small>` : ''}</td>
                     <td>${remarks.length ? `${remarks.length} remark${remarks.length === 1 ? '' : 's'}` : '—'}</td>
                     <td>
@@ -3304,7 +3300,7 @@ function loadAdminDashboard() {
                     </td>
                 </tr>
             `;
-        }).join('') : `<tr class="table-empty-row"><td colspan="9">${emptyState('No time entries yet', 'Completed and active sessions will appear here.')}</td></tr>`;
+        }).join('') : `<tr class="table-empty-row"><td colspan="10">${emptyState('No time entries yet', 'Completed and active sessions will appear here.')}</td></tr>`;
             if (controls) controls.hidden = entries.length <= 3;
             if (pageSize) pageSize.value = String(size);
             if (pagination) {
@@ -3362,7 +3358,7 @@ function loadTimeEntries() {
                     <td>${duration}</td>
                     <td>${entry.BreakSeconds ? formatDuration(entry.BreakSeconds) : 'None'}${entry.BreakStartedAt ? ' (active)' : ''}</td>
                     <td>${escapeHtml(project?.ProjectName || 'None')}</td>
-                    <td>${escapeHtml(entry.UserNote || 'No note')}</td>
+                    <td>${escapeHtml(entry.FinalNote || 'No clock-out note')}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
                     <td>${remarks.length ? remarks.map(remark => `<div class="time-entry-remark"><strong>${escapeHtml(remark.AdminName)}</strong><br>${escapeHtml(remark.Remark)}</div>`).join('') : '—'}</td>
                     <td>
@@ -3627,7 +3623,7 @@ function viewTimeEntry(entryId) {
                     <p><strong>Clock Out:</strong> ${entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active'}</p>
                     <p><strong>Worked:</strong> ${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</p>
                     <p><strong>Break time:</strong> ${entry.BreakSeconds ? formatDuration(entry.BreakSeconds) : 'None'}${entry.BreakStartedAt ? ' (currently on break)' : ''}</p>
-                    <p><strong>Note:</strong> ${escapeHtml(entry.UserNote || 'No note')}</p>
+                    <p><strong>Clock-out note:</strong> ${escapeHtml(entry.FinalNote || 'No clock-out note')}</p>
                 </div>
             `;
         }
@@ -3675,7 +3671,7 @@ function loadExcelLibrary() {
 }
 function reportWorkbookData(report) {
     const entries = filterEntriesForReport(report);
-    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Break seconds', 'Break time', 'Note', 'Status']];
+    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Break seconds', 'Break time', 'Clock-out note', 'Status']];
     entries.forEach(entry => {
         const user = AppState.users.find(item => item.UserId === entry.UserId);
         const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned';
@@ -3685,7 +3681,7 @@ function reportWorkbookData(report) {
             user?.FullName || 'Unknown', project, reportDateTime(entry.ClockInAt),
             entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active',
             workedSeconds, formatDuration(workedSeconds), breakSeconds, formatDuration(breakSeconds),
-            entry.UserNote || '', entry.ClockOutAt ? 'Completed' : 'Active'
+            entry.FinalNote || '', entry.ClockOutAt ? 'Completed' : 'Active'
         ]);
     });
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);

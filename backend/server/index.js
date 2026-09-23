@@ -747,9 +747,7 @@ app.post('/v1/admin-remarks/mark-read', authenticate, activeOnly, async (req, re
 } catch (error) { next(error); } });
 app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
   const projectId = optionalUuid(req.body.projectId);
-  const note = optionalText(req.body.note, 50);
   if (projectId === undefined) return fail(res, 400, 'Invalid project ID');
-  if (note === undefined) return fail(res, 400, 'Clock-in note must be text up to 50 characters');
   const open = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('clock_out_at', null).maybeSingle());
   if (open) return fail(res, 409, 'You already have an active time entry');
   const assignment = await query(db.from('user_schedule_assignments').select('work_schedules(id,schedule_type,start_time,end_time,daily_elapsed_minutes,break_limit_minutes,scheduled_weekdays)').eq('user_id', req.profile.id).maybeSingle());
@@ -773,7 +771,7 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
     break_limit_seconds: null,
     scheduled_weekdays: null
   };
-  const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: projectId, user_note: note, ...scheduleSnapshot }).select().single());
+  const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: projectId, ...scheduleSnapshot }).select().single());
   const device = clockingDevice(req);
   await audit(req, `CLOCK_IN (${device})`, 'TIME_ENTRY', entry.id, `Started a time entry from ${device}`);
   res.status(201).json(entry);
