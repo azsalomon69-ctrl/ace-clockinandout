@@ -371,6 +371,12 @@ async function renderAdminSection() {
     draw(records); setCount(records);
   };
   actionButton.addEventListener('click', () => /export/i.test(view.action) ? downloadCsv(view.records) : modal(view, true));
+  const quickAction = sessionStorage.getItem('ace_workspace_quick_action');
+  const expectedQuickAction = key === 'invitations' ? 'invite-user' : key === 'projects' ? 'add-project' : '';
+  if (quickAction && quickAction === expectedQuickAction) {
+    sessionStorage.removeItem('ace_workspace_quick_action');
+    requestAnimationFrame(() => actionButton.click());
+  }
   search.addEventListener('input', applyFilters);
   departmentFilter?.addEventListener('change', applyFilters); roleFilter?.addEventListener('change', applyFilters); employeeFilter?.addEventListener('input', applyFilters); projectFilter?.addEventListener('input', applyFilters); remarksFilter?.addEventListener('change', applyFilters);
 }

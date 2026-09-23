@@ -1205,6 +1205,15 @@ function initializeAppShell() {
         ['Remarks', 'Work · Read administrator feedback', 'remarks.html', 'remarks feedback admin note'],
         ['Profile & settings', 'Account · Profile, security, appearance', 'settings.html', 'settings profile password security appearance']
     ];
+    const quickActionItems = isAdmin ? [
+        { label: 'Invite user', detail: 'Quick action · Open the invitation form', href: 'invitations.html', quickAction: 'invite-user', keywords: 'invite employee administrator access add person' },
+        { label: 'Generate report', detail: 'Quick action · Choose a report format', href: 'admin-dashboard.html', quickAction: 'generate-report', keywords: 'generate report export pdf excel analytics' },
+        { label: 'Add project', detail: 'Quick action · Open the project form', href: 'projects.html', quickAction: 'add-project', keywords: 'add create project work' }
+    ] : [
+        AppState.isClockedIn
+            ? { label: 'Clock out', detail: 'Quick action · Open clock-out confirmation', href: 'user-dashboard.html', quickAction: 'clock-out', keywords: 'clock out end shift finish work' }
+            : { label: 'Clock in', detail: 'Quick action · Open clock-in form', href: 'user-dashboard.html', quickAction: 'clock-in', keywords: 'clock in start shift begin work' }
+    ];
     // Keep search convenience local to this browser and separate by signed-in
     // account and role, so a different person using this device does not see
     // someone else's recent page names or search terms.
@@ -1249,6 +1258,7 @@ function initializeAppShell() {
         }
         rememberQuery(searchInput.value);
         if (result.action === 'help') { closeSearchResults(); openWorkspaceHelp(isAdmin, searchInput.value.trim()); return; }
+        if (result.quickAction) sessionStorage.setItem('ace_workspace_quick_action', result.quickAction);
         window.location.assign(result.href);
     };
     const timeEntrySearchResult = entry => {
@@ -1308,6 +1318,7 @@ function initializeAppShell() {
         const matches = (item, value) => `${item.label || ''} ${item.detail || ''} ${item.keywords || ''}`.toLowerCase().includes(value);
         const results = [];
         if (!query && showSuggestions) {
+            quickActionItems.forEach(action => results.push({ ...action, icon: 'search' }));
             readSearchHistory(recentPagesKey).forEach(page => {
                 if (page?.label && page?.href) results.push({ ...page, detail: `Recent page · ${page.detail || 'Workspace'}`, icon: 'timer' });
             });
@@ -1320,6 +1331,7 @@ function initializeAppShell() {
                 if (item && !results.some(result => result.href === item[2])) results.push({ label: item[0], detail: item[1], href: item[2], keywords: item[3], icon: 'search' });
             });
         } else if (query) {
+            quickActionItems.filter(action => matches(action, query)).forEach(action => results.push({ ...action, icon: 'search' }));
             // Put real work records first: someone searching a person, date,
             // project, or status is usually trying to reach that exact entry.
             AppState.timeEntries.map(timeEntrySearchResult).filter(entry => matches(entry, query)).slice(0, 4).forEach(entry => results.push(entry));
@@ -2687,6 +2699,24 @@ function loadPageSpecificData() {
     // Settings
     if (page === 'settings.html') {
         loadUserSettings();
+    }
+    runPendingWorkspaceQuickAction(page);
+}
+
+function runPendingWorkspaceQuickAction(page) {
+    const action = sessionStorage.getItem('ace_workspace_quick_action');
+    if (!action) return;
+    if (action === 'generate-report' && page === 'admin-dashboard.html') {
+        sessionStorage.removeItem('ace_workspace_quick_action');
+        requestAnimationFrame(() => document.getElementById('generateReportBtn')?.click());
+    }
+    if ((action === 'clock-in' || action === 'clock-out') && page === 'user-dashboard.html') {
+        sessionStorage.removeItem('ace_workspace_quick_action');
+        requestAnimationFrame(() => {
+            if (action === 'clock-in' && !AppState.isClockedIn) openClockInModal();
+            else if (action === 'clock-out' && AppState.isClockedIn) openClockOutModal();
+            else showToast(action === 'clock-in' ? 'You are already clocked in.' : 'You are not currently clocked in.', 'info');
+        });
     }
 }
 
