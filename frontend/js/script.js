@@ -1391,12 +1391,21 @@ function initializeAppShell() {
             if (isAdmin) AppState.users.filter(person => `${person.FullName || ''} ${person.Email || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(person => results.push({ label: person.FullName || person.Email, detail: person.Role === 'ADMIN' ? 'Person · Administrator' : 'Person · Employee', href: person.Role === 'USER' ? `employee-profile.html?user=${encodeURIComponent(person.UserId)}` : 'users.html', picture: person.ProfilePictureUrl, icon: 'users' }));
             AppState.projects.filter(project => project.IsActive !== false && `${project.ProjectName || ''} ${project.Description || ''}`.toLowerCase().includes(query)).slice(0, 4).forEach(project => results.push({ label: project.ProjectName, detail: 'Project', href: isAdmin ? 'projects.html' : 'time-entries.html', icon: 'folder' }));
             workspaceSearchItems.filter(item => matches({ label: item[0], detail: item[1], keywords: item[3] }, query)).slice(0, 4).forEach(item => results.push({ label: item[0], detail: item[1], href: item[2], keywords: item[3], icon: 'search' }));
+            const directTopicMatch = workspaceSearchItems.concat(quickActionItems, naturalLanguageActions).some(item => matches(item, query)) || helpMatches.length > 0;
+            if (!directTopicMatch) {
+                const topics = [
+                    ...workspaceSearchItems.map(item => ({ label: item[0], keywords: `${item[1]} ${item[3]}`, query: item[0] })),
+                    ...quickActionItems.map(item => ({ label: item.label, keywords: `${item.detail} ${item.keywords}`, query: item.label })),
+                    ...workspaceHelpEntries(isAdmin).map(([question, answer]) => ({ label: question, keywords: answer, query: question }))
+                ];
+                findSearchSuggestions(rawQuery, topics).forEach(suggestion => results.unshift({ label: `Try “${suggestion.label}”`, detail: 'Did you mean this workspace topic?', action: 'search', query: suggestion.query, icon: 'search', suggestion: true }));
+            }
             if (!helpMatches.length) results.push({ label: `Search Need help for “${rawQuery}”`, detail: 'Search all Help answers instead of restarting the tutorial', action: 'help', icon: 'info' });
         }
         visibleSearchResults = results.slice(0, 8);
         if (!visibleSearchResults.length) { closeSearchResults(); searchResults.innerHTML = ''; return; }
         const heading = query ? 'Search results' : 'Recent & quick access';
-        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}<span>${query ? '↑↓ to move · Enter to open' : 'Stored only in this browser'}</span></p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${highlightSearchText(result.label)}</strong><small>${highlightSearchText(result.detail)}</small></span></button>`).join('')}`;
+        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}<span>${query ? '↑↓ to move · Enter to open' : 'Stored only in this browser'}</span></p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result${result.suggestion ? ' shell-search-suggestion' : ''}" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${highlightSearchText(result.label)}</strong><small>${highlightSearchText(result.detail)}</small></span></button>`).join('')}`;
         searchResults.hidden = false;
         searchInput.setAttribute('aria-expanded', 'true');
         searchResults.querySelectorAll('[data-search-result]').forEach(button => button.addEventListener('click', () => openSearchResult(visibleSearchResults[Number(button.dataset.searchResult)])));
@@ -1539,6 +1548,40 @@ function workspaceHelpEntries(isAdmin) {
     ];
 }
 
+function findSearchSuggestions(query, candidates, limit = 2) {
+    const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const needle = normalize(query);
+    const queryWords = needle.split(' ').filter(word => word.length > 2);
+    if (needle.length < 3 || !queryWords.length) return [];
+    const distance = (left, right) => {
+        const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+        for (let row = 1; row <= left.length; row += 1) {
+            let diagonal = previous[0]; previous[0] = row;
+            for (let column = 1; column <= right.length; column += 1) {
+                const above = previous[column];
+                previous[column] = Math.min(previous[column] + 1, previous[column - 1] + 1, diagonal + (left[row - 1] === right[column - 1] ? 0 : 1));
+                diagonal = above;
+            }
+        }
+        return previous[right.length];
+    };
+    return candidates.map(candidate => {
+        const label = String(candidate.label || '');
+        const source = normalize(`${label} ${candidate.keywords || ''}`);
+        if (!source || source.includes(needle)) return null;
+        const sourceWords = [...new Set(source.split(' ').filter(word => word.length > 2))];
+        const scores = queryWords.map(word => Math.max(...sourceWords.map(target => {
+            if (target === word) return 1;
+            if (target.startsWith(word) || word.startsWith(target)) return .86;
+            const editDistance = distance(word, target);
+            const threshold = Math.max(1, Math.floor(Math.max(word.length, target.length) / 3));
+            return editDistance <= threshold ? 1 - editDistance / Math.max(word.length, target.length) : 0;
+        }), 0));
+        const score = scores.reduce((sum, value) => sum + value, 0) / scores.length;
+        return score >= .58 ? { ...candidate, score } : null;
+    }).filter(Boolean).sort((left, right) => right.score - left.score).filter((candidate, index, list) => list.findIndex(item => normalize(item.label) === normalize(candidate.label)) === index).slice(0, limit);
+}
+
 function workspaceHelpEntryMatches(entry, query) {
     const needle = String(query || '').toLowerCase().trim();
     if (!needle) return true;
@@ -1559,11 +1602,21 @@ function openWorkspaceHelp(isAdmin, initialQuery = '', openQuestion = '') {
     const list = modal.querySelector('.workspace-help-list');
     const renderResults = query => {
         const matches = entries.filter(item => workspaceHelpEntryMatches(item, query));
-        count.textContent = matches.length ? `${matches.length} answer${matches.length === 1 ? '' : 's'}` : 'No matching answers';
-        list.innerHTML = matches.map(([q, a]) => {
+        const suggestions = query.trim() && !matches.length ? findSearchSuggestions(query, entries.map(([question, answer]) => ({ label: question, keywords: answer, query: question }))) : [];
+        count.textContent = matches.length ? `${matches.length} answer${matches.length === 1 ? '' : 's'}` : suggestions.length ? 'No exact answer · suggestions below' : 'No matching answers';
+        const suggestionMarkup = suggestions.length ? `<aside class="workspace-help-suggestions" aria-label="Suggested help topics"><span>Did you mean…</span>${suggestions.map((suggestion, index) => `<button type="button" data-help-suggestion="${index}">${suppliedIconMarkup('search')}<span>${escapeHtml(suggestion.label)}</span></button>`).join('')}</aside>` : '';
+        const answersMarkup = matches.map(([q, a]) => {
             const open = requestedQuestion === q;
             return `<article class="faq-item"><button class="faq-question${open ? ' active' : ''}" type="button" aria-expanded="${open}">${escapeHtml(q)}</button><div class="faq-answer"><p>${escapeHtml(a)}</p></div></article>`;
-        }).join('') || '<p class="workspace-help-empty">Try another word.</p>';
+        }).join('') || (!suggestions.length ? '<p class="workspace-help-empty">Try another word.</p>' : '');
+        list.innerHTML = suggestionMarkup + answersMarkup;
+        list.querySelectorAll('[data-help-suggestion]').forEach(button => button.addEventListener('click', () => {
+            const suggestion = suggestions[Number(button.dataset.helpSuggestion)];
+            if (!suggestion) return;
+            input.value = suggestion.query;
+            requestedQuestion = suggestion.label;
+            renderResults(suggestion.query);
+        }));
         list.querySelectorAll('.faq-question').forEach(button => button.addEventListener('click', () => {
             const open = button.getAttribute('aria-expanded') === 'true';
             button.setAttribute('aria-expanded', String(!open));

@@ -3116,6 +3116,14 @@ body {
   color: var(--ace-muted);
   font-size: .65rem
 }
+.shell-global-result.shell-search-suggestion {
+  background: linear-gradient(90deg,#eefbfd,#f8fdfe);
+  border: 1px solid #cce9ee
+}
+.shell-global-result.shell-search-suggestion .shell-search-result-avatar {
+  color: #087f98;
+  background: #d9f3f6
+}
 .shell-search-highlight {
   padding: 0 2px;
   color: inherit;
@@ -3207,6 +3215,19 @@ body {
 .workspace-help-count { margin:14px 0 10px; color:var(--ace-muted); font-size:.88rem; }
 .workspace-help-list { max-height:min(52vh,460px); overflow:auto; padding-right:3px; }
 .workspace-help-empty { padding:20px; color:var(--ace-muted); text-align:center; }
+.workspace-help-suggestions {
+  display: grid;
+  gap: 7px;
+  margin: 4px 0 14px;
+  padding: 12px;
+  background: #effbfd;
+  border: 1px solid #c9e8ee;
+  border-radius: 10px;
+}
+.workspace-help-suggestions > span { color:var(--ace-cyan-dark); font:800 .68rem 'Montserrat',Arial,sans-serif; letter-spacing:.06em; text-transform:uppercase; }
+.workspace-help-suggestions button { display:flex; align-items:center; gap:8px; width:100%; padding:8px 9px; color:var(--ace-ink); background:#fff; border:1px solid #d7ebef; border-radius:8px; font:700 .78rem 'Open Sans',Arial,sans-serif; text-align:left; cursor:pointer; }
+.workspace-help-suggestions button:hover,.workspace-help-suggestions button:focus-visible { background:#ddf5f8; border-color:var(--ace-cyan); outline:0; }
+.workspace-help-suggestions .ui-icon { width:16px; height:16px; }
 @media (max-width:640px) { .workspace-help-modal { align-items:end; padding:0; } .workspace-help-modal .modal-content { width:100%; max-height:82dvh; margin:0; border-radius:20px 20px 0 0; } .workspace-help-list { max-height:48dvh; } }
 .shell-topbar-badge {
   position: absolute;
@@ -15931,6 +15952,25 @@ html[data-theme="dark"] .workspace-help-count,
 html[data-theme="dark"] .workspace-help-empty {
   color: var(--ace-text-secondary)!important
 }
+html[data-theme="dark"] .shell-global-result.shell-search-suggestion {
+  background: linear-gradient(90deg,#153c45,#122f36)!important;
+  border-color: #2b6571!important
+}
+html[data-theme="dark"] .shell-global-result.shell-search-suggestion .shell-search-result-avatar {
+  background: #164d58!important
+}
+html[data-theme="dark"] .workspace-help-suggestions {
+  background: #143841!important;
+  border-color: #2c6975!important
+}
+html[data-theme="dark"] .workspace-help-suggestions > span { color:#8cdce8!important; }
+html[data-theme="dark"] .workspace-help-suggestions button {
+  color: var(--ace-text-primary)!important;
+  background: var(--ace-surface-raised)!important;
+  border-color: var(--ace-border-strong)!important
+}
+html[data-theme="dark"] .workspace-help-suggestions button:hover,
+html[data-theme="dark"] .workspace-help-suggestions button:focus-visible { background:#1b4e58!important; border-color:#48afbe!important; }
 html[data-theme="dark"] :is(.ace-select-menu,.ace-autocomplete-menu,.dropdown-menu,.select-options) {
   background: var(--ace-surface-modal)!important;
   border-color: var(--ace-border-strong)!important
