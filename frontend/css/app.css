@@ -16713,6 +16713,11 @@ html[data-theme="dark"] .admin-details-drawer-panel dt { color: var(--ace-text-s
 @media (max-width: 620px) { .admin-details-drawer { grid-template-columns: 1fr; } .admin-details-drawer-panel { grid-column: 1; padding: 20px; } .admin-details-drawer-panel dl > div { grid-template-columns: 1fr; gap: 4px; } }
 @media (prefers-reduced-motion: reduce) { .admin-details-drawer-backdrop, .admin-details-drawer-panel { transition: none; } }
 
+/* A pending mutation stays legible and clearly unavailable without turning a
+   normal save into a blocking page state. */
+.btn[aria-busy="true"] { cursor: wait; opacity: .78; }
+.btn[aria-busy="true"] .ui-icon { animation: none; }
+
 /* Reusable management header: live summary data is context for the page title,
    not a detached block competing with the table below. */
 .admin-section-page .admin-section-header {
