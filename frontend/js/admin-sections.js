@@ -534,20 +534,27 @@ async function renderAdminSection() {
       window.addEventListener('resize', () => document.querySelectorAll('.admin-entry-action-set.is-open,.admin-user-action-set.is-open').forEach(closeActionMenu));
       window.addEventListener('scroll', () => document.querySelectorAll('.admin-entry-action-set.is-open,.admin-user-action-set.is-open').forEach(closeActionMenu), true);
     }
-    body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, pageRecords[Number(button.dataset.row)])));
-    body.querySelectorAll('.admin-entry-remarks-open').forEach(button => button.addEventListener('click', () => openEntryFeedback(pageRecords[Number(button.dataset.row)])));
+    const dismissActionMenu = button => {
+      const set = button.closest('.admin-entry-action-set,.admin-user-action-set');
+      if (set) closeActionMenu(set);
+    };
+    body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => { dismissActionMenu(button); modal(view, false, pageRecords[Number(button.dataset.row)]); }));
+    body.querySelectorAll('.admin-entry-remarks-open').forEach(button => button.addEventListener('click', () => { dismissActionMenu(button); openEntryFeedback(pageRecords[Number(button.dataset.row)]); }));
     body.querySelectorAll('.admin-entry-details-open').forEach(button => button.addEventListener('click', () => {
+      dismissActionMenu(button);
       const record = pageRecords[Number(button.dataset.row)]; if (!record) return;
       openAdminDetailsDrawer({ eyebrow: 'Time entry', title: record.cells[0], trigger: button, href: 'time-entry-details.html?entry=' + encodeURIComponent(record.id), fields: [['Project', record.cells[1]], ['Clocked in', record.clockInAt ? time(record.clockInAt) : record.cells[2]], ['Clocked out', record.clockOutAt ? time(record.clockOutAt) : record.cells[3]], ['Worked', record.cells[4]], ['Overtime', record.cells[5]], ['Remarks', record.cells[6]]] });
     }));
-    body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => editEntryTime(pageRecords[Number(button.dataset.row)])));
-    body.querySelectorAll('.admin-approve-overtime').forEach(button => button.addEventListener('click', async () => { const record = pageRecords[Number(button.dataset.row)]; if (!record || !await window.ACEUI.confirm({ title: 'Approve overtime?', message: 'Only time after the scheduled end will be approved as overtime.', confirmLabel: 'Approve overtime' })) return; try { const entry = await liveRequest('/v1/time-entries/' + record.id + '/overtime/approve', { method: 'POST' }); record.overtimeApprovedSeconds = entry.overtime_approved_seconds || 0; showToast('Overtime approved.', 'success'); renderAdminSection(); } catch (error) { showToast(error.message || 'Could not approve overtime.', 'error'); } }));
+    body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => { dismissActionMenu(button); editEntryTime(pageRecords[Number(button.dataset.row)]); }));
+    body.querySelectorAll('.admin-approve-overtime').forEach(button => button.addEventListener('click', async () => { dismissActionMenu(button); const record = pageRecords[Number(button.dataset.row)]; if (!record || !await window.ACEUI.confirm({ title: 'Approve overtime?', message: 'Only time after the scheduled end will be approved as overtime.', confirmLabel: 'Approve overtime' })) return; try { const entry = await liveRequest('/v1/time-entries/' + record.id + '/overtime/approve', { method: 'POST' }); record.overtimeApprovedSeconds = entry.overtime_approved_seconds || 0; showToast('Overtime approved.', 'success'); renderAdminSection(); } catch (error) { showToast(error.message || 'Could not approve overtime.', 'error'); } }));
     body.querySelectorAll('.admin-view-employee').forEach(button => button.addEventListener('click', () => {
+      dismissActionMenu(button);
       const record = pageRecords[Number(button.dataset.row)];
       if (!record) return;
       openAdminDetailsDrawer({ eyebrow: 'Employee', title: record.cells[0], trigger: button, avatarUrl: record.avatarUrl, href: 'employee-profile.html?user=' + encodeURIComponent(record.id), fields: [['Email', record.cells[1]], ['Role', record.cells[2]], ['Department', record.cells[3]], ['Presence', record.cells[4]], ['Last online', record.cells[5]], ['Account status', record.cells[6]]] });
     }));
     body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
+      dismissActionMenu(button);
       const record = pageRecords[Number(button.dataset.row)];
       if (!record || !await window.ACEUI.confirm({ title: 'Move time entry to Deleted?', message: 'You can restore it later from Deleted time entries.', confirmLabel: 'Move to Deleted', danger: true })) return;
       try {
@@ -559,6 +566,7 @@ async function renderAdminSection() {
       }
     }));
     body.querySelectorAll('.admin-delete-section').forEach(button => button.addEventListener('click', async () => {
+      dismissActionMenu(button);
       const record = pageRecords[Number(button.dataset.row)];
       if (!record || !await window.ACEUI.confirm({ title: `Delete ${key.slice(0, -1)}?`, message: `Delete ${record.cells[0]}? This cannot be undone.`, confirmLabel: 'Delete', danger: true })) return;
       try { await liveRequest('/v1/' + key + '/' + record.id, { method: 'DELETE' }); closeModal('adminActionModal'); showToast(`${key.slice(0, -1)} deleted.`, 'success'); window.setTimeout(() => window.location.reload(), 350); }

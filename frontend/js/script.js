@@ -1960,7 +1960,7 @@ function openModal(modalId) {
         modal.classList.add('active');
         modal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('modal-open');
-        const focusTarget = modal.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button');
+        const focusTarget = modal._focusTarget || modal.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button');
         window.setTimeout(() => focusTarget?.focus(), 30);
     }
 
@@ -1994,7 +1994,7 @@ function ensureAceDialog() {
     modal.id = 'aceActionDialog';
     modal.className = 'modal ace-action-dialog';
     modal.setAttribute('aria-hidden', 'true');
-    modal.innerHTML = '<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="aceActionDialogTitle"><div class="modal-header"><h3 class="modal-title" id="aceActionDialogTitle"></h3><button class="modal-close" type="button" aria-label="Close">×</button></div><div class="modal-body"><p class="modal-description"></p><div class="form-group ace-action-dialog-input" hidden><label class="form-label" for="aceActionDialogInput"></label><input class="form-input" id="aceActionDialogInput" maxlength="2000"></div></div><div class="modal-footer"><button class="btn btn-outline ace-action-cancel" type="button">Cancel</button><button class="btn btn-primary ace-action-confirm" type="button">Confirm</button></div></div>';
+    modal.innerHTML = '<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="aceActionDialogTitle"><div class="modal-header"><div class="ace-action-dialog-heading"><span class="ace-action-dialog-icon" aria-hidden="true"></span><div><p class="ace-action-dialog-kicker"></p><h3 class="modal-title" id="aceActionDialogTitle"></h3></div></div><button class="modal-close" type="button" aria-label="Close">×</button></div><div class="modal-body"><p class="modal-description"></p><div class="form-group ace-action-dialog-input" hidden><label class="form-label" for="aceActionDialogInput"></label><input class="form-input" id="aceActionDialogInput" maxlength="2000"></div></div><div class="modal-footer"><button class="btn btn-outline ace-action-cancel" type="button">Cancel</button><button class="btn btn-primary ace-action-confirm" type="button">Confirm</button></div></div>';
     document.body.appendChild(modal);
     return modal;
 }
@@ -2003,6 +2003,8 @@ function showAceDialog(options = {}) {
     return new Promise(resolve => {
         const modal = ensureAceDialog();
         const title = modal.querySelector('.modal-title');
+        const kicker = modal.querySelector('.ace-action-dialog-kicker');
+        const dialogIcon = modal.querySelector('.ace-action-dialog-icon');
         const description = modal.querySelector('.modal-description');
         const inputWrap = modal.querySelector('.ace-action-dialog-input');
         const inputLabel = inputWrap.querySelector('label');
@@ -2011,7 +2013,11 @@ function showAceDialog(options = {}) {
         const cancelButton = modal.querySelector('.ace-action-cancel');
         const closeButton = modal.querySelector('.modal-close');
         const hasInput = Boolean(options.input);
+        const danger = Boolean(options.danger);
         title.textContent = options.title || 'Please confirm';
+        kicker.textContent = danger ? 'CONFIRM DESTRUCTIVE ACTION' : hasInput ? 'UPDATE DETAILS' : 'CONFIRM ACTION';
+        dialogIcon.innerHTML = suppliedIconMarkup(danger ? 'triangle-alert' : hasInput ? 'square-pen' : 'check');
+        modal.classList.toggle('is-danger', danger);
         description.textContent = options.message || '';
         description.hidden = !options.message;
         inputWrap.hidden = !hasInput;
@@ -2019,11 +2025,13 @@ function showAceDialog(options = {}) {
         input.value = options.value || '';
         input.placeholder = options.placeholder || '';
         confirmButton.textContent = options.confirmLabel || 'Confirm';
-        confirmButton.className = 'btn ' + (options.danger ? 'btn-danger' : 'btn-primary') + ' ace-action-confirm';
+        confirmButton.className = 'btn ' + (danger ? 'btn-danger' : 'btn-primary') + ' ace-action-confirm';
+        modal._focusTarget = hasInput ? input : (danger ? cancelButton : confirmButton);
         const finish = value => {
             modal.removeEventListener('click', onBackdrop);
             closeButton.onclick = null; cancelButton.onclick = null; confirmButton.onclick = null;
             input.onkeydown = null; modal.onkeydown = null;
+            modal._focusTarget = null;
             closeModal('aceActionDialog');
             resolve(value);
         };
