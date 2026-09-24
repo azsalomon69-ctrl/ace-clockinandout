@@ -14061,6 +14061,22 @@ html[data-theme="dark"] .individual-report-results-heading {
   font-size: .78rem;
   line-height: 1.3
 }
+.schedule-duration-fields {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: var(--ace-navy);
+  font-size: .82rem;
+  font-weight: 700
+}
+.schedule-duration-fields > div {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px
+}
+.schedule-duration-fields label { display: grid; gap: 6px; font-size: .75rem; }
+.schedule-duration-fields .schedule-field-help { min-height: 0; margin: 0; font-weight: 500; }
+html[data-theme="dark"] .schedule-duration-fields { color: var(--ace-text-primary); }
 .schedule-validation-message {
   margin: 12px 0 0;
   color: #a64040;
