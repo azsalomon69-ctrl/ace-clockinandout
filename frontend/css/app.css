@@ -16931,6 +16931,25 @@ html[data-theme="dark"] .empty-state p { color: var(--ace-text-secondary); }
   .table-empty-row .empty-state { min-height: 124px; margin: 6px; }
 }
 
+/* Dark-mode audit: secondary information must remain readable without making
+   every supporting label compete with the primary action or data. */
+html[data-theme="dark"] :is(
+  .form-label,.result-count,.admin-pagination,.individual-period-option small,
+  .individual-custom-dates label,.individual-report-entry-count,.review-alert-copy > p:not(.review-alert-type),
+  .employee-profile-header p,.employee-profile-stats small,.employee-profile-card-head > small,
+  .employee-profile-chart span,.employee-profile-projects span,.time-entry-no-remarks,
+  .time-entry-remark-list small
+) { color: var(--ace-text-secondary); }
+html[data-theme="dark"] .individual-report-selection.is-invalid { color: #ffc0bb; background: var(--ace-error-bg); border-color: #75434b; }
+html[data-theme="dark"] .review-alert-card--info .review-alert-icon { color: #bdebf1; background: #1b3439; }
+html[data-theme="dark"] .review-alert-card--warning .review-alert-icon { color: #f3cf8c; background: var(--ace-warning-bg); }
+html[data-theme="dark"] .admin-pagination { border-color: var(--ace-border); }
+html[data-theme="dark"] ::selection { color: var(--ace-text-primary); background: #285c67; }
+html[data-theme="dark"] ::-webkit-scrollbar { width: 10px; height: 10px; }
+html[data-theme="dark"] ::-webkit-scrollbar-track { background: var(--ace-page-subtle); }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3b4a4f; border: 2px solid var(--ace-page-subtle); border-radius: 999px; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #52636a; }
+
 /* Dashboard hierarchy: the operational summary belongs to the header, while
    analytics stay compact and answer one question each. */
 .admin-dashboard .dashboard-header {
