@@ -1797,6 +1797,26 @@ html[data-theme="dark"] .admin-user-action-menu button { color: var(--ace-text-p
   font-size: .76rem;
   overflow-wrap: anywhere
 }
+.admin-remark-read-status,
+.admin-chat-read-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  margin-top: 2px;
+  color: #53727b;
+  font-size: .67rem;
+  font-weight: 700
+}
+.admin-remark-read-status .ui-icon,
+.admin-chat-read-status .ui-icon { width: 14px; height: 14px; }
+.admin-remark-read-status.is-seen,
+.admin-chat-read-status.is-seen { color: #087d69; }
+.admin-remark-read-status.is-unseen,
+.admin-chat-read-status.is-unseen { color: #a26b18; }
+html[data-theme="dark"] :is(.admin-remark-read-status,.admin-chat-read-status) { color: var(--ace-text-secondary); }
+html[data-theme="dark"] :is(.admin-remark-read-status,.admin-chat-read-status).is-seen { color: #72d8bf; }
+html[data-theme="dark"] :is(.admin-remark-read-status,.admin-chat-read-status).is-unseen { color: #f2c970; }
 .entry-admin-stop {
   display: block;
   margin-top: 5px;

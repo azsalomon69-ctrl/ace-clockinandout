@@ -622,7 +622,7 @@ app.get('/v1/admin/chat-log', authenticate, specialAdminOnly, async (req, res, n
   const messageRequest = db.from('employee_messages').select('id,sender_id,recipient_id,body,created_at,edited_at,deleted_at,read_at', paging.paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false });
   const [messageResult, profiles] = await Promise.all([
     paging.paged ? pagedResult(messageRequest, paging) : query(messageRequest.limit(500)),
-    query(db.from('profiles').select('id,full_name,email'))
+    query(db.from('profiles').select('id,full_name,email,role'))
   ]);
   const messages = paging.paged ? messageResult.items : messageResult;
   const people = new Map(profiles.map(profile => [profile.id, profile]));
