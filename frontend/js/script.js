@@ -458,24 +458,8 @@ function mountCachedDashboardShell() {
 function initializeResponsiveTables() {
     if (document.body.dataset.responsiveTablesReady === 'true') return;
     document.body.dataset.responsiveTablesReady = 'true';
-    const labelCells = root => {
-        root.querySelectorAll('table').forEach(table => {
-            const labels = Array.from(table.querySelectorAll('thead th')).map(header => header.textContent.trim());
-            if (!labels.length) return;
-            table.querySelectorAll('tbody tr').forEach(row => {
-                Array.from(row.children).forEach((cell, index) => {
-                    if (cell.tagName === 'TD' && !cell.hasAttribute('colspan')) cell.dataset.label = labels[index] || '';
-                });
-            });
-        });
-    };
-    labelCells(document);
-    const observer = new MutationObserver(records => {
-        records.forEach(record => record.addedNodes.forEach(node => {
-            if (node.nodeType === Node.ELEMENT_NODE) labelCells(node.closest?.('table') || node);
-        }));
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    // applyTableLabels owns the single mutation observer used by all tables.
+    applyTableLabels();
 }
 
 function isPublicRoute() {
@@ -630,6 +614,16 @@ function mountRelatedPageTabs() {
     nav.setAttribute('aria-label', group.label);
     nav.innerHTML = group.tabs.map(([label, href]) => `<a href="${href}"${href === page ? ' aria-current="page"' : ''}>${escapeHtml(label)}</a>`).join('');
     header.insertAdjacentElement('afterend', nav);
+    // These are the only sibling views likely to be opened next. Prefetching
+    // their document shell avoids paying the navigation cost twice without
+    // eagerly loading every page or protected data set.
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!connection?.saveData && !/2g/.test(connection?.effectiveType || '')) {
+        group.tabs.filter(([, href]) => href !== page).forEach(([, href]) => {
+            if (document.head.querySelector(`link[rel="prefetch"][href$="${href}"]`)) return;
+            const preload = document.createElement('link'); preload.rel = 'prefetch'; preload.href = href; document.head.appendChild(preload);
+        });
+    }
 }
 
 function initializeUXEnhancements() {

@@ -16735,11 +16735,6 @@ html[data-theme="dark"] .admin-details-drawer-section > p { color: var(--ace-tex
 html[data-theme="dark"] .admin-details-drawer-panel > footer { border-color: var(--ace-border); }
 @media (max-width: 620px) { .admin-details-drawer-panel > header, .admin-details-drawer-section, .admin-details-drawer-panel > footer { padding-inline: 20px; } }
 
-/* A pending mutation stays legible and clearly unavailable without turning a
-   normal save into a blocking page state. */
-.btn[aria-busy="true"] { cursor: wait; opacity: .78; }
-.btn[aria-busy="true"] .ui-icon { animation: none; }
-
 /* Reusable management header: live summary data is context for the page title,
    not a detached block competing with the table below. */
 .admin-section-page .admin-section-header {
@@ -17039,6 +17034,13 @@ html[data-theme="dark"] .workspace-page-tabs a { color: var(--ace-text-secondary
 html[data-theme="dark"] .workspace-page-tabs a:hover { color: var(--ace-text-primary); background: var(--ace-surface-raised); }
 html[data-theme="dark"] .workspace-page-tabs a[aria-current="page"] { color: var(--ace-text-primary); border-bottom-color: var(--ace-accent); }
 @media (max-width: 620px) { .workspace-page-tabs { overflow-x: auto; margin-bottom: 16px; scrollbar-width: thin; } .workspace-page-tabs a { flex: 0 0 auto; } }
+
+/* Keep existing records in place while a page filter refreshes. */
+.table-container.is-data-refreshing { position: relative; }
+.table-container.is-data-refreshing::after { position: absolute; z-index: 3; top: 0; right: 0; left: 0; height: 2px; content: ''; background: var(--ace-accent); transform-origin: left; animation: ace-table-refresh 1.05s ease-in-out infinite; }
+.table-container.is-data-refreshing .table-responsive { opacity: .72; pointer-events: none; transition: opacity .14s ease; }
+@keyframes ace-table-refresh { 0% { transform: scaleX(.1); opacity: .3; } 55% { transform: scaleX(.7); opacity: 1; } 100% { transform: scaleX(1); opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .table-container.is-data-refreshing::after { animation: none; } }
 
 /* Dashboard hierarchy: the operational summary belongs to the header, while
    analytics stay compact and answer one question each. */

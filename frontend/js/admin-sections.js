@@ -100,7 +100,7 @@ function status(value) {
   return '<span class="badge badge-' + type + '">' + esc(value) + '</span>';
 }
 function action(label, index, key, record) {
-  if (key === 'audit') return '<span class="record-reference">' + esc(label) + '</span>';
+  if (key === 'audit') return '<button class="btn btn-sm btn-outline admin-audit-details-open" type="button" data-row="' + index + '">' + icon('eye') + 'View event</button>';
   if (key === 'entries') {
     const canApprove = record.clockOutAt && record.scheduleType === 'FIXED' && record.scheduledEndTime && !record.overtimeApprovedAt;
     return '<div class="admin-entry-action-set"><button class="btn btn-sm btn-outline admin-entry-actions-toggle" type="button" aria-expanded="false" aria-haspopup="menu">Actions ' + icon('chevron-down') + '</button><div class="admin-entry-action-menu" role="menu" hidden>' +
@@ -118,7 +118,7 @@ function action(label, index, key, record) {
       (canManage ? '<button class="admin-row-action" type="button" role="menuitem" data-row="' + index + '">' + icon('settings') + 'Manage account</button>' : '') +
       '</div><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
   }
-  if (key === 'departments' || key === 'projects') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Edit</button><button class="btn btn-sm btn-danger admin-delete-section" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button></div>';
+  if (key === 'departments' || key === 'projects') return '<div class="table-actions">' + (key === 'projects' ? '<button class="btn btn-sm btn-outline admin-project-details-open" type="button" data-row="' + index + '">' + icon('eye') + 'View</button>' : '') + '<button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Edit</button><button class="btn btn-sm btn-danger admin-delete-section" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button></div>';
   const iconName = /remove/i.test(label) ? 'trash' : /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
   const style = /remove/i.test(label) ? 'btn-danger' : 'btn-outline';
   return '<div class="table-actions"><button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button></div>';
@@ -432,8 +432,12 @@ function openAdminDetailsDrawer({ eyebrow, title, fields, href, trigger, avatarU
 async function renderAdminSection() {
   const key = document.body.dataset.adminView; const config = ADMIN_SECTION_CONFIG[key]; if (!config) return;
   const serverPaged = ['users', 'entries', 'invitations', 'departments', 'projects', 'audit'].includes(key);
-  const pageState = { page: 1, size: 25 };
-  const activeFilters = {};
+  const stateKey = 'ace_admin_page_state_' + key;
+  let savedState = {};
+  try { savedState = JSON.parse(sessionStorage.getItem(stateKey) || '{}'); } catch { savedState = {}; }
+  const pageState = { page: Number(savedState.page) || 1, size: Number(savedState.size) || 25 };
+  const activeFilters = { ...(savedState.filters || {}) };
+  const persistState = () => sessionStorage.setItem(stateKey, JSON.stringify({ page: pageState.page, size: pageState.size, filters: activeFilters }));
   // A live redraw must not stack filters or click handlers from the previous
   // pass. It only runs while no form or dialog is being edited.
   document.querySelectorAll('.admin-user-filters').forEach(node => node.remove());
@@ -459,6 +463,16 @@ async function renderAdminSection() {
     if (!tabBar) { tabBar = document.createElement('nav'); tabBar.id = 'adminSectionTabs'; tabBar.className = 'admin-section-tabs'; tabBar.setAttribute('aria-label', 'Related workspace pages'); document.querySelector('.admin-section-header').insertAdjacentElement('afterend', tabBar); }
     const activeHref = { users: 'users.html', invitations: 'invitations.html', projects: 'projects.html', entries: 'admin-time-entries.html' }[key];
     tabBar.innerHTML = tabs.map(([label, href]) => '<a href="' + href + '"' + (href === activeHref ? ' aria-current="page"' : '') + '>' + esc(label) + '</a>').join('');
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!connection?.saveData && !/2g/.test(connection?.effectiveType || '')) {
+      tabs.filter(([, href]) => href !== activeHref).forEach(([, href]) => {
+        if (document.head.querySelector(`link[rel="prefetch"][href$="${href}"]`)) return;
+        const preload = document.createElement('link');
+        preload.rel = 'prefetch';
+        preload.href = href;
+        document.head.appendChild(preload);
+      });
+    }
   } else tabBar?.remove();
   const actionButton = document.getElementById('sectionAction'); actionButton.hidden = !view.action;
   if (view.action) actionButton.innerHTML = icon(view.actionIcon) + view.action;
@@ -489,8 +503,8 @@ async function renderAdminSection() {
     body.innerHTML = records.length ? pageRecords.map((record, rowIndex) => '<tr class="' + (key === 'entries' || key === 'users' ? 'admin-collapsible-row' : '') + '">' + record.cells.map((cell, index) => { const isEmployeeName = (key === 'users' && index === 0 && record.cells[2] === 'Employee') || (key === 'entries' && index === 0 && record.userRole === 'USER'); const nameCell = isEmployeeName ? '<a class="admin-employee-profile-link" href="employee-profile.html?user=' + encodeURIComponent(key === 'users' ? record.id : record.userId) + '">' + esc(cell) + '</a>' : '<strong>' + esc(cell) + '</strong>'; return '<td' + (key === 'entries' && index === 6 ? ' class="admin-entry-remarks"' : '') + '>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key, record) : key === 'entries' && index === 6 ? (record.remarks?.length ? record.remarks.map(remark => '<article class="admin-entry-remark"><strong>' + esc(remark.admin) + '</strong><span>' + esc(remark.text) + '</span><small class="admin-remark-read-status ' + (remark.seenAt ? 'is-seen' : 'is-unseen') + '">' + icon(remark.seenAt ? 'check' : 'circle-alert') + (remark.seenAt ? 'Seen ' + time(remark.seenAt) : 'Not seen yet') + '</small></article>').join('') : '—') : key === 'users' && index === 0 ? '<span class="admin-user-identity"><span class="admin-user-avatar">' + (record.avatarUrl ? '<img src="' + esc(record.avatarUrl) + '" alt="">' : esc(String(cell).trim().slice(0, 1).toUpperCase())) + '</span>' + nameCell + '</span>' : key === 'entries' && index === 0 ? nameCell : status(cell)) + '</td>'; }).join('') + '</tr>').join('') : emptyTable(emptyCopy[0], emptyCopy[1], view.columns.length);
     const pageList = [...new Set([1, pageState.page - 1, pageState.page, pageState.page + 1, pages].filter(page => page >= 1 && page <= pages))];
     pager.innerHTML = totalRecords > pageState.size ? '<span>Showing ' + (start + 1) + '–' + Math.min(start + pageState.size, totalRecords) + ' of ' + totalRecords + '</span><div class="pagination"><label class="sr-only" for="sectionPageSize">Rows per page</label><select class="form-select" id="sectionPageSize"><option value="25"' + (pageState.size === 25 ? ' selected' : '') + '>25</option><option value="50"' + (pageState.size === 50 ? ' selected' : '') + '>50</option><option value="100"' + (pageState.size === 100 ? ' selected' : '') + '>100</option></select><button type="button" data-section-page="' + (pageState.page - 1) + '" ' + (pageState.page === 1 ? 'disabled' : '') + ' aria-label="Previous page">‹</button>' + pageList.map(page => '<button type="button" data-section-page="' + page + '" class="' + (page === pageState.page ? 'active' : '') + '" aria-current="' + (page === pageState.page ? 'page' : 'false') + '">' + page + '</button>').join('') + '<button type="button" data-section-page="' + (pageState.page + 1) + '" ' + (pageState.page === pages ? 'disabled' : '') + ' aria-label="Next page">›</button></div>' : '';
-    pager.querySelectorAll('[data-section-page]').forEach(button => button.addEventListener('click', () => { pageState.page = Number(button.dataset.sectionPage); serverPaged ? loadPage?.() : draw(visibleRecords); }));
-    pager.querySelector('#sectionPageSize')?.addEventListener('change', event => { pageState.size = Number(event.target.value); pageState.page = 1; serverPaged ? loadPage?.() : draw(visibleRecords); });
+    pager.querySelectorAll('[data-section-page]').forEach(button => button.addEventListener('click', () => { pageState.page = Number(button.dataset.sectionPage); persistState(); serverPaged ? loadPage?.() : draw(visibleRecords); }));
+    pager.querySelector('#sectionPageSize')?.addEventListener('change', event => { pageState.size = Number(event.target.value); pageState.page = 1; persistState(); serverPaged ? loadPage?.() : draw(visibleRecords); });
     const actionMenuFor = set => set._actionMenu || set.querySelector('.admin-entry-action-menu,.admin-user-action-menu');
     const closeActionMenu = set => {
       const menu = actionMenuFor(set);
@@ -573,6 +587,14 @@ async function renderAdminSection() {
       const record = pageRecords[Number(button.dataset.row)]; if (!record) return;
       openAdminDetailsDrawer({ eyebrow: 'Time entry', title: record.cells[0], trigger: button, href: 'time-entry-details.html?entry=' + encodeURIComponent(record.id), fields: [['Project', record.cells[1]], ['Clocked in', record.clockInAt ? time(record.clockInAt) : record.cells[2]], ['Clocked out', record.clockOutAt ? time(record.clockOutAt) : record.cells[3]], ['Worked', record.cells[4]], ['Overtime', record.cells[5]], ['Remarks', record.cells[6]]] });
     }));
+    body.querySelectorAll('.admin-project-details-open').forEach(button => button.addEventListener('click', () => {
+      const record = pageRecords[Number(button.dataset.row)]; if (!record) return;
+      openAdminDetailsDrawer({ eyebrow: 'Project', title: record.cells[0], trigger: button, fields: [['Description', record.cells[1]], ['Created', record.cells[2]], ['Status', record.cells[3]], ['Project ID', record.id]] });
+    }));
+    body.querySelectorAll('.admin-audit-details-open').forEach(button => button.addEventListener('click', () => {
+      const record = pageRecords[Number(button.dataset.row)]; if (!record) return;
+      openAdminDetailsDrawer({ eyebrow: 'Audit event', title: record.cells[2], trigger: button, fields: [['When', record.cells[0]], ['Actor', record.cells[1]], ['Entity', record.cells[3]], ['Description', record.cells[4]], ['Record', record.cells[5]]] });
+    }));
     body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => { dismissActionMenu(button); editEntryTime(pageRecords[Number(button.dataset.row)]); }));
     body.querySelectorAll('.admin-approve-overtime').forEach(button => button.addEventListener('click', async () => { dismissActionMenu(button); const record = pageRecords[Number(button.dataset.row)]; if (!record || !await window.ACEUI.confirm({ title: 'Approve overtime?', message: 'Only time after the scheduled end will be approved as overtime.', confirmLabel: 'Approve overtime' })) return; try { const entry = await liveRequest('/v1/time-entries/' + record.id + '/overtime/approve', { method: 'POST' }); record.overtimeApprovedSeconds = entry.overtime_approved_seconds || 0; showToast('Overtime approved.', 'success'); renderAdminSection(); } catch (error) { showToast(error.message || 'Could not approve overtime.', 'error'); } }));
     body.querySelectorAll('.admin-view-employee').forEach(button => button.addEventListener('click', () => {
@@ -626,6 +648,7 @@ async function renderAdminSection() {
     filters.innerHTML = '<label>Department<select class="form-select" id="userDepartmentFilter"><option value="">All departments</option>' + departments.map(department => '<option value="' + esc(serverPaged ? department.id : department) + '">' + esc(serverPaged ? department.name : department) + '</option>').join('') + '</select></label><label>Account type<select class="form-select" id="userRoleFilter"><option value="">All accounts</option><option value="Employee">Employees</option><option value="Admin">Administrators</option></select></label>';
     search.insertAdjacentElement('beforebegin', filters);
     departmentFilter = filters.querySelector('#userDepartmentFilter'); roleFilter = filters.querySelector('#userRoleFilter');
+    departmentFilter.value = activeFilters.departmentId || ''; roleFilter.value = activeFilters.role === 'ADMIN' ? 'Admin' : activeFilters.role === 'USER' ? 'Employee' : '';
   }
   if (key === 'entries') {
     const employees = [...new Set(view.records.map(record => record.cells[0]))].sort((a, b) => a.localeCompare(b));
@@ -634,12 +657,15 @@ async function renderAdminSection() {
     filters.innerHTML = '<label>Employee<input class="form-input" id="entryEmployeeFilter" type="search" list="entryEmployeeOptions" placeholder="All employees" autocomplete="off"><datalist id="entryEmployeeOptions">' + employees.map(employee => '<option value="' + esc(employee) + '"></option>').join('') + '</datalist></label><label>Project<input class="form-input" id="entryProjectFilter" type="search" list="entryProjectOptions" placeholder="All projects" autocomplete="off"><datalist id="entryProjectOptions">' + projects.map(project => '<option value="' + esc(project) + '"></option>').join('') + '</datalist></label><label>Remarks<select class="form-select" id="entryRemarksFilter"><option value="">All entries</option><option value="with">With remarks</option><option value="without">No remarks</option></select></label>';
     search.insertAdjacentElement('beforebegin', filters);
     employeeFilter = filters.querySelector('#entryEmployeeFilter'); projectFilter = filters.querySelector('#entryProjectFilter'); remarksFilter = filters.querySelector('#entryRemarksFilter');
+    employeeFilter.value = activeFilters.employee || ''; projectFilter.value = activeFilters.project || ''; remarksFilter.value = activeFilters.remarks || '';
   }
   loadPage = async () => {
+    const table = body.closest('.table-container'); table?.classList.add('is-data-refreshing'); table?.setAttribute('aria-busy', 'true');
     try {
       await applyLiveData(key, view, pageState, activeFilters);
       renderStats(); draw(view.records); setCount(view.records);
     } catch (error) { showToast(error.message || 'Could not load this page.', 'error'); }
+    finally { table?.classList.remove('is-data-refreshing'); table?.removeAttribute('aria-busy'); }
   };
   const applyFilters = () => {
     if (serverPaged) {
@@ -649,13 +675,13 @@ async function renderAdminSection() {
       activeFilters.employee = employeeFilter?.value.trim() || '';
       activeFilters.project = projectFilter?.value.trim() || '';
       activeFilters.remarks = remarksFilter?.value || '';
-      pageState.page = 1; void loadPage(); return;
+      pageState.page = 1; persistState(); void loadPage(); return;
     }
     const term = search.value.trim().toLowerCase();
     const employeeTerm = employeeFilter?.value.trim().toLowerCase() || '';
     const projectTerm = projectFilter?.value.trim().toLowerCase() || '';
     const records = view.records.filter(record => (!term || record.cells.join(' ').toLowerCase().includes(term)) && (!departmentFilter?.value || record.cells[3] === departmentFilter.value) && (!roleFilter?.value || record.cells[2] === roleFilter.value) && (!employeeTerm || record.cells[0].toLowerCase().includes(employeeTerm)) && (!projectTerm || record.cells[1].toLowerCase().includes(projectTerm)) && (!remarksFilter?.value || (remarksFilter.value === 'with' ? Boolean(record.remarks?.length) : !record.remarks?.length)));
-    pageState.page = 1; draw(records); setCount(records);
+    pageState.page = 1; persistState(); draw(records); setCount(records);
   };
   actionButton.addEventListener('click', () => /export/i.test(view.action) ? openTimeEntryExport(view.records) : modal(view, true));
   const expectedQuickAction = key === 'invitations' ? 'invite-user' : key === 'projects' ? 'add-project' : '';
@@ -672,7 +698,9 @@ async function renderAdminSection() {
     sessionStorage.removeItem('ace_workspace_quick_action');
     requestAnimationFrame(() => actionButton.click());
   }
-  search.addEventListener('input', applyFilters);
+  search.value = activeFilters.q || '';
+  let filterTimer = null;
+  search.addEventListener('input', () => { window.clearTimeout(filterTimer); filterTimer = window.setTimeout(applyFilters, 220); });
   departmentFilter?.addEventListener('change', applyFilters); roleFilter?.addEventListener('change', applyFilters); employeeFilter?.addEventListener('input', applyFilters); projectFilter?.addEventListener('input', applyFilters); remarksFilter?.addEventListener('change', applyFilters);
 }
 // Also expose the renderer for the persistent dashboard shell. The normal
