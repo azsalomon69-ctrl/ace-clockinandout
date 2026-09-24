@@ -2240,6 +2240,48 @@ html[data-theme="dark"] .shell-sidebar-help:focus-visible {
 @media (max-width: 900px) {
   .shell-sidebar-help { min-height: 40px; margin-bottom: 8px; }
 }
+
+/* Compact nested navigation: the rail makes expanded links read as children of
+   their dropdown instead of as another top-level list. */
+@media (min-width: 901px) {
+  body[data-user-role="admin"] .shell-nav-group-toggle {
+    min-height: 30px;
+    padding-inline: 9px;
+    border-radius: 7px;
+  }
+  body[data-user-role="admin"] .shell-nav-group-toggle > b {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+  }
+  body[data-user-role="admin"] .shell-nav-group-items {
+    margin: 2px 0 3px 13px;
+    padding-left: 8px;
+    border-left: 1px solid rgba(64, 130, 144, .3);
+  }
+  body[data-user-role="admin"] .shell-nav-group-items .shell-link {
+    min-height: 32px;
+    padding-left: 8px;
+  }
+  body[data-user-role="admin"] .shell-nav-group-items .shell-link.active::before {
+    left: -10px;
+    width: 3px;
+  }
+}
+html[data-theme="dark"] body[data-user-role="admin"] .shell-nav-group-items {
+  border-left-color: rgba(111, 196, 209, .38);
+}
+@media (max-width: 900px) {
+  body[data-user-role="admin"] .shell-nav-group-toggle { min-height: 36px; }
+  body[data-user-role="admin"] .shell-nav-group-items {
+    margin: 2px 0 3px 12px;
+    padding-left: 8px;
+    border-left: 1px solid rgba(64, 130, 144, .3);
+  }
+  body[data-user-role="admin"] .shell-nav-group-items .shell-link { padding-left: 8px; }
+  body[data-user-role="admin"] .shell-nav-group-items .shell-link.active::before { left: -10px; }
+  html[data-theme="dark"] body[data-user-role="admin"] .shell-nav-group-items { border-left-color: rgba(111, 196, 209, .38); }
+}
 .home-page .main-content {
   padding: 0
 }
