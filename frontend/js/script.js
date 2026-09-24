@@ -589,6 +589,10 @@ function emptyState(title, message, actionLabel = '', actionHref = '') {
     return `<div class="empty-state"><div class="empty-state-icon">${suppliedIconMarkup('folder')}</div><h3>${title}</h3><p>${message}</p>${action}</div>`;
 }
 
+function analyticsEmpty(title, message, iconName = 'chart-column-big') {
+    return `<div class="analytics-empty"><span class="analytics-empty-icon">${suppliedIconMarkup(iconName)}</span><div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div></div>`;
+}
+
 function initializeUXEnhancements() {
     document.querySelectorAll('.modal').forEach(modal => {
         modal.setAttribute('role', 'dialog');
@@ -2888,10 +2892,10 @@ async function loadTimeLeaderboard(listId, rankId) {
             const name = `<strong>${escapeHtml(person.full_name || 'Team member')}${isMe ? ' <small>You</small>' : ''}</strong>`;
             const profileName = listId === 'adminLeaderboard' && person.role === 'USER' ? `<a class="time-leaderboard-profile-link" href="employee-profile.html?user=${encodeURIComponent(person.id)}" aria-label="View ${escapeHtml(person.full_name || 'employee')} profile">${name}</a>` : name;
             return `<li class="time-leaderboard-row${isMe ? ' is-current-user' : ''}"><b class="time-leaderboard-rank">${index + 1}</b><span class="time-leaderboard-avatar">${person.profile_picture_url ? `<img src="${escapeHtml(person.profile_picture_url)}" alt="">` : escapeHtml(initials)}</span>${profileName}<span>${formatDuration(person.tracked_seconds)}</span></li>`;
-        }).join('') : '<li class="time-leaderboard-empty">No completed work sessions yet.</li>';
+        }).join('') : `<li class="time-leaderboard-empty"><span>${suppliedIconMarkup('users')}</span><strong>No completed work sessions yet</strong><p>Team rankings will appear after people finish their first shifts.</p></li>`;
     } catch {
         if (rank) rank.textContent = 'Leaderboard is unavailable right now.';
-        list.innerHTML = '<li class="time-leaderboard-empty">Unable to load rankings.</li>';
+        list.innerHTML = `<li class="time-leaderboard-empty"><span>${suppliedIconMarkup('circle-alert')}</span><strong>Rankings are unavailable</strong><p>Refresh the page and try again in a moment.</p></li>`;
     }
 }
 
@@ -3169,7 +3173,7 @@ function renderAdminAnalytics(days = 7) {
             : `${bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${bucketEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
         const detail = `${periodLabel}: ${formatDuration(bucket.seconds)} tracked`;
         return `<div class="chart-column analytics-tooltip" tabindex="0" role="listitem" aria-label="${detail}" data-tooltip="${detail}"><div class="chart-column-track"><div class="chart-column-bar" style="height:${height}%"></div></div><span class="chart-column-label">${label}</span><span class="chart-column-value">${formatDuration(bucket.seconds)}</span></div>`;
-    }).join('') : '<div class="analytics-empty">No tracked hours match these filters yet.</div>';
+    }).join('') : analyticsEmpty('Nothing tracked in this view', 'Try a different period or filter, or wait for the first completed shift.');
 
     const projectTotals = new Map();
     inPeriod.forEach(entry => {
@@ -3183,7 +3187,7 @@ function renderAdminAnalytics(days = 7) {
         const share = totalSeconds ? Math.round(seconds / totalSeconds * 100) : 0;
         const detail = `${name}: ${formatDuration(seconds)} tracked (${share}% of selected time)`;
         return `<div class="allocation-row analytics-tooltip" tabindex="0" role="listitem" aria-label="${escapeHtml(detail)}" data-tooltip="${escapeHtml(detail)}"><span class="allocation-name">${escapeHtml(name)}</span><div class="allocation-track" aria-hidden="true"><div class="allocation-fill" style="width:${Math.max(4, Math.round(seconds / largestProject * 100))}%"></div></div><span class="allocation-hours">${formatDuration(seconds)}</span></div>`;
-    }).join('') : '<div class="analytics-empty">No tracked project hours in this period.</div>';
+    }).join('') : analyticsEmpty('No project time yet', 'Completed time assigned to a project will appear here.', 'folder');
 
     const range = document.getElementById('dashboardRange');
     if (range && !range.dataset.bound) {
