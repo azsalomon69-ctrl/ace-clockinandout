@@ -16687,6 +16687,32 @@ html[data-theme="dark"] .admin-section-tabs a:hover { color: var(--ace-text-prim
 html[data-theme="dark"] .admin-section-tabs a[aria-current="page"] { color: var(--ace-text-primary); border-bottom-color: var(--ace-accent); }
 @media (max-width: 620px) { .admin-section-tabs { overflow-x: auto; scrollbar-width: thin; } .admin-section-tabs a { flex: 0 0 auto; } }
 
+/* Contextual inspection stays beside the current workspace instead of forcing
+   a page transition or a second stacked modal. */
+.admin-details-drawer { position: fixed; inset: 0; z-index: 6200; display: grid; grid-template-columns: 1fr minmax(340px, 480px); visibility: hidden; pointer-events: none; }
+.admin-details-drawer.is-open { visibility: visible; pointer-events: auto; }
+.admin-details-drawer-backdrop { grid-column: 1 / -1; grid-row: 1; border: 0; background: rgba(11,31,37,.35); opacity: 0; transition: opacity .18s ease; }
+.admin-details-drawer-panel { grid-column: 2; grid-row: 1; z-index: 1; min-width: 0; padding: 24px; overflow: auto; color: var(--ace-ink); background: #fff; border-left: 1px solid #cfe5ea; box-shadow: -20px 0 48px rgba(5,43,54,.16); transform: translateX(100%); transition: transform .2s ease; }
+.admin-details-drawer.is-open .admin-details-drawer-backdrop { opacity: 1; }
+.admin-details-drawer.is-open .admin-details-drawer-panel { transform: none; }
+.admin-details-drawer-panel header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid #dcecf0; }
+.admin-details-drawer-panel h2 { margin: 4px 0 0; color: var(--ace-navy); font-size: 1.3rem; }
+.admin-details-drawer-panel dl { display: grid; gap: 0; margin: 18px 0; }
+.admin-details-drawer-panel dl > div { display: grid; grid-template-columns: minmax(110px,.7fr) minmax(0,1.3fr); gap: 16px; padding: 13px 0; border-bottom: 1px solid #e4eef0; }
+.admin-details-drawer-panel dt { color: #69838b; font-size: .74rem; font-weight: 700; }
+.admin-details-drawer-panel dd { min-width: 0; margin: 0; color: var(--ace-ink); font-size: .84rem; overflow-wrap: anywhere; }
+.admin-details-drawer-link { width: 100%; justify-content: center; }
+body.drawer-open { overflow: hidden; }
+html[data-theme="dark"] .admin-details-drawer-backdrop { background: rgba(0,0,0,.54); }
+html[data-theme="dark"] .admin-details-drawer-panel { color: var(--ace-text-primary); background: var(--ace-surface-modal); border-color: var(--ace-border-strong); box-shadow: -20px 0 48px rgba(0,0,0,.38); }
+html[data-theme="dark"] .admin-details-drawer-panel header,
+html[data-theme="dark"] .admin-details-drawer-panel dl > div { border-color: var(--ace-border); }
+html[data-theme="dark"] .admin-details-drawer-panel h2,
+html[data-theme="dark"] .admin-details-drawer-panel dd { color: var(--ace-text-primary); }
+html[data-theme="dark"] .admin-details-drawer-panel dt { color: var(--ace-text-secondary); }
+@media (max-width: 620px) { .admin-details-drawer { grid-template-columns: 1fr; } .admin-details-drawer-panel { grid-column: 1; padding: 20px; } .admin-details-drawer-panel dl > div { grid-template-columns: 1fr; gap: 4px; } }
+@media (prefers-reduced-motion: reduce) { .admin-details-drawer-backdrop, .admin-details-drawer-panel { transition: none; } }
+
 /* Reusable management header: live summary data is context for the page title,
    not a detached block competing with the table below. */
 .admin-section-page .admin-section-header {

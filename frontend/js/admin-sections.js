@@ -105,6 +105,7 @@ function action(label, index, key, record) {
     const canApprove = record.clockOutAt && record.scheduleType === 'FIXED' && record.scheduledEndTime && !record.overtimeApprovedAt;
     return '<div class="admin-entry-action-set"><button class="btn btn-sm btn-outline admin-entry-actions-toggle" type="button" aria-expanded="false" aria-haspopup="menu">Actions ' + icon('chevron-down') + '</button><div class="admin-entry-action-menu" role="menu" hidden>' +
       (canApprove ? '<button class="admin-approve-overtime" type="button" role="menuitem" data-row="' + index + '">' + icon('check') + 'Approve overtime</button>' : '') +
+      '<button class="admin-entry-details-open" type="button" role="menuitem" data-row="' + index + '">' + icon('eye') + 'View details</button>' +
       '<button class="admin-edit-entry-time" type="button" role="menuitem" data-row="' + index + '">' + icon('square-pen') + 'Correct time</button><button class="admin-entry-remarks-open" type="button" role="menuitem" data-row="' + index + '">' + icon('message-circle-more') + (record.remarks?.length ? 'Open feedback' : 'Add remark') + '</button><button class="admin-delete-entry is-danger" type="button" role="menuitem" data-row="' + index + '">' + icon('trash') + 'Move to deleted</button></div><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
   }
   if (key === 'users') {
@@ -402,6 +403,29 @@ function openTimeEntryExport(records) {
   modal.querySelectorAll('[data-export-format]').forEach(button => button.addEventListener('click', () => { const config = read(); if (config.dateTo < config.dateFrom) return showToast('The end date must be on or after the start date.', 'warning'); const count = (window.filterEntriesForReport ? window.filterEntriesForReport({ DateFrom: config.dateFrom, DateTo: config.dateTo, Filters: config.filters }) : []).length; void liveRequest('/v1/time-entry-exports', { method: 'POST', body: JSON.stringify({ format: button.dataset.exportFormat, dateFrom: config.dateFrom, dateTo: config.dateTo, count }) }).catch(() => {}); window.ACEReportActions.preview({ ...config, format: button.dataset.exportFormat }); close(); }));
   updateSummary(); openModal(modal.id);
 }
+
+function openAdminDetailsDrawer({ eyebrow, title, fields, href, trigger }) {
+  let drawer = document.getElementById('adminDetailsDrawer');
+  if (!drawer) {
+    drawer = document.createElement('div');
+    drawer.id = 'adminDetailsDrawer';
+    drawer.className = 'admin-details-drawer';
+    drawer.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(drawer);
+  }
+  const close = () => {
+    drawer.classList.remove('is-open'); drawer.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('drawer-open'); document.removeEventListener('keydown', drawer._onKeydown);
+    drawer._trigger?.focus?.();
+  };
+  drawer._trigger = trigger || document.activeElement;
+  drawer._onKeydown = event => { if (event.key === 'Escape') { event.preventDefault(); close(); } };
+  drawer.innerHTML = '<button class="admin-details-drawer-backdrop" type="button" aria-label="Close details"></button><aside class="admin-details-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="adminDetailsDrawerTitle"><header><div><p class="admin-section-kicker">' + esc(eyebrow) + '</p><h2 id="adminDetailsDrawerTitle">' + esc(title) + '</h2></div><button class="modal-close" type="button" aria-label="Close details">' + icon('x') + '</button></header><dl>' + fields.map(([label, value]) => '<div><dt>' + esc(label) + '</dt><dd>' + esc(value || '—') + '</dd></div>').join('') + '</dl>' + (href ? '<a class="btn btn-outline admin-details-drawer-link" href="' + esc(href) + '">Open full details</a>' : '') + '</aside>';
+  drawer.querySelectorAll('.modal-close,.admin-details-drawer-backdrop').forEach(button => button.addEventListener('click', close));
+  drawer.classList.add('is-open'); drawer.setAttribute('aria-hidden', 'false'); document.body.classList.add('drawer-open');
+  document.addEventListener('keydown', drawer._onKeydown);
+  requestAnimationFrame(() => drawer.querySelector('.modal-close')?.focus());
+}
 async function renderAdminSection() {
   const key = document.body.dataset.adminView; const config = ADMIN_SECTION_CONFIG[key]; if (!config) return;
   const serverPaged = ['users', 'entries', 'invitations', 'departments', 'projects', 'audit'].includes(key);
@@ -509,14 +533,16 @@ async function renderAdminSection() {
     }
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, pageRecords[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-entry-remarks-open').forEach(button => button.addEventListener('click', () => openEntryFeedback(pageRecords[Number(button.dataset.row)])));
+    body.querySelectorAll('.admin-entry-details-open').forEach(button => button.addEventListener('click', () => {
+      const record = pageRecords[Number(button.dataset.row)]; if (!record) return;
+      openAdminDetailsDrawer({ eyebrow: 'Time entry', title: record.cells[0], trigger: button, href: 'time-entry-details.html?entry=' + encodeURIComponent(record.id), fields: [['Project', record.cells[1]], ['Clocked in', record.clockInAt ? time(record.clockInAt) : record.cells[2]], ['Clocked out', record.clockOutAt ? time(record.clockOutAt) : record.cells[3]], ['Worked', record.cells[4]], ['Overtime', record.cells[5]], ['Remarks', record.cells[6]]] });
+    }));
     body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => editEntryTime(pageRecords[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-approve-overtime').forEach(button => button.addEventListener('click', async () => { const record = pageRecords[Number(button.dataset.row)]; if (!record || !await window.ACEUI.confirm({ title: 'Approve overtime?', message: 'Only time after the scheduled end will be approved as overtime.', confirmLabel: 'Approve overtime' })) return; try { const entry = await liveRequest('/v1/time-entries/' + record.id + '/overtime/approve', { method: 'POST' }); record.overtimeApprovedSeconds = entry.overtime_approved_seconds || 0; showToast('Overtime approved.', 'success'); renderAdminSection(); } catch (error) { showToast(error.message || 'Could not approve overtime.', 'error'); } }));
     body.querySelectorAll('.admin-view-employee').forEach(button => button.addEventListener('click', () => {
       const record = pageRecords[Number(button.dataset.row)];
       if (!record) return;
-      const href = '/employee-profile?user=' + encodeURIComponent(record.id);
-      if (window.ACEDashboardNavigate && document.body.classList.contains('has-app-shell')) window.ACEDashboardNavigate(href);
-      else window.location.assign(href);
+      openAdminDetailsDrawer({ eyebrow: 'Employee', title: record.cells[0], trigger: button, href: 'employee-profile.html?user=' + encodeURIComponent(record.id), fields: [['Email', record.cells[1]], ['Role', record.cells[2]], ['Department', record.cells[3]], ['Presence', record.cells[4]], ['Last online', record.cells[5]], ['Account status', record.cells[6]]] });
     }));
     body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
       const record = pageRecords[Number(button.dataset.row)];
