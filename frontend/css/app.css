@@ -17022,6 +17022,12 @@ html[data-theme="dark"] .btn-danger:focus-visible { color: #ffd3d8!important; ba
   .form-actions .btn { width: 100%; }
 }
 
+/* Keyboard navigation is visible without changing the calm default state. */
+:is(.admin-entry-actions-toggle,.admin-user-actions-toggle)[aria-expanded="true"] { color: #063f51; background: #eef9fb; border-color: #82bfcc; }
+:is(.admin-entry-action-menu,.admin-user-action-menu) button:focus-visible { outline: 3px solid rgba(18,157,180,.25); outline-offset: -2px; }
+html[data-theme="dark"] :is(.admin-entry-actions-toggle,.admin-user-actions-toggle)[aria-expanded="true"] { color: var(--ace-text-primary); background: var(--ace-surface-raised); border-color: var(--ace-border-strong); }
+html[data-theme="dark"] :is(.admin-entry-action-menu,.admin-user-action-menu) button:focus-visible { outline-color: rgba(82,188,201,.4); }
+
 /* Dashboard hierarchy: the operational summary belongs to the header, while
    analytics stay compact and answer one question each. */
 .admin-dashboard .dashboard-header {

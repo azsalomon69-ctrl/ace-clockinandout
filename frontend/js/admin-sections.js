@@ -520,14 +520,42 @@ async function renderAdminSection() {
       set.classList.add('is-open');
       button.setAttribute('aria-expanded', 'true');
     };
+    const menuItems = menu => menu ? [...menu.querySelectorAll('button:not([disabled])')] : [];
+    const moveMenuFocus = (menu, current, direction) => {
+      const items = menuItems(menu); if (!items.length) return;
+      const index = Math.max(0, items.indexOf(current));
+      items[(index + direction + items.length) % items.length].focus();
+    };
+    const bindMenuKeyboard = (button, set) => {
+      const menu = actionMenuFor(set); if (!menu) return;
+      button.addEventListener('keydown', event => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          if (!set.classList.contains('is-open')) openActionMenu(set, button);
+          const items = menuItems(menu); (event.key === 'ArrowDown' ? items[0] : items[items.length - 1])?.focus();
+        } else if (event.key === 'Escape' && set.classList.contains('is-open')) {
+          event.preventDefault(); closeActionMenu(set); button.focus();
+        }
+      });
+      menu.addEventListener('keydown', event => {
+        const item = event.target.closest('button');
+        if (event.key === 'Escape') { event.preventDefault(); closeActionMenu(set); button.focus(); }
+        else if (event.key === 'ArrowDown' && item) { event.preventDefault(); moveMenuFocus(menu, item, 1); }
+        else if (event.key === 'ArrowUp' && item) { event.preventDefault(); moveMenuFocus(menu, item, -1); }
+        else if (event.key === 'Home') { event.preventDefault(); menuItems(menu)[0]?.focus(); }
+        else if (event.key === 'End') { event.preventDefault(); const items = menuItems(menu); items[items.length - 1]?.focus(); }
+      });
+    };
     const closeEntryActionMenus = except => body.querySelectorAll('.admin-entry-action-set.is-open').forEach(item => { if (item !== except) closeActionMenu(item); });
     body.querySelectorAll('.admin-entry-actions-toggle').forEach(button => button.addEventListener('click', event => {
       event.stopPropagation(); const set = button.closest('.admin-entry-action-set'); const open = !set.classList.contains('is-open'); closeEntryActionMenus(set); body.querySelectorAll('.admin-user-action-set.is-open').forEach(closeActionMenu); if (open) openActionMenu(set, button); else closeActionMenu(set);
     }));
+    body.querySelectorAll('.admin-entry-actions-toggle').forEach(button => bindMenuKeyboard(button, button.closest('.admin-entry-action-set')));
     const closeUserActionMenus = except => body.querySelectorAll('.admin-user-action-set.is-open').forEach(item => { if (item !== except) closeActionMenu(item); });
     body.querySelectorAll('.admin-user-actions-toggle').forEach(button => button.addEventListener('click', event => {
       event.stopPropagation(); const set = button.closest('.admin-user-action-set'); const open = !set.classList.contains('is-open'); closeUserActionMenus(set); body.querySelectorAll('.admin-entry-action-set.is-open').forEach(closeActionMenu); if (open) openActionMenu(set, button); else closeActionMenu(set);
     }));
+    body.querySelectorAll('.admin-user-actions-toggle').forEach(button => bindMenuKeyboard(button, button.closest('.admin-user-action-set')));
     if (!document.body.dataset.entryActionMenuCloseBound) {
       document.body.dataset.entryActionMenuCloseBound = 'true';
       document.addEventListener('click', event => { if (!event.target.closest('.admin-entry-action-set,.admin-user-action-set,.admin-action-menu-popover')) document.querySelectorAll('.admin-entry-action-set.is-open,.admin-user-action-set.is-open').forEach(closeActionMenu); });
