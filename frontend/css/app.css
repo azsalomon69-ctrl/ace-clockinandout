@@ -16550,6 +16550,58 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .allocation-tr
   .admin-dashboard .stat-card { min-height: 62px; padding: 9px 10px; }
   .admin-dashboard .stat-icon { width: 30px; height: 30px; }
 }
+/* The status metrics are context for the dashboard title, not a standalone
+   destination. Keep them inside the control-centre card as a quiet summary. */
+.admin-dashboard .dashboard-header {
+  display: block;
+  min-height: 0;
+  padding-bottom: 17px
+}
+.admin-dashboard .dashboard-header::after { top: 18px; bottom: 17px; }
+.admin-dashboard .dashboard-header-copy { max-width: 760px; }
+.admin-dashboard .dashboard-header-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #dcecf0
+}
+.admin-dashboard .dashboard-header-stats .stat-card {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none
+}
+.admin-dashboard .dashboard-header-stats .stat-card + .stat-card { border-left: 1px solid #dcecf0; }
+.admin-dashboard .dashboard-header-stats .stat-card::after { display: none; }
+.admin-dashboard .dashboard-header-stats .stat-icon {
+  width: 27px;
+  height: 27px;
+  margin: 0;
+  border-radius: 8px
+}
+.admin-dashboard .dashboard-header-stats .stat-icon svg { width: 16px; height: 16px; }
+.admin-dashboard .dashboard-header-stats .stat-number { font-size: .96rem; line-height: 1; }
+.admin-dashboard .dashboard-header-stats .stat-label { margin-top: 2px; font-size: .62rem; line-height: 1.1; }
+html[data-theme="dark"] .admin-dashboard .dashboard-header-stats,
+html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-card + .stat-card { border-color: var(--ace-border); }
+@media (max-width: 700px) {
+  .admin-dashboard .dashboard-header-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 0
+  }
+  .admin-dashboard .dashboard-header-stats .stat-card { padding-inline: 8px; }
+  .admin-dashboard .dashboard-header-stats .stat-card:nth-child(3) { border-left: 0; }
+  .admin-dashboard .dashboard-header-stats .stat-card:nth-child(n+3) { padding-top: 7px; border-top: 1px solid #dcecf0; }
+  html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-card:nth-child(n+3) { border-top-color: var(--ace-border); }
+}
 html[data-theme="dark"] :is(.time-leaderboard-empty,.analytics-empty,.chat-log-empty) { color: var(--ace-text-secondary); }
 @media (max-width: 900px) {
   body.home-page:not(.has-app-shell) .main-content {
