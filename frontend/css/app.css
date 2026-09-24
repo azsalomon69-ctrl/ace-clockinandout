@@ -2254,33 +2254,33 @@ html[data-theme="dark"] .shell-sidebar-help:focus-visible {
     height: 20px;
     border-radius: 5px;
   }
-  body[data-user-role="admin"] .shell-nav-group-items {
+  body[data-user-role="admin"] .shell-nav-group--collapsible .shell-nav-group-items {
     margin: 2px 0 3px 13px;
     padding-left: 8px;
     border-left: 1px solid rgba(64, 130, 144, .3);
   }
-  body[data-user-role="admin"] .shell-nav-group-items .shell-link {
+  body[data-user-role="admin"] .shell-nav-group--collapsible .shell-nav-group-items .shell-link {
     min-height: 32px;
     padding-left: 8px;
   }
-  body[data-user-role="admin"] .shell-nav-group-items .shell-link.active::before {
+  body[data-user-role="admin"] .shell-nav-group--collapsible .shell-nav-group-items .shell-link.active::before {
     left: -10px;
     width: 3px;
   }
 }
-html[data-theme="dark"] body[data-user-role="admin"] .shell-nav-group-items {
+html[data-theme="dark"] body[data-user-role="admin"] .shell-nav-group--collapsible .shell-nav-group-items {
   border-left-color: rgba(111, 196, 209, .38);
 }
 @media (max-width: 900px) {
   body[data-user-role="admin"] .shell-nav-group-toggle { min-height: 36px; }
-  body[data-user-role="admin"] .shell-nav-group-items {
+  body[data-user-role="admin"] .shell-nav-group--collapsible .shell-nav-group-items {
     margin: 2px 0 3px 12px;
     padding-left: 8px;
     border-left: 1px solid rgba(64, 130, 144, .3);
   }
-  body[data-user-role="admin"] .shell-nav-group-items .shell-link { padding-left: 8px; }
-  body[data-user-role="admin"] .shell-nav-group-items .shell-link.active::before { left: -10px; }
-  html[data-theme="dark"] body[data-user-role="admin"] .shell-nav-group-items { border-left-color: rgba(111, 196, 209, .38); }
+  body[data-user-role="admin"] .shell-nav-group--collapsible .shell-nav-group-items .shell-link { padding-left: 8px; }
+  body[data-user-role="admin"] .shell-nav-group--collapsible .shell-nav-group-items .shell-link.active::before { left: -10px; }
+  html[data-theme="dark"] body[data-user-role="admin"] .shell-nav-group--collapsible .shell-nav-group-items { border-left-color: rgba(111, 196, 209, .38); }
 }
 
 /* Section headings retain their spacing, but no longer receive a rail. The
