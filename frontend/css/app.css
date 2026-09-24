@@ -16495,6 +16495,61 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .allocation-tr
   .dashboard-section-actions { width: 100%; align-items: stretch; flex-direction: column; }
   .dashboard-section-actions .btn { width: 100%; justify-content: center; }
 }
+/* Compact status strip and explicit placement override for the analytics grid.
+   The legacy dashboard positioned the leaderboard before the charts, which left
+   a misleading blank column when the leaderboard was empty. */
+.admin-dashboard .stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin: 0 0 16px
+}
+.admin-dashboard .stat-card {
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  box-shadow: none
+}
+.admin-dashboard .stat-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border-radius: 9px
+}
+.admin-dashboard .stat-icon svg { width: 18px; height: 18px; }
+.admin-dashboard .stat-number { font-size: 1.05rem; line-height: 1.05; }
+.admin-dashboard .stat-label { margin-top: 3px; font-size: .66rem; line-height: 1.15; }
+.dashboard-insights-heading { margin: 0 0 9px; }
+.dashboard-insights-heading h2 { margin: 0; font-size: 1.12rem; }
+.dashboard-insights-heading p:last-child { display: none; }
+@media (min-width: 901px) {
+  .admin-dashboard .dashboard-insights-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr))!important
+  }
+  .admin-dashboard .dashboard-insights-grid .hours-trend-card,
+  .admin-dashboard .dashboard-insights-grid .project-allocation-card {
+    grid-column: auto!important;
+    grid-row: auto!important;
+    min-height: 0!important
+  }
+  .admin-dashboard .dashboard-insights-grid .time-leaderboard-card {
+    grid-column: 1 / -1!important;
+    grid-row: auto!important;
+    min-height: 0!important
+  }
+}
+@media (max-width: 900px) {
+  .admin-dashboard .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .admin-dashboard .stat-card { min-height: 62px; padding: 9px 10px; }
+  .admin-dashboard .stat-icon { width: 30px; height: 30px; }
+}
 html[data-theme="dark"] :is(.time-leaderboard-empty,.analytics-empty,.chat-log-empty) { color: var(--ace-text-secondary); }
 @media (max-width: 900px) {
   body.home-page:not(.has-app-shell) .main-content {
