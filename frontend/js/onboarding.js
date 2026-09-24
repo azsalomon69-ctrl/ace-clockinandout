@@ -151,11 +151,26 @@ window.ACETutorial = (() => {
     }
     async function waitForTarget(selector) {
         const immediate = document.querySelector(selector);
-        if (immediate) return immediate;
+        if (immediate) return coachmarkTarget(immediate);
         await new Promise(resolve => setTimeout(resolve, targetTimeout));
         const target = document.querySelector(selector);
         if (!target) console.warn(`[onboarding] Target not found: ${selector}`);
+        return coachmarkTarget(target);
+    }
+    // Form selects are replaced by the visible ACE control after the page
+    // loads. A coachmark must teach that real control, never the hidden native
+    // select underneath it.
+    function coachmarkTarget(target) {
+        if (!target) return null;
+        if (target.matches('select.ace-native-select')) return target.nextElementSibling?.matches('.ace-select') ? target.nextElementSibling : target;
         return target;
+    }
+    function targetIsVisible(target) {
+        if (!target || target.closest('[hidden]')) return false;
+        const style = window.getComputedStyle(target);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+        const rect = target.getBoundingClientRect();
+        return rect.width > 2 && rect.height > 2;
     }
     async function revealTarget(target, mobile, card) {
         // Account controls live at the bottom of the mobile sidebar. They are
@@ -317,15 +332,14 @@ window.ACETutorial = (() => {
         card.querySelector('[data-tutorial-keep]').focus();
     }
     const navigationInstruction = step => {
-        if (!step.navigation) return 'Use the sidebar to open this page. The tutorial will continue automatically when you arrive.';
+        if (!step.navigation) return 'Use the open sidebar to choose this page. The tutorial will continue automatically when you arrive.';
         const { group, label } = step.navigation;
         const sidebar = document.getElementById('appSidebar');
         const groupElement = [...document.querySelectorAll('.shell-nav-group')].find(element => element.dataset.groupLabel === group);
         const groupClosed = Boolean(groupElement?.querySelector('.shell-nav-group-items')?.hidden);
         const parts = [];
-        if (isMobile() && !document.body.classList.contains('shell-mobile-open')) parts.push('Tap Open sidebar below');
-        else if (isDesktopSidebarCollapsed()) parts.push('Click the arrow on the edge of the sidebar to expand it first');
-        else if (!sidebar) parts.push('Open the sidebar');
+        if (!sidebar) parts.push('Open the sidebar');
+        else if (isMobile()) parts.push('In the open sidebar');
         if (groupElement && groupClosed) parts.push(`open the ${group} section`);
         else if (groupElement) parts.push(`use the already-open ${group} section`);
         else if (group === 'Account') {
@@ -336,6 +350,25 @@ window.ACETutorial = (() => {
         parts.push(`select ${label}`);
         return `${parts.join(', then ')}. The tutorial will continue automatically when you arrive.`;
     };
+    async function prepareNavigationTarget(step) {
+        // A navigation lesson must point to its destination, not merely tell a
+        // person how to reveal the menu. Open the relevant shell state first.
+        if (!isMobile() && isDesktopSidebarCollapsed()) {
+            document.querySelector('.shell-collapse')?.click();
+            await nextFrame();
+        }
+        if (isMobile() && !document.body.classList.contains('shell-mobile-open')) {
+            document.querySelector('.shell-mobile-toggle')?.click();
+            await nextFrame();
+        }
+        const groupElement = [...document.querySelectorAll('.shell-nav-group')].find(element => element.dataset.groupLabel === step.navigation?.group);
+        const groupToggle = groupElement?.querySelector('.shell-nav-group-toggle');
+        if (groupToggle && groupElement.querySelector('.shell-nav-group-items')?.hidden) {
+            groupToggle.click();
+            await nextFrame();
+        }
+        return navigationTarget(step);
+    }
     const navigationTarget = step => {
         if (!step.navigation) return null;
         const { group, label } = step.navigation;
@@ -382,14 +415,9 @@ window.ACETutorial = (() => {
         }
     }
     async function showNavigationStep(stepIndex, step) {
-        const needsSidebarExpand = isDesktopSidebarCollapsed();
-        // Read the state once so the words and the highlighted control cannot
-        // disagree while the shell is restoring its saved sidebar preference.
-        const target = needsSidebarExpand ? document.querySelector('.shell-collapse') : navigationTarget(step);
+        const target = await prepareNavigationTarget(step);
         const mobileSidebarOpen = isMobile() && document.body.classList.contains('shell-mobile-open');
-        const navigationActions = needsSidebarExpand
-            ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`
-            : isMobile() && !mobileSidebarOpen
+        const navigationActions = isMobile() && !mobileSidebarOpen
                 ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>Open sidebar</button></span>`
                 : `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`;
         const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'} ace-tutorial-navigation"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>Go to ${escape(step.navigation?.label || step.title)}</h2><p>${escape(navigationInstruction(step))}</p><div class="ace-tutorial-actions">${navigationActions}</div></div>`, `Navigate to ${step.navigation?.label || step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`, { navigation: Boolean(target) });
@@ -398,12 +426,6 @@ window.ACETutorial = (() => {
         ui.querySelector('[data-tutorial-navigate]')?.addEventListener('click', () => pauseForNavigation(stepIndex));
         if (target) {
             target.classList.add('ace-tutorial-target');
-            if (needsSidebarExpand && target.matches('.shell-collapse')) {
-                target.dataset.tutorialForcedVisible = 'true';
-                target.style.setProperty('display', 'grid', 'important');
-                target.style.setProperty('visibility', 'visible', 'important');
-                target.style.setProperty('opacity', '1', 'important');
-            }
             const card = ui.querySelector('.ace-tutorial-card');
             await positionStep(target, card, { reveal: true });
             if (overlay === ui && active) watchPlacement(target, card);
@@ -413,8 +435,6 @@ window.ACETutorial = (() => {
             const refreshNavigation = () => requestAnimationFrame(() => {
                 if (overlay === ui && active) showNavigationStep(stepIndex, step);
             });
-            const sidebarToggle = document.querySelector('.shell-collapse');
-            sidebarToggle?.addEventListener('click', refreshNavigation, { once: true });
             const accountToggle = document.querySelector('.shell-account');
             if (target === accountToggle) accountToggle?.addEventListener('click', refreshNavigation, { once: true });
             window.addEventListener('ace:sidebar-state-change', refreshNavigation, { once: true });
@@ -433,6 +453,10 @@ window.ACETutorial = (() => {
             return;
         }
         const target = await waitForTarget(step.target);
+        if (step.optional && !targetIsVisible(target)) {
+            await persist({ status: 'IN_PROGRESS', step: stepIndex + 1 });
+            return showStep(stepIndex + 1);
+        }
         if (!active && overlay) return;
         const targetText = target ? '' : '<p class="ace-tutorial-missing">This item is unavailable on this screen. You can continue the tour.</p>';
         const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'}"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>${escape(step.title)}</h2><p>${escape(step.body)}</p>${targetText}<div class="ace-tutorial-actions"><button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-next>${stepIndex === roleConfig.steps.length - 1 ? 'Finish' : 'Next'}</button></span></div></div>`, `${step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`);

@@ -89,12 +89,11 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /shell-mobile-open/, 'Tutorial should detect a closed mobile sidebar');
   assert.match(engineSource, /shell-collapsed/, 'Tutorial should detect a collapsed desktop sidebar');
   assert.match(engineSource, /aria-label="Expand sidebar"/, 'Tutorial should recognize an icon-only desktop sidebar from its expand control');
-  assert.match(engineSource, /expand it first/, 'Tutorial should teach users to expand a collapsed sidebar before naming a destination');
+  assert.match(engineSource, /prepareNavigationTarget/, 'Tutorial should prepare and visibly point to the destination instead of leaving navigation abstract');
   assert.match(engineSource, /\.shell-collapse/, 'Tutorial should highlight the collapsed sidebar control before a destination link');
-  assert.match(engineSource, /needsSidebarExpand/, 'Tutorial should omit its duplicate navigation action while teaching the actual expand control');
-  assert.match(engineSource, /data-tutorial-forced-visible/, 'Tutorial should force the real expand control visible before measuring it');
-  assert.match(engineSource, /needsSidebarExpand \? document\.querySelector\('\.shell-collapse'\)/, 'Tutorial should use one sidebar-state decision for both its instruction and target');
-  assert.match(engineSource, /sidebarToggle\?\.addEventListener\('click', refreshNavigation/, 'Tutorial should re-check navigation guidance if the user closes the sidebar mid-step');
+  assert.match(engineSource, /document\.querySelector\('\.shell-collapse'\)\?\.click\(\)/, 'Tutorial should reveal a collapsed desktop sidebar before pointing to a destination');
+  assert.match(engineSource, /document\.querySelector\('\.shell-mobile-toggle'\)\?\.click\(\)/, 'Tutorial should reveal the mobile sidebar before pointing to a destination');
+  assert.match(engineSource, /groupToggle\.click\(\)/, 'Tutorial should reveal a closed navigation group before pointing to a destination');
   assert.match(engineSource, /MutationObserver/, 'Tutorial should refresh only after the shell has actually changed its sidebar state');
   assert.match(engineSource, /ace:sidebar-state-change/, 'Tutorial should react to every state update emitted by the real sidebar controls');
   assert.match(engineSource, /shell-account-menu \[role="menuitem"\]/, 'Tutorial should adapt after the account menu is opened');
@@ -116,7 +115,7 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /navigationTarget/, 'Tutorial should identify the exact sidebar control to use');
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');
   assert.doesNotMatch(engineSource, /\$\{isMobile\(\) \? 'Open sidebar' : 'Use sidebar'\}/, 'Desktop navigation should not show a redundant Use sidebar button');
-  assert.match(engineSource, /: isMobile\(\) && !mobileSidebarOpen/, 'Only a closed mobile sidebar should show an action to open it');
+  assert.match(engineSource, /if \(isMobile\(\) && !document\.body\.classList\.contains\('shell-mobile-open'\)\)/, 'Tutorial should reveal the mobile sidebar before teaching a destination');
 });
 
 test('the envelope button owns the notification menu handler', () => {

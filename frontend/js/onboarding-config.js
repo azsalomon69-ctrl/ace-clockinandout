@@ -4,7 +4,7 @@
 // tour must begin on that page even if the user launched it elsewhere.
 window.ACETutorialConfig = {
     USER: {
-        version: 4,
+        version: 5,
         steps: [
             { page: 'user-dashboard.html', target: '#mainClockInBtn', title: 'Start and finish your shift', body: 'Start your shift here. Clock out is available in the same place and requires a short official clock-out note; clock-in notes are not used.', forcePage: false, navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'time-entries.html', target: '#timeEntriesList', title: 'Review your shifts', body: "Every shift you've worked, newest first.", navigation: { group: 'Work', label: 'My time entries' } },
@@ -17,12 +17,12 @@ window.ACETutorialConfig = {
     ADMIN: {
         // Bump this whenever administrator guidance materially changes so
         // existing admins are offered the improved tour again.
-        version: 9,
+        version: 10,
         steps: [
             { page: 'admin-dashboard.html', target: '#operationsTitle', title: 'Your admin dashboard', body: 'This is your daily control centre. Use it to see active staff, recent entries, and the actions that need attention.', navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'admin-dashboard.html', target: '#inviteUserBtn', title: 'Invite a team member', body: 'Choose Invite user to pre-authorize an employee or another administrator. Their access is created first, then the system sends the onboarding email.' },
             { page: 'admin-dashboard.html', target: '#trackedTimeRange', title: 'Read the live analytics', body: 'Use the date selector on each chart to compare completed time or project allocation. Export company time entries from Work → Time entries, or prepare employee reports in Insights → Individual reports.' },
-            { page: 'admin-dashboard.html', target: '#reviewAlertsList', title: 'Review time-entry alerts', body: 'This section appears when there is a possible missed clock-out or an administrator-stopped shift. Open the entry, confirm the facts with the employee, then correct it only when needed.' },
+            { page: 'admin-dashboard.html', target: '#reviewAlertsList', title: 'Review time-entry alerts', body: 'When this section appears, it flags a possible missed clock-out or an administrator-stopped shift. Open the entry, confirm the facts with the employee, then correct it only when needed.', optional: true },
             { page: 'access-requests.html', target: '#accessRequestTable', title: 'Approve access requests', body: 'People who sign in before they are invited appear here. Review their Google account before the 24-hour request window expires, then approve or deny it.', navigation: { group: 'People', label: 'Access requests' } },
             { page: 'users.html', target: '#sectionSearch', title: 'Manage user accounts', body: 'Search staff, filter by department or account type, then use Manage to update a person’s role, department, project, and schedule. The Users page also shows who is online and when others were last seen.', navigation: { group: 'People', label: 'Users' } },
             { page: 'users.html', target: '#sectionSearch', title: 'Track and cancel invitations', body: 'Use the Invitations tab beside Users to review pending invitations. Select View on a pending invitation to cancel it when access is no longer needed.', navigation: { group: 'People', label: 'Users' } },
