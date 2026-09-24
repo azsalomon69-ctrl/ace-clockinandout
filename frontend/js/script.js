@@ -1020,8 +1020,8 @@ function initializeAppShell() {
     const isSpecialAdmin = isAdmin && AppState.currentUser?.IsHeadAdmin;
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['invitations.html', 'mail', 'Invitations'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
-        ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['deleted-time-entries.html', 'clock', 'Deleted time entries']]],
+        ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
+        ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries']]],
         ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'chart', 'Individual reports']]],
         ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]
     ];
@@ -1553,7 +1553,7 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I approve overtime?', 'Open Work → Time entries. For a completed employee entry on a fixed schedule, choose Approve overtime. ACE calculates only the time after the scheduled shift end and records the approving administrator and timestamp. The Approved overtime column shows the approved duration.'],
         ['Why is approved overtime blank?', 'Approved overtime is blank until an administrator approves it. Approval is available only for completed entries with a fixed schedule and a scheduled end time. Flextime and unscheduled entries do not have automatic overtime approval.'],
         ['How do I use page controls in admin lists?', 'Most administration lists use 25 rows per page by default. Choose 25, 50, or 100 rows, then use Previous, Next, or a page number. Search and filters reset to page 1 and search all matching records, not only the visible page.'],
-        ['Where are deleted time entries?', 'Open Work → Deleted time entries. Select Restore to return a record to active history. Delete permanently cannot be undone, so use it only when the record must be removed for good.'],
+        ['Where are deleted time entries?', 'Open Work → Time entries and choose Deleted entries. Select Restore to return a record to active history. Delete permanently cannot be undone, so use it only when the record must be removed for good.'],
         ['How do I add a remark to a time entry?', 'Open Work → Time entries, search for the entry, then choose Add remark on its row. Write the internal administrator remark and save it. The employee can read the related feedback in Work → Remarks.'],
         ['How do I filter the dashboard analytics?', 'Each dashboard chart has its own date selector. Use Tracked time to view the time trend and Hours by project to compare project allocation. Use Insights → Reports or Individual reports when you need detailed filters or an export.'],
         ['How do I generate a report?', 'Use Work → Time entries to export company time-entry data as PDF or Excel. Use Insights → Individual reports to prepare a report for one employee or every active employee. Saved report copies appear in Insights → Reports.'],

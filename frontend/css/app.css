@@ -17097,6 +17097,23 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .allocation-fi
   .admin-dashboard .project-allocation-card .project-allocation { min-height: 180px; }
   .admin-dashboard .analytics-empty { min-height: 154px; }
 }
+
+/* The dashboard moves from orientation to action to analysis in one compact
+   reading path; section gaps should never look like empty content. */
+.admin-dashboard .dashboard-content { gap: 18px; }
+.admin-dashboard .dashboard-header { padding-block: 20px; }
+.admin-dashboard .dashboard-command-center { margin: 0; padding-block: 15px; }
+.admin-dashboard .dashboard-insights { margin: 2px 0 20px; }
+.admin-dashboard .dashboard-insights-heading { margin-bottom: 10px; }
+.admin-dashboard .dashboard-insights-grid { gap: 14px; }
+.deleted-entries-modal .modal-content { width: min(1040px, calc(100vw - 32px)); }
+.deleted-entries-modal .modal-header { align-items: flex-start; }
+.deleted-entries-modal .modal-description { max-width: 620px; margin: 5px 36px 0 0; }
+@media (max-width: 700px) {
+  .admin-dashboard .dashboard-content { gap: 14px; }
+  .admin-dashboard .dashboard-command-center { margin: 0; }
+  .deleted-entries-modal .modal-content { width: 100%; max-height: 90dvh; margin: 0; border-radius: 18px 18px 0 0; }
+}
 @media (max-width: 900px) {
   body.home-page:not(.has-app-shell) .main-content {
     padding: 0 12px 40px

@@ -429,6 +429,40 @@ function openAdminDetailsDrawer({ eyebrow, title, fields, href, trigger, avatarU
   document.addEventListener('keydown', drawer._onKeydown);
   requestAnimationFrame(() => drawer.querySelector('.modal-close')?.focus());
 }
+
+function openDeletedTimeEntriesModal(trigger) {
+  let modal = document.getElementById('deletedTimeEntriesModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'deletedTimeEntriesModal';
+    modal.className = 'modal deleted-entries-modal';
+    modal.innerHTML = '<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="deletedEntriesTitle"><div class="modal-header"><div><p class="admin-section-kicker">TIME ENTRIES</p><h3 class="modal-title" id="deletedEntriesTitle">Deleted entries</h3><p class="modal-description">Restore an entry when it was removed by mistake, or permanently delete it when retention is no longer required.</p></div><button class="modal-close" type="button" aria-label="Close deleted entries">' + icon('x') + '</button></div><div class="modal-body"><div class="table-responsive"><table class="table"><thead><tr><th>Employee</th><th>Project</th><th>Clocked in</th><th>Worked</th><th>Actions</th></tr></thead><tbody id="deletedEntriesModalBody"><tr><td colspan="5">Loading deleted entries…</td></tr></tbody></table></div></div><div class="modal-footer"><button class="btn btn-outline deleted-entries-close" type="button">Close</button></div></div>';
+    document.body.appendChild(modal);
+  }
+  const close = () => { closeModal(modal.id); trigger?.focus?.(); };
+  modal.querySelectorAll('.modal-close,.deleted-entries-close').forEach(button => { button.onclick = close; });
+  modal.onclick = event => { if (event.target === modal) close(); };
+  const body = modal.querySelector('#deletedEntriesModalBody');
+  const render = async () => {
+    body.innerHTML = '<tr><td colspan="5"><div class="empty-state empty-state-compact"><p>Loading deleted entries…</p></div></td></tr>';
+    try {
+      const response = await liveRequest('/v1/time-entries?removed=true&page=1&pageSize=100');
+      const entries = response.items || response;
+      body.innerHTML = entries.length ? entries.map(entry => '<tr><td><strong>' + esc(entry.profiles?.full_name || entry.profiles?.email || 'Unknown') + '</strong></td><td>' + esc(entry.projects?.name || 'No project') + '</td><td>' + esc(time(entry.clock_in_at)) + '</td><td>' + esc(duration(entry.duration_seconds || 0)) + '</td><td><div class="table-actions"><button class="btn btn-sm btn-outline deleted-entry-restore" type="button" data-id="' + esc(entry.id) + '">' + icon('check') + 'Restore</button><button class="btn btn-sm btn-danger deleted-entry-permanent" type="button" data-id="' + esc(entry.id) + '">' + icon('trash') + 'Delete permanently</button></div></td></tr>').join('') : emptyTable('No deleted time entries', 'Entries moved to Deleted will appear here.', 5);
+      body.querySelectorAll('.deleted-entry-restore').forEach(button => button.addEventListener('click', async () => {
+        try { await liveRequest('/v1/time-entries/' + button.dataset.id + '/restore', { method: 'PATCH' }); showToast('Time entry restored.', 'success'); await render(); }
+        catch (error) { showToast(error.message || 'Could not restore this time entry.', 'error'); }
+      }));
+      body.querySelectorAll('.deleted-entry-permanent').forEach(button => button.addEventListener('click', async () => {
+        if (!await window.ACEUI.confirm({ title: 'Delete time entry permanently?', message: 'This cannot be undone.', confirmLabel: 'Delete permanently', danger: true })) return;
+        try { await liveRequest('/v1/time-entries/' + button.dataset.id + '/permanent', { method: 'DELETE' }); showToast('Time entry permanently deleted.', 'success'); await render(); }
+        catch (error) { showToast(error.message || 'Could not permanently delete this time entry.', 'error'); }
+      }));
+    } catch (error) { body.innerHTML = '<tr><td colspan="5"><div class="empty-state empty-state-compact"><h3>Could not load deleted entries</h3><p>' + esc(error.message || 'Please try again.') + '</p></div></td></tr>'; }
+  };
+  openModal(modal.id); void render();
+}
+
 async function renderAdminSection() {
   const key = document.body.dataset.adminView; const config = ADMIN_SECTION_CONFIG[key]; if (!config) return;
   const serverPaged = ['users', 'entries', 'invitations', 'departments', 'projects', 'audit'].includes(key);
@@ -445,6 +479,7 @@ async function renderAdminSection() {
   if (existingAction?.parentNode) existingAction.parentNode.replaceChild(existingAction.cloneNode(true), existingAction);
   const existingSearch = document.getElementById('sectionSearch');
   if (existingSearch?.parentNode) existingSearch.parentNode.replaceChild(existingSearch.cloneNode(true), existingSearch);
+  document.getElementById('deletedTimeEntriesButton')?.remove();
   const view = { ...config, records: [], stats: [], total: 0 };
   try { await applyLiveData(key, view, serverPaged ? pageState : null, activeFilters); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); }
   document.title = view.title + ' · ACE Outsource Solutions';
@@ -476,6 +511,15 @@ async function renderAdminSection() {
   } else tabBar?.remove();
   const actionButton = document.getElementById('sectionAction'); actionButton.hidden = !view.action;
   if (view.action) actionButton.innerHTML = icon(view.actionIcon) + view.action;
+  if (key === 'entries') {
+    const deletedButton = document.createElement('button');
+    deletedButton.id = 'deletedTimeEntriesButton';
+    deletedButton.className = 'btn btn-outline';
+    deletedButton.type = 'button';
+    deletedButton.innerHTML = icon('trash') + 'Deleted entries';
+    actionButton.insertAdjacentElement('beforebegin', deletedButton);
+    deletedButton.addEventListener('click', () => openDeletedTimeEntriesModal(deletedButton));
+  }
   const renderStats = () => { document.getElementById('sectionStats').innerHTML = view.stats.map(item => '<div class="stat-card"><div class="stat-icon">' + icon(item[2]) + '</div><div class="stat-info"><div class="stat-number">' + esc(item[0]) + '</div><div class="stat-label">' + esc(item[1]) + '</div></div></div>').join(''); };
   renderStats();
   const tableTitle = document.getElementById('sectionTableTitle'); tableTitle.textContent = view.title;
@@ -577,7 +621,7 @@ async function renderAdminSection() {
       window.addEventListener('scroll', () => document.querySelectorAll('.admin-entry-action-set.is-open,.admin-user-action-set.is-open').forEach(closeActionMenu), true);
     }
     const dismissActionMenu = button => {
-      const set = button.closest('.admin-entry-action-set,.admin-user-action-set');
+      const set = button.closest('.admin-entry-action-set,.admin-user-action-set') || [...body.querySelectorAll('.admin-entry-action-set,.admin-user-action-set')].find(item => item._actionMenu?.contains(button));
       if (set) closeActionMenu(set);
     };
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => { dismissActionMenu(button); modal(view, false, pageRecords[Number(button.dataset.row)]); }));
@@ -588,10 +632,12 @@ async function renderAdminSection() {
       openAdminDetailsDrawer({ eyebrow: 'Time entry', title: record.cells[0], trigger: button, href: 'time-entry-details.html?entry=' + encodeURIComponent(record.id), fields: [['Project', record.cells[1]], ['Clocked in', record.clockInAt ? time(record.clockInAt) : record.cells[2]], ['Clocked out', record.clockOutAt ? time(record.clockOutAt) : record.cells[3]], ['Worked', record.cells[4]], ['Overtime', record.cells[5]], ['Remarks', record.cells[6]]] });
     }));
     body.querySelectorAll('.admin-project-details-open').forEach(button => button.addEventListener('click', () => {
+      dismissActionMenu(button);
       const record = pageRecords[Number(button.dataset.row)]; if (!record) return;
       openAdminDetailsDrawer({ eyebrow: 'Project', title: record.cells[0], trigger: button, fields: [['Description', record.cells[1]], ['Created', record.cells[2]], ['Status', record.cells[3]], ['Project ID', record.id]] });
     }));
     body.querySelectorAll('.admin-audit-details-open').forEach(button => button.addEventListener('click', () => {
+      dismissActionMenu(button);
       const record = pageRecords[Number(button.dataset.row)]; if (!record) return;
       openAdminDetailsDrawer({ eyebrow: 'Audit event', title: record.cells[2], trigger: button, fields: [['When', record.cells[0]], ['Actor', record.cells[1]], ['Entity', record.cells[3]], ['Description', record.cells[4]], ['Record', record.cells[5]]] });
     }));
