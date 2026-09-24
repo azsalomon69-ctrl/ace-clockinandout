@@ -611,7 +611,29 @@ function applyTableLabels(root = document) {
     });
 }
 
+// Related work stays in actual pages, not local-only tabs. This preserves
+// refresh, browser history, and shareable links while keeping the sidebar calm.
+function mountRelatedPageTabs() {
+    const page = (window.location.pathname.split('/').pop() || '').toLowerCase();
+    const groups = {
+        'schedule-flex.html': { label: 'Work pages', tabs: [['Projects', 'projects.html'], ['Schedules', 'schedule-flex.html'], ['Time entries', 'admin-time-entries.html']] },
+        'reports.html': { label: 'Insights pages', tabs: [['Reports', 'reports.html'], ['Individual reports', 'individual-reports.html']] },
+        'individual-reports.html': { label: 'Insights pages', tabs: [['Reports', 'reports.html'], ['Individual reports', 'individual-reports.html']] }
+    };
+    const group = groups[page];
+    if (!group || document.getElementById('workspaceRelatedTabs')) return;
+    const header = document.querySelector('.schedule-page-header, .individual-reports-header, .reports-header');
+    if (!header) return;
+    const nav = document.createElement('nav');
+    nav.id = 'workspaceRelatedTabs';
+    nav.className = 'workspace-page-tabs';
+    nav.setAttribute('aria-label', group.label);
+    nav.innerHTML = group.tabs.map(([label, href]) => `<a href="${href}"${href === page ? ' aria-current="page"' : ''}>${escapeHtml(label)}</a>`).join('');
+    header.insertAdjacentElement('afterend', nav);
+}
+
 function initializeUXEnhancements() {
+    mountRelatedPageTabs();
     document.querySelectorAll('.modal').forEach(modal => {
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
