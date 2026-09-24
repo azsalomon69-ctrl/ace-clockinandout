@@ -2419,8 +2419,23 @@ async function handleClockOut(e) {
 
 function setActionBusy(button, busy, label = '') {
     if (!button) return;
-    if (busy) { button.dataset.label = button.textContent.trim(); button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = label; }
-    else { button.disabled = false; button.removeAttribute('aria-busy'); if (button.dataset.label) button.textContent = button.dataset.label; }
+    if (busy) {
+        if (!button.dataset.originalHtml) button.dataset.originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        const spinner = document.createElement('span');
+        spinner.className = 'btn-busy-spinner'; spinner.setAttribute('aria-hidden', 'true');
+        const text = document.createElement('span');
+        text.textContent = label || 'Working…';
+        button.replaceChildren(spinner, text);
+    } else {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        if (button.dataset.originalHtml) {
+            button.innerHTML = button.dataset.originalHtml;
+            delete button.dataset.originalHtml;
+        }
+    }
 }
 
 function startTimer() {

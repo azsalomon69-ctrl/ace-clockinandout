@@ -16904,6 +16904,33 @@ html[data-theme="dark"] :is(.admin-entry-action-menu,.admin-user-action-menu) bu
   .ace-action-dialog .modal-footer .btn { flex: 1; min-width: 0; }
 }
 
+/* Progress and empty states are deliberately quiet: the interface explains
+   what is happening, without filling an otherwise calm workspace with motion. */
+.btn[aria-busy="true"] { position: relative; gap: 8px; opacity: 1; }
+.btn-busy-spinner { width: 14px; height: 14px; flex: 0 0 auto; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ace-button-spin .7s linear infinite; }
+@keyframes ace-button-spin { to { transform: rotate(1turn); } }
+.has-app-shell .main-content.is-route-loading { position: relative; }
+.has-app-shell .main-content.is-route-loading::before { position: absolute; z-index: 20; top: 0; right: 0; left: 0; height: 3px; content: ''; background: var(--ace-accent); transform-origin: left; animation: ace-route-load 1.1s ease-in-out infinite; }
+@keyframes ace-route-load { 0% { transform: scaleX(.12); opacity: .35; } 55% { transform: scaleX(.72); opacity: 1; } 100% { transform: scaleX(1); opacity: .35; } }
+.empty-state { min-height: 184px; padding: 30px 24px; border: 1px dashed #b9dce3; background: #fbfeff; }
+.empty-state::after { display: none; }
+.empty-state-icon { width: 46px; height: 46px; margin-bottom: 11px; color: #087f9d; background: #e8f7fa; border: 1px solid #c9e8ee; border-radius: 12px; }
+.empty-state-icon img { width: 22px; height: 22px; }
+.empty-state h3 { margin-bottom: 5px; color: var(--ace-navy); font-size: .96rem; }
+.empty-state p { margin-bottom: 14px; color: #63808a; line-height: 1.5; }
+.empty-state .btn { min-height: 38px; }
+.table-empty-row .empty-state { min-height: 136px; margin: 12px; padding: 22px 18px; }
+html[data-theme="dark"] .empty-state { background: var(--ace-surface-raised)!important; border-color: var(--ace-border)!important; }
+html[data-theme="dark"] .empty-state-icon { color: #bdebf1; background: #1b3439; border-color: #35565e; }
+html[data-theme="dark"] .empty-state p { color: var(--ace-text-secondary); }
+@media (prefers-reduced-motion: reduce) {
+  .btn-busy-spinner, .has-app-shell .main-content.is-route-loading::before { animation: none; }
+}
+@media (max-width: 620px) {
+  .empty-state { min-height: 156px; padding: 24px 18px; }
+  .table-empty-row .empty-state { min-height: 124px; margin: 6px; }
+}
+
 /* Dashboard hierarchy: the operational summary belongs to the header, while
    analytics stay compact and answer one question each. */
 .admin-dashboard .dashboard-header {
