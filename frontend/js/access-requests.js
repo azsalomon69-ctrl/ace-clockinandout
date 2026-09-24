@@ -3,6 +3,7 @@ const requestApi = (...args) => window.ACEAuth.request(...args);
 const requestEsc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 let accessRequests = [];
 let departments = [];
+let accessRequestSearchTerm = '';
 const requestDateTime = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
 const normalizedDepartmentName = value => String(value || '').trim().toLowerCase();
 const accessRequestEmpty = '<tr class="table-empty-row"><td colspan="6"><div class="empty-state empty-state-compact"><h3>No access requests yet</h3><p>Requests from new sign-ins will appear here for review.</p></div></td></tr>';
@@ -27,10 +28,12 @@ function departmentSelect(request, index) {
 }
 function renderAccessRequests() {
   const body = document.getElementById('accessRequestTable'); if (!body) return;
-  body.innerHTML = accessRequests.length ? accessRequests.map((request, index) => '<tr><td><strong>' + requestEsc(request.profiles?.full_name || request.full_name || 'Google user') + '</strong><br><small>' + requestEsc(request.email) + '</small></td><td>' + requestDateTime(request.created_at) + '</td><td>' + requestExpiry(request.expires_at) + '</td><td>' + requestBadge(request.state) + '</td><td>' + (request.state === 'PENDING' ? '<select class="form-select request-role" data-row="' + index + '" aria-label="Role"><option value="USER">Employee</option><option value="ADMIN">Admin</option></select> ' + departmentSelect(request, index) : '—') + '</td><td>' + (request.state === 'PENDING' ? '<button class="btn btn-sm btn-primary review-request" data-row="' + index + '" data-decision="APPROVE" type="button">Approve</button> <button class="btn btn-sm btn-outline review-request" data-row="' + index + '" data-decision="DENY" type="button">Deny</button>' : '—') + '</td></tr>').join('') : accessRequestEmpty;
+  const term = accessRequestSearchTerm.trim().toLowerCase();
+  const visibleRequests = term ? accessRequests.filter(request => [request.email, request.full_name, request.profiles?.full_name, request.state].join(' ').toLowerCase().includes(term)) : accessRequests;
+  body.innerHTML = visibleRequests.length ? visibleRequests.map((request, index) => '<tr><td><strong>' + requestEsc(request.profiles?.full_name || request.full_name || 'Google user') + '</strong><br><small>' + requestEsc(request.email) + '</small></td><td>' + requestDateTime(request.created_at) + '</td><td>' + requestExpiry(request.expires_at) + '</td><td>' + requestBadge(request.state) + '</td><td>' + (request.state === 'PENDING' ? '<select class="form-select request-role" data-row="' + index + '" aria-label="Role"><option value="USER">Employee</option><option value="ADMIN">Admin</option></select> ' + departmentSelect(request, index) : '—') + '</td><td>' + (request.state === 'PENDING' ? '<button class="btn btn-sm btn-primary review-request" data-row="' + index + '" data-decision="APPROVE" type="button">Approve</button> <button class="btn btn-sm btn-outline review-request" data-row="' + index + '" data-decision="DENY" type="button">Deny</button>' : '—') + '</td></tr>').join('') : term ? '<tr class="table-empty-row"><td colspan="6"><div class="empty-state empty-state-compact"><h3>No matching access requests</h3><p>Try a different name, email, or request status.</p></div></td></tr>' : accessRequestEmpty;
   body.querySelectorAll('.review-request').forEach(button => button.addEventListener('click', () => {
     const row = button.dataset.row;
-    reviewRequest(accessRequests[Number(row)], button.dataset.decision, body.querySelector('.request-role[data-row="' + row + '"]')?.value || 'USER', body.querySelector('.request-department[data-row="' + row + '"]')?.value || null);
+    reviewRequest(visibleRequests[Number(row)], button.dataset.decision, body.querySelector('.request-role[data-row="' + row + '"]')?.value || 'USER', body.querySelector('.request-department[data-row="' + row + '"]')?.value || null);
   }));
 }
 async function reviewRequest(request, decision, role, departmentId) {
@@ -93,8 +96,8 @@ window.mountAccessRequests = () => {
   window.unmountAccessRequests();
   loadAccessRequests();
   document.getElementById('accessRequestSearch')?.addEventListener('input', event => {
-    const term = event.target.value.toLowerCase();
-    const all = accessRequests; accessRequests = all.filter(request => [request.email, request.full_name, request.state].join(' ').toLowerCase().includes(term)); renderAccessRequests(); accessRequests = all;
+    accessRequestSearchTerm = event.target.value;
+    renderAccessRequests();
   });
   accessRequestsInterval = window.setInterval(loadAccessRequests, 15000);
 };
