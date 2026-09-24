@@ -2131,6 +2131,72 @@ html[data-theme="dark"] .time-leaderboard-avatar {
     font-size: .58rem
   }
 }
+
+/* Mobile navigation keeps comfortable touch targets while removing the
+   oversized spacing that made the administrator and employee menus feel long. */
+@media (max-width: 900px) {
+  .app-sidebar,
+  .shell-collapsed .app-sidebar {
+    width: min(292px, 84vw);
+  }
+  .shell-brand {
+    height: 76px;
+    padding: 7px 12px;
+  }
+  .shell-brand a {
+    width: 56px;
+    height: 56px;
+    padding: 5px;
+    border-radius: 10px;
+  }
+  .shell-brand a > img {
+    width: 46px;
+    height: 46px;
+  }
+  .shell-nav {
+    gap: 8px;
+    padding: 12px 10px 16px;
+  }
+  .shell-nav-group { gap: 2px; }
+  .shell-nav-group + .shell-nav-group {
+    margin-top: 7px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(81, 130, 142, .2);
+  }
+  .shell-nav-label {
+    margin-bottom: 3px;
+    padding-inline: 9px;
+    font-size: .54rem;
+  }
+  .shell-nav-group-toggle {
+    min-height: 40px;
+    padding: 0 10px;
+    border-radius: 8px;
+  }
+  .shell-nav-group-toggle > b {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+  .shell-nav-group-chevron {
+    width: 14px;
+    height: 14px;
+  }
+  .shell-link {
+    min-height: 42px;
+    gap: 10px;
+    padding-inline: 10px;
+    border-radius: 9px;
+    font-size: .78rem;
+  }
+  .shell-link .shell-icon {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+  }
+  .shell-account-wrap { padding: 9px 10px calc(11px + env(safe-area-inset-bottom)); }
+  .shell-account { min-height: 52px; }
+}
 .home-page .main-content {
   padding: 0
 }
