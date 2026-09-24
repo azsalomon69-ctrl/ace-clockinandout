@@ -3172,14 +3172,28 @@ function dashboardPeriodBounds(range = 'month') {
     return { periodStart, periodEnd, days: Math.max(1, Math.round((periodEnd - periodStart) / 86400000) + 1) };
 }
 
-function renderTrackedTimeLineChart(mount, buckets, totalSeconds, periodStart, periodEnd) {
+function niceChartTickStep(maximum) {
+    const roughStep = Math.max(1, maximum / 4);
+    const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+    const normalized = roughStep / magnitude;
+    const multiplier = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 2.5 ? 2.5 : normalized <= 5 ? 5 : 10;
+    return multiplier * magnitude;
+}
+
+function formatDashboardDuration(seconds) {
+    const value = Number(seconds || 0);
+    return value > 0 && value < 60 ? '<1m' : formatDuration(value);
+}
+
+function renderTrackedTimeLineChart(mount, buckets, totalEntries, periodStart, periodEnd) {
     const width = 720, height = 254, left = 48, right = 16, top = 18, bottom = 36;
     const plotWidth = width - left - right, plotHeight = height - top - bottom;
-    const maxSeconds = Math.max(...buckets.map(bucket => bucket.seconds), 1);
-    const roundedMaximum = Math.max(3600, Math.ceil(maxSeconds / 3600) * 3600);
+    const maximumCount = Math.max(...buckets.map(bucket => bucket.count), 1);
+    const tickStep = niceChartTickStep(maximumCount);
+    const roundedMaximum = Math.ceil(maximumCount / tickStep) * tickStep;
     const pointFor = (bucket, index) => {
         const x = left + (buckets.length === 1 ? plotWidth / 2 : index / (buckets.length - 1) * plotWidth);
-        const y = top + plotHeight - (bucket.seconds / roundedMaximum * plotHeight);
+        const y = top + plotHeight - (bucket.count / roundedMaximum * plotHeight);
         return { x, y };
     };
     const points = buckets.map(pointFor);
@@ -3188,7 +3202,7 @@ function renderTrackedTimeLineChart(mount, buckets, totalSeconds, periodStart, p
     const yGrid = Array.from({ length: 5 }, (_, index) => {
         const value = roundedMaximum / 4 * (4 - index);
         const y = top + plotHeight / 4 * index;
-        return `<g class="line-chart-gridline"><line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}"/><text x="${left - 10}" y="${y + 4}" text-anchor="end">${Math.round(value / 3600)}h</text></g>`;
+        return `<g class="line-chart-gridline"><line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}"/><text x="${left - 10}" y="${y + 4}" text-anchor="end">${Number.isInteger(value) ? value : value.toFixed(1)}</text></g>`;
     }).join('');
     const labelStride = Math.max(1, Math.ceil(buckets.length / 7));
     const xLabels = buckets.map((bucket, index) => {
@@ -3202,17 +3216,17 @@ function renderTrackedTimeLineChart(mount, buckets, totalSeconds, periodStart, p
     const circles = points.map((point, index) => {
         const bucket = buckets[index];
         const label = bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return `<circle class="line-chart-point" cx="${point.x}" cy="${point.y}" r="4"><title>${label}: ${formatDuration(bucket.seconds)}</title></circle>`;
+        return `<circle class="line-chart-point" cx="${point.x}" cy="${point.y}" r="4"><title>${label}: ${bucket.count} completed ${bucket.count === 1 ? 'entry' : 'entries'}</title></circle>`;
     }).join('');
-    mount.setAttribute('aria-label', `Tracked time from ${toAnalyticsDateValue(periodStart)} to ${toAnalyticsDateValue(periodEnd)}: ${formatDuration(totalSeconds)}`);
-    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="tracked-time-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".34"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>${yGrid}<path class="line-chart-area" d="${area}"/><polyline class="line-chart-path" points="${polyline}"/>${circles}${xLabels}</svg>`;
+    mount.setAttribute('aria-label', `Completed time entries from ${toAnalyticsDateValue(periodStart)} to ${toAnalyticsDateValue(periodEnd)}: ${totalEntries}`);
+    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${yGrid}<polyline class="line-chart-path" points="${polyline}"/>${circles}${xLabels}</svg>`;
 }
 
 function renderAdminAnalytics() {
     const hoursChart = document.getElementById('hoursChart');
     const projectChart = document.getElementById('projectAllocationChart');
     if (!hoursChart || !projectChart) return;
-    const completed = employeeTimeEntries().filter(entry => Number(entry.DurationSeconds) > 0);
+    const completed = employeeTimeEntries().filter(entry => entry.ClockOutAt);
     const trackedRange = document.getElementById('trackedTimeRange');
     const projectRange = document.getElementById('projectHoursRange');
     const trackedBounds = dashboardPeriodBounds(trackedRange?.value || 'month');
@@ -3227,27 +3241,28 @@ function renderAdminAnalytics() {
         const start = new Date(trackedBounds.periodStart);
         start.setDate(start.getDate() + index * bucketDays);
         const end = new Date(Math.min(new Date(start).setDate(start.getDate() + bucketDays), trackedBounds.periodEnd.getTime() + 1));
-        return { start, seconds: trackedEntries.filter(entry => {
+        const entries = trackedEntries.filter(entry => {
             const time = new Date(entry.ClockInAt).getTime();
             return time >= start.getTime() && time < end.getTime();
-        }).reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0) };
+        });
+        return { start, count: entries.length };
     });
     const rangeDescription = `${trackedBounds.periodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${trackedBounds.periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
     const totalNode = document.getElementById('analyticsTotalHours');
+    const entryTotalNode = document.getElementById('analyticsEntryTotal');
     const detailNode = document.getElementById('analyticsDetail');
-    const entryNode = document.getElementById('trackedTimeEntries');
     const averageNode = document.getElementById('analyticsAverage');
-    if (totalNode) totalNode.textContent = formatDuration(totalSeconds);
-    if (detailNode) detailNode.textContent = `${rangeDescription} · completed work`;
-    if (entryNode) entryNode.textContent = String(trackedEntries.length);
-    if (averageNode) averageNode.textContent = formatDuration(Math.round(totalSeconds / trackedBounds.days));
-    if (trackedEntries.length) renderTrackedTimeLineChart(hoursChart, buckets, totalSeconds, trackedBounds.periodStart, trackedBounds.periodEnd);
-    else hoursChart.innerHTML = analyticsEmpty('No completed time in this period', 'Choose a different date range or wait for the first completed shift.');
+    if (totalNode) totalNode.textContent = formatDashboardDuration(totalSeconds);
+    if (entryTotalNode) entryTotalNode.textContent = String(trackedEntries.length);
+    if (detailNode) detailNode.textContent = `${rangeDescription} · completed entries`;
+    if (averageNode) averageNode.textContent = (trackedEntries.length / trackedBounds.days).toFixed(trackedEntries.length && trackedEntries.length / trackedBounds.days < 1 ? 1 : 0);
+    if (trackedEntries.length) renderTrackedTimeLineChart(hoursChart, buckets, trackedEntries.length, trackedBounds.periodStart, trackedBounds.periodEnd);
+    else hoursChart.innerHTML = analyticsEmpty('No completed entries in this period', 'Choose a different date range or wait for the first completed shift.');
 
     const projectBounds = dashboardPeriodBounds(projectRange?.value || 'month');
     const projectEntries = completed.filter(entry => {
         const time = new Date(entry.ClockInAt).getTime();
-        return time >= projectBounds.periodStart.getTime() && time <= projectBounds.periodEnd.getTime();
+        return time >= projectBounds.periodStart.getTime() && time <= projectBounds.periodEnd.getTime() && Number(entry.DurationSeconds) > 0;
     });
     const projectSeconds = projectEntries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
     const projectTotals = new Map();
@@ -3259,11 +3274,11 @@ function renderAdminAnalytics() {
     const projects = [...projectTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
     const largestProject = Math.max(...projects.map(([, seconds]) => seconds), 1);
     const projectDetail = document.getElementById('projectAllocationDetail');
-    if (projectDetail) projectDetail.textContent = `${formatDuration(projectSeconds)} completed in selected period`;
+    if (projectDetail) projectDetail.textContent = `${formatDashboardDuration(projectSeconds)} completed in selected period`;
     projectChart.innerHTML = projects.length ? projects.map(([name, seconds]) => {
         const share = projectSeconds ? Math.round(seconds / projectSeconds * 100) : 0;
-        const detail = `${name}: ${formatDuration(seconds)} tracked (${share}% of selected time)`;
-        return `<div class="allocation-row analytics-tooltip" tabindex="0" role="listitem" aria-label="${escapeHtml(detail)}" data-tooltip="${escapeHtml(detail)}"><span class="allocation-name">${escapeHtml(name)}</span><div class="allocation-track" aria-hidden="true"><div class="allocation-fill" style="width:${Math.max(4, Math.round(seconds / largestProject * 100))}%"></div></div><span class="allocation-hours">${formatDuration(seconds)}</span></div>`;
+        const detail = `${name}: ${formatDashboardDuration(seconds)} tracked (${share}% of selected time)`;
+        return `<div class="allocation-row analytics-tooltip" tabindex="0" role="listitem" aria-label="${escapeHtml(detail)}" data-tooltip="${escapeHtml(detail)}"><span class="allocation-name">${escapeHtml(name)}</span><div class="allocation-track" aria-hidden="true"><div class="allocation-fill" style="width:${Math.max(2, Math.round(seconds / largestProject * 100))}%"></div></div><span class="allocation-hours">${formatDashboardDuration(seconds)}</span></div>`;
     }).join('') : analyticsEmpty('No project time in this period', 'Completed time assigned to a project will appear here.', 'folder');
     [trackedRange, projectRange].forEach(select => {
         if (select && !select.dataset.bound) {
@@ -3859,31 +3874,56 @@ window.ACEReportActions = {
     }
 };
 
-// Toast Notifications
-function showToast(message, type = 'info') {
-    const toastContainer = document.getElementById('toastContainer');
+// Toast Notifications. A single global queue keeps acknowledgement useful
+// instead of burying the page under a stack of transient messages.
+const toastQueue = [];
+let activeToastKey = null;
+function getToastContainer() {
+    let container = document.getElementById('toastContainer');
+    if (!container && document.body) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    return container;
+}
+function renderNextToast() {
+    if (activeToastKey || !toastQueue.length) return;
+    const item = toastQueue.shift();
+    const toastContainer = getToastContainer();
     if (!toastContainer) return;
-
+    activeToastKey = item.key;
     const labels = { success: 'Success', error: 'Something went wrong', warning: 'Attention', info: 'Notice' };
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
-    toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
-    toast.innerHTML = `
-        <div class="toast-message"><strong>${labels[type] || labels.info}</strong><span>${escapeHtml(message)}</span></div>
-        <button class="toast-close" type="button" aria-label="Dismiss notification">${suppliedIconMarkup('x')}</button>
-    `;
-
-    toastContainer.appendChild(toast);
+    toast.className = `toast toast-${item.type}`;
+    toast.setAttribute('role', item.type === 'error' ? 'alert' : 'status');
+    toast.setAttribute('aria-live', item.type === 'error' ? 'assertive' : 'polite');
+    toast.innerHTML = `<div class="toast-message"><strong>${labels[item.type] || labels.info}</strong><span>${escapeHtml(item.message)}</span></div><button class="toast-close" type="button" aria-label="Dismiss notification">${suppliedIconMarkup('x')}</button>`;
+    toastContainer.replaceChildren(toast);
+    let timer;
     const dismiss = () => {
         if (!toast.isConnected) return;
+        window.clearTimeout(timer);
         toast.classList.add('is-leaving');
-        window.setTimeout(() => toast.remove(), 180);
+        window.setTimeout(() => {
+            toast.remove();
+            activeToastKey = null;
+            renderNextToast();
+        }, 180);
     };
-    let timer = window.setTimeout(dismiss, 5200);
+    timer = window.setTimeout(dismiss, item.type === 'error' ? 6200 : 4200);
     toast.querySelector('.toast-close').addEventListener('click', dismiss);
     toast.addEventListener('mouseenter', () => window.clearTimeout(timer));
     toast.addEventListener('mouseleave', () => { timer = window.setTimeout(dismiss, 1800); });
+}
+function showToast(message, type = 'info') {
+    const safeMessage = String(message || 'Something happened.');
+    const key = `${type}:${safeMessage}`;
+    if (key === activeToastKey || toastQueue.some(item => item.key === key)) return;
+    if (toastQueue.length >= 3) toastQueue.shift();
+    toastQueue.push({ key, message: safeMessage, type });
+    renderNextToast();
 }
 
 function viewProject(projectId) {

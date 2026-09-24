@@ -418,6 +418,21 @@ async function renderAdminSection() {
   try { await applyLiveData(key, view, serverPaged ? pageState : null, activeFilters); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); }
   document.title = view.title + ' · ACE Outsource Solutions';
   document.getElementById('sectionTitle').textContent = view.title; document.getElementById('sectionDescription').textContent = view.description;
+  const tabGroups = {
+    users: [['Users', 'users.html'], ['Invitations', 'invitations.html']],
+    invitations: [['Users', 'users.html'], ['Invitations', 'invitations.html']],
+    projects: [['Projects', 'projects.html'], ['Schedules', 'schedule-flex.html'], ['Time entries', 'admin-time-entries.html']],
+    entries: [['Projects', 'projects.html'], ['Schedules', 'schedule-flex.html'], ['Time entries', 'admin-time-entries.html']],
+    departments: [['Departments', 'departments.html']],
+    audit: [['Audit log', 'audit-logs.html']]
+  };
+  const tabs = tabGroups[key] || [];
+  let tabBar = document.getElementById('adminSectionTabs');
+  if (tabs.length > 1) {
+    if (!tabBar) { tabBar = document.createElement('nav'); tabBar.id = 'adminSectionTabs'; tabBar.className = 'admin-section-tabs'; tabBar.setAttribute('aria-label', 'Related workspace pages'); document.querySelector('.admin-section-header').insertAdjacentElement('afterend', tabBar); }
+    const activeHref = { users: 'users.html', invitations: 'invitations.html', projects: 'projects.html', entries: 'admin-time-entries.html' }[key];
+    tabBar.innerHTML = tabs.map(([label, href]) => '<a href="' + href + '"' + (href === activeHref ? ' aria-current="page"' : '') + '>' + esc(label) + '</a>').join('');
+  } else tabBar?.remove();
   const actionButton = document.getElementById('sectionAction'); actionButton.hidden = !view.action;
   if (view.action) actionButton.innerHTML = icon(view.actionIcon) + view.action;
   const renderStats = () => { document.getElementById('sectionStats').innerHTML = view.stats.map(item => '<div class="stat-card"><div class="stat-icon">' + icon(item[2]) + '</div><div class="stat-info"><div class="stat-number">' + esc(item[0]) + '</div><div class="stat-label">' + esc(item[1]) + '</div></div></div>').join(''); };
