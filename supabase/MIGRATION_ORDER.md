@@ -22,6 +22,7 @@ Run these files in this order:
 12. `migrations/0009_remove_break_tracking.sql`
 13. `migrations/0010_overtime_approval.sql`
 14. `migrations/0011_review_exports_and_reporting_indexes.sql`
+15. `migrations/0012_preserve_original_chat_message.sql`
 
 Then run:
 

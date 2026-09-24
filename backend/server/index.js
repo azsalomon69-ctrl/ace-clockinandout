@@ -597,15 +597,16 @@ app.post('/v1/employee-chat/messages', authenticate, activeOnly, async (req, res
   const recipient = await query(db.from('profiles').select('id,role').eq('id', recipientId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
   if (!recipient) return fail(res, 404, 'Contact is not available for chat');
   if (!canChatWith(req.profile, recipient)) return fail(res, 403, 'Employees can only chat with administrators');
-  const message = await query(db.from('employee_messages').insert({ sender_id: req.profile.id, recipient_id: recipientId, body }).select().single());
+  const message = await query(db.from('employee_messages').insert({ sender_id: req.profile.id, recipient_id: recipientId, body, original_body: body }).select().single());
   res.status(201).json(message);
 } catch (error) { next(error); } });
 app.patch('/v1/employee-chat/messages/:messageId', authenticate, activeOnly, async (req, res, next) => { try {
   const messageId = optionalUuid(req.params.messageId);
   const body = optionalText(req.body.body, 2000);
   if (!messageId || !body) return fail(res, 400, 'A valid message is required');
-  const message = await query(db.from('employee_messages').update({ body, edited_at: new Date().toISOString() }).eq('id', messageId).eq('sender_id', req.profile.id).is('deleted_at', null).select().maybeSingle());
-  if (!message) return fail(res, 404, 'Message is not available to edit');
+  const existing = await query(db.from('employee_messages').select('id,body,original_body').eq('id', messageId).eq('sender_id', req.profile.id).is('deleted_at', null).maybeSingle());
+  if (!existing) return fail(res, 404, 'Message is not available to edit');
+  const message = await query(db.from('employee_messages').update({ body, original_body: existing.original_body || existing.body, edited_at: new Date().toISOString() }).eq('id', messageId).select().single());
   res.json(message);
 } catch (error) { next(error); } });
 app.delete('/v1/employee-chat/messages/:messageId', authenticate, activeOnly, async (req, res, next) => { try {
@@ -619,7 +620,7 @@ app.delete('/v1/employee-chat/messages/:messageId', authenticate, activeOnly, as
 } catch (error) { next(error); } });
 app.get('/v1/admin/chat-log', authenticate, specialAdminOnly, async (req, res, next) => { try {
   const paging = pageParams(req);
-  const messageRequest = db.from('employee_messages').select('id,sender_id,recipient_id,body,created_at,edited_at,deleted_at,read_at', paging.paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false });
+  const messageRequest = db.from('employee_messages').select('id,sender_id,recipient_id,body,original_body,created_at,edited_at,deleted_at,read_at', paging.paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false });
   const [messageResult, profiles] = await Promise.all([
     paging.paged ? pagedResult(messageRequest, paging) : query(messageRequest.limit(500)),
     query(db.from('profiles').select('id,full_name,email,role'))

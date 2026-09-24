@@ -3652,6 +3652,16 @@ html[data-theme="dark"] :is(.shell-global-results small,.shell-topbar-menu span,
   color: var(--ace-muted);
   font-size: .7rem
 }
+.chat-log-original {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--ace-cyan);
+  border-radius: 0 8px 8px 0;
+  background: var(--ace-pale);
+}
+.chat-log-original strong { color: var(--ace-ink); font-size: .72rem; }
+.chat-log-original p { margin: 5px 0 0; color: var(--ace-text); font-size: .82rem; }
+html[data-theme="dark"] .chat-log-original { background: var(--ace-surface-raised); }
 .chat-log-deleted {
   color: var(--ace-muted)!important;
   font-style: italic

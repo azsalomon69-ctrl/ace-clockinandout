@@ -133,12 +133,15 @@ create table if not exists public.employee_messages (
   sender_id uuid not null references public.profiles(id) on delete cascade,
   recipient_id uuid not null references public.profiles(id) on delete cascade,
   body text not null check (char_length(trim(body)) between 1 and 2000),
+  original_body text,
   created_at timestamptz not null default now(),
   edited_at timestamptz,
   deleted_at timestamptz,
   read_at timestamptz,
   constraint employee_messages_no_self_chat check (sender_id <> recipient_id)
 );
+
+alter table public.employee_messages add column if not exists original_body text;
 
 create index if not exists employee_messages_conversation_idx
   on public.employee_messages(sender_id, recipient_id, created_at);

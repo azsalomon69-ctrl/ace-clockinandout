@@ -5,6 +5,7 @@ create table if not exists public.employee_messages (
   sender_id uuid not null references public.profiles(id) on delete cascade,
   recipient_id uuid not null references public.profiles(id) on delete cascade,
   body text not null check (char_length(trim(body)) between 1 and 2000),
+  original_body text,
   created_at timestamptz not null default now(),
   edited_at timestamptz,
   deleted_at timestamptz,
@@ -20,5 +21,6 @@ create index if not exists employee_messages_recipient_unread_idx
 alter table public.employee_messages enable row level security;
 alter table public.employee_messages add column if not exists edited_at timestamptz;
 alter table public.employee_messages add column if not exists deleted_at timestamptz;
+alter table public.employee_messages add column if not exists original_body text;
 -- The Render API uses the server-only key and verifies both participants.
 -- No browser-to-table policies are created, so messages remain private.
