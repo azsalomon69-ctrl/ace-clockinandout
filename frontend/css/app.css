@@ -2197,6 +2197,49 @@ html[data-theme="dark"] .time-leaderboard-avatar {
   .shell-account-wrap { padding: 9px 10px calc(11px + env(safe-area-inset-bottom)); }
   .shell-account { min-height: 52px; }
 }
+
+/* Help belongs with the persistent sidebar controls, immediately before the
+   account card, rather than competing with search and notifications above. */
+.shell-sidebar-help {
+  width: calc(100% - 20px);
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 10px 8px;
+  padding: 0 10px;
+  color: #0b5568;
+  background: rgba(255,255,255,.56);
+  border: 1px solid rgba(90,163,177,.42);
+  border-radius: 9px;
+  box-shadow: 2px 2px 7px rgba(43,90,101,.08);
+  font: 750 .72rem 'Open Sans',Arial,sans-serif;
+  cursor: pointer;
+}
+.shell-sidebar-help .shell-icon { width: 17px; height: 17px; flex-basis: 17px; }
+.shell-sidebar-help:hover,
+.shell-sidebar-help:focus-visible {
+  color: #063b4b;
+  background: #e8f8fa;
+  border-color: var(--ace-cyan);
+  outline: 0;
+}
+html[data-theme="dark"] .shell-sidebar-help {
+  color: #d9f4f7;
+  background: #153b44;
+  border-color: #34727e;
+  box-shadow: none;
+}
+html[data-theme="dark"] .shell-sidebar-help:hover,
+html[data-theme="dark"] .shell-sidebar-help:focus-visible {
+  color: #fff;
+  background: #1d4b56;
+  border-color: #69c9d8;
+}
+@media (max-width: 900px) {
+  .shell-sidebar-help { min-height: 40px; margin-bottom: 8px; }
+}
 .home-page .main-content {
   padding: 0
 }
