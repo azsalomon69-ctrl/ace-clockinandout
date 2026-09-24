@@ -1212,7 +1212,6 @@ function initializeAppShell() {
     ];
     const quickActionItems = isAdmin ? [
         { label: 'Invite user', detail: 'Quick action · Open the invitation form', href: 'invitations.html', quickAction: 'invite-user', keywords: 'invite employee administrator access add person' },
-        { label: 'Generate report', detail: 'Quick action · Choose a report format', href: 'admin-dashboard.html', quickAction: 'generate-report', keywords: 'generate report export pdf excel analytics' },
         { label: 'Add project', detail: 'Quick action · Open the project form', href: 'projects.html', quickAction: 'add-project', keywords: 'add create project work' }
     ] : [
         AppState.isClockedIn
@@ -1511,8 +1510,8 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I use page controls in admin lists?', 'Most administration lists use 25 rows per page by default. Choose 25, 50, or 100 rows, then use Previous, Next, or a page number. Search and filters reset to page 1 and search all matching records, not only the visible page.'],
         ['Where are deleted time entries?', 'Open Work → Deleted time entries. Select Restore to return a record to active history. Delete permanently cannot be undone, so use it only when the record must be removed for good.'],
         ['How do I add a remark to a time entry?', 'Open Work → Time entries, search for the entry, then choose Add remark on its row. Write the internal administrator remark and save it. The employee can read the related feedback in Work → Remarks.'],
-        ['How do I filter the dashboard analytics?', 'Use the Period, Project, Department, and Employee filters in the Team performance overview. The cards, chart, and leaderboard update to match the selection.'],
-        ['How do I generate a report?', 'Use Generate report on the dashboard, choose the date range and any available employee, department, or project filters, then preview or export the result. Insights → Reports is where you can work with the reporting tools and exports.'],
+        ['How do I filter the dashboard analytics?', 'Each dashboard chart has its own date selector. Use Tracked time to view the time trend and Hours by project to compare project allocation. Use Insights → Reports or Individual reports when you need detailed filters or an export.'],
+        ['How do I generate a report?', 'Use Work → Time entries to export company time-entry data as PDF or Excel. Use Insights → Individual reports to prepare a report for one employee or every active employee. Saved report copies appear in Insights → Reports.'],
         ['Where do I find one employee’s report?', 'Open Insights → Individual reports. Choose This month for the current month through today, or Custom date range for specific dates. Optionally choose an active employee, then select Prepare reports. Use Preview, Save as PDF, or Save Excel on the prepared row. Leave the employee blank to prepare reports for every active employee.'],
         ['Where is the audit history?', 'Open Administration → Audit log. It records important administrative actions so you can review what changed and when.'],
         ['Where can I review exports?', 'Open Administration → Audit log and search for export activity. It records the administrator, time, format, and selected date range for Time Entries exports and saved reports alongside other important administrator actions.'],
@@ -2801,10 +2800,6 @@ function loadPageSpecificData() {
 function runPendingWorkspaceQuickAction(page) {
     const action = sessionStorage.getItem('ace_workspace_quick_action');
     if (!action) return;
-    if (action === 'generate-report' && page === 'admin-dashboard.html') {
-        sessionStorage.removeItem('ace_workspace_quick_action');
-        requestAnimationFrame(() => document.getElementById('generateReportBtn')?.click());
-    }
     if ((action === 'clock-in' || action === 'clock-out') && page === 'user-dashboard.html') {
         sessionStorage.removeItem('ace_workspace_quick_action');
         requestAnimationFrame(() => {
@@ -3159,131 +3154,121 @@ async function generateAdminAnalyticsReport(exportFormat = 'PDF') {
     } catch (error) { showToast(error.message || 'Unable to generate report', 'error'); }
 }
 
-function renderAdminAnalytics(days = 7) {
+function dashboardPeriodBounds(range = 'month') {
+    const periodEnd = new Date();
+    periodEnd.setHours(23, 59, 59, 999);
+    const periodStart = new Date(periodEnd);
+    if (range === 'week') {
+        const weekday = periodEnd.getDay() || 7;
+        periodStart.setDate(periodEnd.getDate() - weekday + 1);
+    } else if (range === 'quarter') {
+        periodStart.setMonth(periodEnd.getMonth() - 2, 1);
+    } else if (range === 'today') {
+        // Already anchored to the current date.
+    } else {
+        periodStart.setDate(1);
+    }
+    periodStart.setHours(0, 0, 0, 0);
+    return { periodStart, periodEnd, days: Math.max(1, Math.round((periodEnd - periodStart) / 86400000) + 1) };
+}
+
+function renderTrackedTimeLineChart(mount, buckets, totalSeconds, periodStart, periodEnd) {
+    const width = 720, height = 254, left = 48, right = 16, top = 18, bottom = 36;
+    const plotWidth = width - left - right, plotHeight = height - top - bottom;
+    const maxSeconds = Math.max(...buckets.map(bucket => bucket.seconds), 1);
+    const roundedMaximum = Math.max(3600, Math.ceil(maxSeconds / 3600) * 3600);
+    const pointFor = (bucket, index) => {
+        const x = left + (buckets.length === 1 ? plotWidth / 2 : index / (buckets.length - 1) * plotWidth);
+        const y = top + plotHeight - (bucket.seconds / roundedMaximum * plotHeight);
+        return { x, y };
+    };
+    const points = buckets.map(pointFor);
+    const polyline = points.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
+    const area = points.length ? `M ${points[0].x.toFixed(1)} ${top + plotHeight} L ${points.map(point => `${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' L ')} L ${points.at(-1).x.toFixed(1)} ${top + plotHeight} Z` : '';
+    const yGrid = Array.from({ length: 5 }, (_, index) => {
+        const value = roundedMaximum / 4 * (4 - index);
+        const y = top + plotHeight / 4 * index;
+        return `<g class="line-chart-gridline"><line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}"/><text x="${left - 10}" y="${y + 4}" text-anchor="end">${Math.round(value / 3600)}h</text></g>`;
+    }).join('');
+    const labelStride = Math.max(1, Math.ceil(buckets.length / 7));
+    const xLabels = buckets.map((bucket, index) => {
+        if (index % labelStride && index !== buckets.length - 1) return '';
+        const point = points[index];
+        const label = buckets.length <= 8
+            ? bucket.start.toLocaleDateString('en-US', { weekday: 'short' })
+            : bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return `<text class="line-chart-x-label" x="${point.x}" y="${height - 11}" text-anchor="middle">${label}</text>`;
+    }).join('');
+    const circles = points.map((point, index) => {
+        const bucket = buckets[index];
+        const label = bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return `<circle class="line-chart-point" cx="${point.x}" cy="${point.y}" r="4"><title>${label}: ${formatDuration(bucket.seconds)}</title></circle>`;
+    }).join('');
+    mount.setAttribute('aria-label', `Tracked time from ${toAnalyticsDateValue(periodStart)} to ${toAnalyticsDateValue(periodEnd)}: ${formatDuration(totalSeconds)}`);
+    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="tracked-time-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".34"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>${yGrid}<path class="line-chart-area" d="${area}"/><polyline class="line-chart-path" points="${polyline}"/>${circles}${xLabels}</svg>`;
+}
+
+function renderAdminAnalytics() {
     const hoursChart = document.getElementById('hoursChart');
     const projectChart = document.getElementById('projectAllocationChart');
     if (!hoursChart || !projectChart) return;
-    initializeAnalyticsRangePicker();
-
-    const projectFilter = document.getElementById('analyticsProject');
-    const departmentFilter = document.getElementById('analyticsDepartment');
-    const employeeFilter = document.getElementById('analyticsEmployee');
-    if (projectFilter && !projectFilter.dataset.bound) {
-        const projectOptions = document.getElementById('analyticsProjectOptions');
-        AppState.projects.filter(project => project.IsActive).forEach(project => {
-            const option = document.createElement('option');
-            option.value = project.ProjectName;
-            projectOptions?.appendChild(option);
-        });
-        projectFilter.dataset.bound = 'true';
-        projectFilter.addEventListener('input', () => renderAdminAnalytics(days));
-    }
-    if (departmentFilter && !departmentFilter.dataset.bound) {
-        const departmentOptions = document.getElementById('analyticsDepartmentOptions');
-        AppState.departments.forEach(department => {
-            const option = document.createElement('option');
-            option.value = department.DepartmentName;
-            departmentOptions?.appendChild(option);
-        });
-        departmentFilter.dataset.bound = 'true';
-        departmentFilter.addEventListener('input', () => renderAdminAnalytics(days));
-    }
-    if (employeeFilter && !employeeFilter.dataset.bound) {
-        const employeeOptions = document.getElementById('analyticsEmployeeOptions');
-        AppState.users.filter(user => user.Role === 'USER').forEach(user => {
-            const option = document.createElement('option');
-            option.value = user.FullName;
-            employeeOptions?.appendChild(option);
-        });
-        employeeFilter.dataset.bound = 'true';
-        employeeFilter.addEventListener('input', () => renderAdminAnalytics(days));
-    }
-    const selectedProjectId = getAnalyticsProjectId();
-    const selectedDepartmentId = getAnalyticsDepartmentId();
-    const selectedEmployeeId = getAnalyticsEmployeeId();
     const completed = employeeTimeEntries().filter(entry => Number(entry.DurationSeconds) > 0);
-    const { periodStart, periodEnd, days: selectedDays } = getAdminAnalyticsFilters(days);
-    const inPeriod = completed.filter(entry => {
+    const trackedRange = document.getElementById('trackedTimeRange');
+    const projectRange = document.getElementById('projectHoursRange');
+    const trackedBounds = dashboardPeriodBounds(trackedRange?.value || 'month');
+    const trackedEntries = completed.filter(entry => {
         const time = new Date(entry.ClockInAt).getTime();
-        const user = AppState.users.find(item => String(item.UserId) === String(entry.UserId));
-        return time >= periodStart.getTime() && time <= periodEnd.getTime() &&
-            (!selectedProjectId || String(entry.ProjectId) === String(selectedProjectId)) &&
-            (!selectedDepartmentId || String(user?.DepartmentId) === String(selectedDepartmentId)) &&
-            (!selectedEmployeeId || String(entry.UserId) === String(selectedEmployeeId));
+        return time >= trackedBounds.periodStart.getTime() && time <= trackedBounds.periodEnd.getTime();
     });
-
-    const bucketCount = selectedDays <= 14 ? selectedDays : 10;
-    const bucketDays = Math.ceil(selectedDays / bucketCount);
+    const totalSeconds = trackedEntries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
+    const bucketCount = Math.min(trackedBounds.days, trackedBounds.days <= 8 ? trackedBounds.days : 10);
+    const bucketDays = Math.ceil(trackedBounds.days / bucketCount);
     const buckets = Array.from({ length: bucketCount }, (_, index) => {
-        const start = new Date(periodStart);
-        start.setDate(periodStart.getDate() + index * bucketDays);
-        const end = new Date(start);
-        end.setDate(start.getDate() + bucketDays);
-        const seconds = inPeriod.filter(entry => {
+        const start = new Date(trackedBounds.periodStart);
+        start.setDate(start.getDate() + index * bucketDays);
+        const end = new Date(Math.min(new Date(start).setDate(start.getDate() + bucketDays), trackedBounds.periodEnd.getTime() + 1));
+        return { start, seconds: trackedEntries.filter(entry => {
             const time = new Date(entry.ClockInAt).getTime();
             return time >= start.getTime() && time < end.getTime();
-        }).reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-        return { start, seconds };
-    }).filter(bucket => bucket.start <= periodEnd);
-    const maxSeconds = Math.max(...buckets.map(bucket => bucket.seconds), 1);
-    const totalSeconds = inPeriod.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    document.getElementById('analyticsTotalHours').textContent = formatDuration(totalSeconds);
-    document.getElementById('analyticsAverage').textContent = `${formatDuration(Math.round(totalSeconds / Math.max(selectedDays, 1)))} average/day`;
-    const selectedProject = AppState.projects.find(project => String(project.ProjectId) === String(selectedProjectId));
-    const selectedDepartment = AppState.departments.find(department => String(department.DepartmentId) === String(selectedDepartmentId));
-    const selectedEmployee = AppState.users.find(user => String(user.UserId) === String(selectedEmployeeId));
-    const analyticsDetail = document.getElementById('analyticsDetail');
-    if (analyticsDetail) analyticsDetail.textContent = [selectedProject?.ProjectName, selectedDepartment?.DepartmentName, selectedEmployee?.FullName].filter(Boolean).join(' · ') || 'Across all projects, departments, and employees';
-    hoursChart.setAttribute('aria-label', `Tracked hours from ${toAnalyticsDateValue(periodStart)} to ${toAnalyticsDateValue(periodEnd)}: ${formatDuration(totalSeconds)}`);
-    hoursChart.innerHTML = inPeriod.length ? buckets.map(bucket => {
-        const height = bucket.seconds ? Math.max(5, Math.round(bucket.seconds / maxSeconds * 100)) : 2;
-        const label = selectedDays <= 7
-            ? bucket.start.toLocaleDateString('en-US', { weekday: 'short' })
-            : bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const bucketEnd = new Date(Math.min(new Date(bucket.start).setDate(bucket.start.getDate() + bucketDays - 1), periodEnd.getTime()));
-        const periodLabel = bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) === bucketEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-            ? bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-            : `${bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${bucketEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-        const detail = `${periodLabel}: ${formatDuration(bucket.seconds)} tracked`;
-        return `<div class="chart-column analytics-tooltip" tabindex="0" role="listitem" aria-label="${detail}" data-tooltip="${detail}"><div class="chart-column-track"><div class="chart-column-bar" style="height:${height}%"></div></div><span class="chart-column-label">${label}</span><span class="chart-column-value">${formatDuration(bucket.seconds)}</span></div>`;
-    }).join('') : analyticsEmpty('Nothing tracked in this view', 'Try a different period or filter, or wait for the first completed shift.');
+        }).reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0) };
+    });
+    const rangeDescription = `${trackedBounds.periodStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${trackedBounds.periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    const totalNode = document.getElementById('analyticsTotalHours');
+    const detailNode = document.getElementById('analyticsDetail');
+    const entryNode = document.getElementById('trackedTimeEntries');
+    const averageNode = document.getElementById('analyticsAverage');
+    if (totalNode) totalNode.textContent = formatDuration(totalSeconds);
+    if (detailNode) detailNode.textContent = `${rangeDescription} · completed work`;
+    if (entryNode) entryNode.textContent = String(trackedEntries.length);
+    if (averageNode) averageNode.textContent = formatDuration(Math.round(totalSeconds / trackedBounds.days));
+    if (trackedEntries.length) renderTrackedTimeLineChart(hoursChart, buckets, totalSeconds, trackedBounds.periodStart, trackedBounds.periodEnd);
+    else hoursChart.innerHTML = analyticsEmpty('No completed time in this period', 'Choose a different date range or wait for the first completed shift.');
 
+    const projectBounds = dashboardPeriodBounds(projectRange?.value || 'month');
+    const projectEntries = completed.filter(entry => {
+        const time = new Date(entry.ClockInAt).getTime();
+        return time >= projectBounds.periodStart.getTime() && time <= projectBounds.periodEnd.getTime();
+    });
+    const projectSeconds = projectEntries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
     const projectTotals = new Map();
-    inPeriod.forEach(entry => {
+    projectEntries.forEach(entry => {
         const project = entry.ProjectId ? AppState.projects.find(item => item.ProjectId === entry.ProjectId) : null;
         const name = project?.ProjectName || 'Unassigned';
         projectTotals.set(name, (projectTotals.get(name) || 0) + Number(entry.DurationSeconds || 0));
     });
-    const projects = [...projectTotals.entries()].sort((a, b) => b[1] - a[1]);
+    const projects = [...projectTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
     const largestProject = Math.max(...projects.map(([, seconds]) => seconds), 1);
+    const projectDetail = document.getElementById('projectAllocationDetail');
+    if (projectDetail) projectDetail.textContent = `${formatDuration(projectSeconds)} completed in selected period`;
     projectChart.innerHTML = projects.length ? projects.map(([name, seconds]) => {
-        const share = totalSeconds ? Math.round(seconds / totalSeconds * 100) : 0;
+        const share = projectSeconds ? Math.round(seconds / projectSeconds * 100) : 0;
         const detail = `${name}: ${formatDuration(seconds)} tracked (${share}% of selected time)`;
         return `<div class="allocation-row analytics-tooltip" tabindex="0" role="listitem" aria-label="${escapeHtml(detail)}" data-tooltip="${escapeHtml(detail)}"><span class="allocation-name">${escapeHtml(name)}</span><div class="allocation-track" aria-hidden="true"><div class="allocation-fill" style="width:${Math.max(4, Math.round(seconds / largestProject * 100))}%"></div></div><span class="allocation-hours">${formatDuration(seconds)}</span></div>`;
-    }).join('') : analyticsEmpty('No project time yet', 'Completed time assigned to a project will appear here.', 'folder');
-
-    const range = document.getElementById('dashboardRange');
-    if (range && !range.dataset.bound) {
-        range.dataset.bound = 'true';
-        range.addEventListener('change', () => {
-            const custom = range.value === 'custom';
-            document.getElementById('analyticsDateRange')?.classList.toggle('is-visible', custom);
-            if (custom) renderAnalyticsRangeCalendars();
-            renderAdminAnalytics(days);
-        });
-    }
-    const dateFrom = document.getElementById('analyticsDateFrom');
-    const dateTo = document.getElementById('analyticsDateTo');
-    [dateFrom, dateTo].forEach(input => {
-        if (input && !input.dataset.bound) {
-            input.dataset.bound = 'true';
-            input.addEventListener('change', () => {
-                if (dateFrom.value && dateTo.value && dateTo.value >= dateFrom.value) {
-                    range.value = 'custom';
-                    document.getElementById('analyticsDateRange')?.classList.add('is-visible');
-                    renderAdminAnalytics(days);
-                }
-            });
+    }).join('') : analyticsEmpty('No project time in this period', 'Completed time assigned to a project will appear here.', 'folder');
+    [trackedRange, projectRange].forEach(select => {
+        if (select && !select.dataset.bound) {
+            select.dataset.bound = 'true';
+            select.addEventListener('change', renderAdminAnalytics);
         }
     });
 }
@@ -3320,8 +3305,17 @@ function loadAdminDashboard() {
         const today = new Date().toDateString();
         todayEntries.textContent = employeeTimeEntries().filter(te => new Date(te.ClockInAt).toDateString() === today).length;
     }
+    const monthTrackedHours = document.getElementById('monthTrackedHours');
+    if (monthTrackedHours) {
+        const { periodStart, periodEnd } = dashboardPeriodBounds('month');
+        const seconds = employeeTimeEntries().filter(entry => {
+            const time = new Date(entry.ClockInAt).getTime();
+            return entry.ClockOutAt && time >= periodStart.getTime() && time <= periodEnd.getTime();
+        }).reduce((total, entry) => total + Number(entry.DurationSeconds || 0), 0);
+        monthTrackedHours.textContent = formatDuration(seconds);
+    }
     
-    renderAdminAnalytics(Number(document.getElementById('dashboardRange')?.value || 7));
+    renderAdminAnalytics();
     
     // Populate recent time entries
     const recentTimeEntries = document.getElementById('recentTimeEntries');
@@ -3330,12 +3324,18 @@ function loadAdminDashboard() {
         const controls = document.getElementById('recentEntriesControls');
         const pageSize = document.getElementById('recentEntriesPageSize');
         const pagination = document.getElementById('recentEntriesPagination');
+        const recentRange = document.getElementById('recentEntriesRange');
         const renderRecentEntries = () => {
+            const bounds = recentRange?.value === 'all' ? null : dashboardPeriodBounds(recentRange?.value || 'month');
+            const filteredEntries = bounds ? entries.filter(entry => {
+                const time = new Date(entry.ClockInAt).getTime();
+                return time >= bounds.periodStart.getTime() && time <= bounds.periodEnd.getTime();
+            }) : entries;
             const size = AppState.recentEntriesPageSize;
-            const totalPages = Math.max(1, Math.ceil(entries.length / size));
+            const totalPages = Math.max(1, Math.ceil(filteredEntries.length / size));
             AppState.recentEntriesPage = Math.min(Math.max(1, AppState.recentEntriesPage), totalPages);
             const start = (AppState.recentEntriesPage - 1) * size;
-            const pageEntries = entries.slice(start, start + size);
+            const pageEntries = filteredEntries.slice(start, start + size);
             recentTimeEntries.innerHTML = pageEntries.length ? pageEntries.map(entry => {
             const user = AppState.users.find(u => u.UserId === entry.UserId);
             const project = entry.ProjectId ? AppState.projects.find(p => p.ProjectId === entry.ProjectId) : null;
@@ -3363,7 +3363,7 @@ function loadAdminDashboard() {
                 </tr>
             `;
         }).join('') : `<tr class="table-empty-row"><td colspan="10">${emptyState('No time entries yet', 'Completed and active sessions will appear here.')}</td></tr>`;
-            if (controls) controls.hidden = entries.length <= 3;
+            if (controls) controls.hidden = filteredEntries.length <= 3;
             if (pageSize) pageSize.value = String(size);
             if (pagination) {
                 const firstVisiblePage = Math.max(1, Math.min(AppState.recentEntriesPage - 1, totalPages - 2));
@@ -3381,6 +3381,7 @@ function loadAdminDashboard() {
             });
         };
         pageSize?.addEventListener('change', () => { AppState.recentEntriesPageSize = Number(pageSize.value); AppState.recentEntriesPage = 1; renderRecentEntries(); });
+        recentRange?.addEventListener('change', () => { AppState.recentEntriesPage = 1; renderRecentEntries(); });
         renderRecentEntries();
     }
 }

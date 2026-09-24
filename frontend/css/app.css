@@ -16393,6 +16393,108 @@ html[data-theme="dark"] :is(.time-leaderboard-empty > span,.analytics-empty-icon
   background: linear-gradient(145deg,#17414a,#102e35);
 }
 html[data-theme="dark"] :is(.time-leaderboard-empty strong,.analytics-empty strong,.chat-log-empty strong) { color: var(--ace-text-primary); }
+/* Dashboard analytics: independent, readable monitoring cards. */
+.admin-dashboard .stats-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px
+}
+.admin-dashboard .dashboard-insights {
+  margin: 0 0 24px;
+  padding: 0;
+  background: transparent;
+  border: 0
+}
+.dashboard-insights-heading { margin: 0 0 12px; }
+.dashboard-insights-heading h2 { margin: 2px 0 5px; color: var(--ace-navy); font-size: clamp(1.2rem,2vw,1.45rem); }
+.dashboard-insights-heading p:last-child { margin: 0; color: var(--ace-muted); font-size: .86rem; line-height: 1.45; }
+.admin-dashboard .dashboard-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px
+}
+.admin-dashboard .dashboard-insights-grid .analytics-card {
+  min-height: 0;
+  padding: 20px;
+  border: 1px solid #cfe5ea;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(4,59,76,.07)
+}
+.admin-dashboard .dashboard-insights-grid .time-leaderboard-card {
+  grid-column: 1 / -1;
+  grid-row: auto
+}
+.dashboard-chart-header { align-items: flex-start; gap: 14px; }
+.dashboard-chart-header .analytics-label { margin-bottom: 5px; }
+.dashboard-chart-header strong { font-size: 1.5rem; letter-spacing: -.035em; }
+.dashboard-chart-header .analytics-detail { margin-top: 5px; line-height: 1.35; }
+.chart-range-control { display: block; flex: 0 0 auto; }
+.chart-range-control .form-select {
+  min-width: 132px;
+  min-height: 36px;
+  padding: 0 31px 0 11px;
+  border-radius: 9px;
+  font-size: .76rem;
+  font-weight: 700;
+  background-position: right 10px center
+}
+.chart-quick-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 14px 0 4px;
+  color: #5a7781;
+  font-size: .76rem
+}
+.chart-quick-summary span { display: inline-flex; align-items: baseline; gap: 5px; }
+.chart-quick-summary strong { color: var(--ace-navy); font-size: .92rem; }
+.admin-dashboard .hours-line-chart {
+  height: 244px;
+  display: block;
+  padding: 0;
+  margin-top: 2px;
+  color: #0baac0;
+  border-top: 0;
+  background: transparent
+}
+.hours-line-chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.line-chart-gridline line { stroke: #dcecf0; stroke-width: 1; }
+.line-chart-gridline text,.line-chart-x-label { fill: #78949d; font-family: 'Open Sans',Arial,sans-serif; font-size: 10px; font-weight: 700; }
+.line-chart-area { fill: url(#tracked-time-area); }
+.line-chart-path { fill: none; stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.line-chart-point { fill: #fff; stroke: currentColor; stroke-width: 3; }
+.admin-dashboard .project-allocation-card .project-allocation { gap: 15px; margin-top: 18px; }
+.admin-dashboard .project-allocation-card .allocation-row { grid-template-columns: minmax(86px,.6fr) minmax(110px,1.6fr) auto; gap: 10px; }
+.admin-dashboard .project-allocation-card .allocation-track { height: 11px; border-radius: 999px; background: #e1eff2; overflow: hidden; }
+.admin-dashboard .project-allocation-card .allocation-fill { border-radius: inherit; background: linear-gradient(90deg,#0879ce,#0baec2); }
+.admin-dashboard .project-allocation-card .allocation-hours { font-size: .77rem; white-space: nowrap; }
+.dashboard-section-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+html[data-theme="dark"] .dashboard-insights-heading h2 { color: var(--ace-text-primary); }
+html[data-theme="dark"] .dashboard-insights-heading p:last-child,
+html[data-theme="dark"] .chart-quick-summary { color: #adc8ce; }
+html[data-theme="dark"] .admin-dashboard .dashboard-insights-grid .analytics-card { background: #102a30; border-color: #2b5b65; box-shadow: 0 10px 24px rgba(0,0,0,.18); }
+html[data-theme="dark"] .chart-quick-summary strong { color: var(--ace-text-primary); }
+html[data-theme="dark"] .line-chart-gridline line { stroke: #28515a; }
+html[data-theme="dark"] .line-chart-gridline text,
+html[data-theme="dark"] .line-chart-x-label { fill: #a9c6cc; }
+html[data-theme="dark"] .line-chart-point { fill: #102a30; }
+html[data-theme="dark"] .admin-dashboard .project-allocation-card .allocation-track { background: #1b4048; }
+@media (max-width: 900px) {
+  .admin-dashboard .dashboard-insights-grid { grid-template-columns: 1fr; }
+  .admin-dashboard .dashboard-insights-grid .time-leaderboard-card { grid-column: auto; }
+}
+@media (max-width: 640px) {
+  .admin-dashboard .stats-grid { gap: 10px; }
+  .admin-dashboard .dashboard-insights-grid .analytics-card { padding: 17px; border-radius: 13px; }
+  .dashboard-chart-header { flex-direction: column; }
+  .chart-range-control { width: 100%; }
+  .chart-range-control .form-select { width: 100%; }
+  .admin-dashboard .hours-line-chart { height: 210px; }
+  .admin-dashboard .project-allocation-card .allocation-row { grid-template-columns: minmax(70px,.65fr) minmax(90px,1.45fr) auto; gap: 7px; }
+  .dashboard-section-actions { width: 100%; align-items: stretch; flex-direction: column; }
+  .dashboard-section-actions .btn { width: 100%; justify-content: center; }
+}
 html[data-theme="dark"] :is(.time-leaderboard-empty,.analytics-empty,.chat-log-empty) { color: var(--ace-text-secondary); }
 @media (max-width: 900px) {
   body.home-page:not(.has-app-shell) .main-content {
