@@ -16988,6 +16988,40 @@ html[data-theme="dark"] .individual-report-results-heading { background: var(--a
   .individual-custom-dates { padding: 10px; }
 }
 
+/* Button hierarchy: primary is reserved for the one next step, neutral
+   actions stay quiet, and destructive choices only use red at the decision. */
+.btn { min-height: 38px; padding: 8px 13px; border-radius: 9px; font-size: .78rem; font-weight: 750; letter-spacing: .005em; box-shadow: none; transition: background-color .14s ease, border-color .14s ease, color .14s ease, transform .14s ease; }
+.btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(4,59,76,.10); }
+.btn:not(:disabled):active { transform: translateY(0); box-shadow: none; }
+.btn-primary { background: #087f9d; border-color: #087f9d; }
+.btn-primary:hover,
+.btn-primary:focus-visible { background: #066f89; border-color: #066f89; }
+.btn-secondary,
+.btn-outline { color: #0a5469; background: #fff; border-color: #b9dce3; }
+.btn-secondary:hover,
+.btn-outline:hover,
+.btn-secondary:focus-visible,
+.btn-outline:focus-visible { color: #063f51; background: #f2fafb; border-color: #82bfcc; }
+.btn-danger { color: #b13046; background: #fff; border-color: #edbec8; }
+.btn-danger:hover,
+.btn-danger:focus-visible { color: #93263a; background: #fff1f3; border-color: #dc8797; }
+.btn-sm { min-height: 32px; padding: 6px 10px; border-radius: 8px; font-size: .72rem; }
+.btn:focus-visible { outline: 3px solid rgba(18,157,180,.25); outline-offset: 2px; }
+.form-actions { gap: 8px; }
+.form-actions .btn + .btn { margin-left: 0; }
+html[data-theme="dark"] .btn-primary { color: #071517!important; background: var(--ace-accent)!important; border-color: var(--ace-accent)!important; }
+html[data-theme="dark"] .btn-primary:hover,
+html[data-theme="dark"] .btn-primary:focus-visible { color: #071517!important; background: var(--ace-accent-hover)!important; border-color: var(--ace-accent-hover)!important; }
+html[data-theme="dark"] :is(.btn-secondary,.btn-outline) { color: var(--ace-text-primary)!important; background: var(--ace-surface-raised)!important; border-color: var(--ace-border-strong)!important; }
+html[data-theme="dark"] :is(.btn-secondary,.btn-outline):hover { background: #2b3438!important; border-color: #56656a!important; }
+html[data-theme="dark"] .btn-danger { color: #ffb7c2!important; background: #352329!important; border-color: #75414d!important; }
+html[data-theme="dark"] .btn-danger:hover,
+html[data-theme="dark"] .btn-danger:focus-visible { color: #ffd3d8!important; background: #472b33!important; border-color: #a65c6c!important; }
+@media (max-width: 620px) {
+  .form-actions { display: grid; grid-template-columns: 1fr; }
+  .form-actions .btn { width: 100%; }
+}
+
 /* Dashboard hierarchy: the operational summary belongs to the header, while
    analytics stay compact and answer one question each. */
 .admin-dashboard .dashboard-header {
