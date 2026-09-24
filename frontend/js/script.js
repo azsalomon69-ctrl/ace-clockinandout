@@ -2245,8 +2245,12 @@ async function refreshLiveWorkspaceData() {
         AppState.isClockedIn = Boolean(active);
         AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
         updateUI();
-        loadPageSpecificData();
-        window.dispatchEvent(new CustomEvent('ace:live-data'));
+        // Background polling must not rebuild cards, tables, or filters every
+        // 20 seconds. Replacing those nodes made the page visibly jump and
+        // could interrupt someone scanning a record. Keep the live state fresh
+        // and update only the stable dashboard counters in place.
+        refreshLiveDashboardSummary();
+        window.dispatchEvent(new CustomEvent('ace:live-data', { detail: { background: true } }));
     } catch (error) {
         // Do not interrupt someone working with a transient status toast. The
         // next scheduled pass recovers when a sleeping service wakes up.
@@ -2254,6 +2258,26 @@ async function refreshLiveWorkspaceData() {
     } finally {
         AppState.liveRefreshInFlight = false;
     }
+}
+
+function refreshLiveDashboardSummary() {
+    if (!document.getElementById('clockedInUsers')) return;
+    const today = new Date().toDateString();
+    const { periodStart, periodEnd } = dashboardPeriodBounds('month');
+    const entries = employeeTimeEntries();
+    const clockedIn = document.getElementById('clockedInUsers');
+    const todayEntries = document.getElementById('todayEntries');
+    const monthTracked = document.getElementById('monthTrackedHours');
+    if (clockedIn) clockedIn.textContent = entries.filter(entry => !entry.ClockOutAt).length;
+    if (todayEntries) todayEntries.textContent = entries.filter(entry => new Date(entry.ClockInAt).toDateString() === today).length;
+    if (monthTracked) {
+        const seconds = entries.filter(entry => {
+            const time = new Date(entry.ClockInAt).getTime();
+            return entry.ClockOutAt && time >= periodStart.getTime() && time <= periodEnd.getTime();
+        }).reduce((total, entry) => total + Number(entry.DurationSeconds || 0), 0);
+        monthTracked.textContent = formatDashboardDuration(seconds);
+    }
+    updateOnlineUserCount();
 }
 
 function startLiveDataRefresh() {

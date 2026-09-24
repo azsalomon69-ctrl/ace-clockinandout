@@ -641,7 +641,8 @@ async function renderAdminSection() {
 window.renderAdminSection = renderAdminSection;
 if (!window.adminSectionLiveRefreshBound) {
   window.adminSectionLiveRefreshBound = true;
-  window.addEventListener('ace:live-data', () => {
+  window.addEventListener('ace:live-data', event => {
+    if (event.detail?.background) return;
     if (document.body.dataset.adminView && !document.querySelector('.modal.active, input:focus, textarea:focus, select:focus')) void renderAdminSection();
   });
 }

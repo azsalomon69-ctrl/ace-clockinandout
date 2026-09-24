@@ -67,7 +67,7 @@
     window.refreshScheduleFlex = load;
     if (!document.body.dataset.scheduleLiveBound) {
       document.body.dataset.scheduleLiveBound = 'true';
-      window.addEventListener('ace:live-data', () => { if (!document.querySelector('form:focus-within')) void window.refreshScheduleFlex?.().catch(() => {}); });
+      window.addEventListener('ace:live-data', event => { if (!event.detail?.background && !document.querySelector('form:focus-within')) void window.refreshScheduleFlex?.().catch(() => {}); });
     }
   };
   window.mountScheduleFlex = mount;

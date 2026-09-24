@@ -44,7 +44,7 @@ const mountIndividualReports = async () => {
   window.refreshIndividualReportEmployees = refreshEmployees;
   if (!document.body.dataset.individualReportsLiveBound) {
     document.body.dataset.individualReportsLiveBound = 'true';
-    window.addEventListener('ace:live-data', () => { if (!document.querySelector('form:focus-within')) void window.refreshIndividualReportEmployees?.().catch(() => {}); });
+    window.addEventListener('ace:live-data', event => { if (!event.detail?.background && !document.querySelector('form:focus-within')) void window.refreshIndividualReportEmployees?.().catch(() => {}); });
   }
   const reportDates = () => selectedRange() === 'month' ? { from: monthStart, to: today } : { from: dateFrom.value, to: dateTo.value };
   const reportEntries = (employee, dates = reportDates()) => window.filterEntriesForReport({

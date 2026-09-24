@@ -22,5 +22,5 @@ async function loadDeletedTimeEntries() {
   } catch (error) { showToast(error.message || 'Could not load deleted time entries.', 'error'); }
 }
 window.mountDeletedTimeEntries = loadDeletedTimeEntries;
-window.addEventListener('ace:live-data', () => { if (document.getElementById('deletedTimeEntriesTable')) void loadDeletedTimeEntries(); });
+window.addEventListener('ace:live-data', event => { if (!event.detail?.background && document.getElementById('deletedTimeEntriesTable')) void loadDeletedTimeEntries(); });
 document.addEventListener('DOMContentLoaded', window.mountDeletedTimeEntries);
