@@ -3366,11 +3366,24 @@ function loadAdminDashboard() {
 }
 
 function loadTimeEntries() {
+    const appliedFilters = AppState.employeeTimeEntryFilters || null;
     const filterProject = document.getElementById('filterProject');
     if (filterProject) {
         const assignedIds = new Set(AppState.userProjects.filter(item => item.UserId === AppState.currentUser?.UserId && item.IsActive).map(item => item.ProjectId));
         const assignedProjects = AppState.projects.filter(project => assignedIds.has(project.ProjectId) && project.IsActive !== false);
         filterProject.innerHTML = '<option value="">All projects</option>' + assignedProjects.map(project => `<option value="${project.ProjectId}">${escapeHtml(project.ProjectName)}</option>`).join('');
+    }
+    if (appliedFilters) {
+        const filterValues = {
+            filterDateFrom: appliedFilters.from,
+            filterDateTo: appliedFilters.to,
+            filterProject: appliedFilters.project,
+            filterStatus: appliedFilters.status
+        };
+        Object.entries(filterValues).forEach(([id, value]) => {
+            const input = document.getElementById(id);
+            if (input) input.value = value || '';
+        });
     }
     const timeEntriesList = document.getElementById('timeEntriesList');
     if (timeEntriesList) {
@@ -3432,6 +3445,7 @@ function loadTimeEntries() {
             requestAnimationFrame(() => requestedRow.scrollIntoView({ behavior: 'smooth', block: 'center' }));
         }
     }
+    if (appliedFilters) applyFilters({ announce: false });
 }
 
 function loadRemarksPage() {
@@ -3602,7 +3616,8 @@ function formatDuration(seconds) {
     return `${hours}h ${minutes}m`;
 }
 
-function applyFilters() {
+function applyFilters(options = {}) {
+    const announce = options?.announce !== false;
     const isReports = Boolean(document.getElementById('reportsList'));
     const rows = document.querySelectorAll(isReports ? '#reportsList tr' : '#timeEntriesList tr');
     const from = document.getElementById('filterDateFrom')?.value || '';
@@ -3612,6 +3627,9 @@ function applyFilters() {
     const type = document.getElementById('filterReportType')?.value || '';
     const user = document.getElementById('filterUser')?.value || '';
     const department = document.getElementById('filterDepartment')?.value || '';
+    if (!isReports && document.getElementById('timeEntriesList')) {
+        AppState.employeeTimeEntryFilters = { from, to, project, status };
+    }
     let visible = 0;
     rows.forEach(row => {
         const date = row.dataset.date || row.dataset.from || '';
@@ -3622,7 +3640,7 @@ function applyFilters() {
         row.hidden = !matches;
         if (matches) visible += 1;
     });
-    showToast(`${visible} result${visible === 1 ? '' : 's'} matched the selected filters.`, 'success');
+    if (announce) showToast(`${visible} result${visible === 1 ? '' : 's'} matched the selected filters.`, 'success');
 }
 
 function formatClockDuration(seconds) {
@@ -3638,6 +3656,7 @@ function clearFilters() {
     filterInputs.forEach(input => {
         input.value = '';
     });
+    if (document.getElementById('timeEntriesList')) AppState.employeeTimeEntryFilters = null;
     showToast('Filters cleared', 'info');
     document.querySelectorAll('#reportsList tr, #timeEntriesList tr').forEach(row => { row.hidden = false; });
 }
