@@ -2225,6 +2225,71 @@ html[data-theme="dark"] .time-leaderboard-avatar {
     width: 122px
   }
 }
+
+/* Administrator navigation is intentionally denser on desktop: the workspace
+   has more destinations than the employee view, so compact grouping keeps the
+   full navigation visible without changing the ACE visual language. */
+@media (min-width: 901px) {
+  body.has-app-shell[data-user-role="admin"] {
+    --ace-sidebar: 228px;
+  }
+  body[data-user-role="admin"] .shell-brand {
+    height: 82px;
+    padding: 8px 12px;
+  }
+  body[data-user-role="admin"] .shell-brand a {
+    width: 60px;
+    height: 60px;
+    padding: 5px;
+    border-radius: 10px;
+  }
+  body[data-user-role="admin"] .shell-brand a > img {
+    width: 50px;
+    height: 50px;
+  }
+  body[data-user-role="admin"] .shell-nav {
+    gap: 8px;
+    padding: 12px 10px 14px;
+  }
+  body[data-user-role="admin"] .shell-nav-group { gap: 2px; }
+  body[data-user-role="admin"] .shell-nav-label {
+    margin-bottom: 3px;
+    padding-inline: 9px;
+    font-size: .54rem;
+    letter-spacing: .13em;
+  }
+  body[data-user-role="admin"] .shell-nav-group-toggle {
+    min-height: 34px;
+    padding: 0 9px 0 10px;
+    border-radius: 8px;
+  }
+  body[data-user-role="admin"] .shell-nav-group-toggle > span:first-child { font-size: .56rem; }
+  body[data-user-role="admin"] .shell-nav-group-toggle > b {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+  }
+  body[data-user-role="admin"] .shell-nav-group-chevron {
+    width: 13px;
+    height: 13px;
+  }
+  body[data-user-role="admin"] .shell-nav-group-items { gap: 1px; }
+  body[data-user-role="admin"] .shell-link {
+    min-height: 34px;
+    gap: 10px;
+    padding: 0 10px;
+    border-radius: 9px;
+    font-size: .76rem;
+  }
+  body[data-user-role="admin"] .shell-link .shell-icon {
+    width: 17px;
+    height: 17px;
+    flex-basis: 17px;
+  }
+  body[data-user-role="admin"] .shell-link.active::before { height: 19px; }
+  body[data-user-role="admin"] .shell-account-wrap { padding: 9px 10px 11px; }
+  body[data-user-role="admin"] .shell-account { min-height: 52px; }
+}
 @media (max-width: 600px) {
   .home-v2-phone {
     display: none
