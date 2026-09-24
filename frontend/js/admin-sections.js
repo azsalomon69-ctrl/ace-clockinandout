@@ -730,7 +730,7 @@ async function renderAdminSection() {
     pageState.page = 1; persistState(); draw(records); setCount(records);
   };
   actionButton.addEventListener('click', () => /export/i.test(view.action) ? openTimeEntryExport(view.records) : modal(view, true));
-  const expectedQuickAction = key === 'invitations' ? 'invite-user' : key === 'projects' ? 'add-project' : '';
+  const expectedQuickAction = key === 'users' || key === 'invitations' ? 'invite-user' : key === 'projects' ? 'add-project' : '';
   if (correctionFlow) {
     sessionStorage.removeItem('ace_workspace_quick_action');
     requestAnimationFrame(() => {

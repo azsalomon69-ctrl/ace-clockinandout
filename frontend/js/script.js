@@ -1237,14 +1237,14 @@ function initializeAppShell() {
     const searchResults = topbar.querySelector('.shell-global-results');
     const workspaceSearchItems = isAdmin ? [
         ['Dashboard', 'Workspace', 'admin-dashboard.html', 'dashboard home overview'],
-        ['Invite user', 'People · Invite a team member', 'invitations.html', 'invite employee administrator email access'],
+        ['Invite user', 'People · Users tab', 'users.html', 'invite employee administrator email access'],
         ['Users', 'People · Manage accounts', 'users.html', 'people employees staff manage accounts'],
         ['Access requests', 'People · Approve or deny access', 'access-requests.html', 'requests approve deny pending'],
         ['Departments', 'People · Organize your team', 'departments.html', 'department team organization'],
         ['Projects', 'Work · Create and manage projects', 'projects.html', 'project assignment assign'],
         ['Schedule & flextime', 'Work · Create or assign schedules', 'schedule-flex.html', 'schedule flextime workdays'],
         ['Time entries', 'Work · Review and correct time', 'admin-time-entries.html', 'time clock clock out correct entry'],
-        ['Deleted time entries', 'Work · Restore deleted records', 'deleted-time-entries.html', 'deleted restore time entries'],
+        ['Deleted time entries', 'Work · Time entries recovery list', 'admin-time-entries.html', 'deleted restore time entries'],
         ['Reports', 'Insights · Reports and exports', 'reports.html', 'report export analytics'],
         ['Individual reports', 'Insights · Employee reports', 'individual-reports.html', 'individual employee report'],
         ['Audit log', 'Administration · Review changes', 'audit-logs.html', 'audit history activity'],
@@ -1256,7 +1256,7 @@ function initializeAppShell() {
         ['Profile & settings', 'Account · Profile, security, appearance', 'settings.html', 'settings profile password security appearance']
     ];
     const quickActionItems = isAdmin ? [
-        { label: 'Invite user', detail: 'Quick action · Open the invitation form', href: 'invitations.html', quickAction: 'invite-user', keywords: 'invite employee administrator access add person' },
+        { label: 'Invite user', detail: 'Quick action · Open the invitation form', href: 'users.html', quickAction: 'invite-user', keywords: 'invite employee administrator access add person' },
         { label: 'Add project', detail: 'Quick action · Open the project form', href: 'projects.html', quickAction: 'add-project', keywords: 'add create project work' }
     ] : [
         AppState.isClockedIn
@@ -1266,7 +1266,7 @@ function initializeAppShell() {
     const naturalLanguageActions = isAdmin ? [
         { label: 'Correct a missed clock-out', detail: 'Natural-language action · Show active entries that need review', href: 'admin-time-entries.html', quickAction: 'correct-missing-clock-out', keywords: 'employee forgot missed clock out clock-out active shift correction', phrases: [['forgot', 'clock', 'out'], ['missed', 'clock', 'out'], ['employee', 'clock', 'out']], icon: 'timer' },
         { label: 'Review access requests', detail: 'Natural-language action · Open pending access requests', href: 'access-requests.html', keywords: 'approve access request pending sign in', phrases: [['approve', 'access'], ['approve', 'request'], ['pending', 'access']], icon: 'user-pen' },
-        { label: 'Invite a new employee', detail: 'Natural-language action · Open the invitation form', href: 'invitations.html', quickAction: 'invite-user', keywords: 'add invite new employee staff person', phrases: [['add', 'employee'], ['new', 'employee'], ['invite', 'employee']], icon: 'user-plus' },
+        { label: 'Invite a new employee', detail: 'Natural-language action · Open the invitation form', href: 'users.html', quickAction: 'invite-user', keywords: 'add invite new employee staff person', phrases: [['add', 'employee'], ['new', 'employee'], ['invite', 'employee']], icon: 'user-plus' },
         { label: 'Create a project', detail: 'Natural-language action · Open the project form', href: 'projects.html', quickAction: 'add-project', keywords: 'create add new project', phrases: [['create', 'project'], ['new', 'project']], icon: 'folder' }
     ] : [
         { label: 'Get help with a missed clock-out', detail: 'Natural-language action · Learn what to do next', action: 'help', keywords: 'forgot missed clock out clock-out correction', phrases: [['forgot', 'clock', 'out'], ['missed', 'clock', 'out']], icon: 'info' },
@@ -1536,7 +1536,7 @@ function workspaceHelpEntries(isAdmin) {
     return isAdmin ? [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. Open People or Work to reveal their page links.'],
         ['How do I invite someone?', 'Use Invite user on the dashboard, enter the work email, choose the role, and send the invitation. The person can be granted access even if their invitation email has a delivery issue.'],
-        ['Where do I see or cancel an invitation?', 'Open People → Invitations, find the email, select View, then choose Cancel invitation. The current workspace does not provide a resend button; create a new invitation if the old one is cancelled or expires.'],
+        ['Where do I see or cancel an invitation?', 'Open People → Users, select the Invitations tab, find the email, select View, then choose Cancel invitation. The current workspace does not provide a resend button; create a new invitation if the old one is cancelled or expires.'],
         ['How do I approve access?', 'Open People → Access requests, review the person and requested role, then choose Approve or Deny.'],
         ['Why is someone pending or denied?', 'Open People → Users or People → Access requests to review their status. Pending users need approval; denied users cannot sign in until their status is changed by an administrator.'],
         ['How do I manage users?', 'Open People → Users and choose Manage on the person’s row. The Manage form lets you update their role, department, project, and schedule. Employee profiles also link directly to that person’s department, projects, and schedule controls.'],

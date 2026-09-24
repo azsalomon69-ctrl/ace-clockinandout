@@ -38,17 +38,19 @@ test('every tutorial step has editable required content and a valid selector', (
   }
 });
 
-test('administrator tutorial covers every primary administration workspace', () => {
+test('administrator tutorial covers every primary administration workflow', () => {
   const context = { window: {} };
   vm.runInNewContext(configSource, context);
   const steps = context.window.ACETutorialConfig.ADMIN.steps;
   const pages = new Set(steps.map(step => step.page));
   for (const page of [
-    'admin-dashboard.html', 'access-requests.html', 'users.html', 'invitations.html',
+    'admin-dashboard.html', 'access-requests.html', 'users.html',
     'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html',
-    'deleted-time-entries.html', 'reports.html', 'individual-reports.html',
+    'reports.html', 'individual-reports.html',
     'audit-logs.html', 'settings.html'
   ]) assert.ok(pages.has(page), `Admin tutorial should cover ${page}`);
+  assert.ok(steps.some(step => step.page === 'users.html' && /invitation/i.test(step.title)), 'Admin tutorial should explain invitation management from Users');
+  assert.ok(steps.some(step => step.page === 'admin-time-entries.html' && /deleted/i.test(step.title)), 'Admin tutorial should explain deleted-entry recovery from Time entries');
   assert.ok(steps.length >= 18, 'Admin tutorial should be detailed enough to explain its distinct tools');
 });
 
