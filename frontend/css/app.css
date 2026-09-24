@@ -16713,6 +16713,28 @@ html[data-theme="dark"] .admin-details-drawer-panel dt { color: var(--ace-text-s
 @media (max-width: 620px) { .admin-details-drawer { grid-template-columns: 1fr; } .admin-details-drawer-panel { grid-column: 1; padding: 20px; } .admin-details-drawer-panel dl > div { grid-template-columns: 1fr; gap: 4px; } }
 @media (prefers-reduced-motion: reduce) { .admin-details-drawer-backdrop, .admin-details-drawer-panel { transition: none; } }
 
+/* Employee drawer: profile context first, then compact account facts. */
+.admin-details-drawer-panel { display: flex; flex-direction: column; padding: 0; }
+.admin-details-drawer-panel > header { padding: 24px 24px 18px; }
+.admin-details-drawer-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.admin-details-drawer-avatar { width: 46px; height: 46px; display: grid; flex: 0 0 auto; place-items: center; overflow: hidden; color: #087f9d; background: #e7f6f8; border: 1px solid #c7e7ed; border-radius: 50%; font: 800 1rem 'Montserrat',Arial,sans-serif; }
+.admin-details-drawer-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.admin-details-drawer-identity h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-details-drawer-status { display: inline-flex; margin-top: 7px; padding: 3px 8px; color: #087b68; background: #e9fbf5; border: 1px solid #bdebdc; border-radius: 999px; font-size: .68rem; font-weight: 800; }
+.admin-details-drawer-section { padding: 18px 24px; }
+.admin-details-drawer-section > p { margin: 0 0 9px; color: #66818a; font-size: .67rem; font-weight: 800; letter-spacing: .1em; }
+.admin-details-drawer-panel dl { margin: 0; }
+.admin-details-drawer-panel dl > div { grid-template-columns: minmax(112px,.75fr) minmax(0,1.25fr); padding: 13px 0; }
+.admin-details-drawer-panel dd.is-status { width: max-content; padding: 3px 8px; color: #087b68; background: #e9fbf5; border: 1px solid #bdebdc; border-radius: 999px; font-size: .72rem; font-weight: 700; }
+.admin-details-drawer-panel > footer { margin-top: auto; padding: 18px 24px 24px; border-top: 1px solid #dcecf0; }
+.admin-details-drawer-link { min-height: 42px; }
+html[data-theme="dark"] .admin-details-drawer-avatar { color: #bdebf1; background: #1b3439; border-color: #35565e; }
+html[data-theme="dark"] .admin-details-drawer-status,
+html[data-theme="dark"] .admin-details-drawer-panel dd.is-status { color: #a7e4cd; background: #1b382f; border-color: #356653; }
+html[data-theme="dark"] .admin-details-drawer-section > p { color: var(--ace-text-tertiary); }
+html[data-theme="dark"] .admin-details-drawer-panel > footer { border-color: var(--ace-border); }
+@media (max-width: 620px) { .admin-details-drawer-panel > header, .admin-details-drawer-section, .admin-details-drawer-panel > footer { padding-inline: 20px; } }
+
 /* A pending mutation stays legible and clearly unavailable without turning a
    normal save into a blocking page state. */
 .btn[aria-busy="true"] { cursor: wait; opacity: .78; }
@@ -16782,6 +16804,67 @@ html[data-theme="dark"] .admin-section-page .admin-section-stats .stat-card + .s
   html[data-theme="dark"] .admin-section-page .admin-section-stats .stat-card:nth-child(n + 3) { border-top-color: var(--ace-border); }
 }
 html[data-theme="dark"] :is(.time-leaderboard-empty,.analytics-empty,.chat-log-empty) { color: var(--ace-text-secondary); }
+
+/* Data tables are work surfaces: a light hierarchy, a clear scan line, and
+   predictable actions make large lists easier to use without adding chrome. */
+.table-container {
+  overflow: hidden;
+  border: 1px solid #cfe5ea;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(4,59,76,.045);
+}
+.table-container .table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 68px;
+  padding: 15px 20px;
+  border-bottom: 1px solid #dcecf0;
+  background: #fbfeff;
+}
+.table-container .table-header h2 { margin: 0; color: var(--ace-navy); font-size: 1rem; }
+.table-container .table-header > :first-child { min-width: 0; }
+.table-container .table-search { width: min(280px, 42vw); min-height: 38px; }
+.table-responsive { scrollbar-color: #9fcad4 transparent; scrollbar-width: thin; }
+.table { min-width: max-content; }
+.table thead th {
+  padding: 12px 16px;
+  color: #50707a;
+  background: #f1fafc;
+  border-bottom: 1px solid #cfe5ea;
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .075em;
+}
+.table tbody td { padding: 14px 16px; vertical-align: middle; border-bottom: 1px solid #e1edf0; }
+.table tbody tr { transition: background-color .14s ease, box-shadow .14s ease; }
+.table tbody tr:nth-child(even) { background: #fcfeff; }
+.table tbody tr:hover { background: #eef9fb!important; box-shadow: inset 3px 0 0 #14a9bd; }
+.table tbody tr:hover td:first-child { color: #075d74; }
+.table td:first-child { font-weight: 750; }
+.table td:last-child { white-space: nowrap; }
+.table td :is(.btn,.admin-action-menu-toggle,.admin-row-action) { min-height: 34px; }
+.table td .btn + .btn { margin-left: 6px; }
+.table-empty-row > td { background: transparent!important; }
+.table-empty-row:hover { box-shadow: none!important; }
+.table-empty-row .empty-state { min-height: 168px; }
+html[data-theme="dark"] .table-container { background: var(--ace-surface)!important; border-color: var(--ace-border)!important; box-shadow: 0 8px 22px rgba(0,0,0,.15); }
+html[data-theme="dark"] .table-container .table-header,
+html[data-theme="dark"] .table thead th { background: var(--ace-surface-raised)!important; border-color: var(--ace-border)!important; color: var(--ace-text-secondary); }
+html[data-theme="dark"] .table tbody td { border-color: var(--ace-border)!important; }
+html[data-theme="dark"] .table tbody tr:nth-child(even) { background: #1a2023!important; }
+html[data-theme="dark"] .table tbody tr:hover { background: #222b2e!important; box-shadow: inset 3px 0 0 var(--ace-accent); }
+@media (max-width: 760px) {
+  .table-container .table-header { align-items: stretch; flex-direction: column; gap: 10px; min-height: 0; padding: 16px; }
+  .table-container .table-search { width: 100%; }
+  .table-container .table { border-spacing: 0 8px; }
+  .table-container .table tr { padding: 12px 13px; }
+  .table-container .table td { grid-template-columns: minmax(86px,.78fr) minmax(0,1.22fr); padding: 6px 0; }
+  .table-container .table td:last-child { white-space: normal; }
+  .table-container .table td .btn { min-height: 38px; }
+  .table-empty-row .empty-state { min-height: 142px; margin: 4px; }
+}
 
 /* Dashboard hierarchy: the operational summary belongs to the header, while
    analytics stay compact and answer one question each. */

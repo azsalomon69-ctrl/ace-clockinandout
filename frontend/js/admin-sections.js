@@ -404,7 +404,7 @@ function openTimeEntryExport(records) {
   updateSummary(); openModal(modal.id);
 }
 
-function openAdminDetailsDrawer({ eyebrow, title, fields, href, trigger }) {
+function openAdminDetailsDrawer({ eyebrow, title, fields, href, trigger, avatarUrl = '' }) {
   let drawer = document.getElementById('adminDetailsDrawer');
   if (!drawer) {
     drawer = document.createElement('div');
@@ -420,7 +420,10 @@ function openAdminDetailsDrawer({ eyebrow, title, fields, href, trigger }) {
   };
   drawer._trigger = trigger || document.activeElement;
   drawer._onKeydown = event => { if (event.key === 'Escape') { event.preventDefault(); close(); } };
-  drawer.innerHTML = '<button class="admin-details-drawer-backdrop" type="button" aria-label="Close details"></button><aside class="admin-details-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="adminDetailsDrawerTitle"><header><div><p class="admin-section-kicker">' + esc(eyebrow) + '</p><h2 id="adminDetailsDrawerTitle">' + esc(title) + '</h2></div><button class="modal-close" type="button" aria-label="Close details">' + icon('x') + '</button></header><dl>' + fields.map(([label, value]) => '<div><dt>' + esc(label) + '</dt><dd>' + esc(value || '—') + '</dd></div>').join('') + '</dl>' + (href ? '<a class="btn btn-outline admin-details-drawer-link" href="' + esc(href) + '">Open full details</a>' : '') + '</aside>';
+  const isEmployee = eyebrow === 'Employee';
+  drawer.classList.toggle('is-employee-drawer', isEmployee);
+  const identity = isEmployee ? '<div class="admin-details-drawer-identity"><span class="admin-details-drawer-avatar">' + (avatarUrl ? '<img src="' + esc(avatarUrl) + '" alt="">' : esc(String(title).trim().slice(0, 1).toUpperCase())) + '</span><div><p class="admin-section-kicker">' + esc(eyebrow) + '</p><h2 id="adminDetailsDrawerTitle">' + esc(title) + '</h2><span class="admin-details-drawer-status">' + esc(fields.find(([label]) => label === 'Account status')?.[1] || 'Active') + '</span></div></div>' : '<div><p class="admin-section-kicker">' + esc(eyebrow) + '</p><h2 id="adminDetailsDrawerTitle">' + esc(title) + '</h2></div>';
+  drawer.innerHTML = '<button class="admin-details-drawer-backdrop" type="button" aria-label="Close details"></button><aside class="admin-details-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="adminDetailsDrawerTitle"><header>' + identity + '<button class="modal-close" type="button" aria-label="Close details">' + icon('x') + '</button></header><section class="admin-details-drawer-section"><p>ACCOUNT DETAILS</p><dl>' + fields.map(([label, value]) => '<div><dt>' + esc(label) + '</dt><dd' + (label === 'Presence' || label === 'Account status' ? ' class="is-status"' : '') + '>' + esc(value || '—') + '</dd></div>').join('') + '</dl></section>' + (href ? '<footer><a class="btn btn-primary admin-details-drawer-link" href="' + esc(href) + '">Open full profile</a></footer>' : '') + '</aside>';
   drawer.querySelectorAll('.modal-close,.admin-details-drawer-backdrop').forEach(button => button.addEventListener('click', close));
   drawer.classList.add('is-open'); drawer.setAttribute('aria-hidden', 'false'); document.body.classList.add('drawer-open');
   document.addEventListener('keydown', drawer._onKeydown);
@@ -542,7 +545,7 @@ async function renderAdminSection() {
     body.querySelectorAll('.admin-view-employee').forEach(button => button.addEventListener('click', () => {
       const record = pageRecords[Number(button.dataset.row)];
       if (!record) return;
-      openAdminDetailsDrawer({ eyebrow: 'Employee', title: record.cells[0], trigger: button, href: 'employee-profile.html?user=' + encodeURIComponent(record.id), fields: [['Email', record.cells[1]], ['Role', record.cells[2]], ['Department', record.cells[3]], ['Presence', record.cells[4]], ['Last online', record.cells[5]], ['Account status', record.cells[6]]] });
+      openAdminDetailsDrawer({ eyebrow: 'Employee', title: record.cells[0], trigger: button, avatarUrl: record.avatarUrl, href: 'employee-profile.html?user=' + encodeURIComponent(record.id), fields: [['Email', record.cells[1]], ['Role', record.cells[2]], ['Department', record.cells[3]], ['Presence', record.cells[4]], ['Last online', record.cells[5]], ['Account status', record.cells[6]]] });
     }));
     body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
       const record = pageRecords[Number(button.dataset.row)];

@@ -593,6 +593,24 @@ function analyticsEmpty(title, message, iconName = 'chart-column-big') {
     return `<div class="analytics-empty"><span class="analytics-empty-icon">${suppliedIconMarkup(iconName)}</span><div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div></div>`;
 }
 
+// Responsive table cards use the column heading as their label.  Keeping this
+// automatic means dynamically-rendered admin, employee, and report rows stay
+// understandable on a phone without every renderer duplicating markup.
+function applyTableLabels(root = document) {
+    const tables = [root.matches?.('table') ? root : null, ...(root.querySelectorAll?.('table') || [])].filter(Boolean);
+    tables.forEach(table => {
+        const headings = [...table.querySelectorAll('thead th')].map(cell => cell.textContent.trim());
+        if (!headings.length) return;
+        table.querySelectorAll('tbody tr').forEach(row => {
+            [...row.children].forEach((cell, index) => {
+                if (cell.tagName !== 'TD' || cell.hasAttribute('colspan')) return;
+                const label = headings[index];
+                if (label && !cell.dataset.label) cell.dataset.label = label;
+            });
+        });
+    });
+}
+
 function initializeUXEnhancements() {
     document.querySelectorAll('.modal').forEach(modal => {
         modal.setAttribute('role', 'dialog');
@@ -614,6 +632,17 @@ function initializeUXEnhancements() {
             container.setAttribute('aria-label', 'Scrollable data table');
         }
     });
+    applyTableLabels();
+    if (!window.__aceTableLabelObserver) {
+        window.__aceTableLabelObserver = new MutationObserver(mutations => {
+            const roots = new Set();
+            mutations.forEach(mutation => mutation.addedNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE) roots.add(node);
+            }));
+            roots.forEach(root => applyTableLabels(root.closest?.('table') || root));
+        });
+        window.__aceTableLabelObserver.observe(document.body, { childList: true, subtree: true });
+    }
     document.querySelectorAll('.empty-state .btn[href="#"]').forEach(button => {
         button.addEventListener('click', event => {
             event.preventDefault();
