@@ -71,7 +71,13 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     const remarksByEntry = new Map();
     remarks.forEach(remark => {
       const list = remarksByEntry.get(remark.time_entry_id) || [];
-      list.push({ text: remark.remark, admin: remark.profiles?.full_name || remark.profiles?.email || 'Administrator', createdAt: remark.created_at });
+      list.push({
+        id: remark.id,
+        text: remark.remark,
+        admin: remark.profiles?.full_name || remark.profiles?.email || 'Administrator',
+        createdAt: remark.created_at,
+        seenAt: remark.seen_at
+      });
       remarksByEntry.set(remark.time_entry_id, list);
     });
     const now = Date.now();
@@ -99,7 +105,7 @@ function action(label, index, key, record) {
     const canApprove = record.clockOutAt && record.scheduleType === 'FIXED' && record.scheduledEndTime && !record.overtimeApprovedAt;
     return '<div class="admin-entry-action-set"><button class="btn btn-sm btn-outline admin-entry-actions-toggle" type="button" aria-expanded="false" aria-haspopup="menu">Actions ' + icon('chevron-down') + '</button><div class="admin-entry-action-menu" role="menu" hidden>' +
       (canApprove ? '<button class="admin-approve-overtime" type="button" role="menuitem" data-row="' + index + '">' + icon('check') + 'Approve overtime</button>' : '') +
-      '<button class="admin-edit-entry-time" type="button" role="menuitem" data-row="' + index + '">' + icon('square-pen') + 'Correct time</button><button class="admin-row-action" type="button" role="menuitem" data-row="' + index + '">' + icon('message-circle-plus') + 'Add remark</button><button class="admin-delete-entry is-danger" type="button" role="menuitem" data-row="' + index + '">' + icon('trash') + 'Move to deleted</button></div><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
+      '<button class="admin-edit-entry-time" type="button" role="menuitem" data-row="' + index + '">' + icon('square-pen') + 'Correct time</button><button class="admin-entry-remarks-open" type="button" role="menuitem" data-row="' + index + '">' + icon('message-circle-more') + (record.remarks?.length ? 'Open feedback' : 'Add remark') + '</button><button class="admin-delete-entry is-danger" type="button" role="menuitem" data-row="' + index + '">' + icon('trash') + 'Move to deleted</button></div><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
   }
   if (key === 'users') {
     const canViewEmployee = record?.cells?.[2] === 'Employee';
@@ -134,6 +140,45 @@ function formField(label, type, placeholder, value, index) {
     return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><select class="form-select" id="' + id + '">' + options + '</select></div>';
   }
   return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><input class="form-input" id="' + id + '" type="' + type + '" placeholder="' + esc(placeholder) + '" value="' + esc(value) + '" required></div>';
+}
+
+function openEntryFeedback(record) {
+  let node = document.getElementById('adminEntryFeedbackModal');
+  if (!node) {
+    node = document.createElement('div');
+    node.id = 'adminEntryFeedbackModal';
+    node.className = 'modal';
+    node.setAttribute('role', 'dialog');
+    node.setAttribute('aria-modal', 'true');
+    document.body.appendChild(node);
+    node.addEventListener('click', event => { if (event.target === node) closeModal(node.id); });
+  }
+  const feedback = [...(record.remarks || [])].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const history = feedback.length
+    ? feedback.map(remark => '<article class="entry-feedback-item"><header><strong>' + esc(remark.admin) + '</strong><time datetime="' + esc(remark.createdAt) + '">' + time(remark.createdAt) + '</time></header><p>' + esc(remark.text) + '</p><small class="admin-remark-read-status ' + (remark.seenAt ? 'is-seen' : 'is-unseen') + '">' + icon(remark.seenAt ? 'check' : 'circle-alert') + (remark.seenAt ? 'Seen by employee' : 'Not seen by employee yet') + '</small></article>').join('')
+    : '<div class="empty-state empty-state-compact"><div class="empty-state-icon">' + icon('message-circle-more') + '</div><h3>No feedback yet</h3><p>Add the first comment for this time entry.</p></div>';
+  node.innerHTML = '<div class="modal-content modal-lg"><div class="modal-header"><div><p class="admin-section-kicker">TIME ENTRY FEEDBACK</p><h3 class="modal-title">' + esc(record.cells[0]) + '</h3><p class="modal-description">' + esc(record.cells[1]) + ' · ' + esc(record.cells[2]) + '</p></div><button class="modal-close" type="button" aria-label="Close">' + icon('x') + '</button></div><div class="modal-body"><section class="entry-feedback-history" aria-label="Feedback history">' + history + '</section><form id="adminEntryFeedbackForm" class="entry-feedback-form"><div class="form-group"><label class="form-label" for="entryFeedbackText">Add a follow-up comment</label><textarea class="form-textarea" id="entryFeedbackText" maxlength="2000" required placeholder="Add clear feedback for the employee about this time entry"></textarea></div><div class="form-actions"><button class="btn btn-primary" type="submit">' + icon('message-circle-plus') + 'Post comment</button><button class="btn btn-outline admin-feedback-cancel" type="button">Cancel</button></div></form></div></div>';
+  node.querySelector('.modal-close').addEventListener('click', () => closeModal(node.id));
+  node.querySelector('.admin-feedback-cancel').addEventListener('click', () => closeModal(node.id));
+  node.querySelector('#adminEntryFeedbackForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector('button[type="submit"]');
+    const remark = node.querySelector('#entryFeedbackText').value.trim();
+    if (!remark || button.disabled) return;
+    button.disabled = true;
+    button.textContent = 'Posting…';
+    try {
+      await liveRequest('/v1/time-entries/' + record.id + '/remarks', { method: 'POST', body: JSON.stringify({ remark }) });
+      closeModal(node.id);
+      showToast('Feedback posted. The employee will be notified.', 'success');
+      renderAdminSection();
+    } catch (error) {
+      showToast(error.message || 'Could not post feedback.', 'error');
+      button.disabled = false;
+      button.innerHTML = icon('message-circle-plus') + 'Post comment';
+    }
+  });
+  openModal(node.id);
 }
 
 function editEntryTime(record) {
@@ -399,7 +444,7 @@ async function renderAdminSection() {
       entries: ['No time entries yet', 'Employee clock-ins will appear here for review.'],
       audit: ['No activity yet', 'Important workspace actions will appear here.']
     }[key] || ['Nothing here yet', 'New records will appear here.'];
-    body.innerHTML = records.length ? pageRecords.map((record, rowIndex) => '<tr class="' + (key === 'entries' || key === 'users' ? 'admin-collapsible-row' : '') + '">' + record.cells.map((cell, index) => { const isEmployeeName = (key === 'users' && index === 0 && record.cells[2] === 'Employee') || (key === 'entries' && index === 0 && record.userRole === 'USER'); const nameCell = isEmployeeName ? '<a class="admin-employee-profile-link" href="employee-profile.html?user=' + encodeURIComponent(key === 'users' ? record.id : record.userId) + '">' + esc(cell) + '</a>' : '<strong>' + esc(cell) + '</strong>'; return '<td' + (key === 'entries' && index === 6 ? ' class="admin-entry-remarks"' : '') + '>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key, record) : key === 'entries' && index === 6 ? (record.remarks?.length ? record.remarks.map(remark => '<article class="admin-entry-remark"><strong>' + esc(remark.profiles?.full_name || remark.profiles?.email || 'Administrator') + '</strong><span>' + esc(remark.remark) + '</span><small class="admin-remark-read-status ' + (remark.seen_at ? 'is-seen' : 'is-unseen') + '">' + icon(remark.seen_at ? 'check' : 'circle-alert') + (remark.seen_at ? 'Seen ' + time(remark.seen_at) : 'Not seen yet') + '</small></article>').join('') : '—') : key === 'users' && index === 0 ? '<span class="admin-user-identity"><span class="admin-user-avatar">' + (record.avatarUrl ? '<img src="' + esc(record.avatarUrl) + '" alt="">' : esc(String(cell).trim().slice(0, 1).toUpperCase())) + '</span>' + nameCell + '</span>' : key === 'entries' && index === 0 ? nameCell : status(cell)) + '</td>'; }).join('') + '</tr>').join('') : emptyTable(emptyCopy[0], emptyCopy[1], view.columns.length);
+    body.innerHTML = records.length ? pageRecords.map((record, rowIndex) => '<tr class="' + (key === 'entries' || key === 'users' ? 'admin-collapsible-row' : '') + '">' + record.cells.map((cell, index) => { const isEmployeeName = (key === 'users' && index === 0 && record.cells[2] === 'Employee') || (key === 'entries' && index === 0 && record.userRole === 'USER'); const nameCell = isEmployeeName ? '<a class="admin-employee-profile-link" href="employee-profile.html?user=' + encodeURIComponent(key === 'users' ? record.id : record.userId) + '">' + esc(cell) + '</a>' : '<strong>' + esc(cell) + '</strong>'; return '<td' + (key === 'entries' && index === 6 ? ' class="admin-entry-remarks"' : '') + '>' + (index === record.cells.length - 1 ? action(cell, rowIndex, key, record) : key === 'entries' && index === 6 ? (record.remarks?.length ? record.remarks.map(remark => '<article class="admin-entry-remark"><strong>' + esc(remark.admin) + '</strong><span>' + esc(remark.text) + '</span><small class="admin-remark-read-status ' + (remark.seenAt ? 'is-seen' : 'is-unseen') + '">' + icon(remark.seenAt ? 'check' : 'circle-alert') + (remark.seenAt ? 'Seen ' + time(remark.seenAt) : 'Not seen yet') + '</small></article>').join('') : '—') : key === 'users' && index === 0 ? '<span class="admin-user-identity"><span class="admin-user-avatar">' + (record.avatarUrl ? '<img src="' + esc(record.avatarUrl) + '" alt="">' : esc(String(cell).trim().slice(0, 1).toUpperCase())) + '</span>' + nameCell + '</span>' : key === 'entries' && index === 0 ? nameCell : status(cell)) + '</td>'; }).join('') + '</tr>').join('') : emptyTable(emptyCopy[0], emptyCopy[1], view.columns.length);
     const pageList = [...new Set([1, pageState.page - 1, pageState.page, pageState.page + 1, pages].filter(page => page >= 1 && page <= pages))];
     pager.innerHTML = totalRecords > pageState.size ? '<span>Showing ' + (start + 1) + '–' + Math.min(start + pageState.size, totalRecords) + ' of ' + totalRecords + '</span><div class="pagination"><label class="sr-only" for="sectionPageSize">Rows per page</label><select class="form-select" id="sectionPageSize"><option value="25"' + (pageState.size === 25 ? ' selected' : '') + '>25</option><option value="50"' + (pageState.size === 50 ? ' selected' : '') + '>50</option><option value="100"' + (pageState.size === 100 ? ' selected' : '') + '>100</option></select><button type="button" data-section-page="' + (pageState.page - 1) + '" ' + (pageState.page === 1 ? 'disabled' : '') + ' aria-label="Previous page">‹</button>' + pageList.map(page => '<button type="button" data-section-page="' + page + '" class="' + (page === pageState.page ? 'active' : '') + '" aria-current="' + (page === pageState.page ? 'page' : 'false') + '">' + page + '</button>').join('') + '<button type="button" data-section-page="' + (pageState.page + 1) + '" ' + (pageState.page === pages ? 'disabled' : '') + ' aria-label="Next page">›</button></div>' : '';
     pager.querySelectorAll('[data-section-page]').forEach(button => button.addEventListener('click', () => { pageState.page = Number(button.dataset.sectionPage); serverPaged ? loadPage?.() : draw(visibleRecords); }));
@@ -448,6 +493,7 @@ async function renderAdminSection() {
       window.addEventListener('scroll', () => document.querySelectorAll('.admin-entry-action-set.is-open,.admin-user-action-set.is-open').forEach(closeActionMenu), true);
     }
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, pageRecords[Number(button.dataset.row)])));
+    body.querySelectorAll('.admin-entry-remarks-open').forEach(button => button.addEventListener('click', () => openEntryFeedback(pageRecords[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => editEntryTime(pageRecords[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-approve-overtime').forEach(button => button.addEventListener('click', async () => { const record = pageRecords[Number(button.dataset.row)]; if (!record || !await window.ACEUI.confirm({ title: 'Approve overtime?', message: 'Only time after the scheduled end will be approved as overtime.', confirmLabel: 'Approve overtime' })) return; try { const entry = await liveRequest('/v1/time-entries/' + record.id + '/overtime/approve', { method: 'POST' }); record.overtimeApprovedSeconds = entry.overtime_approved_seconds || 0; showToast('Overtime approved.', 'success'); renderAdminSection(); } catch (error) { showToast(error.message || 'Could not approve overtime.', 'error'); } }));
     body.querySelectorAll('.admin-view-employee').forEach(button => button.addEventListener('click', () => {

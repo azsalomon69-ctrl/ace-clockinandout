@@ -2833,7 +2833,25 @@ function loadAdminTimeEntryDetails() {
         <section class="time-entry-detail-grid" aria-label="Time entry summary"><article><span>Clock in</span><strong>${dateTime(entry.ClockInAt)}</strong></article><article><span>Clock out</span><strong>${dateTime(entry.ClockOutAt)}</strong></article><article><span>Worked time</span><strong>${worked}</strong></article><article><span>Project</span><strong>${escapeHtml(project?.ProjectName || entry.ProjectName || 'Unassigned')}</strong></article><article><span>Entry status</span><strong>${entry.ClockOutAt ? 'Completed' : 'Currently active'}</strong></article></section>
         <section class="time-entry-detail-notes"><article><h2>Clock-out note</h2><p>${escapeHtml(entry.FinalNote || 'No clock-out note was added.')}</p></article>${entry.UserNote ? `<article><h2>Legacy clock-in note</h2><p>${escapeHtml(entry.UserNote)}</p></article>` : ''}</section>
         ${entry.StoppedByName ? `<section class="time-entry-stopped"><h2>Stopped by an administrator</h2><p>${escapeHtml(entry.StoppedByName)} stopped this session on ${dateTime(entry.StoppedByAt || entry.ClockOutAt)}.</p></section>` : ''}
-        <section class="time-entry-detail-remarks"><div><p class="admin-section-kicker">ADMINISTRATOR NOTES</p><h2>Remarks</h2></div>${remarks.length ? `<div class="time-entry-remark-list">${remarks.map(remark => `<article><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${dateTime(remark.CreatedAt)}</small><span class="admin-remark-read-status ${remark.SeenAt ? 'is-seen' : 'is-unseen'}">${suppliedIconMarkup(remark.SeenAt ? 'check' : 'circle-alert')}${remark.SeenAt ? `Seen ${dateTime(remark.SeenAt)}` : 'Not seen yet'}</span></article>`).join('')}</div>` : '<p class="time-entry-no-remarks">No administrator remarks were added to this entry.</p>'}</section>`;
+        <section class="time-entry-detail-remarks"><div><p class="admin-section-kicker">ADMINISTRATOR NOTES</p><h2>Feedback history</h2></div>${remarks.length ? `<div class="time-entry-remark-list">${remarks.map(remark => `<article><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>Posted ${dateTime(remark.CreatedAt)}</small><span class="admin-remark-read-status ${remark.SeenAt ? 'is-seen' : 'is-unseen'}">${suppliedIconMarkup(remark.SeenAt ? 'check' : 'circle-alert')}${remark.SeenAt ? `Seen ${dateTime(remark.SeenAt)}` : 'Not seen yet'}</span></article>`).join('')}</div>` : '<p class="time-entry-no-remarks">No administrator feedback has been added to this entry.</p>'}<form class="entry-feedback-form" id="entryDetailFeedbackForm"><div class="form-group"><label class="form-label" for="entryDetailFeedbackText">Add a follow-up comment</label><textarea class="form-textarea" id="entryDetailFeedbackText" maxlength="2000" required placeholder="Add clear feedback for the employee about this time entry"></textarea></div><div class="form-actions"><button class="btn btn-primary" type="submit">${suppliedIconMarkup('message-circle-plus')}Post comment</button></div></form></section>`;
+    const feedbackForm = root.querySelector('#entryDetailFeedbackForm');
+    feedbackForm?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = feedbackForm.querySelector('button[type="submit"]');
+        const remark = feedbackForm.querySelector('#entryDetailFeedbackText').value.trim();
+        if (!remark || button.disabled) return;
+        button.disabled = true;
+        button.textContent = 'Posting…';
+        try {
+            await window.ACEAuth.request(`/v1/time-entries/${entry.TimeEntryId}/remarks`, { method: 'POST', body: JSON.stringify({ remark }) });
+            showToast('Feedback posted. The employee will be notified.', 'success');
+            window.location.reload();
+        } catch (error) {
+            showToast(error.message || 'Could not post feedback.', 'error');
+            button.disabled = false;
+            button.innerHTML = suppliedIconMarkup('message-circle-plus') + 'Post comment';
+        }
+    });
 }
 
 function loadUserDashboard() {
@@ -3337,7 +3355,7 @@ function loadAdminDashboard() {
                     <td>${duration}</td>
                     <td>${escapeHtml(entry.FinalNote || '—')}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span>${entry.StoppedByName ? `<small class="entry-admin-stop">Stopped by ${escapeHtml(entry.StoppedByName)} · ${new Date(entry.StoppedByAt || entry.ClockOutAt).toLocaleString()}</small>` : ''}</td>
-                    <td>${remarks.length ? `${remarks.length} remark${remarks.length === 1 ? '' : 's'}` : '—'}</td>
+                    <td>${remarks.length ? `<strong>${remarks.length} remark${remarks.length === 1 ? '' : 's'}</strong><small class="entry-remark-author">Latest by ${escapeHtml(remarks[0].AdminName || 'Administrator')}</small>` : '—'}</td>
                     <td>
                         <a class="btn btn-sm btn-outline admin-recent-entry-view" href="time-entry-details.html?entry=${encodeURIComponent(entry.TimeEntryId)}">View</a>
                         <button class="btn btn-sm btn-outline admin-recent-entry-toggle" type="button" aria-expanded="false">Details</button>

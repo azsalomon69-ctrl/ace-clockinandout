@@ -1797,6 +1797,31 @@ html[data-theme="dark"] .admin-user-action-menu button { color: var(--ace-text-p
   font-size: .76rem;
   overflow-wrap: anywhere
 }
+.entry-feedback-history {
+  display: grid;
+  gap: 10px;
+  max-height: min(42vh, 420px);
+  padding: 2px;
+  overflow: auto;
+}
+.entry-feedback-item {
+  padding: 13px 14px;
+  border: 1px solid var(--ace-line);
+  border-radius: 12px;
+  background: var(--ace-pale);
+}
+.entry-feedback-item header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ace-ink);
+  font-size: .82rem;
+}
+.entry-feedback-item time { color: #52717b; font-size: .72rem; }
+.entry-feedback-item p { margin: 8px 0 4px; color: var(--ace-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.entry-feedback-form { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--ace-line); }
+html[data-theme="dark"] .entry-feedback-item { background: var(--ace-surface-raised); border-color: var(--ace-border); }
+html[data-theme="dark"] .entry-feedback-item time { color: var(--ace-text-secondary); }
 .admin-remark-read-status,
 .admin-chat-read-status {
   display: inline-flex;
@@ -1825,6 +1850,14 @@ html[data-theme="dark"] :is(.admin-remark-read-status,.admin-chat-read-status).i
   font-weight: 700;
   line-height: 1.35
 }
+.entry-remark-author {
+  display: block;
+  margin-top: 4px;
+  color: #52717b;
+  font-size: .7rem;
+  font-weight: 700;
+}
+html[data-theme="dark"] .entry-remark-author { color: var(--ace-text-secondary); }
 .employee-schedule-notice {
   margin: 0 0 18px;
   padding: 13px 16px;
