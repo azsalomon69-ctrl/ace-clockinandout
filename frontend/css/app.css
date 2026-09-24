@@ -16950,6 +16950,44 @@ html[data-theme="dark"] ::-webkit-scrollbar-track { background: var(--ace-page-s
 html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3b4a4f; border: 2px solid var(--ace-page-subtle); border-radius: 999px; }
 html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #52636a; }
 
+/* Filter and setup forms should read as a short decision sequence, not a wall
+   of inputs.  The selected/focused field carries the emphasis; the container
+   stays deliberately quiet. */
+.filters-section { padding: 22px; border: 1px solid #cfe5ea; background: #fff; box-shadow: 0 7px 18px rgba(4,59,76,.04); }
+.filters-title { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; color: var(--ace-navy); }
+.filters-title::before { width: 3px; height: 18px; content: ''; background: var(--ace-accent); border-radius: 999px; }
+.filters-grid { gap: 12px; margin-bottom: 16px; }
+.filter-group { padding: 10px; border: 1px solid transparent; border-radius: 10px; transition: border-color .14s ease, background-color .14s ease; }
+.filter-group:focus-within { background: #f4fbfc; border-color: #a9dce5; }
+.filter-label { color: #587781; font-size: .68rem; font-weight: 800; letter-spacing: .065em; text-transform: uppercase; }
+.filter-group :is(.form-input,.form-select) { min-height: 40px; }
+.filter-actions { padding-top: 4px; border-top: 1px solid #e0edf0; }
+.filter-actions .btn { min-height: 38px; }
+.individual-report-builder #individualReportForm { display: grid; gap: 16px; }
+.individual-report-builder #individualReportForm > label { display: grid; gap: 7px; color: #587781; font-size: .68rem; font-weight: 800; letter-spacing: .065em; text-transform: uppercase; }
+.individual-report-period { padding: 14px; background: #fbfeff; border-color: #d6e9ed; }
+.individual-period-option { border-radius: 10px; }
+.individual-period-option:has(input:focus-visible) { outline: 3px solid rgba(16,155,177,.18); outline-offset: 2px; }
+.individual-custom-dates { padding: 12px; background: #f7fcfd; border: 1px solid #dcecf0; border-radius: 10px; }
+.individual-report-results-heading { min-height: 106px; background: #f7fcfd; }
+.schedule-duration-fields > div { padding: 12px; background: #f7fcfd; border: 1px solid #dcecf0; border-radius: 10px; }
+html[data-theme="dark"] .filters-section { background: var(--ace-surface)!important; border-color: var(--ace-border)!important; box-shadow: 0 7px 18px rgba(0,0,0,.15); }
+html[data-theme="dark"] .filter-group:focus-within { background: var(--ace-surface-raised); border-color: var(--ace-border-strong); }
+html[data-theme="dark"] .filter-label,
+html[data-theme="dark"] .individual-report-builder #individualReportForm > label { color: var(--ace-text-secondary); }
+html[data-theme="dark"] .filter-actions { border-color: var(--ace-border); }
+html[data-theme="dark"] .individual-report-period,
+html[data-theme="dark"] .individual-custom-dates,
+html[data-theme="dark"] .schedule-duration-fields > div,
+html[data-theme="dark"] .individual-report-results-heading { background: var(--ace-surface-raised)!important; border-color: var(--ace-border)!important; }
+@media (max-width: 700px) {
+  .filters-section { padding: 16px; }
+  .filters-grid { grid-template-columns: 1fr; }
+  .filter-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .filter-actions .btn { width: 100%; }
+  .individual-custom-dates { padding: 10px; }
+}
+
 /* Dashboard hierarchy: the operational summary belongs to the header, while
    analytics stay compact and answer one question each. */
 .admin-dashboard .dashboard-header {
