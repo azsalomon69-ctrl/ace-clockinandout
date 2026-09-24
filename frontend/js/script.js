@@ -1160,7 +1160,7 @@ function initializeAppShell() {
                 return `<button class="shell-message-notice" type="button" role="menuitem" data-open-chat="${escapeHtml(conversation.id)}"><span class="shell-message-notice-avatar">${avatarContent(conversation.name, conversation.picture)}</span><span class="shell-message-notice-copy"><strong>${escapeHtml(conversation.name || 'Teammate')}</strong><small>${escapeHtml(shortPreview)}</small></span>${count}</button>`;
             }));
         }
-        if (unreadRemarksCount) notices.push(`<a href="remarks.html" role="menuitem"><strong>${unreadRemarksCount} new remark${unreadRemarksCount === 1 ? '' : 's'}</strong><span>Review administrator feedback</span></a>`);
+        if (unreadRemarksCount) notices.push(`<a href="remarks.html" role="menuitem"><strong>${unreadRemarksCount} new administrator remark${unreadRemarksCount === 1 ? '' : 's'}</strong><span>Open Remarks to read the feedback on your time entry</span></a>`);
         notificationMenu.innerHTML = `<p class="shell-topbar-menu-title">Notifications</p>${notices.length ? notices.join('') : '<p class="shell-topbar-empty">You’re all caught up.</p>'}`;
         notificationMenu.querySelectorAll('[data-open-chat]').forEach(button => button.addEventListener('click', () => {
             setTopbarMenu(notificationButton, notificationMenu, false);
@@ -1169,6 +1169,8 @@ function initializeAppShell() {
             else document.querySelector('.employee-chat-launcher')?.click();
         }));
     };
+    // The employee remark poll refreshes this same notification menu between page loads.
+    window.ACERenderNotifications = renderNotifications;
     renderNotifications();
     window.addEventListener('ace:chat-unread', event => {
         unreadMessages = Number(event.detail?.totalUnread) || 0;
@@ -3479,6 +3481,7 @@ async function markRemarksRead() {
         const seenAt = new Date().toISOString();
         AppState.adminRemarks.forEach(remark => { if (!remark.SeenAt) remark.SeenAt = seenAt; });
         updateRemarkNotificationBadge();
+        window.ACERenderNotifications?.();
     } catch (error) { console.warn('Could not mark administrator remarks as read.', error); }
 }
 
@@ -3488,14 +3491,22 @@ function startRemarkNotifications() {
     const refresh = async () => {
         try {
             const remarks = (await window.ACEAuth.request('/v1/admin-remarks')).map(adminRemarkRecord);
-            const hadUnread = AppState.adminRemarks.some(remark => !remark.SeenAt);
+            const knownUnreadIds = new Set(AppState.adminRemarks.filter(remark => !remark.SeenAt).map(remark => remark.RemarkId));
             AppState.adminRemarks = remarks;
             updateRemarkNotificationBadge();
-            if (!initialized && !hadUnread && remarks.some(remark => !remark.SeenAt)) showToast('An administrator added a remark to one of your time entries.', 'info');
+            window.ACERenderNotifications?.();
+            const newlyReceived = remarks.filter(remark => !remark.SeenAt && !knownUnreadIds.has(remark.RemarkId));
+            if (!initialized && newlyReceived.length) {
+                const message = newlyReceived.length === 1
+                    ? 'An administrator added a remark to one of your time entries. Open Remarks to read it.'
+                    : `${newlyReceived.length} new administrator remarks were added. Open Remarks to read them.`;
+                showToast(message, 'info');
+            }
             initialized = false;
         } catch (error) { console.warn('Could not refresh administrator remarks.', error); }
     };
     updateRemarkNotificationBadge();
+    window.ACERenderNotifications?.();
     if (AppState.adminRemarks.some(remark => !remark.SeenAt)) showToast('You have new administrator remarks.', 'info');
     AppState.remarkNotificationInterval = window.setInterval(refresh, 15000);
     window.addEventListener('pagehide', () => window.clearInterval(AppState.remarkNotificationInterval), { once: true });
