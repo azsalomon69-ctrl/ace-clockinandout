@@ -1775,6 +1775,10 @@ html[data-theme="dark"] .admin-entry-action-menu button { color: var(--ace-text-
 .admin-user-action-menu .ui-icon { width: 16px; height: 16px; }
 html[data-theme="dark"] .admin-user-action-menu { background: var(--ace-surface-raised); border-color: var(--ace-border); }
 html[data-theme="dark"] .admin-user-action-menu button { color: var(--ace-text-primary); }
+.admin-action-menu-popover {
+  position: fixed!important;
+  z-index: 10020!important;
+}
 .admin-entry-remark {
   display: grid;
   gap: 3px;

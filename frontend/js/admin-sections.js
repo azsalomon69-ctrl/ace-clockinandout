@@ -404,17 +404,48 @@ async function renderAdminSection() {
     pager.innerHTML = totalRecords > pageState.size ? '<span>Showing ' + (start + 1) + '–' + Math.min(start + pageState.size, totalRecords) + ' of ' + totalRecords + '</span><div class="pagination"><label class="sr-only" for="sectionPageSize">Rows per page</label><select class="form-select" id="sectionPageSize"><option value="25"' + (pageState.size === 25 ? ' selected' : '') + '>25</option><option value="50"' + (pageState.size === 50 ? ' selected' : '') + '>50</option><option value="100"' + (pageState.size === 100 ? ' selected' : '') + '>100</option></select><button type="button" data-section-page="' + (pageState.page - 1) + '" ' + (pageState.page === 1 ? 'disabled' : '') + ' aria-label="Previous page">‹</button>' + pageList.map(page => '<button type="button" data-section-page="' + page + '" class="' + (page === pageState.page ? 'active' : '') + '" aria-current="' + (page === pageState.page ? 'page' : 'false') + '">' + page + '</button>').join('') + '<button type="button" data-section-page="' + (pageState.page + 1) + '" ' + (pageState.page === pages ? 'disabled' : '') + ' aria-label="Next page">›</button></div>' : '';
     pager.querySelectorAll('[data-section-page]').forEach(button => button.addEventListener('click', () => { pageState.page = Number(button.dataset.sectionPage); serverPaged ? loadPage?.() : draw(visibleRecords); }));
     pager.querySelector('#sectionPageSize')?.addEventListener('change', event => { pageState.size = Number(event.target.value); pageState.page = 1; serverPaged ? loadPage?.() : draw(visibleRecords); });
-    const closeEntryActionMenus = except => body.querySelectorAll('.admin-entry-action-set.is-open').forEach(item => { if (item !== except) { item.classList.remove('is-open'); item.querySelector('.admin-entry-actions-toggle')?.setAttribute('aria-expanded', 'false'); item.querySelector('.admin-entry-action-menu').hidden = true; } });
+    const actionMenuFor = set => set._actionMenu || set.querySelector('.admin-entry-action-menu,.admin-user-action-menu');
+    const closeActionMenu = set => {
+      const menu = actionMenuFor(set);
+      set.classList.remove('is-open');
+      set.querySelector('.admin-entry-actions-toggle,.admin-user-actions-toggle')?.setAttribute('aria-expanded', 'false');
+      if (!menu) return;
+      menu.hidden = true;
+      menu.classList.remove('admin-action-menu-popover');
+      menu.removeAttribute('style');
+      set.append(menu);
+      delete set._actionMenu;
+    };
+    const openActionMenu = (set, button) => {
+      const menu = actionMenuFor(set);
+      if (!menu) return;
+      set._actionMenu = menu;
+      menu.hidden = false;
+      menu.classList.add('admin-action-menu-popover');
+      document.body.append(menu);
+      const buttonRect = button.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      const left = Math.max(10, Math.min(buttonRect.right - menuRect.width, window.innerWidth - menuRect.width - 10));
+      const below = buttonRect.bottom + 7;
+      const top = below + menuRect.height <= window.innerHeight - 10 ? below : Math.max(10, buttonRect.top - menuRect.height - 7);
+      menu.style.left = `${left}px`;
+      menu.style.top = `${top}px`;
+      set.classList.add('is-open');
+      button.setAttribute('aria-expanded', 'true');
+    };
+    const closeEntryActionMenus = except => body.querySelectorAll('.admin-entry-action-set.is-open').forEach(item => { if (item !== except) closeActionMenu(item); });
     body.querySelectorAll('.admin-entry-actions-toggle').forEach(button => button.addEventListener('click', event => {
-      event.stopPropagation(); const set = button.closest('.admin-entry-action-set'); const open = !set.classList.contains('is-open'); closeEntryActionMenus(set); set.classList.toggle('is-open', open); button.setAttribute('aria-expanded', String(open)); set.querySelector('.admin-entry-action-menu').hidden = !open;
+      event.stopPropagation(); const set = button.closest('.admin-entry-action-set'); const open = !set.classList.contains('is-open'); closeEntryActionMenus(set); body.querySelectorAll('.admin-user-action-set.is-open').forEach(closeActionMenu); if (open) openActionMenu(set, button); else closeActionMenu(set);
     }));
-    const closeUserActionMenus = except => body.querySelectorAll('.admin-user-action-set.is-open').forEach(item => { if (item !== except) { item.classList.remove('is-open'); item.querySelector('.admin-user-actions-toggle')?.setAttribute('aria-expanded', 'false'); item.querySelector('.admin-user-action-menu').hidden = true; } });
+    const closeUserActionMenus = except => body.querySelectorAll('.admin-user-action-set.is-open').forEach(item => { if (item !== except) closeActionMenu(item); });
     body.querySelectorAll('.admin-user-actions-toggle').forEach(button => button.addEventListener('click', event => {
-      event.stopPropagation(); const set = button.closest('.admin-user-action-set'); const open = !set.classList.contains('is-open'); closeUserActionMenus(set); set.classList.toggle('is-open', open); button.setAttribute('aria-expanded', String(open)); set.querySelector('.admin-user-action-menu').hidden = !open;
+      event.stopPropagation(); const set = button.closest('.admin-user-action-set'); const open = !set.classList.contains('is-open'); closeUserActionMenus(set); body.querySelectorAll('.admin-entry-action-set.is-open').forEach(closeActionMenu); if (open) openActionMenu(set, button); else closeActionMenu(set);
     }));
     if (!document.body.dataset.entryActionMenuCloseBound) {
       document.body.dataset.entryActionMenuCloseBound = 'true';
-      document.addEventListener('click', event => { if (!event.target.closest('.admin-entry-action-set')) document.querySelectorAll('.admin-entry-action-set.is-open').forEach(item => { item.classList.remove('is-open'); item.querySelector('.admin-entry-actions-toggle')?.setAttribute('aria-expanded', 'false'); item.querySelector('.admin-entry-action-menu').hidden = true; }); if (!event.target.closest('.admin-user-action-set')) document.querySelectorAll('.admin-user-action-set.is-open').forEach(item => { item.classList.remove('is-open'); item.querySelector('.admin-user-actions-toggle')?.setAttribute('aria-expanded', 'false'); item.querySelector('.admin-user-action-menu').hidden = true; }); });
+      document.addEventListener('click', event => { if (!event.target.closest('.admin-entry-action-set,.admin-user-action-set,.admin-action-menu-popover')) document.querySelectorAll('.admin-entry-action-set.is-open,.admin-user-action-set.is-open').forEach(closeActionMenu); });
+      window.addEventListener('resize', () => document.querySelectorAll('.admin-entry-action-set.is-open,.admin-user-action-set.is-open').forEach(closeActionMenu));
+      window.addEventListener('scroll', () => document.querySelectorAll('.admin-entry-action-set.is-open,.admin-user-action-set.is-open').forEach(closeActionMenu), true);
     }
     body.querySelectorAll('.admin-row-action').forEach(button => button.addEventListener('click', () => modal(view, false, pageRecords[Number(button.dataset.row)])));
     body.querySelectorAll('.admin-edit-entry-time').forEach(button => button.addEventListener('click', () => editEntryTime(pageRecords[Number(button.dataset.row)])));
