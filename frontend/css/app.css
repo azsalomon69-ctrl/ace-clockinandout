@@ -17435,3 +17435,56 @@ html[data-theme="dark"] .employee-quick-action-list a:hover { background: #23414
   .employee-quick-action-list strong { font-size: .76rem; }
   .employee-quick-action-list small { font-size: .65rem; }
 }
+
+/* Admin dashboard: compact operations rhythm with each data group on its own surface. */
+.admin-dashboard .dashboard-content { display: flex; flex-direction: column; gap: 12px; }
+.admin-dashboard .dashboard-header { order: 1; display: flex; align-items: end; justify-content: space-between; min-height: 0; padding: 0 2px 12px; border: 0; background: transparent; box-shadow: none; }
+.admin-dashboard .dashboard-header::after { display: none; }
+.admin-dashboard .dashboard-header-copy { max-width: 650px; }
+.admin-dashboard .dashboard-header-copy .admin-section-kicker { margin-bottom: 4px; }
+.admin-dashboard .dashboard-header-copy .dashboard-title { margin: 0 0 4px; font-size: clamp(1.6rem,2.5vw,2.15rem); letter-spacing: -.045em; }
+.admin-dashboard .dashboard-header-copy > p:last-child { margin: 0; font-size: .73rem; line-height: 1.45; }
+.admin-dashboard .admin-dashboard-date { display: grid; min-width: 166px; padding: 10px 13px 10px 38px; color: #466b78; font: 700 .64rem/1.35 'Montserrat',Arial,sans-serif; text-align: left; border: 1px solid #d9eaee; border-radius: 7px; background: #fff url('../assets/icons/calendar-days.svg') no-repeat 13px center/16px; box-shadow: 0 2px 7px rgba(9,64,79,.04); }
+.admin-dashboard .dashboard-command-center { order: 2; display: grid; grid-template-columns: minmax(170px,.9fr) minmax(0,2.2fr); align-items: center; gap: 18px; min-height: 72px; margin: 0; padding: 13px 16px; border: 1px solid #dcecef; border-radius: 8px; background: #fff; box-shadow: 0 2px 7px rgba(9,64,79,.045); }
+.admin-dashboard .dashboard-command-copy h2 { margin: 0 0 2px; color: #123b4c; font-size: .82rem; }
+.admin-dashboard .dashboard-command-copy > p:last-child { margin: 0; color: #668690; font-size: .62rem; line-height: 1.35; }
+.admin-dashboard .dashboard-command-copy .admin-section-kicker { margin-bottom: 3px; font-size: .57rem; }
+.admin-dashboard .dashboard-command-center .quick-actions { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.admin-dashboard .dashboard-command-center .quick-actions .btn { justify-content: center; min-height: 38px; padding: 8px 10px; font-size: .62rem; white-space: nowrap; }
+.admin-dashboard .dashboard-overview { order: 3; }
+.admin-dashboard .dashboard-header-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin: 0; padding: 0; border: 0; }
+.admin-dashboard .dashboard-header-stats .stat-card { min-height: 78px; display: grid; grid-template-columns: 34px minmax(0,1fr); align-items: center; gap: 10px; padding: 13px; border: 1px solid #dcecef; border-radius: 7px; background: #fff; box-shadow: 0 2px 7px rgba(9,64,79,.045); }
+.admin-dashboard .dashboard-header-stats .stat-card + .stat-card { border-left: 1px solid #dcecef; }
+.admin-dashboard .dashboard-header-stats .stat-icon { width: 34px; height: 34px; margin: 0; border-radius: 50%; background: #e7f8fa; }
+.admin-dashboard .dashboard-header-stats .stat-icon svg { width: 18px; height: 18px; }
+.admin-dashboard .dashboard-header-stats .stat-number { color: #0d667e; font-size: 1.25rem; letter-spacing: -.04em; }
+.admin-dashboard .dashboard-header-stats .stat-label { margin-top: 3px; color: #668690; font-size: .57rem; line-height: 1.22; }
+.admin-dashboard .dashboard-insights { order: 4; margin: 2px 0 6px; }
+.admin-dashboard .dashboard-insights-heading { margin: 0 0 8px; }
+.admin-dashboard .dashboard-insights-heading .admin-section-kicker { margin-bottom: 3px; font-size: .58rem; }
+.admin-dashboard .dashboard-insights-heading h2 { font-size: .95rem; }
+.admin-dashboard #reviewAlertsSection { order: 5; }
+.admin-dashboard .dashboard-section:not(#reviewAlertsSection) { order: 6; margin-top: 4px; }
+.admin-dashboard .dashboard-section { border-radius: 8px; box-shadow: 0 2px 7px rgba(9,64,79,.045); }
+html[data-theme="dark"] .admin-dashboard .dashboard-header { background: transparent!important; }
+html[data-theme="dark"] .admin-dashboard .admin-dashboard-date,html[data-theme="dark"] .admin-dashboard .dashboard-command-center,html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-card { color: #abc8cf; border-color: #294750!important; background-color: #15262b!important; box-shadow: 0 7px 18px rgba(0,0,0,.15); }
+html[data-theme="dark"] .admin-dashboard .admin-dashboard-date { background-image: url('../assets/icons/calendar-days.svg'); }
+html[data-theme="dark"] .admin-dashboard .dashboard-command-copy h2 { color: #eff9fa; }
+html[data-theme="dark"] .admin-dashboard .dashboard-command-copy > p:last-child,html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-label { color: #aac6cc; }
+html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-number { color: #5cdae2; }
+html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-icon { background: #203f47; }
+@media (max-width: 900px) {
+  .admin-dashboard .dashboard-command-center { grid-template-columns: 1fr; gap: 10px; }
+  .admin-dashboard .dashboard-command-center .quick-actions { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 640px) {
+  .admin-dashboard .dashboard-content { gap: 10px; }
+  .admin-dashboard .dashboard-header { align-items: flex-start; flex-direction: column; gap: 9px; padding: 0 0 7px; }
+  .admin-dashboard .dashboard-header-copy .dashboard-title { font-size: 1.52rem; }
+  .admin-dashboard .admin-dashboard-date { min-width: 0; width: 100%; }
+  .admin-dashboard .dashboard-command-center { padding: 13px; border-radius: 10px; }
+  .admin-dashboard .dashboard-command-center .quick-actions .btn { min-height: 42px; font-size: .64rem; white-space: normal; }
+  .admin-dashboard .dashboard-header-stats { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .admin-dashboard .dashboard-header-stats .stat-card { min-height: 70px; padding: 10px; }
+  .admin-dashboard .dashboard-header-stats .stat-number { font-size: 1.08rem; }
+}

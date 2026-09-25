@@ -17,9 +17,13 @@
             <!-- Dashboard Content -->
             <div class="dashboard-content">
                 <!-- Dashboard Header -->
-                <div class="dashboard-header">
-                    <div class="dashboard-header-copy"><p class="admin-section-kicker">ADMIN CONTROL CENTER</p><h1 class="dashboard-title">Admin Dashboard</h1><p>Review live work, handle staffing tasks, and follow up on recent time activity.</p></div>
-                    <div class="dashboard-header-stats" aria-label="Current workspace status">
+                <header class="dashboard-header">
+                    <div class="dashboard-header-copy"><p class="admin-section-kicker">WELCOME BACK</p><h1 class="dashboard-title">Admin Dashboard</h1><p>Review live work, handle staffing tasks, and follow up on recent time activity.</p></div>
+                    <time class="admin-dashboard-date" id="currentDate" aria-live="polite">Monday, January 1, 2024</time>
+                </header>
+
+                <section class="dashboard-overview" aria-label="Current workspace status">
+                    <div class="dashboard-header-stats">
                     <div class="stat-card">
                         <div class="stat-icon">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -66,8 +70,8 @@
                             <div class="stat-label">Completed this month</div>
                         </div>
                     </div>
-                </div>
-                </div>
+                    </div>
+                </section>
 
                 <!-- Quick Actions -->
                 <section class="dashboard-command-center" aria-labelledby="operationsTitle">
