@@ -2202,6 +2202,7 @@ html[data-theme="dark"] .time-leaderboard-avatar {
    account card, rather than competing with search and notifications above. */
 .shell-sidebar-help {
   width: calc(100% - 20px);
+  box-sizing: border-box;
   min-height: 38px;
   display: flex;
   align-items: center;
