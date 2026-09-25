@@ -176,6 +176,7 @@ test('dashboard analytics render smooth time lines and scaled project bars', () 
   assert.match(shellSource, /const xGrid = points\.map\(point => `<line class="line-chart-gridline line-chart-gridline--vertical"/, 'The time chart should include vertical grid guides for each time bucket');
   assert.match(shellSource, /class="project-bar-chart"/, 'Project allocation should render as a chart container');
   assert.match(shellSource, /class="project-bar-fill" style="width:\$\{width\}%"/, 'Project values should scale each bar to the largest selected project');
+  assert.match(styles, /\.admin-dashboard \.project-allocation-card \.project-allocation \{ display: grid; grid-template-columns: minmax\(0,1fr\);/, 'The allocation chart must span the full card width instead of inheriting a legacy two-column grid');
   assert.match(styles, /\.project-bar-track \{[\s\S]*?repeating-linear-gradient/, 'Project bars should show a shared grid scale');
   assert.match(styles, /\.line-chart-gridline--vertical \{ stroke: #e7f0f2;/, 'Vertical chart guides should stay visually subtle');
 });
