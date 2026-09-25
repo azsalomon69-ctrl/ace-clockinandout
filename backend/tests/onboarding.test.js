@@ -196,11 +196,12 @@ test('action buttons retain visible icons after dynamic page content is added', 
   assert.match(shellSource, /const addActionButtonIcon = button =>/, 'Button icon insertion should be reusable for later page content');
   assert.match(shellSource, /window\.aceActionButtonIconObserver = new MutationObserver/, 'Dynamically rendered action buttons should receive icons');
   assert.match(shellSource, /document\.querySelectorAll\('button\.btn'\)\.forEach\(addActionButtonIcon\)/, 'Existing action buttons should receive icons on first render');
-  assert.match(shellSource, /button\.dataset\.aceButtonIcon = name;/, 'Every action button should keep an explicit icon identity');
-  assert.match(shellSource, /button\.style\.setProperty\('--ace-button-icon', `url\("assets\/icons\/\$\{name\}\.svg"\)`\);/, 'Every action button should provide its icon mask source');
+  assert.match(shellSource, /button\.insertAdjacentHTML\('afterbegin', suppliedIconMarkup\(name\)\);/, 'Dynamically rendered action buttons should receive a real image icon');
+  assert.doesNotMatch(shellSource, /(?:dataset\.aceButtonIcon\s*=|--ace-button-icon)/, 'Button icons must not depend on mask-only state');
   assert.match(styles, /html\[data-theme="dark"\] \.btn-primary > \.ui-icon \{[\s\S]*?filter: brightness\(0\)!important;/, 'Icons on white primary actions must remain black and visible');
   assert.match(styles, /html\[data-theme="dark"\] :is\(\.btn-secondary,\.btn-outline\) > \.ui-icon \{[\s\S]*?filter: brightness\(0\) invert\(1\)!important;/, 'Icons on dark secondary and outline actions must remain white');
-  assert.match(styles, /\.btn\[data-ace-button-icon\]::before \{[\s\S]*?background-color: currentColor;[\s\S]*?mask: var\(--ace-button-icon\)/, 'Action icons should render from the button text color instead of conflicting SVG filters');
+  assert.doesNotMatch(styles, /\.btn\[data-ace-button-icon\][^{]*?(?:::before)?[^{]*\{[\s\S]*?(?:-webkit-)?mask:/, 'Action icons must not use a CSS mask replacement');
+  assert.doesNotMatch(styles, /\.btn\[data-ace-button-icon\]\s*>\s*\.ui-icon\s*\{\s*display:\s*none/i, 'Button image icons must remain visible');
 });
 
 test('restarting a tutorial teaches users how to return to the dashboard first', () => {

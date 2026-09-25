@@ -1733,10 +1733,6 @@ function applySuppliedIcons() {
         if (!name && svg.closest('.login-icon')) name = 'log-in';
         if (!name && svg.closest('.avatar-preview')) name = 'users';
         if (!name) name = inferIcon(owner?.textContent || owner?.getAttribute?.('aria-label'));
-        if (button?.matches('button.btn')) {
-            button.dataset.aceButtonIcon = name;
-            button.style.setProperty('--ace-button-icon', `url("assets/icons/${name}.svg")`);
-        }
         const replacement = document.createElement('img');
         replacement.className = 'ui-icon';
         if (svg.classList.contains('nav-logo')) replacement.classList.add('nav-logo');
@@ -1757,8 +1753,6 @@ function applySuppliedIcons() {
         if (button.matches('.btn-google, .password-toggle, .modal-close, .toast-close')) return;
         const name = buttonIcons[button.id] || inferIcon(button.textContent || button.getAttribute('aria-label'));
         if (!name || name === 'info' && !/learn|help|details/i.test(button.textContent || '')) return;
-        button.dataset.aceButtonIcon = name;
-        button.style.setProperty('--ace-button-icon', `url("assets/icons/${name}.svg")`);
         if (button.querySelector('img, svg')) return;
         button.insertAdjacentHTML('afterbegin', suppliedIconMarkup(name));
     };
