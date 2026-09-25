@@ -17271,3 +17271,19 @@ html[data-theme="dark"] :is(.btn-secondary,.btn-outline) > .ui-icon {
   filter: brightness(0) invert(1)!important;
   opacity: 1!important;
 }
+
+/* Button icons use a mask instead of a filtered external SVG. Several legacy
+   rules filter those SVG files independently, which could make a valid icon
+   disappear against its button after theme changes or late modal rendering. */
+@supports ((-webkit-mask: url("") center / contain no-repeat) or (mask: url("") center / contain no-repeat)) {
+  .btn[data-ace-button-icon]::before {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
+    content: '';
+    background-color: currentColor;
+    -webkit-mask: var(--ace-button-icon) center / contain no-repeat;
+    mask: var(--ace-button-icon) center / contain no-repeat;
+  }
+  .btn[data-ace-button-icon] > .ui-icon { display: none!important; }
+}
