@@ -4,7 +4,7 @@
 // tour must begin on that page even if the user launched it elsewhere.
 window.ACETutorialConfig = {
     USER: {
-        version: 6,
+        version: 7,
         steps: [
             { page: 'user-dashboard.html', target: '#mainClockInBtn', title: 'Start and finish your shift', body: 'Start your shift here. Clock out is available in the same place and requires a short official clock-out note; clock-in notes are not used.', forcePage: false, navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'time-entries.html', target: '#timeEntriesList', title: 'Review your shifts', body: "Every shift you've worked, newest first.", navigation: { group: 'Work', label: 'My time entries' } },

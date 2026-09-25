@@ -159,6 +159,7 @@ test('employee time-entry navigation matches the visible sidebar label', () => {
     const timeEntries = context.window.ACETutorialConfig.USER.steps.find(step => step.page === 'time-entries.html');
     assert.equal(timeEntries.navigation.label, 'My time entries');
     assert.equal(timeEntries.navigation.group, 'Work');
+    assert.match(shellSource, /aria-label="\$\{groupLabel\}" data-group-label="\$\{groupLabel\}"/, 'Every employee sidebar group must expose its label so tutorial navigation can target the requested destination');
 });
 
 test('a collapsed desktop rail keeps Help icon-only without hiding mobile admin dropdowns', () => {
