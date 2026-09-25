@@ -17231,3 +17231,32 @@ html[data-theme="dark"] .btn-primary {
 html[data-theme="dark"] .btn-primary:hover,
 html[data-theme="dark"] .btn-primary:focus-visible { color: #142126!important; background: #e8eff1!important; border-color: #e8eff1!important; }
 html[data-theme="dark"] .btn-primary .ui-icon { filter: brightness(0) saturate(100%) invert(11%) sepia(10%) saturate(1212%) hue-rotate(146deg) brightness(92%) contrast(90%)!important; }
+
+/* Public pages deliberately keep their light sign-in card and photographic
+   hero. Scope their contrast separately so shell-only dark rules cannot turn
+   dark text white or invert brand artwork into empty white boxes. */
+html[data-theme="dark"] body.home-page:not(.has-app-shell) .navbar { background: #151c20!important; border-color: #2b383d!important; }
+html[data-theme="dark"] body.home-page:not(.has-app-shell) :is(.nav-brand .nav-title,.nav-links .nav-link) { color: #eef6f7!important; }
+html[data-theme="dark"] body.home-page:not(.has-app-shell) .nav-logo { color: #64d5df!important; }
+html[data-theme="dark"] body.home-page:not(.has-app-shell) .nav-links a[href="/login"] { color: #142126!important; background: #fff!important; border-color: #fff!important; }
+html[data-theme="dark"] body.home-page:not(.has-app-shell) .home-v2-hero-copy > p { color: #e4f3f5!important; }
+html[data-theme="dark"] body.home-page:not(.has-app-shell) .home-v2-proof :is(dt,dd) { color: #fff!important; }
+html[data-theme="dark"] body.home-page:not(.has-app-shell) .home-v2-proof dd { color: #cae4e7!important; }
+html[data-theme="dark"] body.home-page:not(.has-app-shell) .home-v2-proof-icon { filter: brightness(0) invert(1)!important; }
+html[data-theme="dark"] body.login-view { background: #151c20!important; }
+html[data-theme="dark"] .login-view .login-card {
+  color: #183037!important;
+  background: #fff!important;
+  border-color: #fff!important;
+  box-shadow: 0 18px 42px rgba(0,0,0,.24)!important;
+}
+html[data-theme="dark"] .login-view .login-card :is(.login-title,.login-subtitle,.login-footer,span,p) { color: #49636b!important; }
+html[data-theme="dark"] .login-view .login-card .login-title { color: #103d4a!important; }
+html[data-theme="dark"] .login-view .login-card .login-kicker { color: #087f9d!important; }
+html[data-theme="dark"] .login-view .login-card .btn-google { color: #103d4a!important; background: #f8fcfd!important; border-color: #9ccbd4!important; }
+html[data-theme="dark"] .login-view .login-card .btn-google > img { filter: none!important; opacity: 1!important; }
+html[data-theme="dark"] .login-view :is(.login-brand-logo img,.login-mobile-brand img) { filter: none!important; opacity: 1!important; }
+html[data-theme="dark"] .login-view .login-info-panel :is(.info-title,.info-description,.login-value-points strong,.login-value-points small) { color: #f4fbfc!important; }
+html[data-theme="dark"] .login-view .login-info-panel .ui-icon { filter: brightness(0) invert(1)!important; opacity: 1!important; }
+html[data-theme="dark"] .logout-confirm-icon { background: #213238!important; }
+html[data-theme="dark"] .logout-confirm-icon img { filter: brightness(0) invert(1)!important; opacity: 1!important; }

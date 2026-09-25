@@ -183,6 +183,14 @@ test('dark navigation is flat, high-contrast, and keeps primary actions white', 
   assert.match(styles, /html\[data-theme="dark"\] \.btn-primary \{[\s\S]*?background: #fff!important;/, 'Dark primary actions should use a white surface');
 });
 
+test('dark public home and sign-in pages preserve readable light-card contrast', () => {
+  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
+  assert.match(styles, /html\[data-theme="dark"\] \.login-view \.login-card \{[\s\S]*?background: #fff!important;/, 'The sign-in card should remain a readable light surface in dark mode');
+  assert.match(styles, /html\[data-theme="dark"\] \.login-view \.login-card \.login-title \{ color: #103d4a!important;/, 'Sign-in heading must stay dark on its light card');
+  assert.match(styles, /html\[data-theme="dark"\] \.login-view :is\(\.login-brand-logo img,\.login-mobile-brand img\) \{ filter: none!important;/, 'Dark mode must not invert login brand artwork');
+  assert.match(styles, /html\[data-theme="dark"\] body\.home-page:not\(\.has-app-shell\) :is\(\.nav-brand \.nav-title,\.nav-links \.nav-link\) \{ color: #eef6f7!important;/, 'Home navigation copy must be readable on the dark header');
+});
+
 test('restarting a tutorial teaches users how to return to the dashboard first', () => {
   const context = { window: {} };
   vm.runInNewContext(configSource, context);
