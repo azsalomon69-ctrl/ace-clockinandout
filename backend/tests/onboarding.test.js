@@ -188,6 +188,7 @@ test('employee dashboard presents weekly time, responsive actions, and a shared 
   assert.match(dashboard, /class="employee-quick-action-list"/, 'Employees need direct shortcuts for common actions');
   assert.match(shellSource, /const dailySeconds = Array\.from\(\{ length: 7 \}/, 'The weekly visual should derive all seven days from recorded time');
   assert.match(styles, /\.user-dashboard \{\s*--employee-card:/, 'Employee card colors should be centralized for theme consistency');
+  assert.match(styles, /\.user-dashboard \.employee-status-panel \{[\s\S]*?analytics-mountain-banner-v1\.png/, 'The employee work-status surface should retain its scenic background treatment');
   assert.match(styles, /@media \(max-width: 760px\) \{[\s\S]*?\.user-dashboard \.employee-dashboard-hero-grid \{ grid-template-columns: 1fr;/, 'Mobile must use a dedicated single-column employee dashboard layout');
 });
 

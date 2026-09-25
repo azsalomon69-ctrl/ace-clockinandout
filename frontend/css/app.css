@@ -17382,7 +17382,7 @@ html[data-theme="dark"] .admin-dashboard .line-chart-point { fill: var(--dashboa
 }
 .user-dashboard .employee-dashboard-intro { margin-bottom: 20px; }
 .user-dashboard .employee-dashboard-hero-grid { display: grid; grid-template-columns: minmax(0,1.8fr) minmax(285px,.8fr); gap: 18px; align-items: stretch; margin-bottom: 22px; }
-.user-dashboard .employee-status-panel { min-height: 286px; margin: 0; padding: 30px; border-radius: 12px; background: linear-gradient(135deg,#064f65,#073448); box-shadow: 0 12px 28px rgba(6,58,76,.16); }
+.user-dashboard .employee-status-panel { min-height: 286px; margin: 0; padding: 30px; border-radius: 12px; background-color: #073e50; background-image: linear-gradient(100deg,rgba(3,45,61,.62),rgba(5,75,94,.36)),url('/assets/images/analytics-mountain-banner-v1.png'); background-position: center; background-size: cover; box-shadow: 0 12px 28px rgba(6,58,76,.16); }
 .user-dashboard .employee-week-card,.user-dashboard .employee-quick-actions { padding: 20px; border: 1px solid var(--employee-border); border-radius: 11px; background: var(--employee-card); box-shadow: 0 3px 10px rgba(9,64,79,.06); }
 .user-dashboard .employee-week-card { display: flex; flex-direction: column; min-height: 286px; }
 .employee-card-title { display: flex; align-items: center; gap: 11px; }
@@ -17411,7 +17411,7 @@ html[data-theme="dark"] .admin-dashboard .line-chart-point { fill: var(--dashboa
 .employee-quick-action-list small { overflow: hidden; color: var(--employee-copy); font-size: .61rem; text-overflow: ellipsis; white-space: nowrap; }
 .employee-action-arrow { width: 14px; height: 14px; }
 html[data-theme="dark"] .user-dashboard { --employee-card: #15262b; --employee-soft: #1b3036; --employee-border: #294750; --employee-ink: #eff9fa; --employee-copy: #aac6cc; --employee-accent: #38cbd7; }
-html[data-theme="dark"] .user-dashboard .employee-status-panel { background: linear-gradient(135deg,#133b47,#10252d)!important; border-color: #245260!important; box-shadow: 0 12px 26px rgba(0,0,0,.2); }
+html[data-theme="dark"] .user-dashboard .employee-status-panel { background-color: #10252d!important; background-image: linear-gradient(100deg,rgba(2,28,37,.72),rgba(5,64,77,.5)),url('/assets/images/analytics-mountain-banner-v1.png')!important; background-position: center; background-size: cover; border-color: #245260!important; box-shadow: 0 12px 26px rgba(0,0,0,.2); }
 html[data-theme="dark"] .user-dashboard :is(.employee-week-card,.employee-quick-actions) { background: var(--employee-card)!important; border-color: var(--employee-border)!important; box-shadow: 0 8px 20px rgba(0,0,0,.16); }
 html[data-theme="dark"] .employee-card-icon { background: #21434b; }
 html[data-theme="dark"] .employee-card-title h2,html[data-theme="dark"] .employee-week-metrics strong,html[data-theme="dark"] .employee-quick-action-list strong { color: var(--employee-ink)!important; }
