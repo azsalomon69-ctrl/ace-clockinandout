@@ -48,9 +48,75 @@ function harness(route, { actor = profile('actor'), target = profile('target', {
         maybeSingle() { this.cardinality = 'maybe'; return this; }
       };
     },
-    auth: { admin: { async updateUserById(id, changes) { effects.push({ kind: 'auth', id, changes }); return { error: null }; } } }
+    auth: { admin: { async updateUserById(id, changes) { effects.push({ kind: 'auth', id, changes }); return { error: null }; } } },
+    async rpc(name, args) {
+      if (name === 'change_user_role_with_audit') {
+        const targetProfile = state.profiles.find(row => row.id === args.p_target_user_id);
+        if (!targetProfile) return { data: null, error: { code: 'P0001', message: 'PROFILE_NOT_FOUND' } };
+        if (targetProfile.role === args.p_role) return { data: { ...targetProfile }, error: null };
+        effects.push({ kind: 'update', table: 'profiles' });
+        Object.assign(targetProfile, { role: args.p_role });
+        effects.push({ kind: 'audit', action: 'CHANGE_ROLE' });
+        return { data: { ...targetProfile }, error: null };
+      }
+      if (name === 'change_user_status_with_audit') {
+        const targetProfile = state.profiles.find(row => row.id === args.p_target_user_id);
+        if (!targetProfile) return { data: null, error: { code: 'P0001', message: 'PROFILE_NOT_FOUND' } };
+        if (targetProfile.status === args.p_status) return { data: { ...targetProfile }, error: null };
+        effects.push({ kind: 'update', table: 'profiles' });
+        Object.assign(targetProfile, { status: args.p_status });
+        effects.push({ kind: 'audit', action: args.p_status === 'ACTIVE' ? 'APPROVE' : 'DENY' });
+        return { data: { ...targetProfile }, error: null };
+      }
+      if (name === 'submit_access_request') {
+        const existing = args.p_existing_request_id && state.access_requests.find(row => row.id === args.p_existing_request_id);
+        const request = existing || { id: 'new-request' };
+        Object.assign(request, {
+          profile_id: args.p_profile_id, email: args.p_email, full_name: args.p_full_name,
+          requested_department: args.p_requested_department, message: args.p_message,
+          requested_role: 'USER', request_ip: args.p_request_ip, expires_at: args.p_expires_at, status: 'PENDING'
+        });
+        if (!existing) state.access_requests.push(request);
+        effects.push({ kind: 'audit', action: 'REQUEST_ACCESS' });
+        return { data: { ...request }, error: null };
+      }
+      if (name === 'admin_update_profile_with_audit') {
+        const targetProfile = state.profiles.find(row => row.id === args.p_target_user_id);
+        if (!targetProfile) return { data: null, error: { code: 'P0001', message: 'PROFILE_NOT_FOUND' } };
+        const patch = args.p_operation === 'APPROVAL' ? { status: args.p_status }
+          : args.p_operation === 'CHANGE_ROLE' ? { role: args.p_role }
+          : args.p_operation === 'ASSIGN_DEPARTMENT' ? { department_id: args.p_department_id }
+          : args.p_operation === 'ARCHIVE_USER' ? { status: 'DENIED' }
+          : args.p_operation === 'RESTORE_USER' ? { status: 'ACTIVE' } : null;
+        assert.ok(patch, 'lifecycle RPC receives a fixed operation');
+        effects.push({ kind: 'update', table: 'profiles' });
+        Object.assign(targetProfile, patch);
+        effects.push({ kind: 'audit', action: args.p_operation });
+        return { data: { ...targetProfile }, error: null };
+      }
+      assert.equal(name, 'review_access_request');
+      const request = state.access_requests.find(row => row.id === args.p_request_id);
+      if (!request) return { data: null, error: { code: 'P0001', message: 'ACCESS_REQUEST_NOT_FOUND' } };
+      if (request.status !== 'PENDING') return { data: null, error: { code: 'P0001', message: 'ACCESS_REQUEST_ALREADY_REVIEWED' } };
+      const targetProfile = state.profiles.find(row => row.id === request.profile_id);
+      const status = args.p_decision === 'APPROVE' ? 'ACTIVE' : 'DENIED';
+      effects.push({ kind: 'update', table: 'profiles' });
+      Object.assign(targetProfile, args.p_decision === 'APPROVE'
+        ? { status, role: args.p_role, department_id: args.p_department_id }
+        : { status });
+      effects.push({ kind: 'update', table: 'access_requests' });
+      Object.assign(request, { status, reviewed_by_user_id: args.p_actor_user_id });
+      // The production RPC runs the audit trigger in this same transaction.
+      effects.push({ kind: 'audit', action: status === 'ACTIVE' ? 'APPROVE_ACCESS_REQUEST' : 'DENY_ACCESS_REQUEST' });
+      return { data: { ...request }, error: null };
+    }
   };
   async function query(builder) {
+    if (builder?.then) {
+      const result = await builder;
+      if (result.error) throw result.error;
+      return result.data;
+    }
     if (failCount && builder.table === 'profiles' && builder.filters.some(([key]) => key === 'role')) throw new Error('Count unavailable');
     let rows = state[builder.table].filter(row => builder.filters.every(([, , predicate]) => predicate(row)));
     if (builder.mode !== 'read') {
@@ -104,7 +170,7 @@ for (const route of routeCases) {
   });
 
   test(`${route.name}: ordinary permitted mutation still succeeds`, async () => {
-    const h = harness(route);
+    const h = harness(route, route.name === 'user approval' ? { target: profile('target', { status: 'PENDING' }) } : {});
     await h.run();
     assert.ok([200, 201].includes(h.res.statusCode));
     const target = h.state.profiles.find(row => row.id === 'target');
@@ -113,7 +179,7 @@ for (const route of routeCases) {
     assert.equal(target.role, route.body.role || 'ADMIN');
     assert.equal(h.effects.filter(effect => effect.kind === 'audit').length, 1);
     assert.equal(h.effects.filter(effect => effect.kind === 'email').length, route.method === 'post' ? 1 : 0);
-    assert.equal(h.effects.filter(effect => effect.kind === 'auth').length, ['archive', 'restore'].includes(route.name) ? 1 : 0);
+    assert.equal(h.effects.filter(effect => effect.kind === 'auth').length, 0, 'archive/restore Auth state is handled inside the transactional RPC');
   });
 }
 
@@ -166,6 +232,26 @@ test('access denial updates the linked profile and request', async () => {
   assert.deepEqual(h.effects.map(effect => effect.kind), ['update', 'update', 'audit']);
   assert.equal(h.effects[0].table, 'profiles');
   assert.equal(h.effects[1].table, 'access_requests');
+});
+
+test('user status retry is idempotent and does not create a second audit event', async () => {
+  const route = routeCases.find(item => item.name === 'user approval');
+  const target = profile('target', { role: 'USER', status: 'ACTIVE' });
+  const h = harness(route, { target, profiles: [profile('actor'), target] });
+  await h.run();
+  assert.equal(h.res.statusCode, 200);
+  assert.equal(h.effects.filter(effect => effect.kind === 'update' && effect.table === 'profiles').length, 0);
+  assert.equal(h.effects.filter(effect => effect.kind === 'audit').length, 0);
+});
+
+test('user role retry is idempotent and does not create a second audit event', async () => {
+  const route = routeCases.find(item => item.name === 'role change');
+  const target = profile('target', { role: 'USER' });
+  const h = harness(route, { target, profiles: [profile('actor'), target] });
+  await h.run();
+  assert.equal(h.res.statusCode, 200);
+  assert.equal(h.effects.filter(effect => effect.kind === 'update' && effect.table === 'profiles').length, 0);
+  assert.equal(h.effects.filter(effect => effect.kind === 'audit').length, 0);
 });
 
 test('access denial cannot deny the head administrator', async () => {

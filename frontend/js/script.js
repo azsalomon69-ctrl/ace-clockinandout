@@ -2214,7 +2214,14 @@ async function performLogout() {
     closeModal('logoutConfirmModal');
     try {
         if (window.ACEAuth) {
-            await window.ACEAuth.request('/v1/auth/session-end', { method: 'POST' }).catch(() => {});
+            try {
+                await window.ACEAuth.request('/v1/auth/session-end', { method: 'POST' });
+            } catch (error) {
+                // This endpoint records presence/audit bookkeeping only. The
+                // Supabase sign-out below remains the authority for leaving.
+                console.warn('Could not record session end before logout:', error.message || error);
+                showToast('You have been signed out. Session activity could not be recorded.', 'warning');
+            }
             const auth = await window.ACEAuth.client();
             const { error } = await auth.auth.signOut();
             if (error) throw error;

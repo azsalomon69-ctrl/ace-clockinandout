@@ -4,6 +4,7 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { randomUUID } from 'node:crypto';
 import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
@@ -45,11 +46,18 @@ app.use(cors({
   },
   credentials: false,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Authorization', 'Content-Type'],
+  allowedHeaders: ['Authorization', 'Content-Type', 'X-Request-ID'],
   maxAge: 600
 }));
 app.use(express.json({ limit: '1mb' }));
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use((req, res, next) => {
+  const supplied = req.get('x-request-id');
+  req.requestId = isUuid(supplied) ? supplied.toLowerCase() : randomUUID();
+  res.set('X-Request-ID', req.requestId);
+  next();
+});
+morgan.token('request-id', req => req.requestId || '-');
+app.use(morgan(process.env.NODE_ENV === 'production' ? ':remote-addr :method :url :status :res[content-length] - :response-time ms request_id=:request-id' : 'dev request_id=:request-id'));
 // Render is a reverse-proxy deployment. Trusting its first proxy hop gives
 // rate limiting the actual visitor address instead of the proxy address.
 app.set('trust proxy', 1);
@@ -331,7 +339,7 @@ async function guardProfileLifecycle(req, res, target, changes, { operation }) {
   return true;
 }
 async function audit(req, action, entityType, entityId, description) {
-  await db.from('audit_logs').insert({ user_id: req.profile?.id || null, action, entity_type: entityType, entity_id: isUuid(entityId) ? entityId : null, description, ip_address: req.ip, user_agent: req.get('user-agent') }).then(({ error }) => { if (error) console.error('audit log:', error.message); });
+  await db.from('audit_logs').insert({ user_id: req.profile?.id || null, action, entity_type: entityType, entity_id: isUuid(entityId) ? entityId : null, description, ip_address: req.ip, user_agent: req.get('user-agent'), request_id: req.requestId }).then(({ error }) => { if (error) console.error(`audit log request_id=${req.requestId}:`, error.message); });
 }
 function clockingDevice(req) {
   const userAgent = req.get('user-agent') || '';
@@ -443,10 +451,17 @@ app.post('/v1/access-requests', sensitiveActionLimiter, authenticate, async (req
   // The schema retains one row per email. Re-open an expired pending request
   // rather than letting that historical row prevent the person from asking again.
   const expired = await query(db.from('access_requests').select('id').eq('profile_id', req.profile.id).eq('status', 'PENDING').lte('expires_at', now.toISOString()).maybeSingle());
-  const request = expired
-    ? await query(db.from('access_requests').update(requestValues).eq('id', expired.id).select().single())
-    : await query(db.from('access_requests').insert(requestValues).select().single());
-  await audit(req, 'REQUEST_ACCESS', 'ACCESS_REQUEST', request.id, 'Requested account approval');
+  const request = await query(db.rpc('submit_access_request', {
+    p_existing_request_id: expired?.id || null,
+    p_profile_id: requestValues.profile_id,
+    p_email: requestValues.email,
+    p_full_name: requestValues.full_name,
+    p_requested_department: requestValues.requested_department,
+    p_message: requestValues.message,
+    p_request_ip: requestValues.request_ip,
+    p_expires_at: requestValues.expires_at,
+    p_request_id: req.requestId
+  }));
   res.status(201).json({ request });
 } catch (error) { next(error); } });
 app.get('/v1/access-requests', authenticate, adminOnly, async (_, res, next) => { try {
@@ -472,13 +487,20 @@ app.patch('/v1/access-requests/:id', sensitiveActionLimiter, authenticate, admin
   const target = await query(db.from('profiles').select('id,email,role,status').eq('id', request.profile_id).single());
   const profileChanges = decision === 'APPROVE' ? { status, role } : { status };
   if (!await guardProfileLifecycle(req, res, target, profileChanges, { operation: 'access-approval' })) return;
-  if (decision === 'APPROVE') {
-    await query(db.from('profiles').update({ status, role, department_id: departmentId }).eq('id', request.profile_id).select().single());
-  } else {
-    await query(db.from('profiles').update({ status }).eq('id', request.profile_id).select().single());
+  const { data: reviewed, error: reviewError } = await db.rpc('review_access_request', {
+    p_request_id: request.id,
+    p_actor_user_id: req.profile.id,
+    p_decision: decision,
+    p_role: role,
+    p_department_id: departmentId,
+    p_correlation_id: req.requestId
+  });
+  if (reviewError) {
+    if (reviewError.code === 'P0001' && reviewError.message === 'ACCESS_REQUEST_ALREADY_REVIEWED') return fail(res, 409, 'This request has already been reviewed.');
+    if (reviewError.code === 'P0001' && reviewError.message === 'ACCESS_REQUEST_EXPIRED') return fail(res, 410, 'This request has expired and cannot be reviewed.');
+    if (reviewError.code === 'P0001' && reviewError.message === 'ACCESS_REQUEST_NOT_FOUND') return fail(res, 404, 'Access request is unavailable.');
+    throw reviewError;
   }
-  const reviewed = await query(db.from('access_requests').update({ status, reviewed_at: new Date().toISOString(), reviewed_by_user_id: req.profile.id }).eq('id', request.id).select().single());
-  await audit(req, decision === 'APPROVE' ? 'APPROVE_ACCESS_REQUEST' : 'DENY_ACCESS_REQUEST', 'ACCESS_REQUEST', request.id, `${decision === 'APPROVE' ? 'Approved' : 'Denied'} ${request.email}`);
   res.json(reviewed);
 } catch (error) { next(error); } });
 
@@ -634,8 +656,10 @@ app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, ne
   if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED');
   const target = await query(db.from('profiles').select('id,email,role,status').eq('id', req.params.id).single());
   if (!await guardProfileLifecycle(req, res, target, { status: req.body.status }, { operation: 'approval' })) return;
-  const profile = await query(db.from('profiles').update({ status: req.body.status }).eq('id', req.params.id).select().single());
-  await audit(req, req.body.status === 'ACTIVE' ? 'APPROVE' : 'DENY', 'PROFILE', profile.id, `${req.body.status} user ${profile.email}`);
+  const profile = await query(db.rpc('change_user_status_with_audit', {
+    p_target_user_id: target.id, p_actor_user_id: req.profile.id,
+    p_status: req.body.status, p_request_id: req.requestId
+  }));
   res.json(profile);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) => { try {
@@ -643,8 +667,10 @@ app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) 
   if (!role) return fail(res, 400, 'Role must be ADMIN or USER');
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
   if (!await guardProfileLifecycle(req, res, target, { role }, { operation: 'role' })) return;
-  const profile = await query(db.from('profiles').update({ role }).eq('id', target.id).select().single());
-  await audit(req, 'CHANGE_ROLE', 'PROFILE', profile.id, `Changed ${profile.email} role to ${role}`);
+  const profile = await query(db.rpc('change_user_role_with_audit', {
+    p_target_user_id: target.id, p_actor_user_id: req.profile.id,
+    p_role: role, p_request_id: req.requestId
+  }));
   res.json(profile);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/department', authenticate, adminOnly, async (req, res, next) => { try {
@@ -652,26 +678,30 @@ app.patch('/v1/users/:id/department', authenticate, adminOnly, async (req, res, 
   if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
   const target = await query(db.from('profiles').select('id,email').eq('id', req.params.id).single());
   if (!protectHeadAdmin(req, res, target)) return;
-  const profile = await query(db.from('profiles').update({ department_id: departmentId }).eq('id', req.params.id).select().single());
-  await audit(req, 'ASSIGN_DEPARTMENT', 'PROFILE', profile.id, `Updated department for ${profile.email}`);
+  const profile = await query(db.rpc('admin_update_profile_with_audit', {
+    p_target_user_id: target.id, p_actor_user_id: req.profile.id, p_operation: 'ASSIGN_DEPARTMENT',
+    p_role: null, p_status: null, p_department_id: departmentId, p_request_id: req.requestId
+  }));
   res.json(profile);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next) => { try {
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
   if (!await guardProfileLifecycle(req, res, target, { status: 'DENIED' }, { operation: 'archive' })) return;
-  const { error: banError } = await db.auth.admin.updateUserById(target.id, { ban_duration: '876000h' });
-  if (banError) return fail(res, 502, 'The account was not archived because sign-in could not be disabled.');
-  const profile = await query(db.from('profiles').update({ status: 'DENIED' }).eq('id', target.id).select().single());
-  await audit(req, 'ARCHIVE_USER', 'PROFILE', profile.id, `Archived user ${profile.email}`);
+  const { data: profile, error } = await db.rpc('admin_update_profile_with_audit', {
+    p_target_user_id: target.id, p_actor_user_id: req.profile.id, p_operation: 'ARCHIVE_USER',
+    p_role: null, p_status: null, p_department_id: null, p_request_id: req.requestId
+  });
+  if (error) { if (error.code === 'P0001' && error.message === 'AUTH_ACCOUNT_NOT_FOUND') return fail(res, 502, 'The account was not archived because sign-in could not be disabled.'); throw error; }
   res.json(profile);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, next) => { try {
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
   if (!await guardProfileLifecycle(req, res, target, { status: 'ACTIVE' }, { operation: 'restore' })) return;
-  const { error: unbanError } = await db.auth.admin.updateUserById(target.id, { ban_duration: 'none' });
-  if (unbanError) return fail(res, 502, 'The account could not be restored because sign-in could not be enabled.');
-  const profile = await query(db.from('profiles').update({ status: 'ACTIVE' }).eq('id', target.id).select().single());
-  await audit(req, 'RESTORE_USER', 'PROFILE', profile.id, `Restored user ${profile.email}`);
+  const { data: profile, error } = await db.rpc('admin_update_profile_with_audit', {
+    p_target_user_id: target.id, p_actor_user_id: req.profile.id, p_operation: 'RESTORE_USER',
+    p_role: null, p_status: null, p_department_id: null, p_request_id: req.requestId
+  });
+  if (error) { if (error.code === 'P0001' && error.message === 'AUTH_ACCOUNT_NOT_FOUND') return fail(res, 502, 'The account could not be restored because sign-in could not be enabled.'); throw error; }
   res.json(profile);
 } catch (error) { next(error); } });
 app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, next) => { try {
@@ -679,8 +709,9 @@ app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, 
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
   if (!protectHeadAdmin(req, res, target)) return;
   if (target.status !== 'DENIED') return fail(res, 409, 'Only archived users can be permanently deleted.');
-  await query(db.rpc('permanently_remove_archived_login', { target_user_id: target.id }));
-  await audit(req, 'PERMANENT_DELETE_USER', 'PROFILE', target.id, `Permanently deleted archived user ${target.email}`);
+  await query(db.rpc('permanently_remove_archived_login', {
+    p_target_user_id: target.id, p_actor_user_id: req.profile.id, p_request_id: req.requestId
+  }));
   res.status(204).end();
 } catch (error) { next(error); } });
 app.post('/v1/invitations', sensitiveActionLimiter, authenticate, adminOnly, async (req, res, next) => { try {
@@ -899,19 +930,28 @@ app.get('/v1/time-entry-review', authenticate, adminOnly, async (req, res, next)
 
 app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try { const remarkText = requireText(req.body.remark, 'Remark', 2000); const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: remarkText }).select().single()); await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark'); res.status(201).json(remark); } catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try {
-  const entry = await query(db.from('time_entries').update({ deleted_at: new Date().toISOString(), deleted_by_user_id: req.profile.id }).eq('id', req.params.id).is('deleted_at', null).not('clock_out_at', 'is', null).select().maybeSingle());
-  if (!entry) {
-    const current = await query(db.from('time_entries').select('id,clock_out_at').eq('id', req.params.id).is('deleted_at', null).maybeSingle());
-    if (current?.clock_out_at === null) return fail(res, 409, 'Cannot delete an open shift. Clock the employee out first.');
-    return fail(res, 404, 'Time entry is unavailable');
+  const { data: entry, error } = await db.rpc('archive_time_entry_with_audit', {
+    p_entry_id: req.params.id, p_actor_user_id: req.profile.id, p_operation: 'DELETE', p_request_id: req.requestId
+  });
+  if (error) {
+    if (error.code === 'P0001' && error.message === 'ENTRY_OPEN') return fail(res, 409, 'Cannot delete an open shift. Clock the employee out first.');
+    if (error.code === 'P0001' && error.message === 'ENTRY_NOT_FOUND') return fail(res, 404, 'Time entry is unavailable');
+    throw error;
   }
-  await audit(req, 'DELETE', 'TIME_ENTRY', entry.id, 'Moved time entry to deleted data');
   res.json(entry);
 } catch (error) { next(error); } });
-app.patch('/v1/time-entries/:id/restore', authenticate, adminOnly, async (req, res, next) => { try { const entry = await query(db.from('time_entries').update({ deleted_at: null, deleted_by_user_id: null }).eq('id', req.params.id).not('deleted_at', 'is', null).select().single()); await audit(req, 'RESTORE', 'TIME_ENTRY', entry.id, 'Restored time entry'); res.json(entry); } catch (error) { next(error); } });
+app.patch('/v1/time-entries/:id/restore', authenticate, adminOnly, async (req, res, next) => { try {
+  const { data: entry, error } = await db.rpc('archive_time_entry_with_audit', {
+    p_entry_id: req.params.id, p_actor_user_id: req.profile.id, p_operation: 'RESTORE', p_request_id: req.requestId
+  });
+  if (error) { if (error.code === 'P0001' && error.message === 'ENTRY_NOT_FOUND') return fail(res, 404, 'Time entry is unavailable'); throw error; }
+  res.json(entry);
+} catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id/permanent', authenticate, adminOnly, async (req, res, next) => { try {
-  const entry = await query(db.from('time_entries').delete().eq('id', req.params.id).not('deleted_at', 'is', null).select().single());
-  await audit(req, 'PERMANENT_DELETE', 'TIME_ENTRY', entry.id, 'Permanently deleted archived time entry');
+  const { data: entry, error } = await db.rpc('archive_time_entry_with_audit', {
+    p_entry_id: req.params.id, p_actor_user_id: req.profile.id, p_operation: 'PERMANENT_DELETE', p_request_id: req.requestId
+  });
+  if (error) { if (error.code === 'P0001' && error.message === 'ENTRY_NOT_FOUND') return fail(res, 404, 'Time entry is unavailable'); throw error; }
   res.json(entry);
 } catch (error) { next(error); } });
 
@@ -940,7 +980,7 @@ app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try
 } catch (error) { next(error); } });
 app.get('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); const request = db.from('reports').select('*, profiles!reports_created_by_user_id_fkey(full_name), report_exports(*)', paging.paged ? { count: 'exact' } : undefined).order('generated_at', { ascending: false }); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 app.post('/v1/reports/:id/exports', authenticate, adminOnly, async (req, res, next) => { try { const fileName = requireText(req.body.fileName, 'File name', 255); const fileType = req.body.fileType || 'PDF'; const fileUrl = optionalText(req.body.fileUrl, 2048); if (!['CSV', 'XLSX', 'PDF'].includes(fileType) || fileUrl === undefined) return fail(res, 400, 'Invalid export details'); const item = await query(db.from('report_exports').insert({ report_id: req.params.id, exported_by_user_id: req.profile.id, file_name: fileName, file_type: fileType, file_url: fileUrl }).select().single()); await audit(req, 'EXPORT_REPORT', 'REPORT', req.params.id, `Exported ${fileType} report`); res.status(201).json(item); } catch (error) { next(error); } });
-app.post('/v1/time-entry-exports', authenticate, adminOnly, async (req, res, next) => { try { const format = ['PDF', 'XLSX', 'CSV'].includes(req.body.format) ? req.body.format : null; const dateFrom = req.body.dateFrom; const dateTo = req.body.dateTo; const count = Number(req.body.count); if (!format || !isDate(dateFrom) || !isDate(dateTo) || dateFrom > dateTo || !Number.isInteger(count) || count < 0) return fail(res, 400, 'Provide valid export details'); await audit(req, 'EXPORT_TIME_ENTRIES', 'TIME_ENTRY', null, `Exported ${count} time entries as ${format} for ${dateFrom} to ${dateTo}`); res.status(204).end(); } catch (error) { next(error); } });
+app.post('/v1/time-entry-exports', authenticate, adminOnly, async (req, res, next) => { try { const format = ['PDF', 'XLSX', 'CSV'].includes(req.body.format) ? req.body.format : null; const dateFrom = req.body.dateFrom; const dateTo = req.body.dateTo; const count = Number(req.body.count); if (!format || !isDate(dateFrom) || !isDate(dateTo) || dateFrom > dateTo || !Number.isInteger(count) || count < 0) return fail(res, 400, 'Provide valid export details'); await query(db.from('audit_logs').insert({ user_id: req.profile.id, action: 'EXPORT_TIME_ENTRIES', entity_type: 'TIME_ENTRY', entity_id: null, description: `Exported ${count} time entries as ${format} for ${dateFrom} to ${dateTo}`, ip_address: req.ip, user_agent: req.get('user-agent'), request_id: req.requestId })); res.status(204).end(); } catch (error) { next(error); } });
 app.delete('/v1/reports/:id', authenticate, adminOnly, async (req, res, next) => { try {
   const report = await query(db.from('reports').delete().eq('id', req.params.id).select().single());
   await audit(req, 'DELETE_REPORT', 'REPORT', report.id, `Deleted generated ${report.report_type} report`);
