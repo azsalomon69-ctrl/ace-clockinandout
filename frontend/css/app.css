@@ -17284,3 +17284,89 @@ html[data-theme="dark"] :is(.btn-secondary,.btn-outline) > .ui-icon {
   filter: brightness(0) invert(1)!important;
   opacity: 1!important;
 }
+
+/* Dashboard analytics share one surface system across themes. This replaces
+   piecemeal chart overrides with a single readable hierarchy. */
+.admin-dashboard {
+  --dashboard-chart-card: #fff;
+  --dashboard-chart-soft: #f4fafb;
+  --dashboard-chart-border: #dcecef;
+  --dashboard-chart-grid: #e6f0f2;
+  --dashboard-chart-grid-vertical: #eef4f5;
+  --dashboard-chart-copy: #52737e;
+  --dashboard-chart-ink: #10384a;
+  --dashboard-chart-accent: #08abc2;
+  --dashboard-chart-track: #e6f3f5;
+}
+.admin-dashboard .dashboard-insights-grid { gap: 20px; }
+.admin-dashboard .dashboard-insights-grid .analytics-card {
+  min-height: 386px;
+  padding: 20px;
+  border: 1px solid var(--dashboard-chart-border);
+  border-radius: 11px;
+  background: var(--dashboard-chart-card);
+  box-shadow: 0 2px 7px rgba(20, 65, 79, .07);
+}
+.admin-dashboard .dashboard-chart-header { min-height: 56px; margin: 0 0 12px; align-items: flex-start; }
+.admin-dashboard .dashboard-chart-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.admin-dashboard .dashboard-chart-title > div { min-width: 0; }
+.admin-dashboard .dashboard-chart-title .analytics-label { margin: 0; color: var(--dashboard-chart-ink); font: 700 1.08rem 'Montserrat',Arial,sans-serif; letter-spacing: -.015em; text-transform: none; }
+.admin-dashboard .dashboard-chart-title strong { display: block; margin-top: 3px; color: var(--dashboard-chart-ink); font-size: 1.48rem; letter-spacing: -.035em; }
+.admin-dashboard .dashboard-chart-title .analytics-detail { margin-top: 7px; color: var(--dashboard-chart-copy); font-size: .79rem; }
+.dashboard-chart-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 50%; background: #eaf8fa; }
+.dashboard-chart-icon .ui-icon { width: 20px; height: 20px; }
+.chart-range-control { display: grid; gap: 5px; min-width: 178px; }
+.chart-range-label { color: var(--dashboard-chart-copy); font-size: .72rem; font-weight: 700; text-align: right; }
+.chart-range-control .form-select { width: 100%; min-height: 38px; color: #244a5a; background-color: #fff; border-color: #cddfe4; box-shadow: 0 1px 2px rgba(16,56,74,.04); }
+.chart-summary-strip { margin: 2px 0 16px; padding: 13px 16px 15px; border-radius: 8px; background: var(--dashboard-chart-soft); }
+.chart-summary-date { margin: 0 0 11px; color: #577d8e; font-size: .75rem; font-weight: 700; }
+.chart-summary-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.chart-summary-metrics > span { display: grid; gap: 3px; padding: 0 14px; border-left: 1px solid var(--dashboard-chart-border); }
+.chart-summary-metrics > span:first-child { padding-left: 0; border-left: 0; }
+.chart-summary-metrics strong { color: #008cab; font: 750 1.2rem 'Montserrat',Arial,sans-serif; }
+.chart-summary-metrics small { color: var(--dashboard-chart-copy); font-size: .71rem; font-weight: 700; }
+.admin-dashboard .hours-line-chart { height: 222px; margin: 0; color: var(--dashboard-chart-accent); }
+.admin-dashboard .line-chart-gridline line { stroke: var(--dashboard-chart-grid); }
+.admin-dashboard .line-chart-gridline--vertical { stroke: var(--dashboard-chart-grid-vertical); }
+.admin-dashboard .line-chart-gridline text,.admin-dashboard .line-chart-x-label { fill: #7898a3; }
+.admin-dashboard .line-chart-point { fill: var(--dashboard-chart-card); }
+.admin-dashboard .project-allocation-card .project-allocation { min-height: 64px; margin-top: 24px; padding: 17px; border: 1px solid var(--dashboard-chart-border); border-radius: 8px; background: #fbfdfe; }
+.admin-dashboard .project-allocation-card .project-bar-chart { gap: 14px; }
+.admin-dashboard .project-allocation-card .project-bar-row { grid-template-columns: minmax(130px,.8fr) minmax(120px,1.8fr) auto; gap: 14px; }
+.admin-dashboard .project-allocation-card .project-bar-name,.admin-dashboard .project-allocation-card .project-bar-value { color: var(--dashboard-chart-ink); }
+.admin-dashboard .project-allocation-card .project-bar-name::before { display: inline-block; width: 11px; height: 11px; margin-right: 12px; content: ''; vertical-align: -1px; border-radius: 50%; background: #5ccbd5; }
+.admin-dashboard .project-allocation-card .project-bar-track { height: 28px; border-radius: 3px; background: var(--dashboard-chart-track); }
+.admin-dashboard .project-allocation-card .project-bar-fill { background: linear-gradient(90deg,#11afc4,#36cbb8); }
+html[data-theme="dark"] .admin-dashboard {
+  --dashboard-chart-card: #15262b;
+  --dashboard-chart-soft: #1a3036;
+  --dashboard-chart-border: #29454d;
+  --dashboard-chart-grid: #29464e;
+  --dashboard-chart-grid-vertical: #203a42;
+  --dashboard-chart-copy: #a9c3ca;
+  --dashboard-chart-ink: #eff9fa;
+  --dashboard-chart-accent: #36c8d5;
+  --dashboard-chart-track: #263f46;
+}
+html[data-theme="dark"] .admin-dashboard .dashboard-insights-grid .analytics-card { background: var(--dashboard-chart-card)!important; border-color: var(--dashboard-chart-border)!important; box-shadow: 0 8px 20px rgba(0,0,0,.18); }
+html[data-theme="dark"] .dashboard-chart-icon { background: #203d44; }
+html[data-theme="dark"] .dashboard-chart-title .analytics-label,html[data-theme="dark"] .dashboard-chart-title strong,html[data-theme="dark"] .chart-summary-metrics strong,html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-bar-name,html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-bar-value { color: var(--dashboard-chart-ink)!important; }
+html[data-theme="dark"] .chart-range-control .form-select { color: var(--dashboard-chart-ink); background-color: #1b3036; border-color: var(--dashboard-chart-border); }
+html[data-theme="dark"] .chart-summary-date,html[data-theme="dark"] .chart-summary-metrics small,html[data-theme="dark"] .dashboard-chart-title .analytics-detail { color: var(--dashboard-chart-copy); }
+html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-allocation { background: #182c32; border-color: var(--dashboard-chart-border); }
+html[data-theme="dark"] .admin-dashboard .line-chart-point { fill: var(--dashboard-chart-card); }
+@media (max-width: 640px) {
+  .admin-dashboard .dashboard-insights-grid .analytics-card { min-height: 0; padding: 16px; }
+  .admin-dashboard .dashboard-chart-header { flex-direction: column; gap: 12px; }
+  .chart-range-control { width: 100%; }
+  .chart-range-label { text-align: left; }
+  .chart-summary-strip { margin-bottom: 12px; padding: 12px; }
+  .chart-summary-metrics { gap: 10px; }
+  .chart-summary-metrics > span { padding: 0 8px; }
+  .chart-summary-metrics strong { font-size: 1rem; }
+  .chart-summary-metrics small { font-size: .63rem; }
+  .admin-dashboard .hours-line-chart { height: 202px; }
+  .admin-dashboard .project-allocation-card .project-allocation { margin-top: 14px; padding: 13px; }
+  .admin-dashboard .project-allocation-card .project-bar-row { grid-template-columns: minmax(90px,1fr) minmax(80px,1.3fr) auto; gap: 8px; }
+  .admin-dashboard .project-allocation-card .project-bar-name::before { width: 8px; height: 8px; margin-right: 6px; }
+}
