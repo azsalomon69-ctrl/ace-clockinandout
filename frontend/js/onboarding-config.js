@@ -4,22 +4,26 @@
 // tour must begin on that page even if the user launched it elsewhere.
 window.ACETutorialConfig = {
     USER: {
-        version: 5,
+        version: 6,
         steps: [
             { page: 'user-dashboard.html', target: '#mainClockInBtn', title: 'Start and finish your shift', body: 'Start your shift here. Clock out is available in the same place and requires a short official clock-out note; clock-in notes are not used.', forcePage: false, navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'time-entries.html', target: '#timeEntriesList', title: 'Review your shifts', body: "Every shift you've worked, newest first.", navigation: { group: 'Work', label: 'My time entries' } },
             { page: 'time-entries.html', target: '#applyFiltersBtn', title: 'Find a past shift', body: 'Filter by date, project, or status to narrow your recorded time. Open View on a row for the clock-out note and full details.' },
             { page: 'remarks.html', target: '#remarksPageList', title: 'Read administrator remarks', body: 'Administrators can leave feedback on a time entry. Review related comments here whenever you see a remark notification.', navigation: { group: 'Work', label: 'Remarks' } },
-            { page: 'user-dashboard.html', target: '#employeeStatusPanel', title: 'Check your status', body: "Your current status, today's hours, and this week at a glance.", navigation: { group: 'Workspace', label: 'Dashboard' } },
+            { page: 'user-dashboard.html', target: '#employeeStatusPanel', title: 'Check your status', body: 'This work-status card shows whether you are clocked in, your local time, and the session facts once a shift is active.', navigation: { group: 'Workspace', label: 'Dashboard' } },
+            { page: 'user-dashboard.html', target: '#employeeWeekChart', title: 'Review time this week', body: 'This seven-day chart summarizes completed hours, entry count, and your average daily time for the current week.' },
+            { page: 'user-dashboard.html', target: '#employeeQuickActions', title: 'Use quick actions', body: 'These shortcuts take you straight to your time entries, administrator remarks, and profile settings.' },
             { page: 'settings.html', target: '#profileSettings', title: 'Keep your profile current', body: 'Update your name, photo, and notification preferences here.', navigation: { group: 'Account', label: 'Profile & settings' } }
         ]
     },
     ADMIN: {
         // Bump this whenever administrator guidance materially changes so
         // existing admins are offered the improved tour again.
-        version: 10,
+        version: 11,
         steps: [
-            { page: 'admin-dashboard.html', target: '#operationsTitle', title: 'Your admin dashboard', body: 'This is your daily control centre. Use it to see active staff, recent entries, and the actions that need attention.', navigation: { group: 'Workspace', label: 'Dashboard' } },
+            { page: 'admin-dashboard.html', target: '#currentDate', title: 'Your admin dashboard', body: 'Start here each day. The header confirms the current date before you review live work and operational priorities.', navigation: { group: 'Workspace', label: 'Dashboard' } },
+            { page: 'admin-dashboard.html', target: '#operationsTitle', title: 'Use quick actions', body: 'This compact action strip is the fastest way to invite a team member or open departments, projects, and schedules.' },
+            { page: 'admin-dashboard.html', target: '#dashboardOverview', title: 'Read workspace status', body: 'These cards summarize people clocked in, online activity, today’s entries, and completed time for the current month.' },
             { page: 'admin-dashboard.html', target: '#inviteUserBtn', title: 'Invite a team member', body: 'Choose Invite user to pre-authorize an employee or another administrator. Their access is created first, then the system sends the onboarding email.' },
             { page: 'admin-dashboard.html', target: '#trackedTimeRange', title: 'Read the live analytics', body: 'Use the date selector on each chart to compare completed time or project allocation. Export company time entries from Work → Time entries, or prepare employee reports in Insights → Individual reports.' },
             { page: 'admin-dashboard.html', target: '#reviewAlertsList', title: 'Review time-entry alerts', body: 'When this section appears, it flags a possible missed clock-out or an administrator-stopped shift. Open the entry, confirm the facts with the employee, then correct it only when needed.', optional: true },
