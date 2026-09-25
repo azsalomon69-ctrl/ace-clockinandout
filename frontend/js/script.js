@@ -1744,13 +1744,26 @@ function applySuppliedIcons() {
 
     // Keep action buttons consistent across every legacy page. Only genuine
     // actions receive icons; tabs, pagination, disclosure controls and icon-only
-    // buttons retain their purpose-built treatment.
-    document.querySelectorAll('.btn').forEach(button => {
+    // buttons retain their purpose-built treatment. Routed pages and dialogs
+    // can add buttons after this initial pass, so the same small helper is used
+    // by the observer below as well.
+    const addActionButtonIcon = button => {
+        if (!(button instanceof HTMLButtonElement) || button.dataset.aceButtonIconReady === 'true') return;
+        button.dataset.aceButtonIconReady = 'true';
         if (button.querySelector('img, svg') || button.matches('.btn-google, .password-toggle, .modal-close, .toast-close')) return;
         const name = buttonIcons[button.id] || inferIcon(button.textContent || button.getAttribute('aria-label'));
         if (!name || name === 'info' && !/learn|help|details/i.test(button.textContent || '')) return;
         button.insertAdjacentHTML('afterbegin', suppliedIconMarkup(name));
-    });
+    };
+    document.querySelectorAll('button.btn').forEach(addActionButtonIcon);
+    if (!window.aceActionButtonIconObserver) {
+        window.aceActionButtonIconObserver = new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => {
+            if (!(node instanceof Element)) return;
+            if (node.matches?.('button.btn')) addActionButtonIcon(node);
+            node.querySelectorAll?.('button.btn').forEach(addActionButtonIcon);
+        })));
+        window.aceActionButtonIconObserver.observe(document.body, { childList: true, subtree: true });
+    }
 }
 
 // Navigation

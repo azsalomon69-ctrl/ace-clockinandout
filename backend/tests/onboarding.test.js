@@ -191,6 +191,14 @@ test('dark public home and sign-in pages preserve readable light-card contrast',
   assert.match(styles, /html\[data-theme="dark"\] body\.home-page:not\(\.has-app-shell\) :is\(\.nav-brand \.nav-title,\.nav-links \.nav-link\) \{ color: #eef6f7!important;/, 'Home navigation copy must be readable on the dark header');
 });
 
+test('action buttons retain visible icons after dynamic page content is added', () => {
+  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
+  assert.match(shellSource, /const addActionButtonIcon = button =>/, 'Button icon insertion should be reusable for later page content');
+  assert.match(shellSource, /window\.aceActionButtonIconObserver = new MutationObserver/, 'Dynamically rendered action buttons should receive icons');
+  assert.match(shellSource, /document\.querySelectorAll\('button\.btn'\)\.forEach\(addActionButtonIcon\)/, 'Existing action buttons should receive icons on first render');
+  assert.match(styles, /html\[data-theme="dark"\] :is\(\.btn-primary,\.btn-secondary,\.btn-outline\) > \.ui-icon \{[\s\S]*?filter: brightness\(0\)!important;/, 'Dark-mode action icons must remain black and visible on light button surfaces');
+});
+
 test('restarting a tutorial teaches users how to return to the dashboard first', () => {
   const context = { window: {} };
   vm.runInNewContext(configSource, context);
