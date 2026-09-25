@@ -196,7 +196,8 @@ test('action buttons retain visible icons after dynamic page content is added', 
   assert.match(shellSource, /const addActionButtonIcon = button =>/, 'Button icon insertion should be reusable for later page content');
   assert.match(shellSource, /window\.aceActionButtonIconObserver = new MutationObserver/, 'Dynamically rendered action buttons should receive icons');
   assert.match(shellSource, /document\.querySelectorAll\('button\.btn'\)\.forEach\(addActionButtonIcon\)/, 'Existing action buttons should receive icons on first render');
-  assert.match(styles, /html\[data-theme="dark"\] :is\(\.btn-primary,\.btn-secondary,\.btn-outline\) > \.ui-icon \{[\s\S]*?filter: brightness\(0\)!important;/, 'Dark-mode action icons must remain black and visible on light button surfaces');
+  assert.match(styles, /html\[data-theme="dark"\] \.btn-primary > \.ui-icon \{[\s\S]*?filter: brightness\(0\)!important;/, 'Icons on white primary actions must remain black and visible');
+  assert.match(styles, /html\[data-theme="dark"\] :is\(\.btn-secondary,\.btn-outline\) > \.ui-icon \{[\s\S]*?filter: brightness\(0\) invert\(1\)!important;/, 'Icons on dark secondary and outline actions must remain white');
 });
 
 test('restarting a tutorial teaches users how to return to the dashboard first', () => {

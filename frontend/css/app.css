@@ -17263,7 +17263,11 @@ html[data-theme="dark"] .logout-confirm-icon img { filter: brightness(0) invert(
 
 /* White action surfaces need visible black button icons. Do not inherit a
    generic dark-mode inversion here: it can turn the icon into the button. */
-html[data-theme="dark"] :is(.btn-primary,.btn-secondary,.btn-outline) > .ui-icon {
+html[data-theme="dark"] .btn-primary > .ui-icon {
   filter: brightness(0)!important;
+  opacity: 1!important;
+}
+html[data-theme="dark"] :is(.btn-secondary,.btn-outline) > .ui-icon {
+  filter: brightness(0) invert(1)!important;
   opacity: 1!important;
 }
