@@ -181,6 +181,16 @@ test('dashboard analytics render smooth time lines and scaled project bars', () 
   assert.match(styles, /\.line-chart-gridline--vertical \{ stroke: #e7f0f2;/, 'Vertical chart guides should stay visually subtle');
 });
 
+test('employee dashboard presents weekly time, responsive actions, and a shared dark surface', () => {
+  const dashboard = readFileSync(new URL('../../frontend/user-dashboard.html', import.meta.url), 'utf8');
+  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
+  assert.match(dashboard, /id="employeeWeekChart"/, 'Employees need a weekly time visual on their dashboard');
+  assert.match(dashboard, /class="employee-quick-action-list"/, 'Employees need direct shortcuts for common actions');
+  assert.match(shellSource, /const dailySeconds = Array\.from\(\{ length: 7 \}/, 'The weekly visual should derive all seven days from recorded time');
+  assert.match(styles, /\.user-dashboard \{\s*--employee-card:/, 'Employee card colors should be centralized for theme consistency');
+  assert.match(styles, /@media \(max-width: 760px\) \{[\s\S]*?\.user-dashboard \.employee-dashboard-hero-grid \{ grid-template-columns: 1fr;/, 'Mobile must use a dedicated single-column employee dashboard layout');
+});
+
 test('dark navigation is flat, high-contrast, and keeps primary actions white', () => {
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
   assert.match(styles, /html\[data-theme="dark"\] :is\(\.app-sidebar,\.shell-brand,\.shell-account-wrap\) \{[\s\S]*?background-image: none!important;/, 'Dark sidebar surfaces must not use gradients');

@@ -3002,24 +3002,38 @@ function loadUserDashboard() {
     const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.DurationSeconds);
     const now = new Date();
     const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     startOfWeek.setHours(0, 0, 0, 0);
     const secondsFor = predicate => userEntriesForStats.filter(predicate).reduce((total, entry) => total + Number(entry.DurationSeconds || 0), 0);
-    const todaySeconds = secondsFor(entry => new Date(entry.ClockInAt).toDateString() === now.toDateString());
     const weekSeconds = secondsFor(entry => new Date(entry.ClockInAt) >= startOfWeek);
-    const monthSeconds = secondsFor(entry => {
-        const date = new Date(entry.ClockInAt);
-        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
-    });
+    const completedWeekEntries = userEntriesForStats.filter(entry => new Date(entry.ClockInAt) >= startOfWeek);
     const dashboardStats = {
-        todayHours: formatDuration(todaySeconds),
         weekHours: formatDuration(weekSeconds),
-        monthHours: formatDuration(monthSeconds)
+        weekEntries: completedWeekEntries.length,
+        weekAverage: (weekSeconds / 3600 / 7).toFixed(1)
     };
     Object.entries(dashboardStats).forEach(([id, value]) => {
         const node = document.getElementById(id);
         if (node) node.textContent = value;
     });
+    const weekChart = document.getElementById('employeeWeekChart');
+    if (weekChart) {
+        const dailySeconds = Array.from({ length: 7 }, (_, index) => {
+            const day = new Date(startOfWeek);
+            day.setDate(startOfWeek.getDate() + index);
+            const nextDay = new Date(day); nextDay.setDate(day.getDate() + 1);
+            return { day, seconds: completedWeekEntries.filter(entry => {
+                const clockIn = new Date(entry.ClockInAt);
+                return clockIn >= day && clockIn < nextDay;
+            }).reduce((total, entry) => total + Number(entry.DurationSeconds || 0), 0) };
+        });
+        const largestDay = Math.max(...dailySeconds.map(item => item.seconds), 1);
+        weekChart.innerHTML = dailySeconds.map(({ day, seconds }) => {
+            const height = seconds ? Math.max(8, Math.round(seconds / largestDay * 100)) : 4;
+            const label = day.toLocaleDateString([], { weekday: 'short' });
+            return `<div class="employee-week-day"><span class="employee-week-bar" style="height:${height}%" title="${escapeHtml(`${label}: ${formatDuration(seconds)}`)}"></span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(formatDuration(seconds))}</small></div>`;
+        }).join('');
+    }
 
     // Populate user projects
     const myProjects = document.getElementById('myProjects');
