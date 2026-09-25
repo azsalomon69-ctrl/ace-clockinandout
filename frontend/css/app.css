@@ -17183,3 +17183,51 @@ html[data-theme="dark"] .project-bar-fill { background: linear-gradient(90deg, #
   }
   .shell-collapsed .shell-sidebar-help > span { display: none; }
 }
+
+/* Dark mode uses one quiet, solid navigation surface. Legacy gradients and
+   cyan-tinted controls made the sidebar compete with the actual workspace. */
+html[data-theme="dark"] :is(.app-sidebar,.shell-brand,.shell-account-wrap) {
+  background-color: #151c20!important;
+  background-image: none!important;
+}
+html[data-theme="dark"] .shell-brand { border-color: #2b383d!important; }
+html[data-theme="dark"] .shell-nav-label { color: #aebcc1!important; }
+html[data-theme="dark"] .shell-nav-group-toggle {
+  color: #fff!important;
+  background: transparent!important;
+  border-color: #39484e!important;
+  box-shadow: none!important;
+}
+html[data-theme="dark"] .shell-nav-group-toggle:hover,
+html[data-theme="dark"] .shell-nav-group-toggle[aria-expanded="true"],
+html[data-theme="dark"] .shell-nav-group.is-open .shell-nav-group-toggle {
+  color: #fff!important;
+  background: #202a2f!important;
+  border-color: #5b6b71!important;
+}
+html[data-theme="dark"] .shell-link { color: #dce7e9!important; }
+html[data-theme="dark"] .shell-link:hover { color: #fff!important; background: #202a2f!important; }
+html[data-theme="dark"] .shell-link.active { color: #fff!important; background: #243136!important; box-shadow: inset 3px 0 0 #fff!important; }
+html[data-theme="dark"] :is(.shell-link .shell-icon,.shell-nav-group-toggle .shell-icon,.shell-collapse .shell-icon,.shell-account-menu-icon) {
+  filter: brightness(0) invert(1)!important;
+  opacity: 1!important;
+}
+html[data-theme="dark"] .shell-collapse { color: #fff!important; background: #1c272c!important; border-color: #fff!important; box-shadow: none!important; }
+html[data-theme="dark"] .shell-account { color: #fff!important; background: #202a2f!important; border-color: #39484e!important; }
+html[data-theme="dark"] .shell-user :is(strong,span) { color: inherit!important; }
+html[data-theme="dark"] .shell-sidebar-help {
+  color: #142126!important;
+  background: #fff!important;
+  border-color: #fff!important;
+  box-shadow: none!important;
+}
+html[data-theme="dark"] .shell-sidebar-help .shell-icon { filter: brightness(0) saturate(100%) invert(11%) sepia(10%) saturate(1212%) hue-rotate(146deg) brightness(92%) contrast(90%)!important; }
+html[data-theme="dark"] .btn-primary {
+  color: #142126!important;
+  background: #fff!important;
+  border-color: #fff!important;
+  box-shadow: none!important;
+}
+html[data-theme="dark"] .btn-primary:hover,
+html[data-theme="dark"] .btn-primary:focus-visible { color: #142126!important; background: #e8eff1!important; border-color: #e8eff1!important; }
+html[data-theme="dark"] .btn-primary .ui-icon { filter: brightness(0) saturate(100%) invert(11%) sepia(10%) saturate(1212%) hue-rotate(146deg) brightness(92%) contrast(90%)!important; }

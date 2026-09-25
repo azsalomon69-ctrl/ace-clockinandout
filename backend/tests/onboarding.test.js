@@ -176,6 +176,13 @@ test('dashboard analytics render smooth time lines and scaled project bars', () 
   assert.match(styles, /\.line-chart-gridline--vertical \{ stroke: #e7f0f2;/, 'Vertical chart guides should stay visually subtle');
 });
 
+test('dark navigation is flat, high-contrast, and keeps primary actions white', () => {
+  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
+  assert.match(styles, /html\[data-theme="dark"\] :is\(\.app-sidebar,\.shell-brand,\.shell-account-wrap\) \{[\s\S]*?background-image: none!important;/, 'Dark sidebar surfaces must not use gradients');
+  assert.match(styles, /html\[data-theme="dark"\] :is\(\.shell-link \.shell-icon,\.shell-nav-group-toggle \.shell-icon,[\s\S]*?filter: brightness\(0\) invert\(1\)!important;/, 'Dark sidebar navigation icons should be white');
+  assert.match(styles, /html\[data-theme="dark"\] \.btn-primary \{[\s\S]*?background: #fff!important;/, 'Dark primary actions should use a white surface');
+});
+
 test('restarting a tutorial teaches users how to return to the dashboard first', () => {
   const context = { window: {} };
   vm.runInNewContext(configSource, context);
