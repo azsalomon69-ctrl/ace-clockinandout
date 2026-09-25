@@ -118,10 +118,14 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /if \(isMobile\(\) && !document\.body\.classList\.contains\('shell-mobile-open'\)\)/, 'Tutorial should reveal the mobile sidebar before teaching a destination');
 });
 
-test('the envelope button owns the notification menu handler', () => {
+test('the bell notification button owns its menu handler and the theme toggle stays desktop-only', () => {
+  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
+  assert.match(shellSource, /suppliedIconMarkup\('bell', 'shell-icon'\)/, 'Notifications should use a bell icon');
   assert.match(shellSource, /topbar\.querySelector\('\.shell-topbar-notification-wrap \.shell-topbar-icon-button'\)/, 'Notification behavior must bind to the envelope button inside its own wrapper');
   assert.doesNotMatch(shellSource, /const notificationButton = topbar\.querySelector\('\.shell-topbar-icon-button'\)/, 'Notification behavior must not bind to the first top-bar icon');
-  assert.match(shellSource, /notificationButton\.addEventListener\('click'/, 'The envelope button must open and close its notification panel');
+  assert.match(shellSource, /themeToggle\.addEventListener\('click'/, 'The desktop theme control should switch the saved theme preference');
+  assert.match(styles, /@media \(max-width: 900px\) \{\s*\.shell-theme-toggle \{ display: none; \}/, 'The theme control must remain hidden on mobile');
+  assert.match(shellSource, /notificationButton\.addEventListener\('click'/, 'The bell button must open and close its notification panel');
 });
 
 test('every application page references the same shell-script version', () => {

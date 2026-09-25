@@ -1059,7 +1059,7 @@ function initializeAppShell() {
     mobileToggle.innerHTML = suppliedIconMarkup('menu', 'shell-icon');
     const topbar = document.createElement('header');
     topbar.className = 'shell-topbar';
-    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch" title="Search workspace (Ctrl+K)">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" role="combobox" aria-label="Search the workspace. Press Control K to focus." aria-keyshortcuts="Control+K Meta+K" aria-autocomplete="list" aria-expanded="false" aria-controls="shellGlobalResults" autocomplete="off" placeholder="${isAdmin ? 'Search workspace, people, projects…' : 'Search workspace, projects, help…'}"></label><div class="shell-global-results" id="shellGlobalResults" role="listbox" hidden></div></div><div class="shell-topbar-actions"><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('mail', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
+    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch" title="Search workspace (Ctrl+K)">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" role="combobox" aria-label="Search the workspace. Press Control K to focus." aria-keyshortcuts="Control+K Meta+K" aria-autocomplete="list" aria-expanded="false" aria-controls="shellGlobalResults" autocomplete="off" placeholder="${isAdmin ? 'Search workspace, people, projects…' : 'Search workspace, projects, help…'}"></label><div class="shell-global-results" id="shellGlobalResults" role="listbox" hidden></div></div><div class="shell-topbar-actions"><button class="shell-topbar-icon-button shell-theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode"></button><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('bell', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
     document.body.prepend(overlay); document.body.prepend(sidebar); document.body.prepend(topbar); document.body.prepend(mobileToggle);
 
     let employeeBottomNav = null;
@@ -1180,6 +1180,7 @@ function initializeAppShell() {
 
     const topbarAccountButton = topbar.querySelector('.shell-topbar-user-button');
     const topbarAccountMenu = topbar.querySelector('.shell-topbar-account-menu');
+    const themeToggle = topbar.querySelector('.shell-theme-toggle');
     const notificationButton = topbar.querySelector('.shell-topbar-notification-wrap .shell-topbar-icon-button');
     const notificationMenu = topbar.querySelector('.shell-notification-menu');
     const notificationBadge = topbar.querySelector('.shell-topbar-badge');
@@ -1190,6 +1191,22 @@ function initializeAppShell() {
         button.setAttribute('aria-expanded', String(open));
         menu.hidden = !open;
     };
+    const renderThemeToggle = () => {
+        const dark = document.documentElement.dataset.theme === 'dark';
+        const label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+        themeToggle.innerHTML = suppliedIconMarkup(dark ? 'sun' : 'moon', 'shell-icon');
+        themeToggle.setAttribute('aria-label', label);
+        themeToggle.title = label;
+        themeToggle.setAttribute('aria-pressed', String(dark));
+    };
+    renderThemeToggle();
+    themeToggle.addEventListener('click', () => {
+        const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        const appearance = JSON.parse(localStorage.getItem('ace_appearance_preferences') || '{}');
+        localStorage.setItem('ace_appearance_preferences', JSON.stringify({ ...appearance, theme: nextTheme }));
+        applyTheme(nextTheme);
+        renderThemeToggle();
+    });
     const renderNotifications = () => {
         const unreadRemarksCount = isAdmin ? 0 : AppState.adminRemarks.filter(remark => !remark.SeenAt).length;
         const total = unreadMessages + unreadRemarksCount + pendingAccessRequestCount;
@@ -1584,7 +1601,7 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I update my profile?', 'Open the sidebar account menu and choose Profile & settings. Use the Profile tab to update the available information and save changes.'],
         ['How do I change my password or security settings?', 'Open Profile & settings, select Security, make the change, and save. Use a password you do not reuse elsewhere.'],
         ['How do I change dark mode or appearance?', 'Open Profile & settings and choose Appearance. Select your preferred theme or display options, then save.'],
-        ['Where are notifications?', 'Use the envelope icon in the top bar. It shows relevant updates and messages; open it again to close the notification panel.'],
+        ['Where are notifications?', 'Use the bell icon in the top bar. It shows relevant updates and messages; open it again to close the notification panel.'],
         ['How do I search for a project?', 'Use the search box in the top bar to find an assigned project. Choose a result to open the appropriate workspace.'],
         ['Why is a project missing?', 'Only projects assigned to you appear in your project list and Clock in form. Ask an administrator to assign the project through People → Users → Manage.'],
         ['How do I request access or fix a denied account?', 'From the sign-in or access screen, submit an access request if that option is shown. If your request was denied or you cannot sign in, contact an administrator; they can review it in People → Access requests or your user record.'],

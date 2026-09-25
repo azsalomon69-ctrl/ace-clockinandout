@@ -3545,6 +3545,11 @@ body {
   width: 19px;
   height: 19px
 }
+.shell-theme-toggle[aria-pressed="true"] {
+  color: #a96a08;
+  background: #fff8e5;
+  border-color: #e8c678
+}
 .workspace-help-modal .modal-content { width: min(680px, calc(100vw - 32px)); }
 .workspace-help-search { display:flex; align-items:center; gap:10px; min-height:48px; padding:0 14px; border:1px solid var(--ace-line); border-radius:10px; background:#fff; }
 .workspace-help-search .ui-icon { width:19px; height:19px; }
@@ -3702,6 +3707,14 @@ html[data-theme="dark"] :is(.shell-topbar-icon-button:hover,.shell-topbar-icon-b
   color: var(--ace-text-primary);
   background: var(--ace-surface-raised);
   border-color: var(--ace-accent)
+}
+html[data-theme="dark"] .shell-theme-toggle[aria-pressed="true"] {
+  color: #f4ce75;
+  background: #30342d;
+  border-color: #7a704c
+}
+@media (max-width: 900px) {
+  .shell-theme-toggle { display: none; }
 }
 html[data-theme="dark"] .shell-topbar-badge {
   border-color: var(--ace-surface-nav)
