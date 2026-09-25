@@ -169,9 +169,11 @@ test('dashboard analytics render smooth time lines and scaled project bars', () 
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
   assert.match(shellSource, /function smoothChartPath\(points\)/, 'Time-entry analytics should generate a smooth SVG path');
   assert.match(shellSource, /<path class="line-chart-path" d="\$\{linePath\}"/, 'The time chart should use the generated smooth path instead of a polyline');
+  assert.match(shellSource, /const xGrid = points\.map\(point => `<line class="line-chart-gridline line-chart-gridline--vertical"/, 'The time chart should include vertical grid guides for each time bucket');
   assert.match(shellSource, /class="project-bar-chart"/, 'Project allocation should render as a chart container');
   assert.match(shellSource, /class="project-bar-fill" style="width:\$\{width\}%"/, 'Project values should scale each bar to the largest selected project');
   assert.match(styles, /\.project-bar-track \{[\s\S]*?repeating-linear-gradient/, 'Project bars should show a shared grid scale');
+  assert.match(styles, /\.line-chart-gridline--vertical \{ stroke: #e7f0f2;/, 'Vertical chart guides should stay visually subtle');
 });
 
 test('restarting a tutorial teaches users how to return to the dashboard first', () => {

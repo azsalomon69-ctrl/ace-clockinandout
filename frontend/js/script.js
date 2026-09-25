@@ -3314,6 +3314,7 @@ function renderTrackedTimeLineChart(mount, buckets, totalEntries, periodStart, p
         const y = top + plotHeight / 4 * index;
         return `<g class="line-chart-gridline"><line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}"/><text x="${left - 10}" y="${y + 4}" text-anchor="end">${Number.isInteger(value) ? value : value.toFixed(1)}</text></g>`;
     }).join('');
+    const xGrid = points.map(point => `<line class="line-chart-gridline line-chart-gridline--vertical" x1="${point.x}" y1="${top}" x2="${point.x}" y2="${top + plotHeight}"/>`).join('');
     const labelStride = Math.max(1, Math.ceil(buckets.length / 7));
     const xLabels = buckets.map((bucket, index) => {
         if (index % labelStride && index !== buckets.length - 1) return '';
@@ -3329,7 +3330,7 @@ function renderTrackedTimeLineChart(mount, buckets, totalEntries, periodStart, p
         return `<circle class="line-chart-point" cx="${point.x}" cy="${point.y}" r="4"><title>${label}: ${bucket.count} completed ${bucket.count === 1 ? 'entry' : 'entries'}</title></circle>`;
     }).join('');
     mount.setAttribute('aria-label', `Completed time entries from ${toAnalyticsDateValue(periodStart)} to ${toAnalyticsDateValue(periodEnd)}: ${totalEntries}`);
-    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${yGrid}<path class="line-chart-path" d="${linePath}"/>${circles}${xLabels}</svg>`;
+    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${yGrid}${xGrid}<path class="line-chart-path" d="${linePath}"/>${circles}${xLabels}</svg>`;
 }
 
 function renderAdminAnalytics() {
