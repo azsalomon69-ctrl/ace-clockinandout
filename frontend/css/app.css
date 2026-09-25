@@ -9543,7 +9543,7 @@ html[data-theme="dark"] :is(.ui-icon,.shell-icon) {
   filter: var(--ace-icon-muted-filter)!important;
   opacity: .72
 }
-html[data-theme="dark"] :is(.shell-link:hover .shell-icon,.shell-link.active .shell-icon,.btn-primary .ui-icon,.btn-secondary .ui-icon,.clock-card .btn .ui-icon,.home-page .preview-action .ui-icon,.home-page .preview-action img) {
+html[data-theme="dark"] :is(.shell-link:hover .shell-icon,.shell-link.active .shell-icon,.clock-card .btn .ui-icon,.home-page .preview-action .ui-icon,.home-page .preview-action img) {
   filter: var(--ace-icon-strong-filter)!important;
   opacity: 1
 }

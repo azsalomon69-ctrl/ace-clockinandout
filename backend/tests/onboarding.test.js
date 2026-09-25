@@ -200,6 +200,7 @@ test('action buttons retain visible icons after dynamic page content is added', 
   assert.doesNotMatch(shellSource, /(?:dataset\.aceButtonIcon\s*=|--ace-button-icon)/, 'Button icons must not depend on mask-only state');
   assert.match(styles, /html\[data-theme="dark"\] \.btn-primary > \.ui-icon \{[\s\S]*?filter: brightness\(0\)!important;/, 'Icons on white primary actions must remain black and visible');
   assert.match(styles, /html\[data-theme="dark"\] :is\(\.btn-secondary,\.btn-outline\) > \.ui-icon \{[\s\S]*?filter: brightness\(0\) invert\(1\)!important;/, 'Icons on dark secondary and outline actions must remain white');
+  assert.doesNotMatch(styles, /html\[data-theme="dark"\] :is\([^)]*\.btn-primary \.ui-icon[^)]*\) \{[\s\S]*?--ace-icon-strong-filter/, 'A more-specific dark-theme rule must not override primary button icon contrast');
   assert.doesNotMatch(styles, /\.btn\[data-ace-button-icon\][^{]*?(?:::before)?[^{]*\{[\s\S]*?(?:-webkit-)?mask:/, 'Action icons must not use a CSS mask replacement');
   assert.doesNotMatch(styles, /\.btn\[data-ace-button-icon\]\s*>\s*\.ui-icon\s*\{\s*display:\s*none/i, 'Button image icons must remain visible');
 });
