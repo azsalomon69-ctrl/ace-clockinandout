@@ -157,6 +157,13 @@ test('employee time-entry navigation matches the visible sidebar label', () => {
     assert.equal(timeEntries.navigation.group, 'Work');
 });
 
+test('a collapsed desktop rail keeps Help icon-only without hiding mobile admin dropdowns', () => {
+  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
+  assert.match(shellSource, /class="shell-sidebar-help" type="button" aria-label="Open Need Help" title="Need Help\?"/, 'The icon-only Help control needs an accessible name and tooltip');
+  assert.match(styles, /@media \(min-width: 1181px\) \{[\s\S]*?\.shell-collapsed \.shell-sidebar-help > span \{ display: none; \}/, 'Collapsed desktop Help should hide only its visible label');
+  assert.match(styles, /@media \(max-width: 1180px\) \{[\s\S]*?\.shell-collapsed \.shell-nav-label \{ display: block; \}[\s\S]*?\.shell-collapsed \.shell-nav-group-toggle \{ display: flex; \}/, 'A saved desktop collapse preference must not hide mobile admin dropdown triggers');
+});
+
 test('restarting a tutorial teaches users how to return to the dashboard first', () => {
   const context = { window: {} };
   vm.runInNewContext(configSource, context);

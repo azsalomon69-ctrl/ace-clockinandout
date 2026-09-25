@@ -17134,3 +17134,29 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .allocation-fi
     width: 122px
   }
 }
+
+/* A desktop preference must never turn the mobile drawer into an icon rail.
+   Admin menu headers are also nav labels, so restore both the headings and
+   dropdown triggers whenever the off-canvas navigation is in use. */
+@media (max-width: 1180px) {
+  .shell-collapsed .shell-nav-label { display: block; }
+  .shell-collapsed .shell-nav-group-toggle { display: flex; }
+  .shell-collapsed .shell-sidebar-help {
+    width: calc(100% - 20px);
+    margin-inline: 10px;
+    padding-inline: 10px;
+  }
+  .shell-collapsed .shell-sidebar-help > span { display: inline; }
+}
+
+/* Keep Help reachable in a collapsed desktop rail without letting its label
+   wrap into the navigation. The accessible name and tooltip remain intact. */
+@media (min-width: 1181px) {
+  .shell-collapsed .shell-sidebar-help {
+    width: 40px;
+    min-width: 40px;
+    padding-inline: 0;
+    margin-inline: auto;
+  }
+  .shell-collapsed .shell-sidebar-help > span { display: none; }
+}
