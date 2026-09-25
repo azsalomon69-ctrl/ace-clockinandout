@@ -165,6 +165,15 @@ test('a collapsed desktop rail keeps Help icon-only without hiding mobile admin 
   assert.match(styles, /@media \(max-width: 1180px\) \{[\s\S]*?\.shell-collapsed \.shell-nav-label \{ display: block; \}[\s\S]*?\.shell-collapsed \.shell-nav-group-toggle \{ display: flex; \}/, 'A saved desktop collapse preference must not hide mobile admin dropdown triggers');
 });
 
+test('dashboard analytics render smooth time lines and scaled project bars', () => {
+  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
+  assert.match(shellSource, /function smoothChartPath\(points\)/, 'Time-entry analytics should generate a smooth SVG path');
+  assert.match(shellSource, /<path class="line-chart-path" d="\$\{linePath\}"/, 'The time chart should use the generated smooth path instead of a polyline');
+  assert.match(shellSource, /class="project-bar-chart"/, 'Project allocation should render as a chart container');
+  assert.match(shellSource, /class="project-bar-fill" style="width:\$\{width\}%"/, 'Project values should scale each bar to the largest selected project');
+  assert.match(styles, /\.project-bar-track \{[\s\S]*?repeating-linear-gradient/, 'Project bars should show a shared grid scale');
+});
+
 test('restarting a tutorial teaches users how to return to the dashboard first', () => {
   const context = { window: {} };
   vm.runInNewContext(configSource, context);

@@ -3284,6 +3284,18 @@ function formatDashboardDuration(seconds) {
     return value > 0 && value < 60 ? '<1m' : formatDuration(value);
 }
 
+function smoothChartPath(points) {
+    if (!points.length) return '';
+    if (points.length === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+    return points.slice(1).reduce((path, point, index) => {
+        const previous = points[index];
+        const next = points[index + 2] || point;
+        const controlOneX = previous.x + (point.x - previous.x) * .38;
+        const controlTwoX = point.x - (next.x - previous.x) * .18;
+        return `${path} C ${controlOneX.toFixed(1)} ${previous.y.toFixed(1)}, ${controlTwoX.toFixed(1)} ${point.y.toFixed(1)}, ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+    }, `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`);
+}
+
 function renderTrackedTimeLineChart(mount, buckets, totalEntries, periodStart, periodEnd) {
     const width = 720, height = 254, left = 48, right = 16, top = 18, bottom = 36;
     const plotWidth = width - left - right, plotHeight = height - top - bottom;
@@ -3296,8 +3308,7 @@ function renderTrackedTimeLineChart(mount, buckets, totalEntries, periodStart, p
         return { x, y };
     };
     const points = buckets.map(pointFor);
-    const polyline = points.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
-    const area = points.length ? `M ${points[0].x.toFixed(1)} ${top + plotHeight} L ${points.map(point => `${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' L ')} L ${points.at(-1).x.toFixed(1)} ${top + plotHeight} Z` : '';
+    const linePath = smoothChartPath(points);
     const yGrid = Array.from({ length: 5 }, (_, index) => {
         const value = roundedMaximum / 4 * (4 - index);
         const y = top + plotHeight / 4 * index;
@@ -3318,7 +3329,7 @@ function renderTrackedTimeLineChart(mount, buckets, totalEntries, periodStart, p
         return `<circle class="line-chart-point" cx="${point.x}" cy="${point.y}" r="4"><title>${label}: ${bucket.count} completed ${bucket.count === 1 ? 'entry' : 'entries'}</title></circle>`;
     }).join('');
     mount.setAttribute('aria-label', `Completed time entries from ${toAnalyticsDateValue(periodStart)} to ${toAnalyticsDateValue(periodEnd)}: ${totalEntries}`);
-    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${yGrid}<polyline class="line-chart-path" points="${polyline}"/>${circles}${xLabels}</svg>`;
+    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${yGrid}<path class="line-chart-path" d="${linePath}"/>${circles}${xLabels}</svg>`;
 }
 
 function renderAdminAnalytics() {
@@ -3374,11 +3385,12 @@ function renderAdminAnalytics() {
     const largestProject = Math.max(...projects.map(([, seconds]) => seconds), 1);
     const projectDetail = document.getElementById('projectAllocationDetail');
     if (projectDetail) projectDetail.textContent = `${formatDashboardDuration(projectSeconds)} completed in selected period`;
-    projectChart.innerHTML = projects.length ? projects.map(([name, seconds]) => {
+    projectChart.innerHTML = projects.length ? `<div class="project-bar-chart">${projects.map(([name, seconds]) => {
         const share = projectSeconds ? Math.round(seconds / projectSeconds * 100) : 0;
         const detail = `${name}: ${formatDashboardDuration(seconds)} tracked (${share}% of selected time)`;
-        return `<div class="allocation-row analytics-tooltip" tabindex="0" role="listitem" aria-label="${escapeHtml(detail)}" data-tooltip="${escapeHtml(detail)}"><span class="allocation-name">${escapeHtml(name)}</span><div class="allocation-track" aria-hidden="true"><div class="allocation-fill" style="width:${Math.max(2, Math.round(seconds / largestProject * 100))}%"></div></div><span class="allocation-hours">${formatDashboardDuration(seconds)}</span></div>`;
-    }).join('') : analyticsEmpty('No project time in this period', 'Completed time assigned to a project will appear here.', 'folder');
+        const width = Math.max(2, Math.round(seconds / largestProject * 100));
+        return `<div class="project-bar-row analytics-tooltip" tabindex="0" role="listitem" aria-label="${escapeHtml(detail)}" data-tooltip="${escapeHtml(detail)}"><span class="project-bar-name">${escapeHtml(name)}</span><div class="project-bar-track" aria-hidden="true"><div class="project-bar-fill" style="width:${width}%"></div></div><span class="project-bar-value">${formatDashboardDuration(seconds)}</span></div>`;
+    }).join('')}</div>` : analyticsEmpty('No project time in this period', 'Completed time assigned to a project will appear here.', 'folder');
     [trackedRange, projectRange].forEach(select => {
         if (select && !select.dataset.bound) {
             select.dataset.bound = 'true';

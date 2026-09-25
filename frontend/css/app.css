@@ -17083,6 +17083,26 @@ html[data-theme="dark"] .admin-dashboard .dashboard-insights-grid .analytics-car
 html[data-theme="dark"] .admin-dashboard .line-chart-gridline line { stroke: #314247; }
 html[data-theme="dark"] .admin-dashboard .project-allocation-card .allocation-track { background: #26363a; }
 html[data-theme="dark"] .admin-dashboard .project-allocation-card .allocation-fill { background: var(--ace-accent); }
+
+/* Dashboard analytics use chart geometry, not progress controls: a smooth
+   curve makes sparse time-series changes readable, while project values read
+   as a true horizontal bar chart with a shared scale. */
+.line-chart-path { stroke-linejoin: round; }
+.admin-dashboard .project-allocation-card .project-allocation { margin-top: 16px; }
+.project-bar-chart { display: grid; gap: 12px; }
+.project-bar-row { display: grid; grid-template-columns: minmax(86px, .65fr) minmax(150px, 1.75fr) max-content; align-items: center; gap: 11px; }
+.project-bar-name,.project-bar-value { overflow: hidden; color: var(--ace-navy); font-size: .77rem; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.project-bar-value { font-variant-numeric: tabular-nums; }
+.project-bar-track { height: 30px; overflow: hidden; background-color: #f1f7f8; background-image: repeating-linear-gradient(90deg, transparent 0, transparent calc(20% - 1px), #fff calc(20% - 1px), #fff 20%); }
+.project-bar-fill { height: 100%; min-width: 2px; background: linear-gradient(90deg, #08a9d3, #21c7b6); }
+html[data-theme="dark"] .project-bar-name,html[data-theme="dark"] .project-bar-value { color: var(--ace-text-primary); }
+html[data-theme="dark"] .project-bar-track { background-color: #1b363d; background-image: repeating-linear-gradient(90deg, transparent 0, transparent calc(20% - 1px), #31535b calc(20% - 1px), #31535b 20%); }
+html[data-theme="dark"] .project-bar-fill { background: linear-gradient(90deg, #18b3d0, #41d2c3); }
+@media (max-width: 640px) {
+  .project-bar-row { grid-template-columns: minmax(62px, .8fr) minmax(90px, 1.6fr) max-content; gap: 8px; }
+  .project-bar-track { height: 26px; }
+  .project-bar-name,.project-bar-value { font-size: .71rem; }
+}
 @media (max-width: 1050px) {
   .admin-dashboard .dashboard-header { grid-template-columns: 1fr; gap: 18px; }
   .admin-dashboard .dashboard-header-stats { max-width: 720px; width: 100%; }
