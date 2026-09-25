@@ -19,10 +19,10 @@ window.ACETutorialConfig = {
     ADMIN: {
         // Bump this whenever administrator guidance materially changes so
         // existing admins are offered the improved tour again.
-        version: 11,
+        version: 12,
         steps: [
-            { page: 'admin-dashboard.html', target: '#currentDate', title: 'Your admin dashboard', body: 'Start here each day. The header confirms the current date before you review live work and operational priorities.', navigation: { group: 'Workspace', label: 'Dashboard' } },
-            { page: 'admin-dashboard.html', target: '#operationsTitle', title: 'Use quick actions', body: 'This compact action strip is the fastest way to invite a team member or open departments, projects, and schedules.' },
+            { page: 'admin-dashboard.html', target: '#adminDashboardHeader', title: 'Your admin dashboard', body: 'Start here each day. This header orients you with the current date before you review live work and operational priorities.', navigation: { group: 'Workspace', label: 'Dashboard' } },
+            { page: 'admin-dashboard.html', target: '#dashboardQuickActions', title: 'Use quick actions', body: 'These action buttons are the fastest way to invite a team member or open departments, projects, and schedules.' },
             { page: 'admin-dashboard.html', target: '#dashboardOverview', title: 'Read workspace status', body: 'These cards summarize people clocked in, online activity, today’s entries, and completed time for the current month.' },
             { page: 'admin-dashboard.html', target: '#inviteUserBtn', title: 'Invite a team member', body: 'Choose Invite user to pre-authorize an employee or another administrator. Their access is created first, then the system sends the onboarding email.' },
             { page: 'admin-dashboard.html', target: '#trackedTimeRange', title: 'Read the live analytics', body: 'Use the date selector on each chart to compare completed time or project allocation. Export company time entries from Work → Time entries, or prepare employee reports in Insights → Individual reports.' },

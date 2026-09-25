@@ -184,7 +184,7 @@ test('dashboard analytics render smooth time lines and scaled project bars', () 
 test('admin dashboard keeps its compact operations hierarchy across screen sizes', () => {
   const dashboard = readFileSync(new URL('../../frontend/admin-dashboard.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
-  assert.match(dashboard, /<header class="dashboard-header">[\s\S]*?id="currentDate"/, 'The dashboard header should pair its greeting with the live date');
+  assert.match(dashboard, /<header class="dashboard-header" id="adminDashboardHeader">[\s\S]*?id="currentDate"/, 'The dashboard header should pair its greeting with the live date');
   assert.match(dashboard, /class="dashboard-overview"/, 'Workspace metrics should have a dedicated dashboard row');
   assert.match(styles, /\.admin-dashboard \.dashboard-command-center \{[\s\S]*?grid-template-columns: minmax\(170px,\.9fr\) minmax\(0,2\.2fr\)/, 'Quick actions should share a compact desktop action strip');
   assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.admin-dashboard \.dashboard-header-stats \{ grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/, 'Small screens should retain scannable two-column status cards');
