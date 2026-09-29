@@ -16,7 +16,7 @@ const htmlPages = await Promise.all((await readdir(frontend))
 
 const requiredAdminRoutes = [
   '/v1/users', '/v1/invitations', '/v1/reports', '/v1/audit-logs',
-  '/v1/time-leaderboard', '/v1/schedules', '/v1/access-requests'
+  '/v1/time-leaderboard', '/v1/schedules'
 ];
 for (const route of requiredAdminRoutes) {
   assert.match(server, new RegExp(`app\\.(get|post|put|patch|delete)\\('${route.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}[^']*', authenticate, (adminOnly|specialAdminOnly)`), `${route} must keep server-side administrator authorization`);

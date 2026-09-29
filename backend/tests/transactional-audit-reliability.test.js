@@ -71,9 +71,6 @@ test('request IDs are UUID-only, returned to callers, logged, and stored without
   assert.match(server, /res\.set\('X-Request-ID', req\.requestId\)/);
   assert.match(server, /request_id=:request-id/);
   assert.match(migration, /add column if not exists request_id uuid/);
-  assert.match(server, /p_correlation_id: req\.requestId/);
-  assert.match(server, /db\.rpc\('submit_access_request'/);
-  assert.match(migration, /create (?:or replace )?function public\.submit_access_request[\s\S]*set_config\('ace\.request_id'/);
   assert.doesNotMatch(migration, /authorization|bearer|session_id/i);
 });
 

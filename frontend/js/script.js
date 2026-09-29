@@ -341,7 +341,7 @@ async function loadDatabase() {
 }
 
 const pause = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
-const deniedAccessRequestMessage = 'Your access request was denied. Contact an administrator if you believe this is a mistake.';
+const inactiveAccountMessage = 'Your account is not active. Contact your administrator or HR representative for an invitation.';
 
 async function loadDatabaseWhenServiceIsReady() {
     // Free Render services can sleep. Keep the page skeleton visible while the
@@ -386,10 +386,6 @@ async function initApp() {
         initializeForms();
         initializeSelectControls();
         initializeAutocompleteControls();
-        if (document.body.dataset.openAccessRequest === 'true') {
-            delete document.body.dataset.openAccessRequest;
-            window.setTimeout(() => openModal('requestAccessModal'), 0);
-        }
         initializeUXEnhancements();
         const loginNotice = sessionStorage.getItem('ace_login_notice');
         if (loginNotice) {
@@ -417,7 +413,7 @@ async function initApp() {
         // on the sign-in page instead of briefly exposing a dashboard shell.
         if (error?.status === 401 || error?.status === 403) {
             sessionStorage.setItem('ace_login_notice', AppState.currentUser?.Status === 'DENIED'
-                ? deniedAccessRequestMessage
+                ? inactiveAccountMessage
                 : error.message || 'Unable to load your account.');
             localStorage.removeItem('ace_current_user');
             localStorage.removeItem('ace_current_session');
@@ -496,9 +492,9 @@ async function resumePublicSession() {
         await recordLoginOnce();
         window.location.replace(AppState.currentUser.Role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard');
     } else if (AppState.currentUser.Status === 'DENIED') {
-        sessionStorage.setItem('ace_login_notice', deniedAccessRequestMessage);
+        sessionStorage.setItem('ace_login_notice', inactiveAccountMessage);
     } else {
-        document.body.dataset.openAccessRequest = 'true';
+        sessionStorage.setItem('ace_login_notice', inactiveAccountMessage);
     }
 }
 
@@ -548,7 +544,7 @@ function renderInitialSkeletons() {
     const shell = document.querySelector('.app-shell-skeleton');
     if (shell) {
         const page = (window.location.pathname.split('/').pop() || '').toLowerCase();
-        const managementPages = ['users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'audit-logs.html'];
+        const managementPages = ['users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'audit-logs.html'];
         const rows = count => Array.from({ length: count }, () => '<div class="shell-skeleton-row"></div>').join('');
         const header = '<div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div>';
         if (page === 'admin-dashboard.html') {
@@ -708,7 +704,6 @@ function installPageFadeNavigation() {
     let navigating = false;
     const routeModules = {
         'deleted-users.js': 'mountDeletedUsers',
-        'access-requests.js': 'mountAccessRequests',
         'schedule-flex.js': 'mountScheduleFlex',
         'deleted-time-entries.js': 'mountDeletedTimeEntries',
         'individual-reports.js': 'mountIndividualReports',
@@ -831,7 +826,6 @@ function installPageFadeNavigation() {
             const unsupportedModule = Array.from(parsed.querySelectorAll('script[src]')).map(node => node.src)
                 .find(source => /\.js(?:\?|$)/.test(source) && !/(api-config|supabase-auth|sidebar|\/script\.js|admin-sections\.js)/.test(source) && !routeModules[new URL(source, window.location.href).pathname.split('/').pop()]);
             if (unsupportedModule) { window.location.assign(destination.href); return; }
-            window.unmountAccessRequests?.();
             main.className = nextMain.className;
             main.innerHTML = nextMain.innerHTML;
             const nextView = parsed.body.dataset.adminView;
@@ -982,7 +976,6 @@ function initializeEmployeeChat() {
         try {
             const response = await window.ACEAuth.request('/v1/employee-chat/contacts');
             const people = Array.isArray(response) ? response : response.contacts || [];
-            const pendingAccessRequestCount = Number(response.pending_access_request_count) || 0;
             const totalUnread = people.reduce((total, person) => total + (person.unread_count || 0), 0);
             if (contactsLoaded) {
                 people.forEach(person => {
@@ -999,7 +992,6 @@ function initializeEmployeeChat() {
             allContacts = people.filter(person => !employeeChat || person.role === 'ADMIN');
             window.dispatchEvent(new CustomEvent('ace:chat-unread', { detail: {
                 totalUnread,
-                pendingAccessRequestCount,
                 conversations: allContacts.filter(person => person.unread_count).map(person => ({
                     id: person.id,
                     name: person.full_name || person.email,
@@ -1062,7 +1054,6 @@ function initializeEmployeeChat() {
             return;
         }
         if (detail.type === 'notification') {
-            if (detail.kind === 'access-request') void loadContacts();
             window.dispatchEvent(new CustomEvent('ace:live-notification', { detail }));
         }
     };
@@ -1138,7 +1129,7 @@ function initializeAppShell() {
     // Render rewrites clean URLs to the deployed .html files. Normalize both
     // forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'access-requests.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -1153,12 +1144,12 @@ function initializeAppShell() {
         return false;
     }
 
-    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', requests: 'user-pen', building: 'building', folder: 'folder', clock: 'timer', calendar: 'calendar-days', chart: 'chart-column-big', audit: 'brick-wall-shield', download: 'download', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
+    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', building: 'building', folder: 'folder', clock: 'timer', calendar: 'calendar-days', chart: 'chart-column-big', audit: 'brick-wall-shield', download: 'download', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
     const icon = name => suppliedIconMarkup(icons[name], 'shell-icon');
     const isSpecialAdmin = isAdmin && AppState.currentUser?.IsHeadAdmin;
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['access-requests.html', 'requests', 'Access requests'], ['departments.html', 'building', 'Departments']]],
+        ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['departments.html', 'building', 'Departments']]],
         ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries']]],
         ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'chart', 'Individual reports']]],
         ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]
@@ -1324,7 +1315,6 @@ function initializeAppShell() {
     const notificationBadge = topbar.querySelector('.shell-topbar-badge');
     let unreadMessages = 0;
     let unreadConversations = [];
-    let pendingAccessRequestCount = 0;
     const setTopbarMenu = (button, menu, open) => {
         button.setAttribute('aria-expanded', String(open));
         menu.hidden = !open;
@@ -1348,11 +1338,10 @@ function initializeAppShell() {
     const renderNotifications = () => {
         const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt);
         const unreadRemarksCount = unreadRemarks.length;
-        const total = unreadMessages + unreadRemarksCount + pendingAccessRequestCount;
+        const total = unreadMessages + unreadRemarksCount;
         notificationBadge.hidden = !total;
         notificationBadge.textContent = total > 99 ? '99+' : total;
         const notices = [];
-        if (pendingAccessRequestCount) notices.push(`<a href="access-requests.html" role="menuitem"><strong>${pendingAccessRequestCount} pending access request${pendingAccessRequestCount === 1 ? '' : 's'}</strong><span>Review employee access requests</span></a>`);
         if (unreadMessages) {
             notices.push(...unreadConversations.map(conversation => {
                 const preview = String(conversation.preview || 'New message').replace(/\s+/g, ' ').trim();
@@ -1390,7 +1379,6 @@ function initializeAppShell() {
     window.addEventListener('ace:chat-unread', event => {
         unreadMessages = Number(event.detail?.totalUnread) || 0;
         unreadConversations = Array.isArray(event.detail?.conversations) ? event.detail.conversations : [];
-        pendingAccessRequestCount = Number(event.detail?.pendingAccessRequestCount) || 0;
         renderNotifications();
     });
     topbarAccountButton.addEventListener('click', () => {
@@ -1409,7 +1397,6 @@ function initializeAppShell() {
         ['Dashboard', 'Workspace', 'admin-dashboard.html', 'dashboard home overview'],
         ['Invite user', 'People · Users tab', 'users.html', 'invite employee administrator email access'],
         ['Users', 'People · Manage accounts', 'users.html', 'people employees staff manage accounts'],
-        ['Access requests', 'People · Approve or deny access', 'access-requests.html', 'requests approve deny pending'],
         ['Departments', 'People · Organize your team', 'departments.html', 'department team organization'],
         ['Projects', 'Work · Create and manage projects', 'projects.html', 'project assignment assign'],
         ['Schedule & flextime', 'Work · Create or assign schedules', 'schedule-flex.html', 'schedule flextime workdays'],
@@ -1435,7 +1422,6 @@ function initializeAppShell() {
     ];
     const naturalLanguageActions = isAdmin ? [
         { label: 'Correct a missed clock-out', detail: 'Natural-language action · Show active entries that need review', href: 'admin-time-entries.html', quickAction: 'correct-missing-clock-out', keywords: 'employee forgot missed clock out clock-out active shift correction', phrases: [['forgot', 'clock', 'out'], ['missed', 'clock', 'out'], ['employee', 'clock', 'out']], icon: 'timer' },
-        { label: 'Review access requests', detail: 'Natural-language action · Open pending access requests', href: 'access-requests.html', keywords: 'approve access request pending sign in', phrases: [['approve', 'access'], ['approve', 'request'], ['pending', 'access']], icon: 'user-pen' },
         { label: 'Invite a new employee', detail: 'Natural-language action · Open the invitation form', href: 'users.html', quickAction: 'invite-user', keywords: 'add invite new employee staff person', phrases: [['add', 'employee'], ['new', 'employee'], ['invite', 'employee']], icon: 'user-plus' },
         { label: 'Create a project', detail: 'Natural-language action · Open the project form', href: 'projects.html', quickAction: 'add-project', keywords: 'create add new project', phrases: [['create', 'project'], ['new', 'project']], icon: 'folder' }
     ] : [
@@ -1707,8 +1693,7 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. In the collapsed desktop rail, Need Help is the information icon above your account. On a phone, use the menu button in the top bar. Open People or Work to reveal their page links.'],
         ['How do I invite someone?', 'Use Invite user on the dashboard, enter the work email, choose the role, and send the invitation. The person can be granted access even if their invitation email has a delivery issue.'],
         ['Where do I see or cancel an invitation?', 'Open People → Users, select the Invitations tab, find the email, select View, then choose Cancel invitation. The current workspace does not provide a resend button; create a new invitation if the old one is cancelled or expires.'],
-        ['How do I approve access?', 'Open People → Access requests, review the person and requested role, then choose Approve or Deny.'],
-        ['Why is someone pending or denied?', 'Open People → Users or People → Access requests to review their status. Pending users need approval; denied users cannot sign in until their status is changed by an administrator.'],
+        ['Why is someone pending or denied?', 'Open People → Users to review their status. Pending users need an invitation; denied users cannot sign in until their status is changed by an administrator.'],
         ['How do I manage users?', 'Open People → Users and choose Manage on the person’s row. The Manage form lets you update their role, department, project, and schedule. Employee profiles also link directly to that person’s department, projects, and schedule controls.'],
         ['How do I find an employee?', 'Use the top search box to find an employee or project quickly, or open People → Users and use that page’s filters.'],
         ['How do I archive or restore a user?', 'Open People → Users and use Manage to archive an account. To restore it later, open People → Archived users and choose Restore.'],
@@ -1757,7 +1742,7 @@ function workspaceHelpEntries(isAdmin) {
         ['Where are notifications?', 'Use the bell icon in the top bar. It shows relevant updates and messages; open it again to close the notification panel.'],
         ['How do I search for a project?', 'Use the search box in the top bar to find an assigned project. Choose a result to open the appropriate workspace.'],
         ['Why is a project missing?', 'Only projects assigned to you appear in your project list and Clock in form. Ask an administrator to assign the project through People → Users → Manage.'],
-        ['How do I request access or fix a denied account?', 'From the sign-in or access screen, submit an access request if that option is shown. If your request was denied or you cannot sign in, contact an administrator; they can review it in People → Access requests or your user record.'],
+        ['How do I get access or fix an inactive account?', 'Contact your administrator or HR representative. They can send an invitation or review your user record.'],
         ['How do I sign out?', 'Open your account menu and choose Sign out. Always clock out of your work session first if you have finished for the day.'],
         ['How do I restart the tutorial?', 'Open your account menu and choose Restart tutorial. It starts from the dashboard and guides you through the main employee workflow.'],
         ['Do I need to restart the tutorial?', 'No. Search this Need help panel for one task at a time. Restart the tutorial only when you want the full walkthrough again.']
@@ -2031,19 +2016,6 @@ function initializeModals() {
         }
     });
 
-    // Request access
-    const requestAccessLink = document.getElementById('requestAccessLink');
-    if (requestAccessLink) {
-        requestAccessLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (AppState.currentUser?.Status === 'DENIED') {
-                showToast(deniedAccessRequestMessage, 'warning');
-                return;
-            }
-            beginGoogleAccessRequest();
-        });
-    }
-
     // Invite user
     const inviteUserBtn = document.getElementById('inviteUserBtn');
     if (inviteUserBtn) {
@@ -2259,11 +2231,6 @@ function initializeForms() {
         googleLoginBtn.addEventListener('click', handleGoogleLogin);
     }
 
-    // Request access form
-    const requestAccessForm = document.getElementById('requestAccessForm');
-    if (requestAccessForm) {
-        requestAccessForm.addEventListener('submit', handleRequestAccess);
-    }
 
     // Invite user form
     const inviteUserForm = document.getElementById('inviteUserForm');
@@ -2447,43 +2414,6 @@ function stopPresenceHeartbeat() {
     if (AppState.presenceVisibilityHandler) document.removeEventListener('visibilitychange', AppState.presenceVisibilityHandler);
     AppState.presenceInterval = null;
     AppState.presenceVisibilityHandler = null;
-}
-
-async function beginGoogleAccessRequest() {
-    try {
-        if (!window.ACEAuth) throw new Error('Request service is unavailable.');
-        const auth = await window.ACEAuth.client();
-        const { error } = await auth.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/login?requestAccess=1`, queryParams: { prompt: 'select_account' } } });
-        if (error) throw error;
-    } catch (error) { showToast(error.message || 'Unable to start Google sign-in.', 'error'); }
-}
-
-async function handleRequestAccess(e) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const submitButton = form.querySelector('button[type="submit"]');
-    if (submitButton?.disabled) return;
-    const originalLabel = submitButton?.innerHTML;
-    if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.setAttribute('aria-busy', 'true');
-        submitButton.textContent = 'Submitting request…';
-    }
-    try {
-        if (!window.ACEAuth) throw new Error('Request service is unavailable.');
-        await window.ACEAuth.request('/v1/access-requests', { method: 'POST', body: JSON.stringify({ department: document.getElementById('requestDepartment').value.trim(), message: document.getElementById('requestMessage').value.trim() }) });
-        closeModal('requestAccessModal');
-        form.reset();
-        showToast('Access request submitted. An administrator has 24 hours to review it.', 'success');
-    } catch (error) {
-        showToast(error.message || 'Unable to submit access request.', 'error');
-    } finally {
-        if (submitButton) {
-            submitButton.disabled = false;
-            submitButton.removeAttribute('aria-busy');
-            submitButton.innerHTML = originalLabel;
-        }
-    }
 }
 
 function openClockInModal() {

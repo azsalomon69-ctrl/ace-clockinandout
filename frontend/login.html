@@ -31,10 +31,7 @@
                         <img src="assets/icons/google.svg" alt="" aria-hidden="true">
                         Continue with Google
                     </button>
-                    <div class="login-footer">
-                        <span>Need workspace access?</span>
-                        <a href="#" id="requestAccessLink" class="text-link">Request access</a>
-                    </div>
+                    <p class="login-footer">Need workspace access? Contact your administrator for an invitation.</p>
                 </div>
             </div>
 
@@ -54,34 +51,6 @@
             </div>
         </div>
     </main>
-
-    <!-- Request Access Modal -->
-    <div id="requestAccessModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Request Access</h3>
-                <button class="modal-close" id="closeRequestAccessModal">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="modal-description">This request is linked to the Google account you just selected. An administrator has 24 hours to review it.</p>
-                <form id="requestAccessForm" class="request-form">
-                    <div class="form-group">
-                        <label for="requestDepartment" class="form-label">Department (Optional)</label>
-                        <input type="text" id="requestDepartment" class="form-input" placeholder="Enter your department">
-                    </div>
-                    <div class="form-group">
-                        <label for="requestMessage" class="form-label">Message (Optional)</label>
-                        <textarea id="requestMessage" class="form-textarea" rows="3" placeholder="Any additional information"></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-block">Submit Request</button>
-                </form>
-            </div>
-        </div>
-    </div>
 
     <!-- Help Modal -->
     <div id="helpModal" class="modal">
@@ -110,9 +79,9 @@
                         </div>
                     </div>
                     <div class="faq-item">
-                        <button class="faq-question">How do I request access?</button>
+                        <button class="faq-question">What if I do not have access yet?</button>
                         <div class="faq-answer">
-                            <p>Click "Request Access" and fill out the form. An administrator will review your request.</p>
+                            <p>Contact your administrator or HR representative. They can send an invitation to the Google account you should use.</p>
                         </div>
                     </div>
                 </div>

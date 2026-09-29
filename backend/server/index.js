@@ -306,8 +306,8 @@ const adminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profil
   ? next()
   : fail(res, 403, 'Active administrator access required');
 const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() : fail(res, 403, req.profile.status === 'DENIED'
-  ? 'Your access request was denied. Contact an administrator if you believe this is a mistake.'
-  : 'Your account is awaiting approval');
+  ? 'Your account is inactive. Contact an administrator if you believe this is a mistake.'
+  : 'Your account is not active. Contact your administrator or HR representative for an invitation.');
 const employeeOnly = (req, res, next) => req.profile.role === 'USER' && req.profile.status === 'ACTIVE'
   ? next()
   : fail(res, 403, 'Employee access is required');
@@ -437,84 +437,6 @@ app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
   await audit(req, 'LOGOUT', 'PROFILE', req.profile.id, 'Signed out successfully');
   res.status(204).end();
 } catch (error) { next(error); } });
-app.post('/v1/access-requests', sensitiveActionLimiter, authenticate, async (req, res, next) => { try {
-  if (req.profile.status === 'DENIED') return fail(res, 403, 'Your access request was denied. Contact an administrator if you believe this is a mistake.');
-  const email = req.profile.email.trim().toLowerCase();
-  if (!isAllowedCompanyEmail(email)) return fail(res, 403, 'Use an approved company email address to request access.');
-  const now = new Date();
-  const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
-  const [active, profileRecent, ipRecent] = await Promise.all([
-    query(db.from('access_requests').select('id, expires_at').eq('profile_id', req.profile.id).eq('status', 'PENDING').gt('expires_at', now.toISOString()).maybeSingle()),
-    query(db.from('access_requests').select('id').eq('profile_id', req.profile.id).gte('created_at', tenMinutesAgo)),
-    query(db.from('access_requests').select('id').eq('request_ip', req.ip).gte('created_at', tenMinutesAgo))
-  ]);
-  if (active) return fail(res, 409, 'You already have a request awaiting review.');
-  if (profileRecent.length >= 2 || ipRecent.length >= 5) return fail(res, 429, 'Too many access requests. Please wait 10 minutes before trying again.');
-  const requestedDepartment = optionalText(req.body.department, 160);
-  const message = optionalText(req.body.message, 1000);
-  if (requestedDepartment === undefined || message === undefined) return fail(res, 400, 'Request text exceeds the allowed length');
-  const requestValues = {
-    profile_id: req.profile.id, email, full_name: req.profile.full_name || req.authUser.user_metadata?.full_name || '',
-    requested_department: requestedDepartment, message,
-    requested_role: 'USER', request_ip: req.ip, expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString()
-  };
-  // The schema retains one row per email. Re-open an expired pending request
-  // rather than letting that historical row prevent the person from asking again.
-  const expired = await query(db.from('access_requests').select('id').eq('profile_id', req.profile.id).eq('status', 'PENDING').lte('expires_at', now.toISOString()).maybeSingle());
-  const request = await query(db.rpc('submit_access_request', {
-    p_existing_request_id: expired?.id || null,
-    p_profile_id: requestValues.profile_id,
-    p_email: requestValues.email,
-    p_full_name: requestValues.full_name,
-    p_requested_department: requestValues.requested_department,
-    p_message: requestValues.message,
-    p_request_ip: requestValues.request_ip,
-    p_expires_at: requestValues.expires_at,
-    p_request_id: req.requestId
-  }));
-  void publishAdminChatEvent({ type: 'notification', kind: 'access-request' });
-  res.status(201).json({ request });
-} catch (error) { next(error); } });
-app.get('/v1/access-requests', authenticate, adminOnly, async (_, res, next) => { try {
-  const requests = await query(db.from('access_requests').select('*, profiles!access_requests_profile_id_fkey(email,full_name)').order('created_at', { ascending: false }).limit(200));
-  const now = Date.now();
-  res.json(requests.map(request => ({ ...request, state: request.status === 'PENDING' && new Date(request.expires_at).getTime() <= now ? 'EXPIRED' : request.status })));
-} catch (error) { next(error); } });
-app.patch('/v1/access-requests/:id', sensitiveActionLimiter, authenticate, adminOnly, async (req, res, next) => { try {
-  const decision = req.body.decision;
-  const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
-  if (!['APPROVE', 'DENY'].includes(decision)) return fail(res, 400, 'Decision must be APPROVE or DENY');
-  const request = await query(db.from('access_requests').select('*').eq('id', req.params.id).single());
-  if (request.status !== 'PENDING') return fail(res, 409, 'This request has already been reviewed.');
-  if (new Date(request.expires_at).getTime() <= Date.now()) return fail(res, 410, 'This request has expired and cannot be reviewed.');
-  if (!request.profile_id) return fail(res, 409, 'This legacy request is not linked to a Google account.');
-  const status = decision === 'APPROVE' ? 'ACTIVE' : 'DENIED';
-  const departmentId = optionalUuid(req.body.department_id);
-  if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
-  if (departmentId) {
-    const department = await query(db.from('departments').select('id').eq('id', departmentId).eq('is_active', true).maybeSingle());
-    if (!department) return fail(res, 400, 'Department not found or inactive');
-  }
-  const target = await query(db.from('profiles').select('id,email,role,status').eq('id', request.profile_id).single());
-  const profileChanges = decision === 'APPROVE' ? { status, role } : { status };
-  if (!await guardProfileLifecycle(req, res, target, profileChanges, { operation: 'access-approval' })) return;
-  const { data: reviewed, error: reviewError } = await db.rpc('review_access_request', {
-    p_request_id: request.id,
-    p_actor_user_id: req.profile.id,
-    p_decision: decision,
-    p_role: role,
-    p_department_id: departmentId,
-    p_correlation_id: req.requestId
-  });
-  if (reviewError) {
-    if (reviewError.code === 'P0001' && reviewError.message === 'ACCESS_REQUEST_ALREADY_REVIEWED') return fail(res, 409, 'This request has already been reviewed.');
-    if (reviewError.code === 'P0001' && reviewError.message === 'ACCESS_REQUEST_EXPIRED') return fail(res, 410, 'This request has expired and cannot be reviewed.');
-    if (reviewError.code === 'P0001' && reviewError.message === 'ACCESS_REQUEST_NOT_FOUND') return fail(res, 404, 'Access request is unavailable.');
-    throw reviewError;
-  }
-  res.json(reviewed);
-} catch (error) { next(error); } });
-
 app.get('/v1/departments', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('departments').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 app.post('/v1/departments', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Department name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('departments').insert({ name, description }).select().single()); await audit(req, 'CREATE', 'DEPARTMENT', item.id, `Created department ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
 app.patch('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Department name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable department fields supplied'); const item = await query(db.from('departments').update(changes).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'DEPARTMENT', item.id, `Updated department ${item.name}`); res.json(item); } catch (error) { next(error); } });
@@ -583,15 +505,11 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
   let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
   if (req.profile.role !== 'ADMIN') contactRequest = contactRequest.eq('role', 'ADMIN');
-  const [contacts, unread, pendingAccessRequests, authUsers] = await Promise.all([
+  const [contacts, unread, authUsers] = await Promise.all([
     query(contactRequest),
     query(db.from('employee_messages').select('sender_id,body,created_at').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null).order('created_at', { ascending: false })),
-    req.profile.role === 'ADMIN'
-      ? db.from('access_requests').select('id', { count: 'exact', head: true }).eq('status', 'PENDING').gt('expires_at', new Date().toISOString())
-      : Promise.resolve({ count: 0, error: null }),
     listAuthUsersForAvatars()
   ]);
-  if (pendingAccessRequests.error) throw pendingAccessRequests.error;
   const allowedContactIds = new Set(contacts.map(contact => contact.id));
   const unreadByContact = unread.reduce((summary, message) => {
     if (!allowedContactIds.has(message.sender_id)) return summary;
@@ -608,8 +526,7 @@ app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res,
       unread_count: unreadByContact[contact.id]?.count || 0,
       last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
       last_unread_at: unreadByContact[contact.id]?.latest?.created_at || null
-    })),
-    pending_access_request_count: pendingAccessRequests.count || 0
+    }))
   });
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/stream', authenticate, activeOnly, (req, res) => {

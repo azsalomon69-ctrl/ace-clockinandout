@@ -44,7 +44,7 @@ test('administrator tutorial covers every primary administration workflow', () =
   const steps = context.window.ACETutorialConfig.ADMIN.steps;
   const pages = new Set(steps.map(step => step.page));
   for (const page of [
-    'admin-dashboard.html', 'access-requests.html', 'users.html',
+    'admin-dashboard.html', 'users.html',
     'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html',
     'reports.html', 'individual-reports.html',
     'audit-logs.html', 'settings.html'
@@ -142,7 +142,7 @@ test('the bell notification button owns its menu handler and the theme toggle st
 
 test('every application page references the same shell-script version', () => {
   const pages = [
-    'access-requests.html', 'admin-dashboard.html', 'admin-time-entries.html', 'audit-logs.html',
+    'admin-dashboard.html', 'admin-time-entries.html', 'audit-logs.html',
     'chat-log.html', 'deleted-time-entries.html', 'deleted-users.html', 'departments.html',
     'employee-profile.html', 'index.html', 'individual-reports.html', 'invitations.html', 'login.html',
     'projects.html', 'remarks.html', 'reports.html', 'schedule-flex.html', 'settings.html',

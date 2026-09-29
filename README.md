@@ -47,7 +47,7 @@ This separation is valuable because a frontend bug cannot automatically grant ad
 
 ### Administrator control center
 
-- Invite employees or administrators and approve/deny access requests.
+- Invite employees or administrators directly from the People workspace.
 - Manage user status, roles, archived users, departments, projects, project assignments, and schedules.
 - Review live team activity, time entries, corrections, approved overtime, remarks, reports, and individual reports.
 - Receive review alerts for possible missed clock-outs and administrator-stopped shifts.
@@ -70,7 +70,7 @@ An invitation/access record is still created if email delivery fails; the admini
 | Browser application | Static HTML, CSS, browser JavaScript | Responsive UI, dashboards, forms, tutorials, help center, local interaction state |
 | API | Node.js 20 + Express | Authenticated business API, role checks, validation, reporting, invitations, audit handling, mail orchestration |
 | Authentication | Supabase Auth | Google identity and signed user sessions |
-| Database | Supabase Postgres | Profiles, time entries, projects, schedules, reports, messages, invitations, access requests, audit data |
+| Database | Supabase Postgres | Profiles, time entries, projects, schedules, reports, messages, invitations, audit data |
 | Media | Cloudinary | Optional profile photo hosting and signed uploads |
 | API hosting | Render Web Service | Node process, HTTPS endpoint, environment-secret storage, health checks |
 | Frontend hosting | Render Static Site | Built static assets, caching, security headers, HTTPS delivery |

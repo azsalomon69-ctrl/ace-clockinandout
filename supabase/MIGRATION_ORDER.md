@@ -30,6 +30,7 @@ Run these files in this order:
 20. `migrations/0017_idempotent_user_role_audit.sql`
 21. `migrations/0018_time_entry_clock_in_audit.sql`
 22. `migrations/0019_admin_remark_notifications.sql`
+23. `migrations/0020_remove_access_request_flow.sql`
 
 Then run:
 
@@ -37,11 +38,9 @@ Then run:
 npm run db:verify
 ```
 
-`schema.sql` establishes the baseline tables and policies. `current-production-upgrade.sql` is idempotent and adds every database object required by the current API that may be absent from an older base schema. The numbered migrations then add the current atomic clock, schedule-compliance, access-request expiry, RLS, admin time-entry, workday, and tutorial-state behavior.
+`schema.sql` establishes the baseline tables and policies. `current-production-upgrade.sql` is idempotent and adds every database object required by the current API that may be absent from an older base schema. The numbered migrations then add the current atomic clock, schedule-compliance, RLS, admin time-entry, workday, tutorial-state, and notification behavior.
 
-`schema.sql` already contains the final access-request trigger and `review_access_request(...)` RPC used by migration 0013. Running migration 0013 after the clean-install sequence is still intentional: it makes the fresh-install path and the existing-project path converge on the same explicit migration contract.
-
-The other SQL files in `supabase/` are retained as targeted historical upgrades for deployments that adopted a feature before the consolidated upgrade existed. Do not run them in addition to the sequence above unless a maintainer has identified that exact missing feature. `access-request-flow.sql` is one such legacy upgrade: it supplies the access-request columns and indexes that a pre-existing project may lack; it is not an extra clean-install step. For example, `r2-profile-photos.sql` configures profile-photo fields, while image storage itself is handled by Cloudinary.
+The other SQL files in `supabase/` are retained as targeted historical upgrades for deployments that adopted a feature before the consolidated upgrade existed. Do not run them in addition to the sequence above unless a maintainer has identified that exact missing feature. Historical access-request migrations are retained only so older deployed databases can reach migration 0020; they do not represent a current product feature.
 
 ## Existing production project
 
@@ -50,89 +49,15 @@ Do not rerun `schema.sql` over a working production database.
 1. Back up the database.
 2. Run `current-production-upgrade.sql` first.
 3. Run the relevant missing numbered files in `supabase/migrations/` in order, only when the database has not already received them.
-4. Before migration 0013, run the **Access-request 0013 preflight** below. If it reports that `profile_id`, `requested_role`, `expires_at`, or `request_ip` is missing, apply `access-request-flow.sql` first, then rerun the preflight. This legacy upgrade also creates the supporting access-request indexes and removes the historical one-row-per-email constraint.
-5. Apply `migrations/0013_access_request_atomic_audit.sql` only after its prerequisites are present.
-6. Apply `migrations/0014_transactional_lifecycle_audit_and_request_ids.sql` after 0013. It adds the nullable audit correlation field and transactional lifecycle/time-entry functions.
-7. Apply `migrations/0015_atomic_archive_restore_auth_state.sql` after 0014. It places Auth ban/unban state, profile state, and audit evidence in the archive/restore transaction.
-8. Apply `migrations/0016_idempotent_user_status_audit.sql` after 0015. It makes approval/denial retries audit-idempotent.
-9. Apply `migrations/0017_idempotent_user_role_audit.sql` after 0016. It makes role-change retries audit-idempotent.
-10. Apply `migrations/0018_time_entry_clock_in_audit.sql` after 0017. It backfills missing clock-in audit evidence and makes future clock-ins atomic with their audit record.
-11. Apply `migrations/0019_admin_remark_notifications.sql`. It adds the acknowledgement field required for administrator-feedback notifications and marks historical feedback as already read.
-12. Run `npm run db:verify` and resolve any reported missing table, column, or RPC before deploying the API.
+4. Apply missing numbered files in order through `migrations/0019_admin_remark_notifications.sql`.
+5. Apply `migrations/0020_remove_access_request_flow.sql`. It removes the retired self-service access-request table, triggers, and RPCs while retaining immutable historical audit logs.
+6. Run `npm run db:verify` and resolve any reported missing table, column, or RPC before deploying the API.
 
 The repository retains several older, feature-specific SQL files because earlier deployments may have applied them individually. They are not extra steps on top of the current fresh-install order unless a maintainer has specifically identified a missing feature. Do not blindly re-run historical patches such as schedule, break, notes, or soft-delete migrations against a current schema.
 
-### Access-request 0013 preflight
+### Retiring self-service access requests
 
-Run this read-only query in the Supabase SQL Editor before applying 0013 to an existing project. Every required column/object check must return `present`, and the duplicate-pending query must return zero rows. `npm run db:verify` performs the API-visible table/RPC checks as well; this SQL preflight additionally checks database-only triggers, RLS, and function grants.
-
-```sql
-with required_columns(table_name, column_name) as (
-  values
-    ('access_requests', 'profile_id'),
-    ('access_requests', 'requested_role'),
-    ('access_requests', 'expires_at'),
-    ('access_requests', 'request_ip'),
-    ('access_requests', 'reviewed_by_user_id'),
-    ('audit_logs', 'user_id'),
-    ('audit_logs', 'action'),
-    ('audit_logs', 'entity_type'),
-    ('audit_logs', 'entity_id'),
-    ('audit_logs', 'description')
-)
-select rc.table_name, rc.column_name,
-  case when c.column_name is null then 'MISSING' else 'present' end as status
-from required_columns rc
-left join information_schema.columns c
-  on c.table_schema = 'public'
- and c.table_name = rc.table_name
- and c.column_name = rc.column_name
-order by rc.table_name, rc.column_name;
-
-select c.relname as table_name, c.relrowsecurity as rls_enabled
-from pg_class c
-join pg_namespace n on n.oid = c.relnamespace
-where n.nspname = 'public'
-  and c.relname in ('access_requests', 'audit_logs')
-order by c.relname;
-
-select c.relname as table_name, t.tgname as trigger_name, t.tgenabled
-from pg_trigger t
-join pg_class c on c.oid = t.tgrelid
-join pg_namespace n on n.oid = c.relnamespace
-where n.nspname = 'public'
-  and c.relname in ('access_requests', 'audit_logs')
-  and not t.tgisinternal
-order by c.relname, t.tgname;
-
-select
-  to_regprocedure('public.review_access_request(uuid,uuid,text,public.user_role,uuid)')
-    as review_rpc,
-  has_function_privilege(
-    'service_role',
-    'public.review_access_request(uuid,uuid,text,public.user_role,uuid)',
-    'EXECUTE'
-  ) as service_role_can_execute,
-  has_function_privilege(
-    'authenticated',
-    'public.review_access_request(uuid,uuid,text,public.user_role,uuid)',
-    'EXECUTE'
-  ) as authenticated_can_execute;
-
-select profile_id, count(*) as live_pending_requests
-from public.access_requests
-where status = 'PENDING' and expires_at > now()
-group by profile_id
-having count(*) > 1;
-```
-
-Before 0013, the `access_requests_audit`, `access_requests_one_pending`, and `review_access_request` entries are expected to be absent. After it, the trigger list must contain both access-request triggers, `audit_logs_immutable` must remain present, the RPC must resolve, `service_role_can_execute` must be true, and `authenticated_can_execute` must be false.
-
-### Controlled deployment of 0013
-
-Migration 0013 and the matching API revision are an all-or-nothing release pair. The old API writes a best-effort access-request audit entry after its request/review state write; 0013 adds the database audit trigger. During an **old API + new database** overlap, the same access-request event can be recorded twice. During a **new API + old database** overlap, request creation can lose its audit event and reviews fail because `review_access_request` does not exist.
-
-Use a controlled maintenance window: take traffic away from the API (or disable access-request actions), verify the preflight, apply 0013, run `npm run db:verify`, deploy the matching new API, verify health and one safe access-request flow, then restore traffic. Do not roll back only one side. If rollback is necessary, place the API back in maintenance first, restore both the database state and the matching old API together, then verify the old behavior. A compatibility bridge is technically possible but would intentionally retain a non-atomic review path and requires migration-presence detection, so it is not a safe zero-downtime substitute.
+Apply migration 0020 only after the deployed API no longer exposes access-request routes. It removes the retired table and related database functions. Existing rows in `audit_logs` are intentionally not removed: those immutable records remain valid history.
 
 ## Re-offer the tutorial
 
@@ -140,7 +65,7 @@ Tutorial progress lives in `public.profiles`. Reset only the users who should re
 
 ### Reset selected users
 
-Replace the email list as needed. Use version `4` for employees and version `6` for administrators.
+Replace the email list as needed. Use version `8` for employees and version `14` for administrators.
 
 ```sql
 UPDATE public.profiles
@@ -148,8 +73,8 @@ SET
   tutorial_status = 'NOT_STARTED',
   tutorial_step = 0,
   tutorial_version = CASE
-    WHEN role = 'ADMIN' THEN 6
-    ELSE 4
+    WHEN role = 'ADMIN' THEN 14
+    ELSE 8
   END,
   tutorial_started_at = NULL,
   tutorial_completed_at = NULL,
@@ -168,7 +93,7 @@ UPDATE public.profiles
 SET
   tutorial_status = 'NOT_STARTED',
   tutorial_step = 0,
-  tutorial_version = 4,
+  tutorial_version = 8,
   tutorial_started_at = NULL,
   tutorial_completed_at = NULL,
   tutorial_skipped_at = NULL
@@ -182,7 +107,7 @@ UPDATE public.profiles
 SET
   tutorial_status = 'NOT_STARTED',
   tutorial_step = 0,
-  tutorial_version = 6,
+  tutorial_version = 14,
   tutorial_started_at = NULL,
   tutorial_completed_at = NULL,
   tutorial_skipped_at = NULL
@@ -197,4 +122,4 @@ The tutorial starts again on the user’s next active session. It guides through
 2. Confirm the API health endpoint returns successfully: `/health`.
 3. Sign in as one administrator and one employee.
 4. Confirm the correct role-specific sidebar, Need help content, and tutorial version appear.
-5. Test a safe invitation or access-request flow before relying on production mail delivery.
+5. Test a safe administrator invitation flow before relying on production mail delivery.

@@ -60,8 +60,7 @@ const adminReadRoutes = [
   '/v1/reports',
   '/v1/audit-logs',
   '/v1/time-leaderboard',
-  '/v1/schedules',
-  '/v1/access-requests'
+  '/v1/schedules'
 ];
 
 const admin = await signIn(process.env.ACE_TEST_ADMIN_EMAIL, process.env.ACE_TEST_ADMIN_PASSWORD);
