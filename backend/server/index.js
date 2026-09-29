@@ -20,6 +20,13 @@ const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KE
 const cloudinaryConfigured = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].every(key => Boolean(process.env[key]));
 if (cloudinaryConfigured) cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET, secure: true });
 const app = express();
+const chatSubscribers = new Map();
+const publishChatEvent = (userId, detail) => {
+  const subscribers = chatSubscribers.get(userId);
+  if (!subscribers) return;
+  const payload = `event: chat\ndata: ${JSON.stringify(detail)}\n\n`;
+  subscribers.forEach(response => response.write(payload));
+};
 const frontendOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(value => value.trim()).filter(Boolean);
 if (process.env.NODE_ENV === 'production' && !frontendOrigins.length) {
   throw new Error('FRONTEND_ORIGIN is required in production');
@@ -596,6 +603,36 @@ app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res,
     pending_access_request_count: pendingAccessRequests.count || 0
   });
 } catch (error) { next(error); } });
+app.get('/v1/employee-chat/stream', authenticate, activeOnly, (req, res) => {
+  const userId = req.profile.id;
+  const subscribers = chatSubscribers.get(userId) || new Set();
+  subscribers.add(res);
+  chatSubscribers.set(userId, subscribers);
+  res.status(200).set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+  res.flushHeaders?.();
+  res.write('event: ready\ndata: {}\n\n');
+  const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 20_000);
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    subscribers.delete(res);
+    if (!subscribers.size) chatSubscribers.delete(userId);
+  });
+});
+app.post('/v1/employee-chat/typing', authenticate, activeOnly, async (req, res, next) => { try {
+  const recipientId = optionalUuid(req.body.recipientId);
+  const active = Boolean(req.body.active);
+  if (!recipientId || recipientId === req.profile.id) return fail(res, 400, 'A valid chat recipient is required');
+  const recipient = await query(db.from('profiles').select('id,role').eq('id', recipientId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
+  if (!recipient) return fail(res, 404, 'Contact is not available for chat');
+  if (!canChatWith(req.profile, recipient)) return fail(res, 403, 'Employees can only chat with administrators');
+  publishChatEvent(recipientId, { type: 'typing', contactId: req.profile.id, active });
+  res.status(204).end();
+} catch (error) { next(error); } });
 app.get('/v1/employee-chat/messages/:userId', authenticate, activeOnly, async (req, res, next) => { try {
   const otherUserId = optionalUuid(req.params.userId);
   if (!otherUserId) return fail(res, 400, 'A valid contact ID is required');
@@ -615,6 +652,7 @@ app.post('/v1/employee-chat/messages', authenticate, activeOnly, async (req, res
   if (!recipient) return fail(res, 404, 'Contact is not available for chat');
   if (!canChatWith(req.profile, recipient)) return fail(res, 403, 'Employees can only chat with administrators');
   const message = await query(db.from('employee_messages').insert({ sender_id: req.profile.id, recipient_id: recipientId, body, original_body: body }).select().single());
+  publishChatEvent(recipientId, { type: 'message', contactId: req.profile.id, messageId: message.id });
   res.status(201).json(message);
 } catch (error) { next(error); } });
 app.patch('/v1/employee-chat/messages/:messageId', authenticate, activeOnly, async (req, res, next) => { try {

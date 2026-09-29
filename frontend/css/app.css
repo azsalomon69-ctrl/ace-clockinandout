@@ -11739,6 +11739,22 @@ html[data-theme="dark"] .employee-chat-search input::placeholder {
 .employee-chat-thread-head .employee-chat-presence.is-online {
   color: #178b5a
 }
+.employee-chat-thread-head .employee-chat-typing {
+  display: block;
+  margin-top: 3px;
+  color: var(--ace-cyan-dark);
+  font-size: .66rem;
+  font-style: italic
+}
+.employee-chat-thread-head .employee-chat-typing span {
+  display: inline-block;
+  animation: ace-chat-typing-dots .9s steps(3,end) infinite
+}
+@keyframes ace-chat-typing-dots {
+  0%, 20% { opacity: .2; }
+  100% { opacity: 1; }
+}
+html[data-theme="dark"] .employee-chat-thread-head .employee-chat-typing { color: #8bdae6; }
 html[data-theme="dark"] .employee-chat-contact > div small {
   color: #9bb6bc
 }

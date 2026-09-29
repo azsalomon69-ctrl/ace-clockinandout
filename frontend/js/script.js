@@ -905,6 +905,12 @@ function initializeEmployeeChat() {
     let contactsLoaded = false;
     let allContacts = [];
     const unreadByContact = new Map();
+    let chatStreamAbort;
+    let chatStreamRetry;
+    let typingContactId = null;
+    let typingClearTimer;
+    let typingLastSentAt = 0;
+    let typingActive = false;
     const formatTime = value => new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     const loadMessages = async () => {
         if (!selectedId) return;
@@ -918,21 +924,44 @@ function initializeEmployeeChat() {
             const liveComposer = thread.querySelector('.employee-chat-compose input');
             const liveDraft = liveComposer?.value ?? draft;
             const keepComposerFocus = document.activeElement === liveComposer || restoreComposerFocus;
-            thread.innerHTML = `<div class="employee-chat-thread-head"><button class="employee-chat-back" type="button" aria-label="Back to chats">‹</button><span class="employee-chat-avatar">${avatarContent(selectedName, selectedPictureUrl)}</span><div><strong>${escapeHtml(selectedName)}</strong><span class="employee-chat-presence${selectedOnline ? ' is-online' : ''}">${selectedOnline ? 'Online now' : 'Offline'}</span></div></div><div class="employee-chat-messages">${messages.map(message => { const mine = message.sender_id === AppState.currentUser.UserId; const deleted = Boolean(message.deleted_at); const time = `<time class="employee-chat-message-time">${formatTime(message.created_at)}</time>`; return `<div class="employee-chat-message-row${mine ? ' mine' : ''}"><div class="employee-chat-message${mine ? ' mine' : ''}${deleted ? ' deleted' : ''}"><span>${deleted ? 'This message was deleted.' : escapeHtml(message.body)}</span>${!deleted && message.edited_at ? '<em>edited</em>' : ''}</div>${mine && !deleted ? `<div class="employee-chat-actions">${time}<button type="button" data-chat-edit="${message.id}" data-chat-body="${escapeHtml(message.body)}">Edit</button><button type="button" data-chat-delete="${message.id}">Delete</button></div>` : `<div class="employee-chat-message-meta">${time}</div>`}</div>`; }).join('')}</div><form class="employee-chat-compose"><input maxlength="2000" aria-label="Message ${escapeHtml(selectedName)}" placeholder="Write a message…" required><button type="submit">Send</button></form>`;
+            thread.innerHTML = `<div class="employee-chat-thread-head"><button class="employee-chat-back" type="button" aria-label="Back to chats">‹</button><span class="employee-chat-avatar">${avatarContent(selectedName, selectedPictureUrl)}</span><div><strong>${escapeHtml(selectedName)}</strong><span class="employee-chat-presence${selectedOnline ? ' is-online' : ''}">${selectedOnline ? 'Online now' : 'Offline'}</span><span class="employee-chat-typing"${String(typingContactId) === String(selectedId) ? '' : ' hidden'} aria-live="polite">${escapeHtml(selectedName)} is typing<span aria-hidden="true">…</span></span></div></div><div class="employee-chat-messages">${messages.map(message => { const mine = message.sender_id === AppState.currentUser.UserId; const deleted = Boolean(message.deleted_at); const time = `<time class="employee-chat-message-time">${formatTime(message.created_at)}</time>`; return `<div class="employee-chat-message-row${mine ? ' mine' : ''}"><div class="employee-chat-message${mine ? ' mine' : ''}${deleted ? ' deleted' : ''}"><span>${deleted ? 'This message was deleted.' : escapeHtml(message.body)}</span>${!deleted && message.edited_at ? '<em>edited</em>' : ''}</div>${mine && !deleted ? `<div class="employee-chat-actions">${time}<button type="button" data-chat-edit="${message.id}" data-chat-body="${escapeHtml(message.body)}">Edit</button><button type="button" data-chat-delete="${message.id}">Delete</button></div>` : `<div class="employee-chat-message-meta">${time}</div>`}</div>`; }).join('')}</div><form class="employee-chat-compose"><input maxlength="2000" aria-label="Message ${escapeHtml(selectedName)}" placeholder="Write a message…" required><button type="submit">Send</button></form>`;
             const messagesBox = thread.querySelector('.employee-chat-messages');
             if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight;
             const composer = thread.querySelector('.employee-chat-compose input');
             if (composer && liveDraft) composer.value = liveDraft;
             if (composer && keepComposerFocus) composer.focus({ preventScroll: true });
+            composer?.addEventListener('input', () => {
+                if (composer.value.trim()) void publishTyping(true);
+                else void publishTyping(false);
+            });
+            composer?.addEventListener('blur', () => void publishTyping(false));
             thread.querySelector('.employee-chat-back')?.addEventListener('click', () => chat.classList.remove('employee-chat-chatting'));
             thread.querySelector('form').addEventListener('submit', async event => {
                 event.preventDefault();
                 const input = event.currentTarget.querySelector('input');
+                const sendButton = event.currentTarget.querySelector('button[type="submit"]');
                 const body = input.value.trim();
-                if (!body) return;
-                input.disabled = true;
-                try { await window.ACEAuth.request('/v1/employee-chat/messages', { method: 'POST', body: JSON.stringify({ recipientId: selectedId, body }) }); await loadMessages(); }
-                catch (error) { showToast(error.message || 'Unable to send chat message.', 'error'); input.disabled = false; }
+                if (!body || sendButton.disabled) return;
+                const pending = document.createElement('div');
+                pending.className = 'employee-chat-message-row mine employee-chat-message-pending';
+                pending.innerHTML = `<div class="employee-chat-message mine"><span>${escapeHtml(body)}</span><em>Sending…</em></div>`;
+                messagesBox?.append(pending);
+                messagesBox.scrollTop = messagesBox.scrollHeight;
+                input.value = '';
+                void publishTyping(false);
+                sendButton.disabled = true;
+                input.focus({ preventScroll: true });
+                try {
+                    await window.ACEAuth.request('/v1/employee-chat/messages', { method: 'POST', body: JSON.stringify({ recipientId: selectedId, body }) });
+                    pending.remove();
+                    await loadMessages();
+                }
+                catch (error) {
+                    pending.remove();
+                    if (!input.value) input.value = body;
+                    showToast(error.message || 'Unable to send chat message.', 'error');
+                }
+                finally { sendButton.disabled = false; }
             });
             thread.querySelectorAll('[data-chat-edit]').forEach(button => button.addEventListener('click', async () => {
                 const body = (await window.ACEUI.prompt({ title: 'Edit message', label: 'Message', value: button.dataset.chatBody, confirmLabel: 'Save changes' }))?.trim();
@@ -951,7 +980,7 @@ function initializeEmployeeChat() {
         const query = contactSearch.value.trim().toLowerCase();
         const people = allContacts.filter(person => `${person.full_name || ''} ${person.email || ''}`.toLowerCase().includes(query));
         contacts.innerHTML = people.length ? people.map(person => { const name = person.full_name || person.email; const online = Boolean(person.last_seen_at && Date.now() - new Date(person.last_seen_at).getTime() < 2 * 60 * 1000); return `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(name)}" data-picture="${escapeHtml(person.profile_picture_url || '')}" data-online="${online}" type="button"><span class="employee-chat-avatar">${avatarContent(name, person.profile_picture_url)}<i class="employee-chat-online-dot${online ? ' is-online' : ''}"></i></span><div><strong>${escapeHtml(name)}</strong><small>${online ? 'Online' : 'Offline'}</small></div>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(name)}"></b>` : ''}</button>`; }).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
-        contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.id; selectedName = button.dataset.name; selectedPictureUrl = button.dataset.picture; selectedOnline = button.dataset.online === 'true'; chat.classList.add('employee-chat-chatting'); renderContacts(); loadMessages(); }));
+        contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { void publishTyping(false); selectedId = button.dataset.id; selectedName = button.dataset.name; selectedPictureUrl = button.dataset.picture; selectedOnline = button.dataset.online === 'true'; chat.classList.add('employee-chat-chatting'); renderContacts(); loadMessages(); }));
     };
     const loadContacts = async () => {
         try {
@@ -990,11 +1019,81 @@ function initializeEmployeeChat() {
         } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
     };
     contactSearch.addEventListener('input', renderContacts);
-    const openChat = open => { panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); if (open) { chat.classList.remove('employee-chat-chatting'); loadContacts(); } };
+    const openChat = open => { if (!open) void publishTyping(false); panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); if (open) { chat.classList.remove('employee-chat-chatting'); loadContacts(); } };
+    const updateTypingIndicator = () => {
+        const indicator = thread.querySelector('.employee-chat-typing');
+        if (indicator) indicator.hidden = String(typingContactId) !== String(selectedId);
+    };
+    const publishTyping = async active => {
+        if (!selectedId) return;
+        if (active && Date.now() - typingLastSentAt < 3500) return;
+        if (!active && !typingActive) return;
+        typingActive = active;
+        if (active) typingLastSentAt = Date.now();
+        try { await window.ACEAuth.request('/v1/employee-chat/typing', { method: 'POST', body: JSON.stringify({ recipientId: selectedId, active }) }); }
+        catch { /* Typing feedback is optional; sending messages still works. */ }
+    };
+    const handleChatEvent = detail => {
+        if (!detail) return;
+        if (detail.type === 'typing') {
+            if (detail.active && String(detail.contactId) === String(selectedId)) {
+                typingContactId = detail.contactId;
+                updateTypingIndicator();
+                window.clearTimeout(typingClearTimer);
+                typingClearTimer = window.setTimeout(() => { typingContactId = null; updateTypingIndicator(); }, 4500);
+            } else if (!detail.active && String(detail.contactId) === String(typingContactId)) {
+                typingContactId = null;
+                window.clearTimeout(typingClearTimer);
+                updateTypingIndicator();
+            }
+            return;
+        }
+        if (detail.type === 'message') {
+            typingContactId = null;
+            window.clearTimeout(typingClearTimer);
+            updateTypingIndicator();
+            void loadContacts();
+            if (!panel.hidden && String(selectedId) === String(detail.contactId)) void loadMessages();
+        }
+    };
+    const startChatStream = async () => {
+        chatStreamAbort?.abort();
+        chatStreamAbort = new AbortController();
+        try {
+            const response = await window.ACEAuth.authorizedFetch('/v1/employee-chat/stream', {
+                headers: { Accept: 'text/event-stream' }, signal: chatStreamAbort.signal
+            });
+            if (!response.ok || !response.body) throw new Error('Live chat stream is unavailable');
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const events = buffer.split('\n\n');
+                buffer = events.pop();
+                events.forEach(event => {
+                    const type = event.match(/^event: (.+)$/m)?.[1];
+                    const data = event.match(/^data: (.+)$/m)?.[1];
+                    if (type !== 'chat' || !data) return;
+                    try { handleChatEvent(JSON.parse(data)); } catch { /* Ignore one malformed live event. */ }
+                });
+            }
+        } catch (error) {
+            if (!chatStreamAbort?.signal.aborted) console.warn('Live chat is reconnecting.', error);
+        } finally {
+            if (!chatStreamAbort?.signal.aborted) {
+                window.clearTimeout(chatStreamRetry);
+                chatStreamRetry = window.setTimeout(() => void startChatStream(), 1500);
+            }
+        }
+    };
     window.ACEEmployeeChat = {
         openConversation(contactId) {
             const person = allContacts.find(contact => String(contact.id) === String(contactId));
             if (!person) { openChat(true); return; }
+            void publishTyping(false);
             selectedId = person.id;
             selectedName = person.full_name || person.email;
             selectedPictureUrl = person.profile_picture_url || '';
@@ -1010,8 +1109,11 @@ function initializeEmployeeChat() {
     chat.querySelector('.employee-chat-close').addEventListener('click', () => openChat(false));
     // Fetch immediately, then keep the unread indicator fresh without a page reload.
     loadContacts();
-    const poller = window.setInterval(() => { loadContacts(); if (!panel.hidden) loadMessages(); }, 4000);
-    window.addEventListener('pagehide', () => window.clearInterval(poller), { once: true });
+    void startChatStream();
+    // The live stream delivers new chat events immediately. This slow fallback
+    // covers a temporary stream interruption without making the interface jump.
+    const poller = window.setInterval(() => { loadContacts(); if (!panel.hidden) loadMessages(); }, 15000);
+    window.addEventListener('pagehide', () => { void publishTyping(false); window.clearInterval(poller); window.clearTimeout(chatStreamRetry); window.clearTimeout(typingClearTimer); chatStreamAbort?.abort(); }, { once: true });
 }
 
 // Shared application shell for every authenticated page.

@@ -29,7 +29,7 @@ window.ACEAuth = (() => {
         error.status = 401;
         throw error;
     }
-    async function request(path, options = {}) {
+    async function authorizedFetch(path, options = {}) {
         const auth = await client();
         const { data: { session } } = await auth.auth.getSession();
         const send = accessToken => fetch(`${apiUrl()}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}), ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) } });
@@ -41,6 +41,10 @@ window.ACEAuth = (() => {
             response = await send(data.session.access_token);
             if (response.status === 401) return expireSession(auth);
         }
+        return response;
+    }
+    async function request(path, options = {}) {
+        const response = await authorizedFetch(path, options);
         const body = await response.json().catch(() => ({}));
         if (!response.ok) {
             const error = new Error(body.error || 'Request failed');
@@ -49,5 +53,5 @@ window.ACEAuth = (() => {
         }
         return body;
     }
-    return { client, request };
+    return { client, request, authorizedFetch };
 })();
