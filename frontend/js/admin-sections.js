@@ -100,10 +100,10 @@ function status(value) {
   return '<span class="badge badge-' + type + '">' + esc(value) + '</span>';
 }
 function action(label, index, key, record) {
-  if (key === 'audit') return '<button class="btn btn-sm btn-outline admin-audit-details-open" type="button" data-row="' + index + '">' + icon('eye') + 'View event</button>';
+  if (key === 'audit') return '<button class="btn btn-sm btn-outline admin-audit-details-open"' + (index === 0 ? ' id="tutorialAuditEvent"' : '') + ' type="button" data-row="' + index + '">' + icon('eye') + 'View event</button>';
   if (key === 'entries') {
     const canApprove = record.clockOutAt && record.scheduleType === 'FIXED' && record.scheduledEndTime && !record.overtimeApprovedAt;
-    return '<div class="admin-entry-action-set"><button class="btn btn-sm btn-outline admin-entry-actions-toggle" type="button" aria-expanded="false" aria-haspopup="menu">Actions ' + icon('chevron-down') + '</button><div class="admin-entry-action-menu" role="menu" hidden>' +
+    return '<div class="admin-entry-action-set"><button class="btn btn-sm btn-outline admin-entry-actions-toggle"' + (index === 0 ? ' id="tutorialEntryActions"' : '') + ' type="button" aria-expanded="false" aria-haspopup="menu">Actions ' + icon('chevron-down') + '</button><div class="admin-entry-action-menu" role="menu" hidden>' +
       (canApprove ? '<button class="admin-approve-overtime" type="button" role="menuitem" data-row="' + index + '">' + icon('check') + 'Approve overtime</button>' : '') +
       '<button class="admin-entry-details-open" type="button" role="menuitem" data-row="' + index + '">' + icon('eye') + 'View details</button>' +
       '<button class="admin-edit-entry-time" type="button" role="menuitem" data-row="' + index + '">' + icon('square-pen') + 'Correct time</button><button class="admin-entry-remarks-open" type="button" role="menuitem" data-row="' + index + '">' + icon('message-circle-more') + (record.remarks?.length ? 'Open feedback' : 'Add remark') + '</button><button class="admin-delete-entry is-danger" type="button" role="menuitem" data-row="' + index + '">' + icon('trash') + 'Move to deleted</button></div><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
@@ -113,7 +113,7 @@ function action(label, index, key, record) {
     const headTarget = record?.isHeadAdmin;
     const canManage = !headTarget || Boolean(typeof AppState !== 'undefined' && AppState.currentUser?.IsHeadAdmin);
     if (!canViewEmployee && !canManage) return '<span class="record-reference">Head administrator</span>';
-    return '<div class="admin-user-action-set"><button class="btn btn-sm btn-outline admin-user-actions-toggle" type="button" aria-expanded="false" aria-haspopup="menu">Actions ' + icon('chevron-down') + '</button><div class="admin-user-action-menu" role="menu" hidden>' +
+    return '<div class="admin-user-action-set"><button class="btn btn-sm btn-outline admin-user-actions-toggle"' + (index === 0 ? ' id="tutorialUserActions"' : '') + ' type="button" aria-expanded="false" aria-haspopup="menu">Actions ' + icon('chevron-down') + '</button><div class="admin-user-action-menu" role="menu" hidden>' +
       (canViewEmployee ? '<button class="admin-view-employee" type="button" role="menuitem" data-row="' + index + '">' + icon('eye') + 'View employee</button>' : '') +
       (canManage ? '<button class="admin-row-action" type="button" role="menuitem" data-row="' + index + '">' + icon('settings') + 'Manage account</button>' : '') +
       '</div><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';

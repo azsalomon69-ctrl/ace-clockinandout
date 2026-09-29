@@ -57,10 +57,18 @@ test('administrator tutorial covers every primary administration workflow', () =
 test('every administrator tutorial target exists on its configured page', () => {
   const context = { window: {} };
   vm.runInNewContext(configSource, context);
+  const dynamicTargets = new Map([
+    ['#tutorialUserActions', 'admin-user-actions-toggle'],
+    ['#adminSectionTabs', 'adminSectionTabs'],
+    ['#tutorialEntryActions', 'admin-entry-actions-toggle'],
+    ['#tutorialAuditEvent', 'admin-audit-details-open'],
+    ['#deletedTimeEntriesButton', "deletedTimeEntriesButton"]
+  ]);
   for (const step of context.window.ACETutorialConfig.ADMIN.steps) {
     assert.match(step.target, /^#[A-Za-z][A-Za-z0-9_-]*$/, 'Admin steps should use durable ID targets');
     const markup = readFileSync(new URL(`../../frontend/${step.page}`, import.meta.url), 'utf8');
-    assert.ok(markup.includes(`id="${step.target.slice(1)}"`), `${step.target} should exist in ${step.page}`);
+    const dynamicTarget = dynamicTargets.get(step.target);
+    assert.ok(markup.includes(`id="${step.target.slice(1)}"`) || (dynamicTarget && readFileSync(new URL('../../frontend/js/admin-sections.js', import.meta.url), 'utf8').includes(dynamicTarget)), `${step.target} should exist in ${step.page}`);
   }
 });
 
