@@ -241,14 +241,52 @@ const buildInvitationEmail = ({ email, role, invitedBy }) => {
   const roleDetails = role === 'ADMIN'
     ? 'You will be able to manage people, work records, reports, and workspace settings.'
     : 'You will be able to clock in, clock out, review your time, and stay up to date with your work.';
+  const roleAccent = role === 'ADMIN' ? '#7c3aed' : '#008eaa';
+  const roleTag = role === 'ADMIN' ? 'WORKSPACE ADMINISTRATOR' : 'TEAM MEMBER';
+  const roleWelcome = role === 'ADMIN' ? 'Your administrator workspace is ready.' : 'Your employee workspace is ready.';
   const loginUrl = `${applicationUrl}/login`;
   const preheader = `You have been invited to ACE Clock In/Out as an ${roleName}.`;
   return {
     subject: `You're invited to ACE Clock In/Out as ${roleName}`,
     text: `Hello,\n\n${inviterName} invited ${email} to ACE Clock In/Out as an ${roleName}.\n\n${roleDetails}\n\nOpen ACE Clock: ${loginUrl}\n\nBefore your first shift:\n1. Sign in with the exact Google email that received this invitation.\n2. Complete Profile & settings.\n3. Clock in when you begin work, then clock out when your shift is complete.\n\nIf you cannot sign in, make sure you are using the same Google account this invitation was sent to.\n\nACE Outsource Solutions`,
-    // Table-based structure and inline styles deliberately keep the invitation
-    // legible in Gmail, Outlook, and other email clients that strip page CSS.
-    html: `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${preheader}</title></head><body style="margin:0;padding:0;background:#eef8fa;font-family:Arial,Helvetica,sans-serif;color:#123f50"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#eef8fa"><tr><td align="center" style="padding:36px 16px"><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #cfe7eb;border-radius:20px;overflow:hidden"><tr><td style="padding:30px 34px;background:#073b4c;color:#ffffff"><p style="margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:1.6px;color:#a9edf4">ACE OUTSOURCE SOLUTIONS</p><h1 style="margin:0;font-size:30px;line-height:1.16;color:#ffffff">Welcome to ACE Clock.</h1><p style="margin:12px 0 0;font-size:16px;line-height:1.5;color:#d5f3f6">Your workspace invitation is ready.</p></td></tr><tr><td style="padding:32px 34px 12px"><p style="margin:0 0 18px;font-size:16px;line-height:1.55">Hello,</p><p style="margin:0;font-size:16px;line-height:1.6"><strong>${inviter}</strong> invited <strong>${recipient}</strong> to join ACE Clock In/Out.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:22px 0;width:100%;background:#e9f9fb;border:1px solid #bce7ed;border-radius:12px"><tr><td style="padding:16px 18px"><p style="margin:0 0 5px;font-size:11px;font-weight:700;letter-spacing:1.1px;color:#167b90">YOUR ACCESS</p><p style="margin:0;font-size:18px;line-height:1.35;font-weight:700;color:#073b4c">${roleName}</p><p style="margin:6px 0 0;font-size:14px;line-height:1.5;color:#386372">${roleDetails}</p></td></tr></table><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 30px"><tr><td style="border-radius:9px;background:#008eaa"><a href="${loginUrl}" style="display:inline-block;padding:14px 22px;border-radius:9px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none">Open ACE Clock&nbsp; &rarr;</a></td></tr></table><h2 style="margin:0 0 14px;font-size:20px;line-height:1.3;color:#073b4c">Before your first shift</h2><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%"><tr><td valign="top" style="width:32px;padding:0 10px 14px 0"><span style="display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:#d9f5f7;color:#007c94;font-size:12px;font-weight:700">1</span></td><td style="padding:1px 0 14px;font-size:15px;line-height:1.5">Sign in with the exact Google email that received this invitation.</td></tr><tr><td valign="top" style="width:32px;padding:0 10px 14px 0"><span style="display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:#d9f5f7;color:#007c94;font-size:12px;font-weight:700">2</span></td><td style="padding:1px 0 14px;font-size:15px;line-height:1.5">Open <strong>Profile &amp; settings</strong> and complete your details.</td></tr><tr><td valign="top" style="width:32px;padding:0 10px 0 0"><span style="display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:#d9f5f7;color:#007c94;font-size:12px;font-weight:700">3</span></td><td style="padding:1px 0 0;font-size:15px;line-height:1.5">Clock in when you begin work, then clock out once your shift is complete.</td></tr></table></td></tr><tr><td style="padding:24px 34px 30px"><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-top:1px solid #dcecef"><tr><td style="padding-top:20px;font-size:13px;line-height:1.55;color:#5d7781">Having trouble signing in? Make sure you selected the same Google account this invitation was sent to, then contact your administrator or HR representative.</td></tr></table></td></tr><tr><td style="padding:18px 34px;background:#f6fbfc;text-align:center;font-size:12px;line-height:1.5;color:#6d8790">ACE Outsource Solutions &middot; Time made clear</td></tr></table></td></tr></table></body></html>`
+    // Table layout and inline CSS keep this dependable in Gmail and Outlook.
+    html: `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${preheader}</title></head>
+<body style="margin:0;padding:0;background:#f3f7f8;font-family:Arial,Helvetica,sans-serif;color:#173f4c">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#f3f7f8"><tr><td align="center" style="padding:40px 16px">
+    <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #dbe8eb;border-radius:18px;overflow:hidden">
+      <tr><td style="height:6px;background:${roleAccent};font-size:0;line-height:0">&nbsp;</td></tr>
+      <tr><td style="padding:32px 38px 28px;background:#073b4c;color:#ffffff">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td>
+          <p style="margin:0 0 14px;font-size:11px;font-weight:700;letter-spacing:1.7px;color:#9de3eb">ACE OUTSOURCE SOLUTIONS</p>
+          <h1 style="margin:0;font-size:31px;line-height:1.18;color:#ffffff">Welcome to<br>ACE Clock.</h1>
+          <p style="margin:14px 0 0;font-size:16px;line-height:1.55;color:#d5f3f6">${roleWelcome}</p>
+        </td><td align="right" valign="top" style="padding-left:20px"><span style="display:inline-block;padding:8px 10px;border-radius:20px;background:${roleAccent};font-size:10px;font-weight:700;letter-spacing:1px;color:#ffffff;white-space:nowrap">${roleTag}</span></td></tr></table>
+      </td></tr>
+      <tr><td style="padding:34px 38px 12px">
+        <p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#45636d">Hello,</p>
+        <p style="margin:0;font-size:17px;line-height:1.6;color:#173f4c"><strong>${inviter}</strong> has invited <strong>${recipient}</strong> to ACE Clock In/Out.</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 22px;border:1px solid #d8e9ed;border-radius:14px;background:#f7fcfd"><tr><td style="padding:20px 22px">
+          <p style="margin:0 0 7px;font-size:10px;font-weight:700;letter-spacing:1.4px;color:${roleAccent}">YOUR ROLE</p>
+          <p style="margin:0;font-size:21px;line-height:1.3;font-weight:700;color:#073b4c">${roleName}</p>
+          <p style="margin:8px 0 0;font-size:14px;line-height:1.55;color:#52707a">${roleDetails}</p>
+        </td></tr></table>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 32px"><tr><td style="border-radius:9px;background:${roleAccent}"><a href="${loginUrl}" style="display:inline-block;padding:15px 23px;border-radius:9px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none">Open ACE Clock &nbsp;&rarr;</a></td></tr></table>
+      </td></tr>
+      <tr><td style="padding:4px 38px 32px">
+        <h2 style="margin:0 0 18px;font-size:19px;line-height:1.3;color:#073b4c">Get started in three steps</h2>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <tr><td valign="top" style="width:36px;padding:0 12px 15px 0"><span style="display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:50%;background:#e0f5f7;color:#007c94;font-size:12px;font-weight:700">1</span></td><td style="padding:3px 0 15px;font-size:15px;line-height:1.5;color:#45636d"><strong style="color:#173f4c">Use the invited Google account.</strong><br>Sign in with exactly this email address.</td></tr>
+          <tr><td valign="top" style="width:36px;padding:0 12px 15px 0"><span style="display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:50%;background:#e0f5f7;color:#007c94;font-size:12px;font-weight:700">2</span></td><td style="padding:3px 0 15px;font-size:15px;line-height:1.5;color:#45636d"><strong style="color:#173f4c">Complete your profile.</strong><br>Add the details your team needs.</td></tr>
+          <tr><td valign="top" style="width:36px;padding:0 12px 0 0"><span style="display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:50%;background:#e0f5f7;color:#007c94;font-size:12px;font-weight:700">3</span></td><td style="padding:3px 0 0;font-size:15px;line-height:1.5;color:#45636d"><strong style="color:#173f4c">Start with confidence.</strong><br>Clock in when your workday begins.</td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding:20px 38px;background:#f7fafb;border-top:1px solid #e0ecee;font-size:12px;line-height:1.6;color:#617b84">Need help? Sign in with the invited Google account first, then contact your administrator or HR representative.</td></tr>
+      <tr><td style="padding:16px 38px;background:#edf5f6;text-align:center;font-size:11px;letter-spacing:.4px;color:#6a838b">ACE OUTSOURCE SOLUTIONS &nbsp;&middot;&nbsp; TIME MADE CLEAR</td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`
   };
 };
 const sendInvitationEmail = async ({ email, role, invitedBy }) => {

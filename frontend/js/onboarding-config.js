@@ -19,7 +19,7 @@ window.ACETutorialConfig = {
     ADMIN: {
         // Bump this whenever administrator guidance materially changes so
         // existing admins are offered the improved tour again.
-        version: 15,
+        version: 16,
         steps: [
             { page: 'admin-dashboard.html', target: '#adminDashboardHeader', title: 'Your admin dashboard', body: 'Start here each day. This header orients you with the current date before you review live work and operational priorities.', navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'admin-dashboard.html', target: '#dashboardQuickActions', title: 'Use quick actions', body: 'These action buttons are the fastest way to invite a team member or open departments, projects, and schedules.' },
@@ -28,7 +28,7 @@ window.ACETutorialConfig = {
             { page: 'admin-dashboard.html', target: '#analyticsTimeEntriesCard', title: 'Read the live analytics', body: 'This live Time entries chart shows completed work over time. Use its date range control when you want a different period, then compare it with the Hours by project card beside it.' },
             { page: 'admin-dashboard.html', target: '#reviewAlertsList', title: 'Review time-entry alerts', body: 'When this section appears, it flags a possible missed clock-out or an administrator-stopped shift. Open the entry, confirm the facts with the employee, then correct it only when needed.', optional: true },
             { page: 'users.html', target: '#tutorialUserActions', title: 'Manage user accounts', body: 'Open Actions on a user row to manage that person’s account or view their employee profile. Use the department and account-type filters when you need to narrow the list.', navigation: { group: 'People', label: 'Users' } },
-            { page: 'users.html', target: '#adminSectionTabs', title: 'Track and cancel invitations', body: 'Choose the Invitations tab beside Users to review pending invitations. Open an invitation to cancel it when access is no longer needed.', navigation: { group: 'People', label: 'Users' } },
+            { page: 'users.html', target: '#adminSectionTabs', title: 'Track and cancel invitations', body: 'Use the clearly marked Invitations button beside Users to manage access. Review pending invitations and open one to cancel it when access is no longer needed.', navigation: { group: 'People', label: 'Users' } },
             { page: 'departments.html', target: '#sectionAction', title: 'Set up departments', body: 'Create departments before assigning employees to them. Edit a department to add employees and optionally apply one schedule to those selected employees.', navigation: { group: 'People', label: 'Departments' } },
             { page: 'projects.html', target: '#sectionAction', title: 'Set up projects', body: 'Create projects employees can select while tracking time. Edit a project to add employees directly and optionally apply one schedule to those selected employees.', navigation: { group: 'Work', label: 'Projects' } },
             { page: 'schedule-flex.html', target: '#scheduleForm', title: 'Create schedules and flextime', body: 'Set the schedule name, fixed or flex type, workdays and expected hours. At least one working day is required.', navigation: { group: 'Work', label: 'Schedule & flextime' } },

@@ -16899,10 +16899,21 @@ html[data-theme="dark"] :is(.btn-secondary,.btn-outline):hover { background: #2b
 .admin-section-tabs a { padding: 9px 12px 10px; color: #5a7781; border-bottom: 2px solid transparent; font-size: .8rem; font-weight: 700; text-decoration: none; }
 .admin-section-tabs a:hover { color: var(--ace-navy); background: #f4fafb; }
 .admin-section-tabs a[aria-current="page"] { color: var(--ace-navy); border-bottom-color: var(--ace-accent); }
+.admin-section-tabs .admin-section-tab-invitations { display: inline-flex; align-items: center; gap: 7px; margin: 4px 0 6px 4px; padding: 9px 12px; color: #07677d; background: #e4f7fa; border: 1px solid #9edce6; border-radius: 9px; box-shadow: 0 2px 7px rgba(7, 103, 125, .08); }
+.admin-section-tabs .admin-section-tab-invitations .ui-icon { width: 16px; height: 16px; }
+.admin-section-tabs .admin-section-tab-invitations small { padding-left: 7px; font-size: .68rem; font-weight: 700; color: #4d7b86; border-left: 1px solid #a9dce4; }
+.admin-section-tabs .admin-section-tab-invitations:hover { color: #fff; background: #087d94; border-color: #087d94; box-shadow: 0 5px 12px rgba(7, 103, 125, .2); }
+.admin-section-tabs .admin-section-tab-invitations:hover small { color: #d9f8fb; border-left-color: rgba(255,255,255,.42); }
+.admin-section-tabs .admin-section-tab-invitations[aria-current="page"] { color: #fff; background: #073b4c; border-color: #073b4c; border-bottom-color: #073b4c; }
+.admin-section-tabs .admin-section-tab-invitations[aria-current="page"] small { color: #bdeef3; border-left-color: rgba(255,255,255,.34); }
 html[data-theme="dark"] .admin-section-tabs { border-bottom-color: var(--ace-border); }
 html[data-theme="dark"] .admin-section-tabs a { color: var(--ace-text-secondary); }
 html[data-theme="dark"] .admin-section-tabs a:hover { color: var(--ace-text-primary); background: var(--ace-surface-raised); }
 html[data-theme="dark"] .admin-section-tabs a[aria-current="page"] { color: var(--ace-text-primary); border-bottom-color: var(--ace-accent); }
+html[data-theme="dark"] .admin-section-tabs .admin-section-tab-invitations { color: #aeeef5; background: #153d49; border-color: #317182; box-shadow: none; }
+html[data-theme="dark"] .admin-section-tabs .admin-section-tab-invitations small { color: #9dc8d0; border-left-color: #477581; }
+html[data-theme="dark"] .admin-section-tabs .admin-section-tab-invitations:hover, html[data-theme="dark"] .admin-section-tabs .admin-section-tab-invitations[aria-current="page"] { color: #fff; background: #087d94; border-color: #087d94; }
+html[data-theme="dark"] .admin-section-tabs .admin-section-tab-invitations:hover small, html[data-theme="dark"] .admin-section-tabs .admin-section-tab-invitations[aria-current="page"] small { color: #d9f8fb; border-left-color: rgba(255,255,255,.42); }
 @media (max-width: 620px) { .admin-section-tabs { overflow-x: auto; scrollbar-width: thin; } .admin-section-tabs a { flex: 0 0 auto; } }
 
 /* Contextual inspection stays beside the current workspace instead of forcing

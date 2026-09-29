@@ -528,7 +528,11 @@ async function renderAdminSection() {
   if (tabs.length > 1) {
     if (!tabBar) { tabBar = document.createElement('nav'); tabBar.id = 'adminSectionTabs'; tabBar.className = 'admin-section-tabs'; tabBar.setAttribute('aria-label', 'Related workspace pages'); document.querySelector('.admin-section-header').insertAdjacentElement('afterend', tabBar); }
     const activeHref = { users: 'users.html', invitations: 'invitations.html', projects: 'projects.html', entries: 'admin-time-entries.html' }[key];
-    tabBar.innerHTML = tabs.map(([label, href]) => '<a href="' + href + '"' + (href === activeHref ? ' aria-current="page"' : '') + '>' + esc(label) + '</a>').join('');
+    tabBar.innerHTML = tabs.map(([label, href]) => {
+      const invitations = label === 'Invitations';
+      return '<a class="admin-section-tab' + (invitations ? ' admin-section-tab-invitations' : '') + '" href="' + href + '"' + (href === activeHref ? ' aria-current="page"' : '') + '>'
+        + (invitations ? icon('mail') + '<span>Invitations</span><small>Manage access</small>' : esc(label)) + '</a>';
+    }).join('');
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     if (!connection?.saveData && !/2g/.test(connection?.effectiveType || '')) {
       tabs.filter(([, href]) => href !== activeHref).forEach(([, href]) => {
