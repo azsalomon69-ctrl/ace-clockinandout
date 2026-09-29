@@ -3460,7 +3460,6 @@ function loadAdminDashboard() {
     const clockedInUsers = document.getElementById('clockedInUsers');
     if (clockedInUsers) clockedInUsers.textContent = employeeTimeEntries().filter(entry => !entry.ClockOutAt).length;
     
-    updateOnlineUserCount();
     void loadReviewAlerts();
     
     const todayEntries = document.getElementById('todayEntries');
@@ -3720,15 +3719,6 @@ function startRemarkNotifications() {
         window.clearInterval(AppState.remarkNotificationInterval);
         window.removeEventListener('ace:live-notification', refreshFromLiveNotification);
     }, { once: true });
-}
-
-function updateOnlineUserCount() {
-    const activeUsers = document.getElementById('activeUsers');
-    if (!activeUsers) return;
-    const onlineAfter = Date.now() - 2 * 60 * 1000;
-    activeUsers.textContent = AppState.users.filter(user =>
-        user.Status === 'ACTIVE' && user.LastSeenAt && new Date(user.LastSeenAt).getTime() >= onlineAfter
-    ).length;
 }
 
 let reportsPage = 1; const reportsPageSize = 25; let reportsTotal = 0;

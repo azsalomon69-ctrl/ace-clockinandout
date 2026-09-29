@@ -6,7 +6,7 @@ async function liveRequest(path, options = {}) {
 
 // This is interface copy only. All records and counts are live Render/Supabase data.
 const ADMIN_SECTION_CONFIG = {
-  users: { title: 'Users', description: 'Approve access, assign roles, and maintain employee records.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Name', 'Email', 'Role', 'Department', 'Presence', 'Last online', 'Status', 'Action'] },
+  users: { title: 'Users', description: 'Assign roles and maintain employee records.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Name', 'Email', 'Role', 'Department', 'Status', 'Action'] },
   invitations: { title: 'Pre-authorized access', description: 'Invite an employee or administrator before their first sign-in.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Email', 'Authorized by', 'Created', 'Expires', 'Status', 'Action'] },
   departments: { title: 'Departments', description: 'Organize employees by department. Assignments remain optional.', action: 'Add department', actionIcon: 'building', columns: ['Department', 'Description', 'Created', 'Status', 'Action'] },
   projects: { title: 'Projects', description: 'Manage projects available for optional time-entry assignment.', action: 'Add project', actionIcon: 'folder', columns: ['Project', 'Description', 'Created', 'Status', 'Action'] },
@@ -16,16 +16,6 @@ const ADMIN_SECTION_CONFIG = {
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const date = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '—';
 const time = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
-const lastOnline = (value, online) => {
-  if (online) return 'Online now';
-  const timestamp = new Date(value).getTime();
-  if (!value || Number.isNaN(timestamp)) return 'No activity yet';
-  const minutes = Math.max(1, Math.floor((Date.now() - timestamp) / 60_000));
-  if (minutes < 60) return `Last seen ${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Last seen ${hours}h ago`;
-  return 'Last seen ' + date(value);
-};
 const humanizeEnum = value => String(value || '').toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
 const auditAction = value => { const [action, ...suffix] = String(value || '').split(' '); return ({ CLOCK_IN: 'Clocked in', CLOCK_OUT: 'Clocked out' }[action] || humanizeEnum(action)) + (suffix.length ? ` ${suffix.join(' ')}` : ''); };
 const duration = seconds => { const safe = Math.max(0, Number(seconds) || 0); return String(Math.floor(safe / 3600)).padStart(2, '0') + ':' + String(Math.floor((safe % 3600) / 60)).padStart(2, '0') + ':' + String(safe % 60).padStart(2, '0'); };
@@ -41,12 +31,10 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     if (filters.departmentId) params.set('departmentId', filters.departmentId);
     const response = await liveRequest('/v1/users' + (params.size ? '?' + params.toString() : ''));
     const items = response.items || response; view.total = response.total ?? items.length;
-    const onlineAfter = Date.now() - 2 * 60 * 1000;
     view.records = items.map(item => {
-      const online = item.last_seen_at && new Date(item.last_seen_at).getTime() >= onlineAfter;
-      return { id: item.id, email: item.email, isHeadAdmin: Boolean(item.is_head_admin), avatarUrl: item.profile_picture_url || '', cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || '—', online ? 'Online' : 'Offline', lastOnline(item.last_seen_at, online), item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
+      return { id: item.id, email: item.email, isHeadAdmin: Boolean(item.is_head_admin), avatarUrl: item.profile_picture_url || '', cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || '—', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
     });
-    view.stats = [[items.filter(item => item.status === 'ACTIVE' && item.last_seen_at && new Date(item.last_seen_at).getTime() >= onlineAfter).length, 'Currently online', 'users'], [items.filter(item => item.status === 'ACTIVE').length, 'Active users', 'check'], [items.filter(item => item.status === 'PENDING').length, 'Pending review', 'circle-alert']];
+    view.stats = [[items.filter(item => item.status === 'ACTIVE').length, 'Active users', 'check'], [items.filter(item => item.status === 'PENDING').length, 'Pending accounts', 'circle-alert']];
   } else if (key === 'invitations') {
     const params = new URLSearchParams(); if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); } if (filters.q) params.set('q', filters.q);
     const response = await liveRequest('/v1/invitations' + (params.size ? '?' + params : '')); const items = response.items || response; view.total = response.total ?? items.length;
@@ -649,7 +637,7 @@ async function renderAdminSection() {
       dismissActionMenu(button);
       const record = pageRecords[Number(button.dataset.row)];
       if (!record) return;
-      openAdminDetailsDrawer({ eyebrow: 'Employee', title: record.cells[0], trigger: button, avatarUrl: record.avatarUrl, href: 'employee-profile.html?user=' + encodeURIComponent(record.id), fields: [['Email', record.cells[1]], ['Role', record.cells[2]], ['Department', record.cells[3]], ['Presence', record.cells[4]], ['Last online', record.cells[5]], ['Account status', record.cells[6]]] });
+      openAdminDetailsDrawer({ eyebrow: 'Employee', title: record.cells[0], trigger: button, avatarUrl: record.avatarUrl, href: 'employee-profile.html?user=' + encodeURIComponent(record.id), fields: [['Email', record.cells[1]], ['Role', record.cells[2]], ['Department', record.cells[3]], ['Account status', record.cells[4]]] });
     }));
     body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
       dismissActionMenu(button);
