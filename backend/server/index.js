@@ -737,7 +737,7 @@ app.get('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { 
 
 app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try {
   const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1); const pageSize = Math.min(100, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 25)); const paged = req.query.page !== undefined;
-  let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email,role), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)', paged ? { count: 'exact' } : undefined).order('clock_in_at', { ascending: false });
+  let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email,role,profile_picture_url), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)', paged ? { count: 'exact' } : undefined).order('clock_in_at', { ascending: false });
   request = req.query.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null);
   if (own) request = request.eq('user_id', req.profile.id);
   if (req.query.userId) request = request.eq('user_id', req.query.userId);
