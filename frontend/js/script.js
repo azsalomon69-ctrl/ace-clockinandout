@@ -1228,7 +1228,8 @@ function initializeAppShell() {
         renderThemeToggle();
     });
     const renderNotifications = () => {
-        const unreadRemarksCount = isAdmin ? 0 : AppState.adminRemarks.filter(remark => !remark.SeenAt).length;
+        const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt);
+        const unreadRemarksCount = unreadRemarks.length;
         const total = unreadMessages + unreadRemarksCount + pendingAccessRequestCount;
         notificationBadge.hidden = !total;
         notificationBadge.textContent = total > 99 ? '99+' : total;
@@ -1242,7 +1243,21 @@ function initializeAppShell() {
                 return `<button class="shell-message-notice" type="button" role="menuitem" data-open-chat="${escapeHtml(conversation.id)}"><span class="shell-message-notice-avatar">${avatarContent(conversation.name, conversation.picture)}</span><span class="shell-message-notice-copy"><strong>${escapeHtml(conversation.name || 'Teammate')}</strong><small>${escapeHtml(shortPreview)}</small></span>${count}</button>`;
             }));
         }
-        if (unreadRemarksCount) notices.push(`<a href="remarks.html" role="menuitem"><strong>${unreadRemarksCount} new administrator remark${unreadRemarksCount === 1 ? '' : 's'}</strong><span>Open Remarks to read the feedback on your time entry</span></a>`);
+        if (unreadRemarksCount) {
+            const entryById = new Map(AppState.timeEntries.map(entry => [String(entry.TimeEntryId), entry]));
+            notices.push(...unreadRemarks.slice(0, 3).map(remark => {
+                const entry = entryById.get(String(remark.TimeEntryId));
+                const employee = AppState.users.find(user => String(user.UserId) === String(entry?.UserId));
+                const summary = String(remark.Remark || '').replace(/\s+/g, ' ').trim();
+                const preview = summary.length > 100 ? `${summary.slice(0, 99)}…` : summary;
+                const href = isAdmin ? 'admin-time-entries.html?remarks=with' : `remarks.html?remark=${encodeURIComponent(remark.RemarkId)}`;
+                const title = isAdmin
+                    ? `Feedback awaiting review${employee?.FullName ? ` · ${employee.FullName}` : ''}`
+                    : `Feedback from ${remark.AdminName || 'an administrator'}`;
+                return `<a href="${href}" role="menuitem"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(preview || 'Open to read the administrator feedback.')}</span></a>`;
+            }));
+            if (unreadRemarksCount > 3) notices.push(`<a href="${isAdmin ? 'admin-time-entries.html?remarks=with' : 'remarks.html'}" role="menuitem"><strong>${unreadRemarksCount - 3} more unread remark${unreadRemarksCount === 4 ? '' : 's'}</strong><span>Open the feedback list to review them.</span></a>`);
+        }
         notificationMenu.innerHTML = `<p class="shell-topbar-menu-title">Notifications</p>${notices.length ? notices.join('') : '<p class="shell-topbar-empty">You’re all caught up.</p>'}`;
         notificationMenu.querySelectorAll('[data-open-chat]').forEach(button => button.addEventListener('click', () => {
             setTopbarMenu(notificationButton, notificationMenu, false);
@@ -3666,12 +3681,15 @@ function loadRemarksPage() {
     if (!list) return;
     const entryById = new Map(AppState.timeEntries.map(entry => [entry.TimeEntryId, entry]));
     const remarks = AppState.adminRemarks;
+    const requestedRemarkId = new URLSearchParams(window.location.search).get('remark');
     list.innerHTML = remarks.length ? remarks.map(remark => {
         const entry = entryById.get(remark.TimeEntryId);
         const entryDate = entry ? new Date(entry.ClockInAt).toLocaleString() : 'Related time entry';
         const project = entry?.ProjectId ? AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName : null;
-        return `<article class="remark-item"><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${escapeHtml(project || 'No project')} · Time entry: ${escapeHtml(entryDate)} · Added ${new Date(remark.CreatedAt).toLocaleString()}</small></article>`;
+        const selected = String(remark.RemarkId) === requestedRemarkId;
+        return `<article class="remark-item${selected ? ' search-target' : ''}"${selected ? ' tabindex="-1"' : ''}><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${escapeHtml(project || 'No project')} · Time entry: ${escapeHtml(entryDate)} · Added ${new Date(remark.CreatedAt).toLocaleString()}</small></article>`;
         }).join('') : emptyState('No administrator notes yet', 'Notes from your administrator will appear here.');
+    if (requestedRemarkId) requestAnimationFrame(() => list.querySelector('.search-target')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
 }
 
 function updateRemarkNotificationBadge() {
@@ -3697,7 +3715,8 @@ async function markRemarksRead() {
 }
 
 function startRemarkNotifications() {
-    if (AppState.remarkNotificationInterval || AppState.currentUser?.Role === 'ADMIN') return;
+    if (AppState.remarkNotificationInterval) return;
+    const isAdmin = AppState.currentUser?.Role === 'ADMIN';
     let initialized = true;
     const refresh = async () => {
         try {
@@ -3708,9 +3727,13 @@ function startRemarkNotifications() {
             window.ACERenderNotifications?.();
             const newlyReceived = remarks.filter(remark => !remark.SeenAt && !knownUnreadIds.has(remark.RemarkId));
             if (!initialized && newlyReceived.length) {
-                const message = newlyReceived.length === 1
-                    ? 'An administrator added a remark to one of your time entries. Open Remarks to read it.'
-                    : `${newlyReceived.length} new administrator remarks were added. Open Remarks to read them.`;
+                const message = isAdmin
+                    ? (newlyReceived.length === 1
+                        ? 'A feedback item is awaiting employee review.'
+                        : `${newlyReceived.length} feedback items are awaiting employee review.`)
+                    : (newlyReceived.length === 1
+                        ? 'An administrator added feedback to one of your time entries. Open the bell to read it.'
+                        : `${newlyReceived.length} new administrator feedback messages were added. Open the bell to read them.`);
                 showToast(message, 'info');
             }
             initialized = false;
@@ -3718,7 +3741,9 @@ function startRemarkNotifications() {
     };
     updateRemarkNotificationBadge();
     window.ACERenderNotifications?.();
-    if (AppState.adminRemarks.some(remark => !remark.SeenAt)) showToast('You have new administrator remarks.', 'info');
+    if (AppState.adminRemarks.some(remark => !remark.SeenAt)) {
+        showToast(isAdmin ? 'Feedback is awaiting employee review.' : 'You have new administrator feedback.', 'info');
+    }
     AppState.remarkNotificationInterval = window.setInterval(refresh, 15000);
     window.addEventListener('pagehide', () => window.clearInterval(AppState.remarkNotificationInterval), { once: true });
 }

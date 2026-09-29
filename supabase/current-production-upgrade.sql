@@ -82,6 +82,14 @@ alter table public.time_entries
   add column if not exists deleted_at timestamptz,
   add column if not exists deleted_by_user_id uuid references public.profiles(id) on delete set null;
 
+-- Administrator feedback uses this acknowledgement timestamp for the
+-- employee bell and for the administrator's pending-feedback visibility.
+-- Do not mark existing rows here: this upgrade is intentionally rerunnable.
+-- Migration 0019 performs the one-time historical acknowledgement.
+alter table public.admin_remarks add column if not exists seen_at timestamptz;
+create index if not exists admin_remarks_unseen_idx
+  on public.admin_remarks (time_entry_id, seen_at) where seen_at is null;
+
 create index if not exists time_entries_planned_end_idx
   on public.time_entries(planned_end_at)
   where clock_out_at is null and planned_end_at is not null;

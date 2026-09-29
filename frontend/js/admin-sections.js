@@ -471,6 +471,8 @@ async function renderAdminSection() {
   try { savedState = JSON.parse(sessionStorage.getItem(stateKey) || '{}'); } catch { savedState = {}; }
   const pageState = { page: Number(savedState.page) || 1, size: Number(savedState.size) || 25 };
   const activeFilters = { ...(savedState.filters || {}) };
+  const requestedRemarks = key === 'entries' ? new URLSearchParams(window.location.search).get('remarks') : null;
+  if (requestedRemarks === 'with' || requestedRemarks === 'without') activeFilters.remarks = requestedRemarks;
   const persistState = () => sessionStorage.setItem(stateKey, JSON.stringify({ page: pageState.page, size: pageState.size, filters: activeFilters }));
   // A live redraw must not stack filters or click handlers from the previous
   // pass. It only runs while no form or dialog is being edited.
