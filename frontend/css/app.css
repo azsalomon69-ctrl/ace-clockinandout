@@ -17533,9 +17533,19 @@ html[data-theme="dark"] :is(.btn-secondary,.btn-outline) > .ui-icon {
 .admin-dashboard .line-chart-gridline text,.admin-dashboard .line-chart-x-label { fill: #7898a3; }
 .admin-dashboard .line-chart-point { fill: var(--dashboard-chart-card); }
 .admin-dashboard .project-allocation-card .project-allocation { display: grid; grid-template-columns: minmax(0,1fr); min-height: 64px; margin-top: 24px; padding: 17px; border: 1px solid var(--dashboard-chart-border); border-radius: 8px; background: #fbfdfe; }
-.admin-dashboard .project-allocation-card .project-bar-chart { gap: 14px; }
-.admin-dashboard .project-allocation-card .project-bar-row { grid-template-columns: minmax(130px,.8fr) minmax(120px,1.8fr) auto; gap: 14px; }
+.admin-dashboard .project-allocation-card .project-bar-chart {
+  --project-bar-label-column: 174px;
+  --project-bar-value-column: 60px;
+  gap: 14px;
+}
+/* Each row is its own grid. Fixed outer columns prevent a shorter duration
+   label from widening that row's bar, keeping every track on one shared axis. */
+.admin-dashboard .project-allocation-card .project-bar-row {
+  grid-template-columns: minmax(0,var(--project-bar-label-column)) minmax(0,1fr) var(--project-bar-value-column);
+  gap: 14px;
+}
 .admin-dashboard .project-allocation-card .project-bar-name,.admin-dashboard .project-allocation-card .project-bar-value { color: var(--dashboard-chart-ink); }
+.admin-dashboard .project-allocation-card .project-bar-value { text-align: right; }
 .admin-dashboard .project-allocation-card .project-bar-name::before { display: inline-block; width: 11px; height: 11px; margin-right: 12px; content: ''; vertical-align: -1px; border-radius: 50%; background: #5ccbd5; }
 .admin-dashboard .project-allocation-card .project-bar-track { height: 28px; border-radius: 3px; background: var(--dashboard-chart-track); }
 .admin-dashboard .project-allocation-card .project-bar-fill { background: linear-gradient(90deg,#11afc4,#36cbb8); }
@@ -17569,7 +17579,11 @@ html[data-theme="dark"] .admin-dashboard .line-chart-point { fill: var(--dashboa
   .chart-summary-metrics small { font-size: .63rem; }
   .admin-dashboard .hours-line-chart { height: 202px; }
   .admin-dashboard .project-allocation-card .project-allocation { margin-top: 14px; padding: 13px; }
-  .admin-dashboard .project-allocation-card .project-bar-row { grid-template-columns: minmax(90px,1fr) minmax(80px,1.3fr) auto; gap: 8px; }
+  .admin-dashboard .project-allocation-card .project-bar-chart {
+    --project-bar-label-column: 90px;
+    --project-bar-value-column: 52px;
+  }
+  .admin-dashboard .project-allocation-card .project-bar-row { grid-template-columns: minmax(0,var(--project-bar-label-column)) minmax(0,1fr) var(--project-bar-value-column); gap: 8px; }
   .admin-dashboard .project-allocation-card .project-bar-name::before { width: 8px; height: 8px; margin-right: 6px; }
 }
 

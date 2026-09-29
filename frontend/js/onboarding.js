@@ -53,6 +53,11 @@ window.ACETutorial = (() => {
         }
     }
     const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+    // Keep the compact hide/restore control phone-only. Desktop tutorials
+    // already leave enough room to keep the coachmark visible while working.
+    const mobileHideAction = () => isMobile()
+        ? '<button class="btn btn-text ace-tutorial-mobile-hide" type="button" data-tutorial-hide>Hide guide</button>'
+        : '';
     // The body class is the normal source of truth. The control's accessible
     // label is also checked because the sidebar can render before a retained
     // collapsed preference has been reflected on the body.
@@ -444,6 +449,10 @@ window.ACETutorial = (() => {
             restore.addEventListener('click', async () => {
                 card.hidden = false;
                 overlay.classList.remove('ace-tutorial-mobile-minimized');
+                // The restore action only exists while the guide is hidden.
+                // Leaving it on screen created a duplicate "Show guide" bar
+                // underneath an already-visible tutorial card.
+                restore.remove();
                 await positionStep(target, card, { reveal: true });
                 card.querySelector('[data-tutorial-next], [data-tutorial-navigate], [data-tutorial-back]:not([disabled]), [data-tutorial-skip]')?.focus();
             });
@@ -454,8 +463,8 @@ window.ACETutorial = (() => {
         const target = await prepareNavigationTarget(step);
         const mobileSidebarOpen = isMobile() && document.body.classList.contains('shell-mobile-open');
         const navigationActions = isMobile() && !mobileSidebarOpen
-                ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-text ace-tutorial-mobile-hide" type="button" data-tutorial-hide>Hide guide</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>Open sidebar</button></span>`
-                : `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-text ace-tutorial-mobile-hide" type="button" data-tutorial-hide>Hide guide</button><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`;
+                ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button>${mobileHideAction()}<span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>Open sidebar</button></span>`
+                : `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button>${mobileHideAction()}<button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`;
         const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'} ace-tutorial-navigation"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>Go to ${escape(step.navigation?.label || step.title)}</h2><p>${escape(navigationInstruction(step))}</p><div class="ace-tutorial-actions">${navigationActions}</div></div>`, `Navigate to ${step.navigation?.label || step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`, { navigation: Boolean(target) });
         ui.querySelector('[data-tutorial-skip]').addEventListener('click', () => finish('SKIPPED'));
         ui.querySelector('[data-tutorial-back]').addEventListener('click', () => go(stepIndex - 1));
@@ -496,7 +505,7 @@ window.ACETutorial = (() => {
         }
         if (!active && overlay) return;
         const targetText = target ? '' : '<p class="ace-tutorial-missing">This item is unavailable on this screen. You can continue the tour.</p>';
-        const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'}"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>${escape(step.title)}</h2><p>${escape(step.body)}</p>${targetText}<div class="ace-tutorial-actions"><button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-text ace-tutorial-mobile-hide" type="button" data-tutorial-hide>Hide guide</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-next>${stepIndex === roleConfig.steps.length - 1 ? 'Finish' : 'Next'}</button></span></div></div>`, `${step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`);
+        const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'}"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>${escape(step.title)}</h2><p>${escape(step.body)}</p>${targetText}<div class="ace-tutorial-actions"><button class="btn btn-text" type="button" data-tutorial-skip>Skip</button>${mobileHideAction()}<span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-next>${stepIndex === roleConfig.steps.length - 1 ? 'Finish' : 'Next'}</button></span></div></div>`, `${step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`);
         if (target) target.classList.add('ace-tutorial-target');
         ui.querySelector('.ace-tutorial-live').textContent = `Step ${stepIndex + 1} of ${roleConfig.steps.length}: ${step.title}`;
         ui.querySelector('[data-tutorial-skip]').addEventListener('click', () => finish('SKIPPED'));
