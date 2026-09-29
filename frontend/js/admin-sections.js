@@ -531,7 +531,7 @@ async function renderAdminSection() {
     tabBar.innerHTML = tabs.map(([label, href]) => {
       const invitations = label === 'Invitations';
       return '<a class="admin-section-tab' + (invitations ? ' admin-section-tab-invitations' : '') + '" href="' + href + '"' + (href === activeHref ? ' aria-current="page"' : '') + '>'
-        + (invitations ? icon('mail') + '<span>Invitations</span><small>Manage access</small>' : esc(label)) + '</a>';
+        + (invitations ? icon('mail') + '<span>Invitations</span>' : esc(label)) + '</a>';
     }).join('');
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     if (!connection?.saveData && !/2g/.test(connection?.effectiveType || '')) {
