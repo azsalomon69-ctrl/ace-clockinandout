@@ -21,7 +21,7 @@ test('both employee and administrator bells surface unread administrator feedbac
   assert.match(shellSource, /Feedback from \$\{remark\.AdminName/, 'Employees should see the administrator who left feedback');
   assert.match(shellSource, /Feedback awaiting review/, 'Administrators should see feedback that has not been acknowledged');
   assert.match(shellSource, /remarks\.html\?remark=\$\{encodeURIComponent\(remark\.RemarkId\)\}/, 'Employee bell items should open the specific feedback item');
-  assert.match(shellSource, /function startRemarkNotifications\(\) \{\s+if \(AppState\.remarkNotificationInterval\) return;/, 'Remark polling should run for both active roles');
+  assert.match(shellSource, /addEventListener\('ace:live-notification', refreshFromLiveNotification\)/, 'Remark notifications should refresh from live events for both active roles');
   assert.match(adminSectionsSource, /requestedRemarks === 'with' \|\| requestedRemarks === 'without'/, 'Administrator bell items should open the matching feedback filter');
   assert.match(shellSource, /remark-notification-target/, 'A selected employee bell item should receive a dedicated remark-card target');
   assert.match(shellSource, /target\.scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/, 'The selected remark should scroll into view');

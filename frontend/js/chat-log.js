@@ -14,13 +14,9 @@
       const pager = document.getElementById('chatLogPagination'); const pages = Math.max(1, Math.ceil(total / pageSize)); if (pager) { pager.innerHTML = total > pageSize ? `<span>Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}</span><div class="pagination"><button data-page="${page - 1}" ${page === 1 ? 'disabled' : ''}>‹</button><button data-page="${page + 1}" ${page === pages ? 'disabled' : ''}>›</button></div>` : ''; pager.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => { page = Number(button.dataset.page); loadChatLog(); })); }
     } catch (error) { list.innerHTML = `<p class="chat-log-empty">${escape(error.message || 'Unable to load the chat log.')}</p>`; }
   }
-  let refreshTimer;
   window.mountChatLog = () => {
-    if (refreshTimer) window.clearInterval(refreshTimer);
     loadChatLog();
     document.getElementById('refreshChatLog')?.addEventListener('click', loadChatLog, { once: true });
-    refreshTimer = window.setInterval(loadChatLog, 10000);
   };
-  window.addEventListener('pagehide', () => window.clearInterval(refreshTimer));
   document.addEventListener('DOMContentLoaded', window.mountChatLog);
 })();

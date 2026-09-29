@@ -88,9 +88,12 @@ async function loadAccessRequests() {
   catch (error) { showToast(error.message || 'Unable to load access requests.', 'error'); }
 }
 let accessRequestsInterval;
+let accessRequestsLiveListener;
 window.unmountAccessRequests = () => {
   if (accessRequestsInterval) window.clearInterval(accessRequestsInterval);
   accessRequestsInterval = null;
+  if (accessRequestsLiveListener) window.removeEventListener('ace:live-notification', accessRequestsLiveListener);
+  accessRequestsLiveListener = null;
 };
 window.mountAccessRequests = () => {
   window.unmountAccessRequests();
@@ -99,6 +102,12 @@ window.mountAccessRequests = () => {
     accessRequestSearchTerm = event.target.value;
     renderAccessRequests();
   });
-  accessRequestsInterval = window.setInterval(loadAccessRequests, 15000);
+  accessRequestsLiveListener = event => {
+    if (event.detail?.kind === 'access-request') void loadAccessRequests();
+  };
+  window.addEventListener('ace:live-notification', accessRequestsLiveListener);
+  accessRequestsInterval = window.setInterval(() => {
+    if (document.visibilityState === 'visible') void loadAccessRequests();
+  }, 5 * 60 * 1000);
 };
 document.addEventListener('DOMContentLoaded', window.mountAccessRequests);

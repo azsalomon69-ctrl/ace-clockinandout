@@ -11,10 +11,6 @@ const AppState = {
     currentSession: null,
     presenceInterval: null,
     presenceVisibilityHandler: null,
-    onlineCountInterval: null,
-    liveDataInterval: null,
-    liveRefreshInFlight: false,
-    liveDataSignature: null,
     clockInTime: null,
     timerInterval: null,
     remarkNotificationInterval: null,
@@ -452,7 +448,6 @@ async function initApp() {
         initializeUXEnhancements();
         initializeEmployeeChat();
         startRemarkNotifications();
-        startLiveDataRefresh();
     }
     clearInitialSkeletons();
     requestAnimationFrame(() => {
@@ -1125,9 +1120,14 @@ function initializeEmployeeChat() {
     // Fetch immediately, then keep the unread indicator fresh without a page reload.
     loadContacts();
     void startChatStream();
-    // The live stream delivers new chat events immediately. This slow fallback
-    // covers a temporary stream interruption without making the interface jump.
-    const poller = window.setInterval(() => { loadContacts(); if (!panel.hidden) loadMessages(); }, 15000);
+    // The live stream handles normal delivery. A slow visible-thread fallback
+    // recovers from a dropped stream without polling every signed-in page.
+    const poller = window.setInterval(() => {
+        if (document.visibilityState === 'visible' && !panel.hidden) {
+            loadContacts();
+            if (selectedId) loadMessages();
+        }
+    }, 5 * 60 * 1000);
     window.addEventListener('pagehide', () => { void publishTyping(false); window.clearInterval(poller); window.clearTimeout(chatStreamRetry); typingClearTimers.forEach(timer => window.clearTimeout(timer)); chatStreamAbort?.abort(); }, { once: true });
 }
 
@@ -2416,9 +2416,6 @@ async function performLogout() {
     }
     AppState.currentUser = null;
     stopPresenceHeartbeat();
-    if (AppState.onlineCountInterval) window.clearInterval(AppState.onlineCountInterval);
-    AppState.onlineCountInterval = null;
-    stopLiveDataRefresh();
     AppState.isAuthenticated = false;
     AppState.isClockedIn = false;
     
@@ -2450,122 +2447,6 @@ function stopPresenceHeartbeat() {
     if (AppState.presenceVisibilityHandler) document.removeEventListener('visibilitychange', AppState.presenceVisibilityHandler);
     AppState.presenceInterval = null;
     AppState.presenceVisibilityHandler = null;
-}
-
-// Presence only tells us that a browser is open. Operational information needs
-// a separate, quiet refresh so admins see new clock-ins and clock-outs,
-// people coming online, and new remarks without reloading the workspace.
-function liveWorkspaceSignature() {
-    return JSON.stringify({
-        entries: AppState.timeEntries.map(entry => [entry.TimeEntryId, entry.ClockInAt, entry.ClockOutAt, entry.DurationSeconds, entry.ProjectId]).sort(),
-        remarks: AppState.adminRemarks.map(remark => [remark.RemarkId, remark.SeenAt, remark.CreatedAt]).sort(),
-        users: AppState.users.map(user => [user.UserId, user.Status, user.LastSeenAt, user.DepartmentId, user.Role]).sort(),
-        projects: AppState.projects.map(project => [project.ProjectId, project.ProjectName, project.IsActive]).sort(),
-        departments: AppState.departments.map(department => [department.DepartmentId, department.DepartmentName, department.IsActive]).sort(),
-        reports: AppState.reports.map(report => [report.ReportId, report.GeneratedAt]).sort(),
-        schedule: AppState.assignedSchedule?.id || AppState.assignedSchedule?.schedule_id || null,
-        assignments: AppState.userProjects.map(item => [item.UserId, item.ProjectId, item.AssignedAt]).sort()
-    });
-}
-
-async function refreshLiveWorkspaceData() {
-    if (AppState.liveRefreshInFlight || document.visibilityState !== 'visible' || !window.ACEAuth || !AppState.currentUser) return;
-    if (document.querySelector('.modal.active, input:focus, textarea:focus, select:focus')) return;
-    AppState.liveRefreshInFlight = true;
-    try {
-        const previousSignature = AppState.liveDataSignature || liveWorkspaceSignature();
-        const wasClockedIn = AppState.isClockedIn;
-        const previousSessionId = AppState.currentSession?.TimeEntryId || null;
-        const admin = AppState.currentUser.Role === 'ADMIN';
-        const requests = [
-            loadAllTimeEntries({ mine: !admin }),
-            window.ACEAuth.request('/v1/admin-remarks'),
-            window.ACEAuth.request('/v1/my-schedule'),
-            window.ACEAuth.request('/v1/user-projects')
-        ];
-        if (admin) requests.push(
-            window.ACEAuth.request('/v1/users'),
-            window.ACEAuth.request('/v1/departments'),
-            window.ACEAuth.request('/v1/projects'),
-            window.ACEAuth.request('/v1/reports')
-        );
-        const results = await Promise.all(requests);
-        AppState.timeEntries = results[0].map(timeEntryRecord);
-        AppState.adminRemarks = results[1].map(adminRemarkRecord);
-        AppState.assignedSchedule = results[2];
-        AppState.userProjects = results[3].map(item => ({ UserId: item.user_id, ProjectId: item.project_id, AssignedAt: item.assigned_at, IsActive: true }));
-        if (admin) {
-            AppState.users = results[4].map(profileRecord);
-            AppState.departments = results[5].map(departmentRecord);
-            AppState.projects = results[6].map(projectRecord);
-            AppState.reports = results[7].map(reportRecord);
-        }
-        const active = AppState.timeEntries.find(entry => !entry.ClockOutAt && entry.UserId === AppState.currentUser.UserId);
-        AppState.currentSession = active || null;
-        AppState.isClockedIn = Boolean(active);
-        AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
-        const nextSignature = liveWorkspaceSignature();
-        const changed = nextSignature !== previousSignature;
-        AppState.liveDataSignature = nextSignature;
-        const sessionChanged = wasClockedIn !== AppState.isClockedIn || previousSessionId !== (active?.TimeEntryId || null);
-        if (sessionChanged) {
-            if (AppState.isClockedIn) { startTimer(); updateTimerDisplay(); }
-            else stopTimer();
-            updateUI();
-        }
-        // Background polling must not rebuild cards, tables, or filters every
-        // 20 seconds. Replacing those nodes made the page visibly jump and
-        // could interrupt someone scanning a record. Only change visible
-        // counters or notification content when the fetched data changed.
-        if (changed) {
-            refreshLiveDashboardSummary();
-            updateRemarkNotificationBadge();
-            window.ACERenderNotifications?.();
-            window.dispatchEvent(new CustomEvent('ace:live-data', { detail: { background: true, changed: true } }));
-        }
-    } catch (error) {
-        // Do not interrupt someone working with a transient status toast. The
-        // next scheduled pass recovers when a sleeping service wakes up.
-        console.warn('Could not refresh live workspace data.', error);
-    } finally {
-        AppState.liveRefreshInFlight = false;
-    }
-}
-
-function refreshLiveDashboardSummary() {
-    if (!document.getElementById('clockedInUsers')) return;
-    const today = new Date().toDateString();
-    const { periodStart, periodEnd } = dashboardPeriodBounds('month');
-    const entries = employeeTimeEntries();
-    const clockedIn = document.getElementById('clockedInUsers');
-    const todayEntries = document.getElementById('todayEntries');
-    const monthTracked = document.getElementById('monthTrackedHours');
-    if (clockedIn) clockedIn.textContent = entries.filter(entry => !entry.ClockOutAt).length;
-    if (todayEntries) todayEntries.textContent = entries.filter(entry => new Date(entry.ClockInAt).toDateString() === today).length;
-    if (monthTracked) {
-        const seconds = entries.filter(entry => {
-            const time = new Date(entry.ClockInAt).getTime();
-            return entry.ClockOutAt && time >= periodStart.getTime() && time <= periodEnd.getTime();
-        }).reduce((total, entry) => total + Number(entry.DurationSeconds || 0), 0);
-        monthTracked.textContent = formatDashboardDuration(seconds);
-    }
-    updateOnlineUserCount();
-}
-
-function startLiveDataRefresh() {
-    stopLiveDataRefresh();
-    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') void refreshLiveWorkspaceData(); };
-    AppState.liveDataInterval = window.setInterval(() => void refreshLiveWorkspaceData(), 20000);
-    AppState.liveRefreshVisibilityHandler = refreshWhenVisible;
-    document.addEventListener('visibilitychange', refreshWhenVisible);
-}
-
-function stopLiveDataRefresh() {
-    if (AppState.liveDataInterval) window.clearInterval(AppState.liveDataInterval);
-    if (AppState.liveRefreshVisibilityHandler) document.removeEventListener('visibilitychange', AppState.liveRefreshVisibilityHandler);
-    AppState.liveDataInterval = null;
-    AppState.liveRefreshVisibilityHandler = null;
-    AppState.liveRefreshInFlight = false;
 }
 
 async function beginGoogleAccessRequest() {
@@ -3650,7 +3531,6 @@ function loadAdminDashboard() {
     if (clockedInUsers) clockedInUsers.textContent = employeeTimeEntries().filter(entry => !entry.ClockOutAt).length;
     
     updateOnlineUserCount();
-    startOnlineUserCountRefresh();
     void loadReviewAlerts();
     
     const todayEntries = document.getElementById('todayEntries');
@@ -3900,7 +3780,12 @@ function startRemarkNotifications() {
         if (event.detail?.kind === 'remarks') void refresh();
     };
     window.addEventListener('ace:live-notification', refreshFromLiveNotification);
-    AppState.remarkNotificationInterval = window.setInterval(refresh, 15000);
+    // Live notification events are the normal path. This low-frequency,
+    // visible-tab check only recovers if a connection was interrupted.
+    const recoveryRefresh = () => {
+        if (document.visibilityState === 'visible') void refresh();
+    };
+    AppState.remarkNotificationInterval = window.setInterval(recoveryRefresh, 5 * 60 * 1000);
     window.addEventListener('pagehide', () => {
         window.clearInterval(AppState.remarkNotificationInterval);
         window.removeEventListener('ace:live-notification', refreshFromLiveNotification);
@@ -3914,12 +3799,6 @@ function updateOnlineUserCount() {
     activeUsers.textContent = AppState.users.filter(user =>
         user.Status === 'ACTIVE' && user.LastSeenAt && new Date(user.LastSeenAt).getTime() >= onlineAfter
     ).length;
-}
-
-function startOnlineUserCountRefresh() {
-    // The shared live-data loop updates the complete dashboard every 20
-    // seconds, including online status. Keep this wrapper for existing calls.
-    if (!AppState.liveDataInterval) startLiveDataRefresh();
 }
 
 let reportsPage = 1; const reportsPageSize = 25; let reportsTotal = 0;

@@ -4,16 +4,16 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const source = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
+const accessRequestsSource = readFileSync(new URL('../../frontend/js/access-requests.js', import.meta.url), 'utf8');
+const chatLogSource = readFileSync(new URL('../../frontend/js/chat-log.js', import.meta.url), 'utf8');
 
-test('live refresh only changes the visible workspace when operational data changed', () => {
-  assert.match(source, /function liveWorkspaceSignature\(\)/, 'Live refresh should compare a stable operational-data signature');
-  assert.match(source, /const changed = nextSignature !== previousSignature;/, 'The refresh should detect an actual data change before rendering');
-  assert.match(source, /if \(changed\) \{\s+refreshLiveDashboardSummary\(\);\s+updateRemarkNotificationBadge\(\);/s, 'Counters and notifications should update only after a real change');
-  assert.match(source, /detail: \{ background: true, changed: true \}/, 'Background events should identify a real update');
-});
-
-test('live refresh reconciles a session started or ended in another tab', () => {
-  assert.match(source, /const sessionChanged = wasClockedIn !== AppState\.isClockedIn/, 'Session changes should be detected independently from other data');
-  assert.match(source, /if \(AppState\.isClockedIn\) \{ startTimer\(\); updateTimerDisplay\(\); \}/, 'A newly active session should start its local timer');
-  assert.match(source, /else stopTimer\(\);/, 'A session ended elsewhere should stop its local timer');
+test('background updates are limited to live notifications and chat', () => {
+  assert.doesNotMatch(source, /function refreshLiveWorkspaceData\(/, 'Pages must not repeatedly reload full workspace data');
+  assert.doesNotMatch(source, /startLiveDataRefresh\(/, 'Pages must not start a global live-data poller');
+  assert.match(source, /void startChatStream\(\)/, 'Chat remains live');
+  assert.match(source, /ace:live-notification/, 'Bell notifications remain live');
+  assert.match(source, /5 \* 60 \* 1000/, 'Fallback refreshes must stay infrequent');
+  assert.match(accessRequestsSource, /ace:live-notification/, 'Access requests refresh from the live bell event');
+  assert.doesNotMatch(accessRequestsSource, /setInterval\(loadAccessRequests, 15000\)/, 'Access requests must not poll every 15 seconds');
+  assert.doesNotMatch(chatLogSource, /setInterval\(loadChatLog, 10000\)/, 'The audit chat log must not poll every 10 seconds');
 });

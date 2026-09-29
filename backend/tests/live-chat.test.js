@@ -19,7 +19,8 @@ test('chat sends optimistically and never restores a successfully sent draft', (
   assert.match(shellSource, /employee-chat-message-pending/, 'A sent message should appear immediately while the server confirms it');
   assert.match(shellSource, /input\.value = '';/, 'Sending should clear the composer immediately');
   assert.match(shellSource, /window\.ACEAuth\.authorizedFetch\('\/v1\/employee-chat\/stream'/, 'The client should subscribe to the authenticated live stream');
-  assert.match(shellSource, /setInterval\(\(\) => \{ loadContacts\(\); if \(!panel\.hidden\) loadMessages\(\); \}, 15000\)/, 'Polling should remain only as a quiet connection fallback');
+  assert.match(shellSource, /document\.visibilityState === 'visible' && !panel\.hidden/, 'The fallback must only run for a visible, open chat');
+  assert.match(shellSource, /5 \* 60 \* 1000/, 'Chat polling should remain an infrequent recovery fallback');
 });
 
 test('chat typing feedback is private, temporary, and cleared when a message is sent', () => {

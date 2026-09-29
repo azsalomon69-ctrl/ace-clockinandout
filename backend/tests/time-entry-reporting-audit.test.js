@@ -15,7 +15,6 @@ test('reports load every time-entry page instead of filtering only the first pag
   assert.match(loader, /entries\.push\(\.\.\.items\)/);
   assert.match(loader, /entries\.length >= total/);
   assert.match(frontend, /loadAllTimeEntries\(\{ mine: AppState\.currentUser\.Role !== 'ADMIN' \}\)/);
-  assert.match(frontend, /loadAllTimeEntries\(\{ mine: !admin \}\)/);
 });
 
 test('clock-in writes the entry and audit record through one database RPC', () => {
