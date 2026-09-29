@@ -105,7 +105,8 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /MutationObserver/, 'Tutorial should refresh only after the shell has actually changed its sidebar state');
   assert.match(engineSource, /ace:sidebar-state-change/, 'Tutorial should react to every state update emitted by the real sidebar controls');
   assert.match(engineSource, /shell-account-menu \[role="menuitem"\]/, 'Tutorial should adapt after the account menu is opened');
-  assert.match(engineSource, /accountMenu\?\.hidden !== false/, 'Tutorial should highlight the visible account control before its hidden menu item');
+  assert.match(engineSource, /step\.navigation\?\.group === 'Account'/, 'Tutorial should detect account-menu destinations before choosing a target');
+  assert.match(engineSource, /accountButton\.click\(\)/, 'Tutorial should open the account menu before highlighting Profile & settings');
   assert.match(engineSource, /target === accountToggle/, 'Tutorial should update its highlight after the account menu opens');
   assert.match(engineSource, /return showNavigationStep\(stepIndex, roleConfig\.steps\[stepIndex\]\)/, 'Mobile navigation should reopen the guide and highlight the requested destination after opening the sidebar');
   assert.match(engineSource, /mobileSidebarOpen/, 'Mobile navigation should remove the open-sidebar action after the drawer is visible');
@@ -124,6 +125,9 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');
   assert.doesNotMatch(engineSource, /\$\{isMobile\(\) \? 'Open sidebar' : 'Use sidebar'\}/, 'Desktop navigation should not show a redundant Use sidebar button');
   assert.match(engineSource, /if \(isMobile\(\) && !document\.body\.classList\.contains\('shell-mobile-open'\)\)/, 'Tutorial should reveal the mobile sidebar before teaching a destination');
+  assert.match(engineSource, /const needsReveal = mobile \|\| !isVisible/, 'Every phone step should scroll its taught control into the clear area above the guide');
+  assert.match(engineSource, /hideMobileGuide/, 'Phone users should be able to hide the guide without abandoning the tutorial');
+  assert.match(styles, /\.ace-tutorial-mobile-hide \{ display: block; \}/, 'The hide-guide control should be available on phones only');
 });
 
 test('the bell notification button owns its menu handler and the theme toggle stays desktop-only', () => {

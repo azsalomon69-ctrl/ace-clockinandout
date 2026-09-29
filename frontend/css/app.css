@@ -77,6 +77,7 @@
 .ace-tutorial-eyebrow, .ace-tutorial-progress { color: #087f96; font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .ace-tutorial-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
 .ace-tutorial-actions > span { display: flex; gap: 8px; }
+.ace-tutorial-mobile-hide, .ace-tutorial-restore { display: none; }
 .ace-tutorial-card [data-tutorial-start], .ace-tutorial-card [data-tutorial-skip], .ace-tutorial-card [data-tutorial-back], .ace-tutorial-card [data-tutorial-next], .ace-tutorial-card [data-tutorial-close], .ace-tutorial-card [data-tutorial-keep], .ace-tutorial-card [data-tutorial-leave], [data-restart-tutorial] { min-height: 44px; }
 .ace-tutorial-missing { margin-top: 14px !important; padding: 10px; border-radius: 8px; background: #eef7f8; font-size: .9rem; }
 .ace-tutorial-target { position: relative !important; z-index: 10001 !important; outline: 4px solid #08a2c2 !important; outline-offset: 5px; border-radius: 8px; box-shadow: 0 0 0 8px rgba(255,255,255,.92),0 0 0 12px rgba(8,162,194,.45),0 8px 20px rgba(3,45,61,.22) !important; }
@@ -90,7 +91,7 @@ body.ace-tutorial-welcome-open { overflow: hidden; }
 @keyframes ace-tutorial-card-in { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 768px) {
   .ace-tutorial-overlay { align-items: end; padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
-  .ace-tutorial-card { right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px; width: auto; max-height: calc(100dvh - 24px); padding: 22px; overflow-y: auto; overscroll-behavior: contain; border-radius: 18px 18px 14px 14px; animation: ace-tutorial-sheet-in .22s ease-out both; }
+  .ace-tutorial-card { right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px; width: auto; max-height: min(62dvh, 420px); padding: 18px; overflow-y: auto; overscroll-behavior: contain; border-radius: 18px 18px 14px 14px; animation: ace-tutorial-sheet-in .22s ease-out both; }
   .ace-tutorial-card.is-centered { position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px !important; width: auto; }
   .ace-tutorial-card.ace-tutorial-mobile-top-card { top: calc(72px + env(safe-area-inset-top)); right: 12px; bottom: auto; left: 12px; }
   /* A small directional arrow makes the mobile sheet's relationship to the
@@ -100,9 +101,13 @@ body.ace-tutorial-welcome-open { overflow: hidden; }
   .ace-tutorial-card[data-placement="above"]::after { display: block; }
   .ace-tutorial-card[data-placement="below"]::after { top: -10px; bottom: auto; left: calc(var(--ace-tutorial-arrow-x) - 9px); }
   .ace-tutorial-card[data-placement="above"]::after { top: auto; bottom: -10px; left: calc(var(--ace-tutorial-arrow-x) - 9px); }
-  .ace-tutorial-actions { align-items: stretch; flex-direction: column-reverse; }
-  .ace-tutorial-actions > span { justify-content: stretch; }
-  .ace-tutorial-actions > span .btn { flex: 1; }
+  .ace-tutorial-card h2 { font-size: 1.28rem; }
+  .ace-tutorial-actions { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; gap: 8px; margin-top: 16px; }
+  .ace-tutorial-actions > span { display: contents; }
+  .ace-tutorial-actions > span .btn { min-width: 0; }
+  .ace-tutorial-actions [data-tutorial-skip], .ace-tutorial-actions [data-tutorial-hide] { min-width: 0; }
+  .ace-tutorial-mobile-hide { display: block; }
+  .ace-tutorial-restore { position: fixed; z-index: 2; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); display: block; }
 }
 @keyframes ace-tutorial-sheet-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .ace-tutorial-card { animation: none; } }

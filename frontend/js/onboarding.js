@@ -180,7 +180,10 @@ window.ACETutorial = (() => {
         const rect = target.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         const isVisible = rect.bottom > 0 && rect.top < viewportHeight;
-        const needsReveal = !isVisible || (mobile && (rect.top < 72 || rect.bottom > viewportHeight * .48));
+        // A phone guide always brings the taught control into the clear space
+        // above the sheet. Being technically visible is not enough when the
+        // sheet can still cover the lower half of the page.
+        const needsReveal = mobile || !isVisible;
         if (!needsReveal) return;
         // Reveal a target once before placing the card. Waiting for smooth
         // scrolling to settle prevents the mobile sheet and the page from
@@ -367,6 +370,17 @@ window.ACETutorial = (() => {
             groupToggle.click();
             await nextFrame();
         }
+        // Profile & settings lives in the account pop-up, not on the account
+        // button itself. Open that pop-up before choosing the tutorial target
+        // so the coachmark always points at the specific destination.
+        if (step.navigation?.group === 'Account') {
+            const accountButton = document.querySelector('.shell-account');
+            const accountMenu = document.querySelector('.shell-account-menu');
+            if (accountButton && accountMenu?.hidden !== false) {
+                accountButton.click();
+                await nextFrame();
+            }
+        }
         return navigationTarget(step);
     }
     const navigationTarget = step => {
@@ -414,12 +428,34 @@ window.ACETutorial = (() => {
             return showNavigationStep(stepIndex, roleConfig.steps[stepIndex]);
         }
     }
+    function hideMobileGuide(target) {
+        const card = overlay?.querySelector('.ace-tutorial-card');
+        if (!overlay || !card || !isMobile()) return;
+        card.hidden = true;
+        overlay.classList.add('ace-tutorial-mobile-minimized');
+        let restore = overlay.querySelector('[data-tutorial-restore]');
+        if (!restore) {
+            restore = document.createElement('button');
+            restore.className = 'btn btn-secondary ace-tutorial-restore';
+            restore.type = 'button';
+            restore.dataset.tutorialRestore = '';
+            restore.textContent = 'Show guide';
+            overlay.append(restore);
+            restore.addEventListener('click', async () => {
+                card.hidden = false;
+                overlay.classList.remove('ace-tutorial-mobile-minimized');
+                await positionStep(target, card, { reveal: true });
+                card.querySelector('[data-tutorial-next], [data-tutorial-navigate], [data-tutorial-back]:not([disabled]), [data-tutorial-skip]')?.focus();
+            });
+        }
+        restore.focus();
+    }
     async function showNavigationStep(stepIndex, step) {
         const target = await prepareNavigationTarget(step);
         const mobileSidebarOpen = isMobile() && document.body.classList.contains('shell-mobile-open');
         const navigationActions = isMobile() && !mobileSidebarOpen
-                ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>Open sidebar</button></span>`
-                : `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`;
+                ? `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-text ace-tutorial-mobile-hide" type="button" data-tutorial-hide>Hide guide</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-navigate>Open sidebar</button></span>`
+                : `<button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-text ace-tutorial-mobile-hide" type="button" data-tutorial-hide>Hide guide</button><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button>`;
         const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'} ace-tutorial-navigation"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>Go to ${escape(step.navigation?.label || step.title)}</h2><p>${escape(navigationInstruction(step))}</p><div class="ace-tutorial-actions">${navigationActions}</div></div>`, `Navigate to ${step.navigation?.label || step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`, { navigation: Boolean(target) });
         ui.querySelector('[data-tutorial-skip]').addEventListener('click', () => finish('SKIPPED'));
         ui.querySelector('[data-tutorial-back]').addEventListener('click', () => go(stepIndex - 1));
@@ -429,6 +465,7 @@ window.ACETutorial = (() => {
             const card = ui.querySelector('.ace-tutorial-card');
             await positionStep(target, card, { reveal: true });
             if (overlay === ui && active) watchPlacement(target, card);
+            ui.querySelector('[data-tutorial-hide]')?.addEventListener('click', () => hideMobileGuide(target));
             // The user can collapse the sidebar at any time. Re-evaluate the
             // current instruction after the real toggle changes state, rather
             // than leaving a coachmark aimed at a now-hidden destination.
@@ -459,7 +496,7 @@ window.ACETutorial = (() => {
         }
         if (!active && overlay) return;
         const targetText = target ? '' : '<p class="ace-tutorial-missing">This item is unavailable on this screen. You can continue the tour.</p>';
-        const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'}"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>${escape(step.title)}</h2><p>${escape(step.body)}</p>${targetText}<div class="ace-tutorial-actions"><button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-next>${stepIndex === roleConfig.steps.length - 1 ? 'Finish' : 'Next'}</button></span></div></div>`, `${step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`);
+        const ui = makeOverlay(`<div class="ace-tutorial-card${target ? '' : ' is-centered'}"><p class="ace-tutorial-progress">Step ${stepIndex + 1} of ${roleConfig.steps.length}</p><h2>${escape(step.title)}</h2><p>${escape(step.body)}</p>${targetText}<div class="ace-tutorial-actions"><button class="btn btn-text" type="button" data-tutorial-skip>Skip</button><button class="btn btn-text ace-tutorial-mobile-hide" type="button" data-tutorial-hide>Hide guide</button><span><button class="btn btn-secondary" type="button" data-tutorial-back ${stepIndex === 0 ? 'disabled' : ''}>Back</button><button class="btn btn-primary" type="button" data-tutorial-next>${stepIndex === roleConfig.steps.length - 1 ? 'Finish' : 'Next'}</button></span></div></div>`, `${step.title}, step ${stepIndex + 1} of ${roleConfig.steps.length}`);
         if (target) target.classList.add('ace-tutorial-target');
         ui.querySelector('.ace-tutorial-live').textContent = `Step ${stepIndex + 1} of ${roleConfig.steps.length}: ${step.title}`;
         ui.querySelector('[data-tutorial-skip]').addEventListener('click', () => finish('SKIPPED'));
@@ -469,6 +506,7 @@ window.ACETutorial = (() => {
             const card = ui.querySelector('.ace-tutorial-card');
             await positionStep(target, card, { reveal: true });
             if (overlay === ui && active) watchPlacement(target, card);
+            ui.querySelector('[data-tutorial-hide]')?.addEventListener('click', () => hideMobileGuide(target));
         }
         ui.querySelector('[data-tutorial-next]').focus();
     }
