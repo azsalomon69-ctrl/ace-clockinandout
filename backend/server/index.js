@@ -27,6 +27,14 @@ const publishChatEvent = (userId, detail) => {
   const payload = `event: chat\ndata: ${JSON.stringify(detail)}\n\n`;
   subscribers.forEach(response => response.write(payload));
 };
+const publishAdminChatEvent = async detail => {
+  // Notification delivery is an enhancement, never a reason to fail the
+  // completed action that caused it. Each open administrator stream is private.
+  try {
+    const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE').is('permanently_deleted_at', null));
+    admins.forEach(admin => publishChatEvent(admin.id, detail));
+  } catch (error) { console.warn('Could not publish administrator notification.', error.message); }
+};
 const frontendOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(value => value.trim()).filter(Boolean);
 if (process.env.NODE_ENV === 'production' && !frontendOrigins.length) {
   throw new Error('FRONTEND_ORIGIN is required in production');
@@ -464,6 +472,7 @@ app.post('/v1/access-requests', sensitiveActionLimiter, authenticate, async (req
     p_expires_at: requestValues.expires_at,
     p_request_id: req.requestId
   }));
+  void publishAdminChatEvent({ type: 'notification', kind: 'access-request' });
   res.status(201).json({ request });
 } catch (error) { next(error); } });
 app.get('/v1/access-requests', authenticate, adminOnly, async (_, res, next) => { try {
@@ -966,7 +975,16 @@ app.get('/v1/time-entry-review', authenticate, adminOnly, async (req, res, next)
   res.json({ items, total: items.length });
 } catch (error) { next(error); } });
 
-app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try { const remarkText = requireText(req.body.remark, 'Remark', 2000); const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: remarkText }).select().single()); await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark'); res.status(201).json(remark); } catch (error) { next(error); } });
+app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, res, next) => { try {
+  const remarkText = requireText(req.body.remark, 'Remark', 2000);
+  const entry = await query(db.from('time_entries').select('user_id').eq('id', req.params.id).is('deleted_at', null).maybeSingle());
+  if (!entry) return fail(res, 404, 'Time entry is unavailable');
+  const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: remarkText }).select().single());
+  await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark');
+  publishChatEvent(entry.user_id, { type: 'notification', kind: 'remarks' });
+  void publishAdminChatEvent({ type: 'notification', kind: 'remarks' });
+  res.status(201).json(remark);
+} catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try {
   const { data: entry, error } = await db.rpc('archive_time_entry_with_audit', {
     p_entry_id: req.params.id, p_actor_user_id: req.profile.id, p_operation: 'DELETE', p_request_id: req.requestId

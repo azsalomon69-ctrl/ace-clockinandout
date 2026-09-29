@@ -1064,6 +1064,11 @@ function initializeEmployeeChat() {
             setTypingContact(detail.contactId, false);
             void loadContacts();
             if (!panel.hidden && String(selectedId) === String(detail.contactId)) void loadMessages();
+            return;
+        }
+        if (detail.type === 'notification') {
+            if (detail.kind === 'access-request') void loadContacts();
+            window.dispatchEvent(new CustomEvent('ace:live-notification', { detail }));
         }
     };
     const startChatStream = async () => {
@@ -3891,8 +3896,15 @@ function startRemarkNotifications() {
     if (AppState.adminRemarks.some(remark => !remark.SeenAt)) {
         showToast(isAdmin ? 'Feedback is awaiting employee review.' : 'You have new administrator feedback.', 'info');
     }
+    const refreshFromLiveNotification = event => {
+        if (event.detail?.kind === 'remarks') void refresh();
+    };
+    window.addEventListener('ace:live-notification', refreshFromLiveNotification);
     AppState.remarkNotificationInterval = window.setInterval(refresh, 15000);
-    window.addEventListener('pagehide', () => window.clearInterval(AppState.remarkNotificationInterval), { once: true });
+    window.addEventListener('pagehide', () => {
+        window.clearInterval(AppState.remarkNotificationInterval);
+        window.removeEventListener('ace:live-notification', refreshFromLiveNotification);
+    }, { once: true });
 }
 
 function updateOnlineUserCount() {

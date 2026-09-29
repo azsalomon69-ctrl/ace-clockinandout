@@ -31,3 +31,10 @@ test('chat typing feedback is private, temporary, and cleared when a message is 
   assert.match(shellSource, /void publishTyping\(false\);/, 'Typing should clear on send, close, navigation, and page exit');
   assert.match(shellSource, /typingClearTimers\.set\(id, window\.setTimeout/, 'The indicator should clear if a stop event is lost');
 });
+
+test('live stream refreshes bell notifications for new remarks and access requests', () => {
+  assert.match(serverSource, /publishChatEvent\(entry\.user_id, \{ type: 'notification', kind: 'remarks' \}\)/, 'A new remark should notify its employee immediately');
+  assert.match(serverSource, /publishAdminChatEvent\(\{ type: 'notification', kind: 'access-request' \}\)/, 'A new access request should notify administrators immediately');
+  assert.match(shellSource, /new CustomEvent\('ace:live-notification'/, 'The client should route live notification events to the bell data source');
+  assert.match(shellSource, /addEventListener\('ace:live-notification', refreshFromLiveNotification\)/, 'New remarks should refresh bell content immediately');
+});
