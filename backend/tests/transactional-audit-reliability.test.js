@@ -77,11 +77,13 @@ test('request IDs are UUID-only, returned to callers, logged, and stored without
   assert.doesNotMatch(migration, /authorization|bearer|session_id/i);
 });
 
-test('time-entry export evidence is awaited and an audit failure is visible without blocking the export', () => {
+test('time-entry exports create a saved report and audit evidence before the browser download begins', () => {
   const frontend = readFileSync(new URL('../../frontend/js/admin-sections.js', import.meta.url), 'utf8');
   assert.match(frontend, /try \{ await liveRequest\('\/v1\/time-entry-exports'/);
-  assert.match(frontend, /audit record could not be saved/i);
+  assert.match(frontend, /Export saved to Reports and Audit log/i);
   const exportRoute = route("app.post('/v1/time-entry-exports'", "app.delete('/v1/reports/:id'");
+  assert.match(exportRoute, /db\.from\('reports'\)\.insert/);
+  assert.match(exportRoute, /db\.from\('report_exports'\)\.insert/);
   assert.match(exportRoute, /await query\(db\.from\('audit_logs'\)\.insert/);
   assert.doesNotMatch(exportRoute, /await audit\(/);
 });

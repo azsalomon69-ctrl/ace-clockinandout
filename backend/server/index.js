@@ -980,7 +980,28 @@ app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try
 } catch (error) { next(error); } });
 app.get('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); const request = db.from('reports').select('*, profiles!reports_created_by_user_id_fkey(full_name), report_exports(*)', paging.paged ? { count: 'exact' } : undefined).order('generated_at', { ascending: false }); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 app.post('/v1/reports/:id/exports', authenticate, adminOnly, async (req, res, next) => { try { const fileName = requireText(req.body.fileName, 'File name', 255); const fileType = req.body.fileType || 'PDF'; const fileUrl = optionalText(req.body.fileUrl, 2048); if (!['CSV', 'XLSX', 'PDF'].includes(fileType) || fileUrl === undefined) return fail(res, 400, 'Invalid export details'); const item = await query(db.from('report_exports').insert({ report_id: req.params.id, exported_by_user_id: req.profile.id, file_name: fileName, file_type: fileType, file_url: fileUrl }).select().single()); await audit(req, 'EXPORT_REPORT', 'REPORT', req.params.id, `Exported ${fileType} report`); res.status(201).json(item); } catch (error) { next(error); } });
-app.post('/v1/time-entry-exports', authenticate, adminOnly, async (req, res, next) => { try { const format = ['PDF', 'XLSX', 'CSV'].includes(req.body.format) ? req.body.format : null; const dateFrom = req.body.dateFrom; const dateTo = req.body.dateTo; const count = Number(req.body.count); if (!format || !isDate(dateFrom) || !isDate(dateTo) || dateFrom > dateTo || !Number.isInteger(count) || count < 0) return fail(res, 400, 'Provide valid export details'); await query(db.from('audit_logs').insert({ user_id: req.profile.id, action: 'EXPORT_TIME_ENTRIES', entity_type: 'TIME_ENTRY', entity_id: null, description: `Exported ${count} time entries as ${format} for ${dateFrom} to ${dateTo}`, ip_address: req.ip, user_agent: req.get('user-agent'), request_id: req.requestId })); res.status(204).end(); } catch (error) { next(error); } });
+app.post('/v1/time-entry-exports', authenticate, adminOnly, async (req, res, next) => { try {
+  const format = ['PDF', 'XLSX', 'CSV'].includes(req.body.format) ? req.body.format : null;
+  const { dateFrom, dateTo, filters = {} } = req.body;
+  if (!format || !isDate(dateFrom) || !isDate(dateTo) || dateFrom > dateTo || !filters || typeof filters !== 'object' || Array.isArray(filters)) return fail(res, 400, 'Provide valid export details');
+  const projectId = optionalUuid(filters.projectId); const userId = optionalUuid(filters.userId);
+  const status = filters.status || null;
+  if ([projectId, userId].includes(undefined) || ![null, 'ACTIVE', 'COMPLETED'].includes(status)) return fail(res, 400, 'Invalid export filters');
+  let entries = db.from('time_entries').select('id', { count: 'exact', head: true }).is('deleted_at', null)
+    .gte('clock_in_at', `${dateFrom}T00:00:00+08:00`)
+    .lt('clock_in_at', new Date(new Date(`${dateTo}T00:00:00+08:00`).getTime() + 86400000).toISOString());
+  if (projectId) entries = entries.eq('project_id', projectId);
+  if (userId) entries = entries.eq('user_id', userId);
+  if (status === 'ACTIVE') entries = entries.is('clock_out_at', null);
+  if (status === 'COMPLETED') entries = entries.not('clock_out_at', 'is', null);
+  const { count, error } = await entries;
+  if (error) throw error;
+  const safeFilters = { ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(status ? { status } : {}) };
+  const report = await query(db.from('reports').insert({ created_by_user_id: req.profile.id, report_type: 'CUSTOM', date_from: dateFrom, date_to: dateTo, filters: safeFilters, total_records: count || 0 }).select().single());
+  await query(db.from('report_exports').insert({ report_id: report.id, exported_by_user_id: req.profile.id, file_name: `time-entries-${dateFrom}-to-${dateTo}.${format.toLowerCase()}`, file_type: format, file_url: null }));
+  await query(db.from('audit_logs').insert({ user_id: req.profile.id, action: 'EXPORT_TIME_ENTRIES', entity_type: 'REPORT', entity_id: report.id, description: `Exported ${count || 0} time entries as ${format} for ${dateFrom} to ${dateTo}`, ip_address: req.ip, user_agent: req.get('user-agent'), request_id: req.requestId }));
+  res.status(201).json(report);
+} catch (error) { next(error); } });
 app.delete('/v1/reports/:id', authenticate, adminOnly, async (req, res, next) => { try {
   const report = await query(db.from('reports').delete().eq('id', req.params.id).select().single());
   await audit(req, 'DELETE_REPORT', 'REPORT', report.id, `Deleted generated ${report.report_type} report`);

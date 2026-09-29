@@ -1592,11 +1592,11 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I use page controls in admin lists?', 'Most administration lists use 25 rows per page by default. Choose 25, 50, or 100 rows, then use Previous, Next, or a page number. Search and filters reset to page 1 and search all matching records, not only the visible page.'],
         ['Where are deleted time entries?', 'Open Work → Time entries and choose Deleted entries. Select Restore to return a record to active history. Delete permanently cannot be undone, so use it only when the record must be removed for good.'],
         ['How do I add a remark to a time entry?', 'Open Work → Time entries, search for the entry, then choose Add remark on its row. Write the internal administrator remark and save it. The employee can read the related feedback in Work → Remarks.'],
-        ['How do I filter the dashboard analytics?', 'Each dashboard chart has its own date selector. Use Tracked time to view the time trend and Hours by project to compare project allocation. Use Insights → Reports or Individual reports when you need detailed filters or an export.'],
-        ['How do I generate a report?', 'Use Work → Time entries to export company time-entry data as PDF or Excel. Use Insights → Individual reports to prepare a report for one employee or every active employee. Saved report copies appear in Insights → Reports.'],
+        ['How do I filter the dashboard analytics?', 'Each dashboard chart has its own date selector. Use Tracked time to view the time trend and Hours by project to compare project allocation. Use Work → Time entries to export company data, or Insights → Individual reports when you need employee-specific reports.'],
+        ['How do I create a report?', 'Use Work → Time entries, choose Export entries, select the date range and filters, then save a PDF or Excel workbook. Every export is saved in Insights → Reports and recorded in the Audit log. Use Insights → Individual reports to prepare separate reports for one employee or every active employee.'],
         ['Where do I find one employee’s report?', 'Open Insights → Individual reports. Choose This month for the current month through today, or Custom date range for specific dates. Optionally choose an active employee, then select Prepare reports. Use Preview, Save as PDF, or Save Excel on the prepared row. Leave the employee blank to prepare reports for every active employee.'],
         ['Where is the audit history?', 'Open Administration → Audit log. It records important administrative actions so you can review what changed and when.'],
-        ['Where can I review exports?', 'Open Administration → Audit log and search for export activity. It records the administrator, time, format, and selected date range for Time Entries exports and saved reports alongside other important administrator actions.'],
+        ['Where can I review exports?', 'Open Insights → Reports to reopen or download saved reports. Open Administration → Audit log and search for export activity when you need the administrator, time, format, and selected date range.'],
         ['Where is the employee chat log?', 'Head administrators can open Administration → Employee chat log. This page is intentionally unavailable to regular administrators.'],
         ['How do I update my own account or appearance?', 'Open Administration → Settings, then use Profile, Security, or Appearance. You can also select Settings from the Account section of the sidebar.'],
         ['How do I restart the tutorial?', 'Open your account menu and choose Restart tutorial. It starts from the dashboard and adapts to whether the sidebar is open or closed.'],
@@ -3762,7 +3762,7 @@ async function loadReportsList() {
                     </td>
                 </tr>
             `;
-        }).join('') : `<tr class="table-empty-row"><td colspan="6">${emptyState('No reports yet', 'Generate a report from the dashboard when you need to export team time.', 'Open dashboard', 'admin-dashboard.html')}</td></tr>`;
+        }).join('') : `<tr class="table-empty-row"><td colspan="6">${emptyState('No reports yet', 'Export filtered company time from Work → Time entries. Each export is saved here automatically.', 'Open time entries', 'admin-time-entries.html')}</td></tr>`;
         reportsList.querySelectorAll('[data-report-action]').forEach(button => button.addEventListener('click', () => {
             const reportId = button.dataset.reportId;
             if (button.dataset.reportAction === 'export') exportReport(reportId, button.dataset.reportFormat);
