@@ -22,6 +22,39 @@ const duration = seconds => { const safe = Math.max(0, Number(seconds) || 0); re
 const icon = (name, className = 'ui-icon') => '<img class="' + className + '" src="assets/icons/' + name + '.svg" alt="" aria-hidden="true">';
 const emptyTable = (title, message, colspan) => '<tr class="table-empty-row"><td colspan="' + colspan + '"><div class="empty-state empty-state-compact"><div class="empty-state-icon">' + icon('folder') + '</div><h3>' + esc(title) + '</h3><p>' + esc(message) + '</p></div></td></tr>';
 
+function renderActiveEntriesPanel(records = []) {
+  let panel = document.getElementById('activeEntriesPanel');
+  const table = document.querySelector('.admin-section-page .table-container');
+  if (!table) return;
+  if (!panel) {
+    panel = document.createElement('section');
+    panel.id = 'activeEntriesPanel';
+    panel.className = 'active-entries-panel';
+    table.insertAdjacentElement('beforebegin', panel);
+  }
+  const employeeEntries = records.filter(record => record.userRole === 'USER');
+  const adminEntries = records.length - employeeEntries.length;
+  const entryCards = employeeEntries.map(record => '<article class="active-entry-card"><div class="active-entry-identity"><span class="active-entry-avatar" aria-hidden="true">' + esc(record.cells[0].trim().slice(0, 1).toUpperCase()) + '</span><div><strong>' + esc(record.cells[0]) + '</strong><span>' + (record.cells[1] === '—' ? 'No project assigned' : esc(record.cells[1])) + '</span></div></div><dl class="active-entry-meta"><div><dt>Clocked in</dt><dd>' + esc(time(record.clockInAt)) + '</dd></div><div><dt>Current time</dt><dd>' + esc(record.cells[4]) + '</dd></div></dl><div class="active-entry-actions"><button class="btn btn-sm btn-outline active-entry-remark" type="button" data-entry-id="' + esc(record.id) + '">' + icon('message-circle-more') + (record.remarks?.length ? 'Open remarks' : 'Add remark') + '</button><button class="btn btn-sm btn-danger active-entry-stop" type="button" data-entry-id="' + esc(record.id) + '">' + icon('log-out') + 'Stop clock</button></div></article>').join('');
+  panel.innerHTML = '<div class="active-entries-heading"><div class="active-entries-heading-copy"><span class="active-entries-icon">' + icon('timer') + '</span><div><p class="admin-section-kicker">ACTIVE ENTRIES</p><h2 id="activeEntriesTitle">Clocked-in employees</h2><p>Review active employee shifts before stopping a clock or adding an administrator remark.</p></div></div><span class="active-entries-count">' + employeeEntries.length + ' active</span></div><div class="active-entries-list">' + (entryCards || '<div class="active-entries-empty">' + icon('check') + '<div><strong>No employees are clocked in</strong><span>New active shifts will appear here when you open or refresh Time entries.</span></div></div>') + '</div>' + (adminEntries ? '<p class="active-entries-note">' + adminEntries + ' administrator shift' + (adminEntries === 1 ? ' is' : 's are') + ' active and can be managed from the administrator account.</p>' : '');
+  panel.querySelectorAll('.active-entry-remark').forEach(button => button.addEventListener('click', () => {
+    const record = employeeEntries.find(item => item.id === button.dataset.entryId);
+    if (record) openEntryFeedback(record);
+  }));
+  panel.querySelectorAll('.active-entry-stop').forEach(button => button.addEventListener('click', async () => {
+    const record = employeeEntries.find(item => item.id === button.dataset.entryId);
+    if (!record || !await window.ACEUI.confirm({ title: 'Stop employee clock?', message: 'This ends ' + record.cells[0] + "'s active shift now. Confirm the employee has finished before continuing.", confirmLabel: 'Stop clock', danger: true })) return;
+    button.disabled = true; button.textContent = 'Stopping…';
+    try {
+      await liveRequest('/v1/time-entries/' + record.id + '/admin-stop', { method: 'POST' });
+      showToast(record.cells[0] + "'s clock has been stopped.", 'success');
+      await renderAdminSection();
+    } catch (error) {
+      showToast(error.message || 'Could not stop this employee clock.', 'error');
+      button.disabled = false; button.innerHTML = icon('log-out') + 'Stop clock';
+    }
+  }));
+}
+
 async function applyLiveData(key, view, pageState = null, filters = {}) {
   if (key === 'users') {
     const params = new URLSearchParams();
@@ -53,9 +86,15 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     if (filters.employee) params.set('employee', filters.employee);
     if (filters.project) params.set('project', filters.project);
     if (filters.remarks) params.set('remarks', filters.remarks);
+    // Active entries are a separate, one-time snapshot for the admin review
+    // panel. This intentionally does not add page polling or realtime listeners.
+    const activeRequest = liveRequest('/v1/time-entries?status=ACTIVE&page=1&pageSize=100');
     const response = await liveRequest('/v1/time-entries' + (params.size ? '?' + params.toString() : ''));
+    const [activeResponse] = await Promise.all([activeRequest]);
     const items = response.items || response; view.total = response.total ?? items.length;
-    const remarks = items.length ? await liveRequest('/v1/admin-remarks?timeEntryIds=' + encodeURIComponent(items.map(item => item.id).join(','))) : [];
+    const activeItems = activeResponse.items || activeResponse;
+    const entryIds = [...new Set([...items, ...activeItems].map(item => item.id))];
+    const remarks = entryIds.length ? await liveRequest('/v1/admin-remarks?timeEntryIds=' + encodeURIComponent(entryIds.join(','))) : [];
     const remarksByEntry = new Map();
     remarks.forEach(remark => {
       const list = remarksByEntry.get(remark.time_entry_id) || [];
@@ -71,8 +110,10 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     const now = Date.now();
     const liveWorkedSeconds = item => Math.max(0, Math.floor((now - new Date(item.clock_in_at).getTime()) / 1000));
     const total = items.reduce((sum, item) => sum + (item.duration_seconds || (!item.clock_out_at ? liveWorkedSeconds(item) : 0)), 0);
-    view.records = items.map(item => { const entryRemarks = remarksByEntry.get(item.id) || []; return { id: item.id, userId: item.user_id, userRole: item.profiles?.role, clockInAt: item.clock_in_at, clockOutAt: item.clock_out_at, scheduledEndTime: item.scheduled_end_time, scheduleType: item.schedule_type, overtimeApprovedSeconds: item.overtime_approved_seconds || 0, overtimeApprovedAt: item.overtime_approved_at, remarks: entryRemarks, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || '—', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : duration(liveWorkedSeconds(item)), item.overtime_approved_seconds ? duration(item.overtime_approved_seconds) : '—', entryRemarks.length ? `${entryRemarks.length} remark${entryRemarks.length === 1 ? '' : 's'}` : '—', 'Add remark'] }; });
-    view.stats = [[duration(total), 'Tracked time', 'timer'], [items.filter(item => !item.clock_out_at).length, 'Open entries', 'circle-alert'], [items.length, 'Time entries', 'check']];
+    const toEntryRecord = item => { const entryRemarks = remarksByEntry.get(item.id) || []; return { id: item.id, userId: item.user_id, userRole: item.profiles?.role, clockInAt: item.clock_in_at, clockOutAt: item.clock_out_at, scheduledEndTime: item.scheduled_end_time, scheduleType: item.schedule_type, overtimeApprovedSeconds: item.overtime_approved_seconds || 0, overtimeApprovedAt: item.overtime_approved_at, remarks: entryRemarks, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || '—', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : duration(liveWorkedSeconds(item)), item.overtime_approved_seconds ? duration(item.overtime_approved_seconds) : '—', entryRemarks.length ? `${entryRemarks.length} remark${entryRemarks.length === 1 ? '' : 's'}` : '—', 'Add remark'] }; };
+    view.records = items.map(toEntryRecord);
+    view.activeRecords = activeItems.map(toEntryRecord);
+    view.stats = [[duration(total), 'Tracked time', 'timer'], [view.activeRecords.length, 'Open entries', 'circle-alert'], [items.length, 'Time entries', 'check']];
   } else if (key === 'audit') {
     const params = new URLSearchParams(); if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); } if (filters.q) params.set('q', filters.q);
     const response = await liveRequest('/v1/audit-logs' + (params.size ? '?' + params : '')); const items = response.items || response; view.total = response.total ?? items.length;
@@ -512,6 +553,7 @@ async function renderAdminSection() {
   }
   const renderStats = () => { document.getElementById('sectionStats').innerHTML = view.stats.map(item => '<div class="stat-card"><div class="stat-icon">' + icon(item[2]) + '</div><div class="stat-info"><div class="stat-number">' + esc(item[0]) + '</div><div class="stat-label">' + esc(item[1]) + '</div></div></div>').join(''); };
   renderStats();
+  if (key === 'entries') renderActiveEntriesPanel(view.activeRecords);
   const tableTitle = document.getElementById('sectionTableTitle'); tableTitle.textContent = view.title;
   document.getElementById('sectionTableHead').innerHTML = '<tr>' + view.columns.map(column => '<th>' + esc(column) + '</th>').join('') + '</tr>';
   const body = document.getElementById('sectionTableBody');
@@ -699,7 +741,7 @@ async function renderAdminSection() {
     const table = body.closest('.table-container'); table?.classList.add('is-data-refreshing'); table?.setAttribute('aria-busy', 'true');
     try {
       await applyLiveData(key, view, pageState, activeFilters);
-      renderStats(); draw(view.records); setCount(view.records);
+      renderStats(); if (key === 'entries') renderActiveEntriesPanel(view.activeRecords); draw(view.records); setCount(view.records);
     } catch (error) { showToast(error.message || 'Could not load this page.', 'error'); }
     finally { table?.classList.remove('is-data-refreshing'); table?.removeAttribute('aria-busy'); }
   };
