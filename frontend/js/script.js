@@ -14,6 +14,7 @@ const AppState = {
     onlineCountInterval: null,
     liveDataInterval: null,
     liveRefreshInFlight: false,
+    liveDataSignature: null,
     clockInTime: null,
     timerInterval: null,
     remarkNotificationInterval: null,
@@ -2337,11 +2338,27 @@ function stopPresenceHeartbeat() {
 // Presence only tells us that a browser is open. Operational information needs
 // a separate, quiet refresh so admins see new clock-ins and clock-outs,
 // people coming online, and new remarks without reloading the workspace.
+function liveWorkspaceSignature() {
+    return JSON.stringify({
+        entries: AppState.timeEntries.map(entry => [entry.TimeEntryId, entry.ClockInAt, entry.ClockOutAt, entry.DurationSeconds, entry.ProjectId]).sort(),
+        remarks: AppState.adminRemarks.map(remark => [remark.RemarkId, remark.SeenAt, remark.CreatedAt]).sort(),
+        users: AppState.users.map(user => [user.UserId, user.Status, user.LastSeenAt, user.DepartmentId, user.Role]).sort(),
+        projects: AppState.projects.map(project => [project.ProjectId, project.ProjectName, project.IsActive]).sort(),
+        departments: AppState.departments.map(department => [department.DepartmentId, department.DepartmentName, department.IsActive]).sort(),
+        reports: AppState.reports.map(report => [report.ReportId, report.GeneratedAt]).sort(),
+        schedule: AppState.assignedSchedule?.id || AppState.assignedSchedule?.schedule_id || null,
+        assignments: AppState.userProjects.map(item => [item.UserId, item.ProjectId, item.AssignedAt]).sort()
+    });
+}
+
 async function refreshLiveWorkspaceData() {
     if (AppState.liveRefreshInFlight || document.visibilityState !== 'visible' || !window.ACEAuth || !AppState.currentUser) return;
     if (document.querySelector('.modal.active, input:focus, textarea:focus, select:focus')) return;
     AppState.liveRefreshInFlight = true;
     try {
+        const previousSignature = AppState.liveDataSignature || liveWorkspaceSignature();
+        const wasClockedIn = AppState.isClockedIn;
+        const previousSessionId = AppState.currentSession?.TimeEntryId || null;
         const admin = AppState.currentUser.Role === 'ADMIN';
         const requests = [
             loadAllTimeEntries({ mine: !admin }),
@@ -2370,13 +2387,25 @@ async function refreshLiveWorkspaceData() {
         AppState.currentSession = active || null;
         AppState.isClockedIn = Boolean(active);
         AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
-        updateUI();
+        const nextSignature = liveWorkspaceSignature();
+        const changed = nextSignature !== previousSignature;
+        AppState.liveDataSignature = nextSignature;
+        const sessionChanged = wasClockedIn !== AppState.isClockedIn || previousSessionId !== (active?.TimeEntryId || null);
+        if (sessionChanged) {
+            if (AppState.isClockedIn) { startTimer(); updateTimerDisplay(); }
+            else stopTimer();
+            updateUI();
+        }
         // Background polling must not rebuild cards, tables, or filters every
         // 20 seconds. Replacing those nodes made the page visibly jump and
-        // could interrupt someone scanning a record. Keep the live state fresh
-        // and update only the stable dashboard counters in place.
-        refreshLiveDashboardSummary();
-        window.dispatchEvent(new CustomEvent('ace:live-data', { detail: { background: true } }));
+        // could interrupt someone scanning a record. Only change visible
+        // counters or notification content when the fetched data changed.
+        if (changed) {
+            refreshLiveDashboardSummary();
+            updateRemarkNotificationBadge();
+            window.ACERenderNotifications?.();
+            window.dispatchEvent(new CustomEvent('ace:live-data', { detail: { background: true, changed: true } }));
+        }
     } catch (error) {
         // Do not interrupt someone working with a transient status toast. The
         // next scheduled pass recovers when a sleeping service wakes up.
