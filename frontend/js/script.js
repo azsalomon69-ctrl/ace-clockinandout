@@ -1347,7 +1347,7 @@ function initializeAppShell() {
                 const preview = String(conversation.preview || 'New message').replace(/\s+/g, ' ').trim();
                 const shortPreview = preview.length > 90 ? `${preview.slice(0, 89)}…` : preview;
                 const count = conversation.unreadCount > 1 ? `<b>${conversation.unreadCount}</b>` : '';
-                return `<button class="shell-message-notice" type="button" role="menuitem" data-open-chat="${escapeHtml(conversation.id)}"><span class="shell-message-notice-avatar">${avatarContent(conversation.name, conversation.picture)}</span><span class="shell-message-notice-copy"><strong>${escapeHtml(conversation.name || 'Teammate')}</strong><small>${escapeHtml(shortPreview)}</small></span>${count}</button>`;
+                return `<button class="shell-message-notice shell-notification-item" type="button" role="menuitem" data-open-chat="${escapeHtml(conversation.id)}"><span class="shell-message-notice-avatar">${avatarContent(conversation.name, conversation.picture)}</span><span class="shell-message-notice-copy"><strong>${escapeHtml(conversation.name || 'Teammate')}</strong><small>${escapeHtml(shortPreview)}</small></span>${count}</button>`;
             }));
         }
         if (unreadRemarksCount) {
@@ -1361,11 +1361,13 @@ function initializeAppShell() {
                 const title = isAdmin
                     ? `Feedback awaiting review${employee?.FullName ? ` · ${employee.FullName}` : ''}`
                     : `Feedback from ${remark.AdminName || 'an administrator'}`;
-                return `<a href="${href}" role="menuitem"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(preview || 'Open to read the administrator feedback.')}</span></a>`;
+                return `<a class="shell-notification-item shell-remark-notice" href="${href}" role="menuitem"><span class="shell-notification-item-icon">${suppliedIconMarkup('message-circle-more', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(preview || 'Open to read the administrator feedback.')}</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`;
             }));
-            if (unreadRemarksCount > 3) notices.push(`<a href="${isAdmin ? 'admin-time-entries.html?remarks=with' : 'remarks.html'}" role="menuitem"><strong>${unreadRemarksCount - 3} more unread remark${unreadRemarksCount === 4 ? '' : 's'}</strong><span>Open the feedback list to review them.</span></a>`);
+            if (unreadRemarksCount > 3) notices.push(`<a class="shell-notification-item shell-notification-more" href="${isAdmin ? 'admin-time-entries.html?remarks=with' : 'remarks.html'}" role="menuitem"><span class="shell-notification-item-icon">${suppliedIconMarkup('bell', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${unreadRemarksCount - 3} more unread remark${unreadRemarksCount === 4 ? '' : 's'}</strong><small>Open the feedback list to review them.</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`);
         }
-        notificationMenu.innerHTML = `<p class="shell-topbar-menu-title">Notifications</p>${notices.length ? notices.join('') : '<p class="shell-topbar-empty">You’re all caught up.</p>'}`;
+        const countLabel = total ? `<span class="shell-notification-count">${total > 99 ? '99+' : total} new</span>` : '';
+        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>Messages and administrator feedback will appear here.</span></div>`;
+        notificationMenu.innerHTML = `<div class="shell-notification-header"><div><p class="shell-topbar-menu-title">Notifications</p><strong>Stay up to date</strong></div>${countLabel}</div><div class="shell-notification-list">${notices.length ? notices.join('') : emptyState}</div>`;
         notificationMenu.querySelectorAll('[data-open-chat]').forEach(button => button.addEventListener('click', () => {
             setTopbarMenu(notificationButton, notificationMenu, false);
             const contactId = button.dataset.openChat;

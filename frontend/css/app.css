@@ -12919,6 +12919,167 @@ html[data-theme="dark"] .shell-message-notice-avatar {
 html[data-theme="dark"] .shell-topbar-menu .shell-message-notice-copy strong {
   color: var(--ace-text-primary)
 }
+/* Notification menu: messages and feedback need clear, scannable hierarchy. */
+.shell-notification-menu {
+  width: min(360px, calc(100vw - 28px));
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 14px;
+}
+.shell-notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 15px 12px;
+  background: linear-gradient(135deg, #f5fcfd, #e9f8fa);
+  border-bottom: 1px solid #d8edf0;
+}
+.shell-notification-header .shell-topbar-menu-title {
+  margin: 0 0 3px;
+}
+.shell-notification-header > div > strong {
+  display: block;
+  color: var(--ace-ink);
+  font: 750 .84rem 'Montserrat',Arial,sans-serif;
+}
+.shell-notification-count {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  color: #087489 !important;
+  background: #d7f3f6;
+  border: 1px solid #a9e1e8;
+  border-radius: 999px;
+  font: 800 .62rem/1 'Open Sans',Arial,sans-serif !important;
+}
+.shell-notification-list {
+  display: grid;
+  gap: 4px;
+  max-height: min(430px, 58vh);
+  overflow-y: auto;
+  padding: 8px;
+}
+.shell-topbar-menu .shell-notification-item {
+  min-height: 62px;
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+.shell-topbar-menu .shell-notification-item:hover,
+.shell-topbar-menu .shell-notification-item:focus-visible {
+  background: #effbfc;
+  border-color: #c4e8ed;
+  outline: 0;
+}
+.shell-topbar-menu .shell-remark-notice,
+.shell-topbar-menu .shell-notification-more {
+  grid-template-columns: 34px minmax(0, 1fr) 16px;
+}
+.shell-notification-item-icon {
+  width: 34px;
+  height: 34px;
+  display: grid !important;
+  place-items: center;
+  color: #09829a !important;
+  background: #e4f7f9;
+  border: 1px solid #c3e9ee;
+  border-radius: 10px;
+}
+.shell-notification-item-icon .shell-icon {
+  width: 17px;
+  height: 17px;
+}
+.shell-notification-item-copy {
+  min-width: 0;
+  display: grid !important;
+  gap: 3px;
+}
+.shell-notification-item-copy strong,
+.shell-notification-item-copy small {
+  overflow: hidden;
+  display: block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-notification-item-copy strong {
+  color: var(--ace-ink);
+  font: 750 .73rem 'Open Sans',Arial,sans-serif;
+}
+.shell-notification-item-copy small {
+  color: var(--ace-muted) !important;
+  font: 600 .65rem/1.35 'Open Sans',Arial,sans-serif !important;
+}
+.shell-notification-item-chevron {
+  width: 15px;
+  height: 15px;
+  color: #58909b;
+}
+.shell-topbar-empty {
+  min-height: 164px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 22px;
+  color: var(--ace-muted);
+  text-align: center;
+}
+.shell-topbar-empty > .shell-icon {
+  width: 25px;
+  height: 25px;
+  padding: 10px;
+  color: #11869b;
+  background: #e4f7f9;
+  border: 1px solid #c3e9ee;
+  border-radius: 50%;
+  box-sizing: content-box;
+}
+.shell-topbar-empty strong {
+  color: var(--ace-ink);
+  font: 750 .8rem 'Montserrat',Arial,sans-serif;
+}
+.shell-topbar-empty span {
+  max-width: 230px;
+  color: var(--ace-muted) !important;
+  font: 600 .67rem/1.45 'Open Sans',Arial,sans-serif !important;
+}
+html[data-theme="dark"] .shell-notification-header {
+  background: linear-gradient(135deg, var(--ace-surface-raised), var(--ace-surface));
+  border-color: var(--ace-border);
+}
+html[data-theme="dark"] .shell-notification-header > div > strong,
+html[data-theme="dark"] .shell-notification-item-copy strong,
+html[data-theme="dark"] .shell-topbar-empty strong {
+  color: var(--ace-text-primary);
+}
+html[data-theme="dark"] .shell-notification-count {
+  color: #bceff5 !important;
+  background: rgba(12, 132, 151, .24);
+  border-color: rgba(87, 208, 222, .35);
+}
+html[data-theme="dark"] .shell-topbar-menu .shell-notification-item:hover,
+html[data-theme="dark"] .shell-topbar-menu .shell-notification-item:focus-visible {
+  background: var(--ace-surface-raised);
+  border-color: var(--ace-border-strong);
+}
+html[data-theme="dark"] .shell-notification-item-icon,
+html[data-theme="dark"] .shell-topbar-empty > .shell-icon {
+  color: #bceff5 !important;
+  background: rgba(12, 132, 151, .2);
+  border-color: var(--ace-border-strong);
+}
+html[data-theme="dark"] .shell-notification-item-chevron {
+  color: var(--ace-text-tertiary);
+}
+@media (max-width: 640px) {
+  .shell-notification-menu { width: min(344px, calc(100vw - 24px)); }
+  .shell-notification-list { max-height: min(440px, calc(100dvh - 92px)); }
+}
 .time-entry-detail-header {
   display: flex;
   align-items: flex-start;
