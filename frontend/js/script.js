@@ -275,6 +275,26 @@ function initializeAutocompleteControls(root = document) {
 }
 
 // Live data is supplied exclusively by the Render API and Supabase.
+async function loadAllTimeEntries({ mine = false } = {}) {
+    const pageSize = 100;
+    const entries = [];
+    let page = 1;
+    let total = null;
+
+    do {
+        const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+        if (mine) params.set('mine', 'true');
+        const response = await window.ACEAuth.request(`/v1/time-entries?${params}`);
+        const items = Array.isArray(response) ? response : (response.items || []);
+        entries.push(...items);
+        total = Array.isArray(response) ? null : Number(response.total);
+        if (!items.length || (Number.isFinite(total) && entries.length >= total)) break;
+        page += 1;
+    } while (true);
+
+    return entries;
+}
+
 async function loadDatabase() {
     if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
     const { profile } = await window.ACEAuth.request('/v1/me');
@@ -288,7 +308,7 @@ async function loadDatabase() {
     const [departments, projects, entries, userProjects, remarks, assignedSchedule] = await Promise.all([
         window.ACEAuth.request('/v1/departments'),
         window.ACEAuth.request('/v1/projects'),
-        window.ACEAuth.request(`/v1/time-entries${AppState.currentUser.Role === 'ADMIN' ? '' : '?mine=true'}`),
+        loadAllTimeEntries({ mine: AppState.currentUser.Role !== 'ADMIN' }),
         window.ACEAuth.request('/v1/user-projects'),
         window.ACEAuth.request('/v1/admin-remarks'),
         window.ACEAuth.request('/v1/my-schedule')
@@ -2309,7 +2329,7 @@ async function refreshLiveWorkspaceData() {
     try {
         const admin = AppState.currentUser.Role === 'ADMIN';
         const requests = [
-            window.ACEAuth.request(`/v1/time-entries${admin ? '' : '?mine=true'}`),
+            loadAllTimeEntries({ mine: !admin }),
             window.ACEAuth.request('/v1/admin-remarks'),
             window.ACEAuth.request('/v1/my-schedule'),
             window.ACEAuth.request('/v1/user-projects')

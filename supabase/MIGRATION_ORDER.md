@@ -28,6 +28,7 @@ Run these files in this order:
 18. `migrations/0015_atomic_archive_restore_auth_state.sql`
 19. `migrations/0016_idempotent_user_status_audit.sql`
 20. `migrations/0017_idempotent_user_role_audit.sql`
+21. `migrations/0018_time_entry_clock_in_audit.sql`
 
 Then run:
 
@@ -54,7 +55,8 @@ Do not rerun `schema.sql` over a working production database.
 7. Apply `migrations/0015_atomic_archive_restore_auth_state.sql` after 0014. It places Auth ban/unban state, profile state, and audit evidence in the archive/restore transaction.
 8. Apply `migrations/0016_idempotent_user_status_audit.sql` after 0015. It makes approval/denial retries audit-idempotent.
 9. Apply `migrations/0017_idempotent_user_role_audit.sql` after 0016. It makes role-change retries audit-idempotent.
-10. Run `npm run db:verify` and resolve any reported missing table, column, or RPC before deploying the API.
+10. Apply `migrations/0018_time_entry_clock_in_audit.sql` after 0017. It backfills missing clock-in audit evidence and makes future clock-ins atomic with their audit record.
+11. Run `npm run db:verify` and resolve any reported missing table, column, or RPC before deploying the API.
 
 The repository retains several older, feature-specific SQL files because earlier deployments may have applied them individually. They are not extra steps on top of the current fresh-install order unless a maintainer has specifically identified a missing feature. Do not blindly re-run historical patches such as schedule, break, notes, or soft-delete migrations against a current schema.
 

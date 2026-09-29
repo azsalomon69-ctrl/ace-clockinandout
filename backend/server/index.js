@@ -341,11 +341,6 @@ async function guardProfileLifecycle(req, res, target, changes, { operation }) {
 async function audit(req, action, entityType, entityId, description) {
   await db.from('audit_logs').insert({ user_id: req.profile?.id || null, action, entity_type: entityType, entity_id: isUuid(entityId) ? entityId : null, description, ip_address: req.ip, user_agent: req.get('user-agent'), request_id: req.requestId }).then(({ error }) => { if (error) console.error(`audit log request_id=${req.requestId}:`, error.message); });
 }
-function clockingDevice(req) {
-  const userAgent = req.get('user-agent') || '';
-  return /Android|iPhone|iPad|iPod|Mobile|Windows Phone|IEMobile|Opera Mini/i.test(userAgent) ? 'mobile' : 'pc web';
-}
-
 // Render uses this endpoint to decide whether this instance can actually
 // serve requests.  A process-only check hides broken Supabase credentials or
 // a paused/unreachable database, then the UI fails later with opaque errors.
@@ -865,9 +860,14 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
     target_seconds: null,
     scheduled_weekdays: null
   };
-  const entry = await query(db.from('time_entries').insert({ user_id: req.profile.id, project_id: projectId, ...scheduleSnapshot }).select().single());
-  const device = clockingDevice(req);
-  await audit(req, `CLOCK_IN (${device})`, 'TIME_ENTRY', entry.id, `Started a time entry from ${device}`);
+  const { data: entry, error } = await db.rpc('clock_in_entry_with_audit', {
+    p_actor_user_id: req.profile.id, p_project_id: projectId,
+    p_schedule_id: scheduleSnapshot.schedule_id, p_schedule_type: scheduleSnapshot.schedule_type,
+    p_scheduled_start_time: scheduleSnapshot.scheduled_start_time, p_scheduled_end_time: scheduleSnapshot.scheduled_end_time,
+    p_target_seconds: scheduleSnapshot.target_seconds, p_scheduled_weekdays: scheduleSnapshot.scheduled_weekdays,
+    p_ip_address: req.ip, p_user_agent: req.get('user-agent'), p_request_id: req.requestId
+  });
+  if (error) throw error;
   res.status(201).json(entry);
 } catch (error) { next(error); } });
 app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try {
