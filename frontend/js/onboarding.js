@@ -12,6 +12,7 @@ window.ACETutorial = (() => {
     let placementFrame;
     let focusCleanup;
     let currentStepIndex;
+    let persistenceQueue = Promise.resolve();
 
     const pageName = () => {
         const part = location.pathname.split('/').pop() || '';
@@ -37,20 +38,35 @@ window.ACETutorial = (() => {
         return 'NONE';
     };
 
-    async function persist(patch) {
+    async function persist(patch, { fallbackAlreadySaved = false } = {}) {
         const payload = { ...patch, version: roleConfig.version };
         const apply = async () => window.ACEAuth.request('/v1/me/tutorial', { method: 'PATCH', body: JSON.stringify(payload) });
         // Store first: a tab closing mid-request may never run a rejection handler.
-        setFallback(payload);
+        if (!fallbackAlreadySaved) setFallback(payload);
         try {
             const result = await apply().catch(async error => { await new Promise(resolve => setTimeout(resolve, 250)); return apply(); });
             profile.RawTutorial = result.profile;
-            removeFallback();
+            // Do not clear a newer local step while an earlier queued save is
+            // completing. The newest step remains the resume source until its
+            // own request confirms it.
+            const local = fallback();
+            if (local?.status === payload.status && Number(local?.step) === payload.step && Number(local?.version) === payload.version) removeFallback();
             return true;
         } catch (error) {
             console.warn('[onboarding] Could not save tutorial state; using this browser until the next successful save.', error);
             return false;
         }
+    }
+    function queuePersist(patch) {
+        // A tutorial should never appear frozen while a save waits on the
+        // network. Save the local resume point immediately, then serialize
+        // API updates so quick Next clicks cannot write steps out of order.
+        const payload = { ...patch, version: roleConfig.version };
+        setFallback(payload);
+        persistenceQueue = persistenceQueue
+            .catch(() => false)
+            .then(() => persist(patch, { fallbackAlreadySaved: true }));
+        return persistenceQueue;
     }
     const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
     // Keep the compact hide/restore control phone-only. Desktop tutorials
@@ -420,7 +436,7 @@ window.ACETutorial = (() => {
         return isMobile() ? document.querySelector('.shell-mobile-toggle') : null;
     };
     async function pauseForNavigation(stepIndex) {
-        await persist({ status: 'IN_PROGRESS', step: stepIndex });
+        void queuePersist({ status: 'IN_PROGRESS', step: stepIndex });
         close();
         // On phones, expose the sidebar after the guide closes so the next
         // action is exactly the navigation instruction the user was given.
@@ -482,6 +498,7 @@ window.ACETutorial = (() => {
                 if (overlay === ui && active) showNavigationStep(stepIndex, step);
             });
             const accountToggle = document.querySelector('.shell-account');
+            const sidebarToggle = document.querySelector('.shell-collapse');
             if (target === accountToggle) accountToggle?.addEventListener('click', refreshNavigation, { once: true });
             window.addEventListener('ace:sidebar-state-change', refreshNavigation, { once: true });
             if (target.matches('.shell-nav-group-toggle') && target !== sidebarToggle) target.addEventListener('click', refreshNavigation, { once: true });
@@ -494,13 +511,13 @@ window.ACETutorial = (() => {
         if (!step) return finish('COMPLETED');
         currentStepIndex = stepIndex;
         if (pageName() !== step.page) {
-            await persist({ status: 'IN_PROGRESS', step: stepIndex });
+            void queuePersist({ status: 'IN_PROGRESS', step: stepIndex });
             await showNavigationStep(stepIndex, step);
             return;
         }
         const target = await waitForTarget(step.target);
         if (step.optional && !targetIsVisible(target)) {
-            await persist({ status: 'IN_PROGRESS', step: stepIndex + 1 });
+            void queuePersist({ status: 'IN_PROGRESS', step: stepIndex + 1 });
             return showStep(stepIndex + 1);
         }
         if (!active && overlay) return;
@@ -519,12 +536,12 @@ window.ACETutorial = (() => {
         }
         ui.querySelector('[data-tutorial-next]').focus();
     }
-    async function go(step) { await persist({ status: 'IN_PROGRESS', step }); await showStep(step); }
-    async function finish(status) { await persist({ status, step: status === 'COMPLETED' ? roleConfig.steps.length : 0 }); close(); }
+    async function go(step) { void queuePersist({ status: 'IN_PROGRESS', step }); await showStep(step); }
+    async function finish(status) { void queuePersist({ status, step: status === 'COMPLETED' ? roleConfig.steps.length : 0 }); close(); }
     async function start({ fromBeginning = false } = {}) {
         const matching = roleConfig.steps.findIndex(step => step.page === pageName());
         const index = fromBeginning ? 0 : (matching >= 0 && !roleConfig.steps[0].forcePage ? matching : 0);
-        await persist({ status: 'IN_PROGRESS', step: index });
+        void queuePersist({ status: 'IN_PROGRESS', step: index });
         await showStep(index);
     }
     async function initialize() {
@@ -532,7 +549,7 @@ window.ACETutorial = (() => {
         roleConfig = window.ACETutorialConfig?.[profile?.Role];
         if (!profile || profile.Status !== 'ACTIVE' || !roleConfig) return;
         const local = fallback();
-        if (local) await persist(local);
+        if (local) await queuePersist(local);
         const state = tutorialState();
         if (state.version !== roleConfig.version) {
             // A content update must never override an administrator's choice
@@ -541,14 +558,14 @@ window.ACETutorial = (() => {
             // unfinished tour can continue it, while genuinely new accounts
             // still receive the welcome prompt.
             if (['SKIPPED', 'COMPLETED'].includes(state.status)) {
-                await persist({ status: state.status, step: state.step });
+                await queuePersist({ status: state.status, step: state.step });
                 return;
             }
             if (state.status === 'IN_PROGRESS') {
-                await persist({ status: 'IN_PROGRESS', step: Math.min(state.step, roleConfig.steps.length - 1) });
+                await queuePersist({ status: 'IN_PROGRESS', step: Math.min(state.step, roleConfig.steps.length - 1) });
                 return showStep(Math.min(state.step, roleConfig.steps.length - 1));
             }
-            await persist({ status: 'NOT_STARTED', step: 0 });
+            await queuePersist({ status: 'NOT_STARTED', step: 0 });
             welcome();
             return;
         }

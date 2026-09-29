@@ -86,7 +86,9 @@ test('tutorial launch rules welcome, resume, or stay quiet as appropriate', () =
 
 test('tutorial updates preserve a prior skip or completion choice', () => {
   assert.match(engineSource, /\['SKIPPED', 'COMPLETED'\]\.includes\(state\.status\)/, 'A tutorial update must respect an existing skip or completion choice');
-  assert.match(engineSource, /await persist\(\{ status: state\.status, step: state\.step \}\)/, 'A skipped or completed tutorial should be silently updated to the current version');
+  assert.match(engineSource, /await queuePersist\(\{ status: state\.status, step: state\.step \}\)/, 'A skipped or completed tutorial should be silently updated to the current version');
+  assert.match(engineSource, /let persistenceQueue = Promise\.resolve\(\)/, 'Tutorial saves should be serialized without blocking guide controls');
+  assert.match(engineSource, /async function go\(step\) \{ void queuePersist\(/, 'Next should advance immediately instead of waiting for a tutorial-state request');
 });
 
 test('tutorial guides navigation instead of forcing a page change', () => {
