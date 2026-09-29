@@ -5,6 +5,7 @@ import test from 'node:test';
 
 const shellSource = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
 const adminSectionsSource = readFileSync(new URL('../../frontend/js/admin-sections.js', import.meta.url), 'utf8');
+const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
 const upgradeSource = readFileSync(new URL('../../supabase/current-production-upgrade.sql', import.meta.url), 'utf8');
 const migrationSource = readFileSync(new URL('../../supabase/migrations/0019_admin_remark_notifications.sql', import.meta.url), 'utf8');
 
@@ -22,4 +23,8 @@ test('both employee and administrator bells surface unread administrator feedbac
   assert.match(shellSource, /remarks\.html\?remark=\$\{encodeURIComponent\(remark\.RemarkId\)\}/, 'Employee bell items should open the specific feedback item');
   assert.match(shellSource, /function startRemarkNotifications\(\) \{\s+if \(AppState\.remarkNotificationInterval\) return;/, 'Remark polling should run for both active roles');
   assert.match(adminSectionsSource, /requestedRemarks === 'with' \|\| requestedRemarks === 'without'/, 'Administrator bell items should open the matching feedback filter');
+  assert.match(shellSource, /remark-notification-target/, 'A selected employee bell item should receive a dedicated remark-card target');
+  assert.match(shellSource, /target\.scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/, 'The selected remark should scroll into view');
+  assert.match(shellSource, /target\.classList\.remove\('remark-notification-target'\)/, 'The guidance highlight should clear after it has helped the employee');
+  assert.match(styles, /\.remark-item\.remark-notification-target/, 'The notification target needs a visible card highlight');
 });

@@ -3716,9 +3716,15 @@ function loadRemarksPage() {
         const entryDate = entry ? new Date(entry.ClockInAt).toLocaleString() : 'Related time entry';
         const project = entry?.ProjectId ? AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName : null;
         const selected = String(remark.RemarkId) === requestedRemarkId;
-        return `<article class="remark-item${selected ? ' search-target' : ''}"${selected ? ' tabindex="-1"' : ''}><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${escapeHtml(project || 'No project')} · Time entry: ${escapeHtml(entryDate)} · Added ${new Date(remark.CreatedAt).toLocaleString()}</small></article>`;
+        return `<article class="remark-item${selected ? ' remark-notification-target' : ''}"${selected ? ' tabindex="-1"' : ''}><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>${escapeHtml(project || 'No project')} · Time entry: ${escapeHtml(entryDate)} · Added ${new Date(remark.CreatedAt).toLocaleString()}</small></article>`;
         }).join('') : emptyState('No administrator notes yet', 'Notes from your administrator will appear here.');
-    if (requestedRemarkId) requestAnimationFrame(() => list.querySelector('.search-target')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    if (requestedRemarkId) requestAnimationFrame(() => requestAnimationFrame(() => {
+        const target = list.querySelector('.remark-notification-target');
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.focus({ preventScroll: true });
+        window.setTimeout(() => target.classList.remove('remark-notification-target'), 2600);
+    }));
 }
 
 function updateRemarkNotificationBadge() {

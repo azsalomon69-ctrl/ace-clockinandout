@@ -3515,8 +3515,20 @@ body {
   outline-offset: -3px;
   animation: ace-search-target 1.8s ease-out 1
 }
+.remark-item.remark-notification-target {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgba(8,162,194,.65);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 8px rgba(8,162,194,.12),0 10px 24px rgba(3,45,61,.14);
+  animation: ace-remark-notification-target 2.6s ease-out both
+}
 @keyframes ace-search-target {
   0%, 40% { background: rgba(8,162,194,.18); }
+  100% { background: transparent; }
+}
+@keyframes ace-remark-notification-target {
+  0%, 38% { background: rgba(8,162,194,.18); }
   100% { background: transparent; }
 }
 .shell-topbar-actions {
