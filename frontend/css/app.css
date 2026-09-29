@@ -11746,6 +11746,13 @@ html[data-theme="dark"] .employee-chat-search input::placeholder {
   font-size: .66rem;
   font-style: italic
 }
+.employee-chat-thread-head .employee-chat-typing[hidden] {
+  display: none!important
+}
+.employee-chat-contact > div small.is-typing {
+  color: var(--ace-cyan-dark);
+  font-style: italic
+}
 .employee-chat-thread-head .employee-chat-typing span {
   display: inline-block;
   animation: ace-chat-typing-dots .9s steps(3,end) infinite
@@ -11755,6 +11762,7 @@ html[data-theme="dark"] .employee-chat-search input::placeholder {
   100% { opacity: 1; }
 }
 html[data-theme="dark"] .employee-chat-thread-head .employee-chat-typing { color: #8bdae6; }
+html[data-theme="dark"] .employee-chat-contact > div small.is-typing { color: #8bdae6; }
 html[data-theme="dark"] .employee-chat-contact > div small {
   color: #9bb6bc
 }

@@ -26,6 +26,8 @@ test('chat typing feedback is private, temporary, and cleared when a message is 
   assert.match(serverSource, /app\.post\('\/v1\/employee-chat\/typing', authenticate, activeOnly/, 'Typing feedback must require an active signed-in participant');
   assert.match(serverSource, /publishChatEvent\(recipientId, \{ type: 'typing', contactId: req\.profile\.id, active \}\)/, 'Typing feedback should be delivered only to the selected recipient');
   assert.match(shellSource, /employee-chat-typing/, 'The active conversation should show a typing indicator');
+  assert.match(shellSource, /const typingContacts = new Map\(\)/, 'Typing state should be retained for each contact instead of being discarded outside the active thread');
+  assert.match(shellSource, /Typing…/, 'The contact list should show who is typing before the recipient opens that conversation');
   assert.match(shellSource, /void publishTyping\(false\);/, 'Typing should clear on send, close, navigation, and page exit');
-  assert.match(shellSource, /typingClearTimer = window\.setTimeout/, 'The indicator should clear if a stop event is lost');
+  assert.match(shellSource, /typingClearTimers\.set\(id, window\.setTimeout/, 'The indicator should clear if a stop event is lost');
 });
