@@ -4,7 +4,8 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { randomUUID } from 'node:crypto';
+import { createHash, createPublicKey, randomUUID } from 'node:crypto';
+import jwt from 'jsonwebtoken';
 import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
@@ -21,6 +22,49 @@ const cloudinaryConfigured = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CL
 if (cloudinaryConfigured) cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET, secure: true });
 const app = express();
 const chatSubscribers = new Map();
+const authUserCache = new Map();
+const profileCache = new Map();
+const avatarPersistenceCache = new Map();
+const revokedTokenCache = new Map();
+const referenceDataCache = new Map();
+const pendingPresence = new Map();
+let supabaseJwksCache = { keys: new Map(), expiresAt: 0, refresh: null };
+const cacheMaxEntries = 500;
+const referenceDataTtlMs = 15 * 60 * 1000;
+const cached = (cache, key, ttlMs, loader) => {
+  const now = Date.now();
+  for (const [expiredKey, value] of cache) if (value.expiresAt <= now) cache.delete(expiredKey);
+  const existing = cache.get(key);
+  if (existing && existing.expiresAt > now) return existing.promise;
+  if (cache.size >= cacheMaxEntries) cache.delete(cache.keys().next().value);
+  const promise = Promise.resolve().then(loader).catch(error => { cache.delete(key); throw error; });
+  cache.set(key, { promise, expiresAt: now + ttlMs });
+  return promise;
+};
+const tokenCacheKey = token => createHash('sha256').update(token).digest('base64url');
+const revokeToken = tokenKey => {
+  const now = Date.now();
+  for (const [expiredKey, expiresAt] of revokedTokenCache) if (expiresAt <= now) revokedTokenCache.delete(expiredKey);
+  if (revokedTokenCache.size >= cacheMaxEntries) revokedTokenCache.delete(revokedTokenCache.keys().next().value);
+  revokedTokenCache.set(tokenKey, now + 60 * 60 * 1000);
+};
+const clearReferenceData = prefix => {
+  for (const key of referenceDataCache.keys()) if (key.startsWith(prefix)) referenceDataCache.delete(key);
+};
+const queuePresence = userId => pendingPresence.set(userId, Date.now());
+const flushPresence = async userIds => {
+  const ids = userIds || [...pendingPresence.keys()];
+  if (!ids.length) return;
+  const snapshots = new Map(ids.map(id => [id, pendingPresence.get(id)]));
+  // A shared timestamp allows this to remain one PostgREST UPDATE instead of
+  // one write per heartbeat. It is presence bookkeeping, never clock data.
+  await query(db.from('profiles').update({ last_seen_at: new Date().toISOString() }).in('id', ids));
+  for (const [id, queuedAt] of snapshots) if (pendingPresence.get(id) === queuedAt) pendingPresence.delete(id);
+};
+const presenceFlushTimer = setInterval(() => {
+  flushPresence().catch(error => console.error('presence flush failed:', error.message));
+}, 5 * 60 * 1000);
+presenceFlushTimer.unref();
 const publishChatEvent = (userId, detail) => {
   const subscribers = chatSubscribers.get(userId);
   if (!subscribers) return;
@@ -72,7 +116,9 @@ app.use((req, res, next) => {
   next();
 });
 morgan.token('request-id', req => req.requestId || '-');
-app.use(morgan(process.env.NODE_ENV === 'production' ? ':remote-addr :method :url :status :res[content-length] - :response-time ms request_id=:request-id' : 'dev request_id=:request-id'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? ':remote-addr :method :url :status :res[content-length] - :response-time ms request_id=:request-id' : 'dev request_id=:request-id', {
+  skip: (_req, res) => process.env.NODE_ENV === 'production' && res.statusCode < 400
+}));
 // Render is a reverse-proxy deployment. Trusting its first proxy hop gives
 // rate limiting the actual visitor address instead of the proxy address.
 app.set('trust proxy', 1);
@@ -264,59 +310,115 @@ app.param('projectId', (req, res, next, id) => isUuid(id) ? next() : fail(res, 4
 const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
 const isAllowedCompanyEmail = email => !allowedDomains.length || allowedDomains.some(domain => email.endsWith(`@${domain}`));
 const googleAvatarUrl = user => {
-  const candidates = [
-    user?.user_metadata?.avatar_url,
-    user?.user_metadata?.picture,
-    ...((user?.identities || []).flatMap(identity => [identity.identity_data?.avatar_url, identity.identity_data?.picture]))
-  ];
+  const candidates = [user?.user_metadata?.avatar_url, user?.user_metadata?.picture, ...((user?.identities || []).flatMap(identity => [identity.identity_data?.avatar_url, identity.identity_data?.picture]))];
   return candidates.find(value => {
     if (typeof value !== 'string' || value.length > 2048) return false;
     try { return new URL(value).protocol === 'https:'; } catch { return false; }
   }) || null;
 };
-// A custom Cloudinary photo is always preferred. Google metadata is used only
-// as a display fallback, so older accounts do not degrade to an initial while
-// their provider already has a picture available.
-const applyGoogleAvatarFallback = (profiles, authUsers = []) => {
-  const googleAvatarById = new Map(authUsers.map(user => [user.id, googleAvatarUrl(user)]));
-  return profiles.map(profile => ({
-    ...profile,
-    profile_picture_url: profile.profile_picture_url || googleAvatarById.get(profile.id) || null
+const persistGoogleAvatar = async (profile, user) => {
+  if (profile.profile_picture_url || profile.profile_picture_public_id) return profile;
+  const avatarUrl = googleAvatarUrl(user);
+  if (!avatarUrl) return profile;
+  const persisted = await cached(avatarPersistenceCache, profile.id, 60_000, async () => {
+    const { data, error } = await db.from('profiles').update({ profile_picture_url: avatarUrl })
+      .eq('id', profile.id).is('profile_picture_url', null).select().maybeSingle();
+    return error || !data ? profile : data;
+  });
+  profileCache.set(profile.id, { promise: Promise.resolve(persisted), expiresAt: Date.now() + 5_000 });
+  return persisted;
+};
+const supabaseJwtSecret = process.env.SUPABASE_JWT_SECRET?.trim();
+const supabaseJwtIssuer = `${process.env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1`;
+const supabaseJwksUrl = `${supabaseJwtIssuer}/.well-known/jwks.json`;
+const getSupabaseJwks = async forceRefresh => {
+  if (!forceRefresh && supabaseJwksCache.expiresAt > Date.now()) return supabaseJwksCache.keys;
+  if (!forceRefresh && supabaseJwksCache.refresh) return supabaseJwksCache.refresh;
+  const refresh = (async () => {
+    const response = await fetch(supabaseJwksUrl);
+    if (!response.ok) throw new Error('Supabase signing keys are unavailable');
+    const payload = await response.json();
+    const keys = new Map((payload.keys || [])
+      .filter(key => key.kid && key.kty === 'EC' && key.crv === 'P-256' && key.alg === 'ES256' && key.use === 'sig')
+      .map(key => [key.kid, createPublicKey({ key, format: 'jwk' })]));
+    if (!keys.size) throw new Error('Supabase signing keys are unavailable');
+    supabaseJwksCache = { keys, expiresAt: Date.now() + 10 * 60 * 1000, refresh: null };
+    return keys;
+  })();
+  supabaseJwksCache.refresh = refresh;
+  try { return await refresh; } finally {
+    if (supabaseJwksCache.refresh === refresh) supabaseJwksCache.refresh = null;
+  }
+};
+const jwtUser = claims => {
+  if (!claims?.sub || !isUuid(claims.sub)) throw new Error('Invalid or expired session');
+  return {
+    id: claims.sub,
+    email: typeof claims.email === 'string' ? claims.email : undefined,
+    user_metadata: typeof claims.user_metadata === 'object' && claims.user_metadata ? claims.user_metadata : {}
+  };
+};
+const verifySupabaseJwt = async token => {
+  if (supabaseJwtSecret) return jwtUser(jwt.verify(token, supabaseJwtSecret, {
+    algorithms: ['HS256'],
+    audience: 'authenticated',
+    issuer: supabaseJwtIssuer
+  }));
+  const decoded = jwt.decode(token, { complete: true });
+  const kid = decoded?.header?.kid;
+  if (!kid || decoded.header.alg !== 'ES256') throw new Error('Invalid or expired session');
+  let key = (await getSupabaseJwks()).get(kid);
+  if (!key) key = (await getSupabaseJwks(true)).get(kid);
+  if (!key) throw new Error('Invalid or expired session');
+  return jwtUser(jwt.verify(token, key, {
+    algorithms: ['ES256'],
+    audience: 'authenticated',
+    issuer: supabaseJwtIssuer
   }));
 };
-const listAuthUsersForAvatars = async () => {
-  const result = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  // Avatar enrichment must never take down a normal people list if Supabase
-  // Auth is temporarily unavailable.
-  return result.error ? [] : result.data.users;
+const getUserFromGoTrue = (token, tokenKey) => cached(authUserCache, tokenKey, 30_000, async () => {
+  const { data, error } = await db.auth.getUser(token);
+  if (error || !data.user) throw new Error('Invalid or expired session');
+  return data.user;
+});
+const getFreshUserFromGoTrue = async token => {
+  const { data, error } = await db.auth.getUser(token);
+  if (error || !data.user) throw new Error('Invalid or expired session');
+  return data.user;
 };
-
 async function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
   if (!token) return fail(res, 401, 'Missing bearer token');
-  const { data: { user }, error } = await db.auth.getUser(token);
-  if (error || !user) return fail(res, 401, 'Invalid or expired session');
   try {
-    req.profile = await query(db.from('profiles').select('*').eq('id', user.id).is('permanently_deleted_at', null).single());
-    // Backfill an older Google account that was created before avatar metadata
-    // was stored. A Cloudinary upload always wins and is never overwritten.
-    const googleAvatar = googleAvatarUrl(user);
-    if (!req.profile.profile_picture_url && !req.profile.profile_picture_public_id && googleAvatar) {
-      const { data, error: avatarError } = await db.from('profiles')
-        .update({ profile_picture_url: googleAvatar })
-        .eq('id', req.profile.id)
-        .is('profile_picture_url', null)
-        .select()
-        .maybeSingle();
-      if (!avatarError && data) req.profile = data;
+    const tokenKey = tokenCacheKey(token);
+    if (revokedTokenCache.get(tokenKey) > Date.now()) return fail(res, 401, 'Session has ended');
+    // Verify locally against either an explicitly configured legacy HS256
+    // secret or the project's current public ES256 signing keys.
+    let user;
+    try {
+      user = await verifySupabaseJwt(token);
+    } catch {
+      // A stale or rotated local key must not lock out valid sessions. GoTrue
+      // remains the authoritative fallback and rejects invalid/revoked tokens.
+      user = await getUserFromGoTrue(token, tokenKey);
     }
+    req.profile = await cached(profileCache, user.id, 5_000, () => query(db.from('profiles').select('*').eq('id', user.id).is('permanently_deleted_at', null).single()));
+    req.profile = await persistGoogleAvatar(req.profile, user);
     req.authUser = user;
+    req.authToken = token;
+    req.authTokenCacheKey = tokenKey;
     next();
-  } catch { return fail(res, 403, 'User profile is not available'); }
+  } catch (error) { return fail(res, error.message === 'Invalid or expired session' ? 401 : 403, error.message === 'Invalid or expired session' ? error.message : 'User profile is not available'); }
 }
-const adminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profile.status === 'ACTIVE'
-  ? next()
-  : fail(res, 403, 'Active administrator access required');
+const adminOnly = async (req, res, next) => {
+  if (req.profile.role !== 'ADMIN' || req.profile.status !== 'ACTIVE') return fail(res, 403, 'Active administrator access required');
+  try {
+    // Administrator requests deliberately obtain fresh GoTrue metadata. Normal
+    // employee requests use local verification and avoid this Auth log line.
+    req.authUser = await getFreshUserFromGoTrue(req.authToken);
+    return next();
+  } catch { return fail(res, 401, 'Invalid or expired session'); }
+};
 const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() : fail(res, 403, req.profile.status === 'DENIED'
   ? 'Your account is inactive. Contact an administrator if you believe this is a mistake.'
   : 'Your account is not active. Contact your administrator or HR representative for an invitation.');
@@ -326,9 +428,13 @@ const employeeOnly = (req, res, next) => req.profile.role === 'USER' && req.prof
 const canChatWith = (profile, contact) => profile.role === 'ADMIN' || contact.role === 'ADMIN';
 const headAdminEmail = process.env.HEAD_ADMIN_EMAIL?.trim().toLowerCase();
 if (!headAdminEmail) throw new Error('HEAD_ADMIN_EMAIL is required');
-const specialAdminOnly = (req, res, next) => req.profile.role === 'ADMIN' && req.profile.status === 'ACTIVE' && req.profile.email?.toLowerCase() === headAdminEmail
-  ? next()
-  : fail(res, 403, 'This administrator feature is restricted');
+const specialAdminOnly = async (req, res, next) => {
+  if (req.profile.role !== 'ADMIN' || req.profile.status !== 'ACTIVE' || req.profile.email?.toLowerCase() !== headAdminEmail) return fail(res, 403, 'This administrator feature is restricted');
+  try {
+    req.authUser = await getFreshUserFromGoTrue(req.authToken);
+    return next();
+  } catch { return fail(res, 401, 'Invalid or expired session'); }
+};
 const isHeadAdmin = req => req.profile.email?.toLowerCase() === headAdminEmail;
 const protectHeadAdmin = (req, res, target) => {
   if (target.email?.toLowerCase() !== headAdminEmail || isHeadAdmin(req)) return true;
@@ -441,23 +547,28 @@ app.post('/v1/auth/session-start', authenticate, async (req, res, next) => { try
   res.status(204).end();
 } catch (error) { next(error); } });
 app.post('/v1/auth/heartbeat', authenticate, activeOnly, async (req, res, next) => { try {
-  await query(db.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', req.profile.id).select().single());
+  queuePresence(req.profile.id);
   res.status(204).end();
 } catch (error) { next(error); } });
 app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
+  authUserCache.delete(req.authTokenCacheKey);
+  profileCache.delete(req.profile.id);
+  revokeToken(req.authTokenCacheKey);
+  queuePresence(req.profile.id);
+  await flushPresence([req.profile.id]);
   await query(db.from('profiles').update({ last_logout_at: new Date().toISOString() }).eq('id', req.profile.id).select().single());
   await audit(req, 'LOGOUT', 'PROFILE', req.profile.id, 'Signed out successfully');
   res.status(204).end();
 } catch (error) { next(error); } });
-app.get('/v1/departments', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('departments').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
-app.post('/v1/departments', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Department name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('departments').insert({ name, description }).select().single()); await audit(req, 'CREATE', 'DEPARTMENT', item.id, `Created department ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
-app.patch('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Department name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable department fields supplied'); const item = await query(db.from('departments').update(changes).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'DEPARTMENT', item.id, `Updated department ${item.name}`); res.json(item); } catch (error) { next(error); } });
-app.delete('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('departments').delete().eq('id', req.params.id).select().single()); await audit(req, 'DELETE', 'DEPARTMENT', item.id, `Deleted department ${item.name}`); res.json(item); } catch (error) { next(error); } });
+app.get('/v1/departments', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); const load = () => { let request = db.from('departments').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); return pagedResult(request, paging); }; res.json(!paging.paged && !req.query.q ? await cached(referenceDataCache, 'departments', referenceDataTtlMs, load) : await load()); } catch (error) { next(error); } });
+app.post('/v1/departments', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Department name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('departments').insert({ name, description }).select().single()); clearReferenceData('departments'); await audit(req, 'CREATE', 'DEPARTMENT', item.id, `Created department ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
+app.patch('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Department name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable department fields supplied'); const item = await query(db.from('departments').update(changes).eq('id', req.params.id).select().single()); clearReferenceData('departments'); await audit(req, 'UPDATE', 'DEPARTMENT', item.id, `Updated department ${item.name}`); res.json(item); } catch (error) { next(error); } });
+app.delete('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('departments').delete().eq('id', req.params.id).select().single()); clearReferenceData('departments'); await audit(req, 'DELETE', 'DEPARTMENT', item.id, `Deleted department ${item.name}`); res.json(item); } catch (error) { next(error); } });
 
-app.get('/v1/projects', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('projects').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
-app.post('/v1/projects', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Project name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('projects').insert({ name, description }).select().single()); await audit(req, 'CREATE', 'PROJECT', item.id, `Created project ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
-app.patch('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Project name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable project fields supplied'); const item = await query(db.from('projects').update(changes).eq('id', req.params.id).select().single()); await audit(req, 'UPDATE', 'PROJECT', item.id, `Updated project ${item.name}`); res.json(item); } catch (error) { next(error); } });
-app.delete('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('projects').delete().eq('id', req.params.id).select().single()); await audit(req, 'DELETE', 'PROJECT', item.id, `Deleted project ${item.name}`); res.json(item); } catch (error) { next(error); } });
+app.get('/v1/projects', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); const load = () => { let request = db.from('projects').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); return pagedResult(request, paging); }; res.json(!paging.paged && !req.query.q ? await cached(referenceDataCache, 'projects', referenceDataTtlMs, load) : await load()); } catch (error) { next(error); } });
+app.post('/v1/projects', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Project name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('projects').insert({ name, description }).select().single()); clearReferenceData('projects'); await audit(req, 'CREATE', 'PROJECT', item.id, `Created project ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
+app.patch('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Project name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable project fields supplied'); const item = await query(db.from('projects').update(changes).eq('id', req.params.id).select().single()); clearReferenceData('projects'); await audit(req, 'UPDATE', 'PROJECT', item.id, `Updated project ${item.name}`); res.json(item); } catch (error) { next(error); } });
+app.delete('/v1/projects/:id', authenticate, adminOnly, async (req, res, next) => { try { const item = await query(db.from('projects').delete().eq('id', req.params.id).select().single()); clearReferenceData('projects'); await audit(req, 'DELETE', 'PROJECT', item.id, `Deleted project ${item.name}`); res.json(item); } catch (error) { next(error); } });
 app.get('/v1/schedules', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('work_schedules').select('*, user_schedule_assignments(user_id)', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.ilike('name', `%${String(req.query.q).replace(/[%_,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 app.get('/v1/my-schedule', authenticate, activeOnly, async (req, res, next) => { try { const assignment = await query(db.from('user_schedule_assignments').select('assigned_at, work_schedules(*)').eq('user_id', req.profile.id).maybeSingle()); res.json(assignment?.work_schedules || null); } catch (error) { next(error); } });
 app.post('/v1/schedules', authenticate, adminOnly, async (req, res, next) => { try {
@@ -501,14 +612,8 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
     if (term) request = request.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
   }
   if (paged) request = request.range((page - 1) * pageSize, page * pageSize - 1);
-  const [profileResponse, authUsers] = await Promise.all([
-    request,
-    listAuthUsersForAvatars()
-  ]);
-  // Older Google profiles may predate avatar persistence. Use their trusted
-  // Supabase Auth metadata as a read-time fallback without overwriting an
-  // employee's own uploaded profile picture.
-  if (profileResponse.error) throw profileResponse.error; const profiles = profileResponse.data || []; const items = applyGoogleAvatarFallback(profiles, authUsers).map(profile => ({
+  const profileResponse = await request;
+  if (profileResponse.error) throw profileResponse.error; const profiles = profileResponse.data || []; const items = profiles.map(profile => ({
     ...profile,
     is_head_admin: profile.email?.toLowerCase() === headAdminEmail
   }));
@@ -517,10 +622,9 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
   let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
   if (req.profile.role !== 'ADMIN') contactRequest = contactRequest.eq('role', 'ADMIN');
-  const [contacts, unread, authUsers] = await Promise.all([
+  const [contacts, unread] = await Promise.all([
     query(contactRequest),
-    query(db.from('employee_messages').select('sender_id,body,created_at').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null).order('created_at', { ascending: false })),
-    listAuthUsersForAvatars()
+    query(db.from('employee_messages').select('sender_id,body,created_at').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null).order('created_at', { ascending: false }))
   ]);
   const allowedContactIds = new Set(contacts.map(contact => contact.id));
   const unreadByContact = unread.reduce((summary, message) => {
@@ -533,7 +637,7 @@ app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res,
     return summary;
   }, {});
   res.json({
-    contacts: applyGoogleAvatarFallback(contacts, authUsers).map(contact => ({
+    contacts: contacts.map(contact => ({
       ...contact,
       unread_count: unreadByContact[contact.id]?.count || 0,
       last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
@@ -776,28 +880,21 @@ app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => 
   res.json({ items: response.data || [], total: response.count || 0, page, pageSize });
 } catch (error) { next(error); } });
 app.get('/v1/time-leaderboard', authenticate, adminOnly, async (req, res, next) => { try {
-  const [people, entries, authUsers] = await Promise.all([
+  const [people, entries] = await Promise.all([
     query(db.from('profiles').select('id,full_name,profile_picture_url,role').eq('role', 'USER').eq('status', 'ACTIVE').is('permanently_deleted_at', null)),
-    query(db.from('time_entries').select('user_id,duration_seconds').is('deleted_at', null).not('duration_seconds', 'is', null)),
-    listAuthUsersForAvatars()
+    query(db.from('time_entries').select('user_id,duration_seconds').is('deleted_at', null).not('duration_seconds', 'is', null))
   ]);
   const totals = entries.reduce((result, entry) => {
     result[entry.user_id] = (result[entry.user_id] || 0) + Number(entry.duration_seconds || 0);
     return result;
   }, {});
-  const ranked = applyGoogleAvatarFallback(people, authUsers).map(person => ({ ...person, tracked_seconds: totals[person.id] || 0 })).sort((a, b) => b.tracked_seconds - a.tracked_seconds || (a.full_name || '').localeCompare(b.full_name || ''));
+  const ranked = people.map(person => ({ ...person, tracked_seconds: totals[person.id] || 0 })).sort((a, b) => b.tracked_seconds - a.tracked_seconds || (a.full_name || '').localeCompare(b.full_name || ''));
   const ownIndex = ranked.findIndex(person => person.id === req.profile.id);
   res.json({ leaders: ranked.slice(0, 10), my_rank: ownIndex === -1 ? null : ownIndex + 1, total_people: ranked.length });
 } catch (error) { next(error); } });
 app.get('/v1/admin-remarks', authenticate, activeOnly, async (req, res, next) => { try {
-  let visibleEntryIds = null;
-  if (req.profile.role !== 'ADMIN') {
-    const entries = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('deleted_at', null));
-    visibleEntryIds = entries.map(entry => entry.id);
-    if (!visibleEntryIds.length) return res.json([]);
-  }
-  let request = db.from('admin_remarks').select('*, profiles!admin_remarks_admin_user_id_fkey(full_name,email)').order('created_at', { ascending: false });
-  if (visibleEntryIds) request = request.in('time_entry_id', visibleEntryIds);
+  let request = db.from('admin_remarks').select('*, profiles!admin_remarks_admin_user_id_fkey(full_name,email), time_entries!inner(user_id,deleted_at)').order('created_at', { ascending: false });
+  if (req.profile.role !== 'ADMIN') request = request.eq('time_entries.user_id', req.profile.id).is('time_entries.deleted_at', null);
   if (req.query.timeEntryIds && req.profile.role === 'ADMIN') {
     const ids = String(req.query.timeEntryIds).split(',').filter(isUuid);
     if (!ids.length) return res.json([]);
@@ -1006,4 +1103,4 @@ app.use((error, _, res, __) => {
   if (error?.code === '23503') return fail(res, 409, 'This record is connected to company history and must remain archived');
   fail(res, 500, 'Unexpected server error');
 });
-app.listen(process.env.PORT || 3000, () => console.log(`ACE API listening on ${process.env.PORT || 3000}`));
+app.listen(process.env.PORT || 3000);
