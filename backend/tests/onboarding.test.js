@@ -60,6 +60,7 @@ test('every administrator tutorial target exists on its configured page', () => 
   const dynamicTargets = new Map([
     ['#tutorialUserActions', 'admin-user-actions-toggle'],
     ['#adminSectionTabs', 'adminSectionTabs'],
+    ['#activeEntriesPanel', 'activeEntriesPanel'],
     ['#tutorialEntryActions', 'admin-entry-actions-toggle'],
     ['#tutorialAuditEvent', 'admin-audit-details-open'],
     ['#deletedTimeEntriesButton', "deletedTimeEntriesButton"]

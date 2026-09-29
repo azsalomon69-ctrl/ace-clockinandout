@@ -19,7 +19,7 @@ window.ACETutorialConfig = {
     ADMIN: {
         // Bump this whenever administrator guidance materially changes so
         // existing admins are offered the improved tour again.
-        version: 14,
+        version: 15,
         steps: [
             { page: 'admin-dashboard.html', target: '#adminDashboardHeader', title: 'Your admin dashboard', body: 'Start here each day. This header orients you with the current date before you review live work and operational priorities.', navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'admin-dashboard.html', target: '#dashboardQuickActions', title: 'Use quick actions', body: 'These action buttons are the fastest way to invite a team member or open departments, projects, and schedules.' },
@@ -34,6 +34,7 @@ window.ACETutorialConfig = {
             { page: 'schedule-flex.html', target: '#scheduleForm', title: 'Create schedules and flextime', body: 'Set the schedule name, fixed or flex type, workdays and expected hours. At least one working day is required.', navigation: { group: 'Work', label: 'Schedule & flextime' } },
             { page: 'schedule-flex.html', target: '#assignmentForm', title: 'Assign a schedule', body: 'After creating a schedule, choose an active employee and assign it here. This connects the employee to the working-day rules.' },
             { page: 'admin-time-entries.html', target: '#sectionAction', title: 'Review and export time entries', body: 'Choose Export entries here to select a date range and filters, then save a PDF or Excel workbook. The export is also saved automatically in Insights → Reports.', navigation: { group: 'Work', label: 'Time entries' } },
+            { page: 'admin-time-entries.html', target: '#activeEntriesPanel', title: 'Review active employee shifts', body: 'This Active entries panel shows employees who are currently clocked in, including their profile photo, project, clock-in time, and time worked so far. Open remarks to leave feedback, or choose Stop clock only after confirming the employee has finished their shift.' },
             { page: 'admin-time-entries.html', target: '#tutorialEntryActions', title: 'Correct, approve overtime, or remove safely', body: 'Open Actions on an entry row to find Correct time, Approve overtime when eligible, feedback, and Move to deleted. Correct time only for a genuine missed or incorrect clock-in or clock-out.' },
             { page: 'admin-time-entries.html', target: '#deletedTimeEntriesButton', title: 'Restore deleted time entries', body: 'Choose Deleted entries here to open the recovery list. Deleted entries are excluded from normal dashboards and reports; restore one only when it was removed by mistake.', navigation: { group: 'Work', label: 'Time entries' } },
             { page: 'deleted-users.html', target: '#deletedUsersTable', title: 'Restore archived users', body: 'Archived people cannot sign in, but their company history is retained. Restore access here when an account should be active again.', navigation: { group: 'People', label: 'Archived users' } },
