@@ -244,7 +244,7 @@ const buildInvitationEmail = ({ email, role, invitedBy }) => {
   const loginUrl = `${applicationUrl}/login`;
   const preheader = `You have been invited to ACE Clock In/Out as an ${roleName}.`;
   return {
-    subject: `You’re invited to ACE Clock In/Out as ${roleName}`,
+    subject: `You're invited to ACE Clock In/Out as ${roleName}`,
     text: `Hello,\n\n${inviterName} invited ${email} to ACE Clock In/Out as an ${roleName}.\n\n${roleDetails}\n\nOpen ACE Clock: ${loginUrl}\n\nBefore your first shift:\n1. Sign in with the exact Google email that received this invitation.\n2. Complete Profile & settings.\n3. Clock in when you begin work, then clock out when your shift is complete.\n\nIf you cannot sign in, make sure you are using the same Google account this invitation was sent to.\n\nACE Outsource Solutions`,
     // Table-based structure and inline styles deliberately keep the invitation
     // legible in Gmail, Outlook, and other email clients that strip page CSS.
