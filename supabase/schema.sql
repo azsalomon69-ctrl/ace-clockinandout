@@ -178,8 +178,11 @@ begin
   select id, role, department_id into invitation_id, invitation_role, invitation_department_id from public.invitations
   where lower(email) = lower(new.email) and status = 'PENDING' and expires_at > now()
   order by invited_at desc limit 1;
+  if invitation_id is null then
+    raise exception 'INVITATION_REQUIRED' using errcode = 'P0001', message = 'An active invitation is required for this workspace';
+  end if;
   insert into public.profiles (id, email, full_name, profile_picture_url, role, status, department_id)
-  values (new.id, new.email, coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''), new.raw_user_meta_data->>'avatar_url', coalesce(invitation_role, 'USER'::public.user_role), case when invitation_id is null then 'PENDING'::public.user_status else 'ACTIVE'::public.user_status end, invitation_department_id)
+  values (new.id, new.email, coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''), new.raw_user_meta_data->>'avatar_url', invitation_role, 'ACTIVE'::public.user_status, invitation_department_id)
   on conflict (id) do nothing;
   if invitation_id is not null then
     update public.invitations set status = 'ACCEPTED', accepted_at = now() where id = invitation_id;

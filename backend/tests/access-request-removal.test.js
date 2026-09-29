@@ -8,6 +8,7 @@ const shell = readFileSync(new URL('../../frontend/js/script.js', import.meta.ur
 const login = readFileSync(new URL('../../frontend/login.html', import.meta.url), 'utf8');
 const schema = readFileSync(new URL('../../supabase/schema.sql', import.meta.url), 'utf8');
 const removalMigration = readFileSync(new URL('../../supabase/migrations/0020_remove_access_request_flow.sql', import.meta.url), 'utf8');
+const invitationGateMigration = readFileSync(new URL('../../supabase/migrations/0021_require_invitation_for_google_login.sql', import.meta.url), 'utf8');
 
 test('workspace access is administrator-invitation-only', () => {
   assert.doesNotMatch(server, /\/v1\/access-requests/, 'The API must not expose a self-service access-request route');
@@ -18,4 +19,6 @@ test('workspace access is administrator-invitation-only', () => {
   assert.match(removalMigration, /drop table if exists public\.access_requests/i, 'Existing databases must remove the retired table through a forward migration');
   assert.match(removalMigration, /drop function if exists public\.submit_access_request/i, 'Existing request RPCs must be removed');
   assert.match(removalMigration, /Historical audit_logs rows are retained/i, 'Historical audit evidence must remain intact');
+  assert.match(schema, /if invitation_id is null then[\s\S]*INVITATION_REQUIRED/i, 'New databases must reject uninvited Google sign-ins');
+  assert.match(invitationGateMigration, /if invitation_id is null then[\s\S]*INVITATION_REQUIRED/i, 'Existing databases must reject uninvited Google sign-ins');
 });

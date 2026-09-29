@@ -31,6 +31,7 @@ Run these files in this order:
 21. `migrations/0018_time_entry_clock_in_audit.sql`
 22. `migrations/0019_admin_remark_notifications.sql`
 23. `migrations/0020_remove_access_request_flow.sql`
+24. `migrations/0021_require_invitation_for_google_login.sql`
 
 Then run:
 
@@ -51,6 +52,7 @@ Do not rerun `schema.sql` over a working production database.
 3. Run the relevant missing numbered files in `supabase/migrations/` in order, only when the database has not already received them.
 4. Apply missing numbered files in order through `migrations/0019_admin_remark_notifications.sql`.
 5. Apply `migrations/0020_remove_access_request_flow.sql`. It removes the retired self-service access-request table, triggers, and RPCs while retaining immutable historical audit logs.
+6. Apply `migrations/0021_require_invitation_for_google_login.sql`. It rejects Google sign-ins that do not match an active invitation, preventing new pending profiles from being created.
 6. Run `npm run db:verify` and resolve any reported missing table, column, or RPC before deploying the API.
 
 The repository retains several older, feature-specific SQL files because earlier deployments may have applied them individually. They are not extra steps on top of the current fresh-install order unless a maintainer has specifically identified a missing feature. Do not blindly re-run historical patches such as schedule, break, notes, or soft-delete migrations against a current schema.
