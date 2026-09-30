@@ -431,7 +431,10 @@ window.ACETutorial = (() => {
         return navigationTarget(step);
     }
     const navigationHref = step => {
-        if (!step.navigation) return '';
+        // A lesson can teach an on-page control (for example Invite user)
+        // without needing a sidebar-navigation description. It still needs a
+        // route when the person reached it from another page.
+        if (!step.navigation) return new URL(step.page, window.location.href).href;
         const { group, label } = step.navigation;
         const normalizedLabel = label.toLowerCase();
         if (group === 'Account') {

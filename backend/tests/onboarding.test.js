@@ -105,6 +105,7 @@ test('tutorial updates preserve a prior skip or completion choice', () => {
 test('tutorial automatically navigates between pages without losing progress', () => {
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
   assert.match(engineSource, /async function navigateToStep\(stepIndex, step\)/, 'Tutorial should own cross-page navigation while it is active');
+  assert.match(engineSource, /if \(!step\.navigation\) return new URL\(step\.page, window\.location\.href\)\.href;/, 'Cross-page lessons without a sidebar label must still return to their configured page');
   assert.match(engineSource, /await queuePersist\(\{ status: 'IN_PROGRESS', step: stepIndex \}\);\s*window\.location\.assign\(destination\)/, 'Tutorial must save the destination step before loading its page');
   assert.match(engineSource, /if \(await navigateToStep\(stepIndex, step\)\) return;/, 'A resumed tutorial should return directly to its current page');
   assert.match(engineSource, /showNavigationStep/, 'Manual sidebar guidance should remain available as a fallback');
@@ -141,6 +142,8 @@ test('tutorial automatically navigates between pages without losing progress', (
   assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');
   assert.match(engineSource, /navigationTarget/, 'Tutorial should identify the exact sidebar control to use');
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');
+  assert.match(styles, /\.ace-tutorial-overlay \{[^}]*pointer-events: none;/, 'Tutorial overlay should never trap the rest of the workspace');
+  assert.match(styles, /\.ace-tutorial-card \{ pointer-events: auto; \}/, 'Tutorial controls must remain usable while the workspace stays clickable');
   assert.match(engineSource, /target instanceof HTMLAnchorElement && target\.href/, 'Tutorial navigation links must be recognized before the page unloads');
   assert.match(engineSource, /await queuePersist\(\{ status: 'IN_PROGRESS', step: stepIndex \}\);\s*window\.location\.assign\(target\.href\)/, 'Tutorial must persist the current navigation step before following a page link');
   assert.doesNotMatch(engineSource, /\$\{isMobile\(\) \? 'Open sidebar' : 'Use sidebar'\}/, 'Desktop navigation should not show a redundant Use sidebar button');
