@@ -24,18 +24,16 @@ async function requireRpc(name, args) {
 
 await requireQuery('profiles columns', db.from('profiles').select('id,last_seen_at,profile_picture_url,profile_picture_public_id,permanently_deleted_at,tutorial_status,tutorial_step,tutorial_version').limit(1));
 await requireQuery('project assignments table', db.from('user_projects').select('user_id,project_id,assigned_at').limit(1));
-await requireQuery('time entry schedule columns', db.from('time_entries').select('id,break_started_at,break_seconds,deleted_at,schedule_id,schedule_type,scheduled_start_time,scheduled_end_time,target_seconds,break_limit_seconds').limit(1));
+await requireQuery('time entry schedule columns', db.from('time_entries').select('id,duration_seconds,deleted_at,schedule_id,schedule_type,scheduled_start_time,scheduled_end_time,target_seconds,scheduled_weekdays').limit(1));
 await requireQuery('employee chat table', db.from('employee_messages').select('id,sender_id,recipient_id,body,edited_at,deleted_at,read_at').limit(1));
 await requireQuery('admin remark notification column', db.from('admin_remarks').select('id,seen_at').limit(1));
 await requireQuery('audit log table', db.from('audit_logs').select('id,user_id,action,entity_type,entity_id,description,request_id,created_at').limit(1));
 
 const absentId = '00000000-0000-4000-8000-000000000000';
 await requireRpc('compute_schedule_compliance', { p_entry_id: absentId });
-await requireRpc('end_break_entry', { p_actor_user_id: absentId, p_entry_id: absentId, p_actor_role: 'USER' });
 await requireRpc('clock_out_entry', { p_actor_user_id: absentId, p_entry_id: absentId, p_actor_role: 'USER', p_final_note: 'contract check' });
 await requireRpc('admin_stop_entry', { p_entry_id: absentId, p_actor_user_id: absentId });
 await requireRpc('admin_correct_entry', { p_entry_id: absentId, p_actor_user_id: absentId, p_clock_in: '2020-01-01T00:00:00.000Z', p_clock_out: '2020-01-01T00:00:01.000Z' });
-await requireRpc('permanently_remove_archived_login', { target_user_id: absentId });
 await requireRpc('admin_update_profile_with_audit', { p_target_user_id: absentId, p_actor_user_id: absentId, p_operation: 'CHANGE_ROLE', p_role: 'USER', p_status: null, p_department_id: null, p_request_id: absentId });
 await requireRpc('change_user_status_with_audit', { p_target_user_id: absentId, p_actor_user_id: absentId, p_status: 'ACTIVE', p_request_id: absentId });
 await requireRpc('change_user_role_with_audit', { p_target_user_id: absentId, p_actor_user_id: absentId, p_role: 'USER', p_request_id: absentId });
