@@ -341,6 +341,16 @@ async function loadDatabase() {
     return true;
 }
 
+async function refreshUserProjectAssignments() {
+    const userProjects = await window.ACEAuth.request('/v1/user-projects');
+    AppState.userProjects = userProjects.map(item => ({
+        UserId: item.user_id,
+        ProjectId: item.project_id,
+        AssignedAt: item.assigned_at,
+        IsActive: true
+    }));
+}
+
 const pause = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 const inactiveAccountMessage = 'Your account is not active. Contact your administrator or HR representative for an invitation.';
 
@@ -2419,9 +2429,23 @@ function stopPresenceHeartbeat() {
     AppState.presenceVisibilityHandler = null;
 }
 
-function openClockInModal() {
+async function openClockInModal() {
     openModal('clockInModal');
-    populateProjectSelect('clockInProject');
+    const projectSelect = document.getElementById('clockInProject');
+    if (projectSelect) {
+        projectSelect.disabled = true;
+        projectSelect.innerHTML = '<option value="">Loading assigned projects…</option>';
+    }
+    try {
+        // An administrator can assign a project while this employee remains
+        // signed in. Refresh here so the next clock-in uses the live list.
+        await refreshUserProjectAssignments();
+    } catch (error) {
+        showToast(error.message || 'Could not refresh assigned projects. Showing the last available list.', 'warning');
+    } finally {
+        populateProjectSelect('clockInProject');
+        if (projectSelect) projectSelect.disabled = false;
+    }
 }
 
 function openClockOutModal() {
@@ -3802,8 +3826,10 @@ function populateProjectSelect(selectId) {
     if (select) {
         let projects = AppState.projects.filter(project => project.IsActive !== false);
         if (AppState.currentUser?.Role === 'USER') {
-            const assignedIds = new Set(AppState.userProjects.filter(item => item.UserId === AppState.currentUser.UserId && item.IsActive).map(item => item.ProjectId));
-            projects = projects.filter(project => assignedIds.has(project.ProjectId));
+            const assignedIds = new Set(AppState.userProjects
+                .filter(item => String(item.UserId) === String(AppState.currentUser.UserId) && item.IsActive)
+                .map(item => String(item.ProjectId)));
+            projects = projects.filter(project => assignedIds.has(String(project.ProjectId)));
         }
         const placeholder = selectId.startsWith('filter') ? 'All projects' : 'No project';
         select.innerHTML = `<option value="">${placeholder}</option>` + projects.map(p => `<option value="${p.ProjectId}">${escapeHtml(p.ProjectName)}</option>`).join('');

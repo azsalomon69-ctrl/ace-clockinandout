@@ -669,6 +669,21 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   request = request.is('permanently_deleted_at', null);
   if (req.query.role === 'ADMIN' || req.query.role === 'USER') request = request.eq('role', req.query.role);
   if (req.query.departmentId) request = request.eq('department_id', req.query.departmentId);
+  if (req.query.projectId) {
+    const projectId = String(req.query.projectId);
+    if (projectId === '__UNASSIGNED__') {
+      const assignments = await query(db.from('user_projects').select('user_id'));
+      const assignedUserIds = [...new Set(assignments.map(assignment => assignment.user_id))];
+      request = request.eq('role', 'USER');
+      if (assignedUserIds.length) request = request.not('id', 'in', `(${assignedUserIds.join(',')})`);
+    } else {
+      if (!isUuid(projectId)) return fail(res, 400, 'Invalid project filter');
+      const assignments = await query(db.from('user_projects').select('user_id').eq('project_id', projectId));
+      const assignedUserIds = [...new Set(assignments.map(assignment => assignment.user_id))];
+      if (!assignedUserIds.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []);
+      request = request.eq('role', 'USER').in('id', assignedUserIds);
+    }
+  }
   if (req.query.q) {
     const term = String(req.query.q).trim().replace(/[,()]/g, ' ');
     if (term) request = request.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
@@ -974,6 +989,11 @@ app.post('/v1/admin-remarks/mark-read', authenticate, activeOnly, async (req, re
 app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
   const projectId = optionalUuid(req.body.projectId);
   if (projectId === undefined) return fail(res, 400, 'Invalid project ID');
+  if (projectId) {
+    const assignment = await query(db.from('user_projects').select('project_id')
+      .eq('user_id', req.profile.id).eq('project_id', projectId).maybeSingle());
+    if (!assignment) return fail(res, 403, 'You can only clock in to a project assigned to you');
+  }
   const open = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id).is('clock_out_at', null).maybeSingle());
   if (open) return fail(res, 409, 'You already have an active time entry');
   const assignment = await query(db.from('user_schedule_assignments').select('work_schedules(id,schedule_type,start_time,end_time,daily_elapsed_minutes,scheduled_weekdays)').eq('user_id', req.profile.id).maybeSingle());

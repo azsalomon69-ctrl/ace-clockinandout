@@ -6,7 +6,7 @@ async function liveRequest(path, options = {}) {
 
 // This is interface copy only. All records and counts are live Render/Supabase data.
 const ADMIN_SECTION_CONFIG = {
-  users: { title: 'Users', description: 'Assign roles and maintain employee records.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Name', 'Email', 'Role', 'Department', 'Status', 'Action'] },
+  users: { title: 'Users', description: 'Assign roles and maintain employee records.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Name', 'Email', 'Role', 'Projects', 'Department', 'Status', 'Action'] },
   invitations: { title: 'Pre-authorized access', description: 'Invite an employee or administrator before their first sign-in.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Email', 'Authorized by', 'Created', 'Expires', 'Status', 'Action'] },
   departments: { title: 'Departments', description: 'Organize employees by department. Assignments remain optional.', action: 'Add department', actionIcon: 'building', columns: ['Department', 'Description', 'Created', 'Status', 'Action'] },
   projects: { title: 'Projects', description: 'Manage projects available for optional time-entry assignment.', action: 'Add project', actionIcon: 'folder', columns: ['Project', 'Description', 'Created', 'Status', 'Action'] },
@@ -62,10 +62,26 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     if (filters.q) params.set('q', filters.q);
     if (filters.role) params.set('role', filters.role);
     if (filters.departmentId) params.set('departmentId', filters.departmentId);
-    const response = await liveRequest('/v1/users' + (params.size ? '?' + params.toString() : ''));
+    if (filters.projectId) params.set('projectId', filters.projectId);
+    if (filters.projectId) params.set('projectId', filters.projectId);
+    const [response, assignments, projects] = await Promise.all([
+      liveRequest('/v1/users' + (params.size ? '?' + params.toString() : '')),
+      liveRequest('/v1/user-projects'),
+      liveRequest('/v1/projects')
+    ]);
     const items = response.items || response; view.total = response.total ?? items.length;
+    const projectNames = new Map(projects.map(project => [String(project.id), project.name]));
+    const projectsByUser = new Map();
+    assignments.forEach(assignment => {
+      const names = projectsByUser.get(String(assignment.user_id)) || [];
+      const projectName = projectNames.get(String(assignment.project_id));
+      if (projectName) names.push(projectName);
+      projectsByUser.set(String(assignment.user_id), names);
+    });
     view.records = items.map(item => {
-      return { id: item.id, email: item.email, isHeadAdmin: Boolean(item.is_head_admin), avatarUrl: item.profile_picture_url || '', cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', item.departments?.name || '—', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
+      const assignedProjects = projectsByUser.get(String(item.id)) || [];
+      const projectLabel = item.role === 'USER' ? (assignedProjects.join(', ') || 'Unassigned') : '—';
+      return { id: item.id, email: item.email, isHeadAdmin: Boolean(item.is_head_admin), avatarUrl: item.profile_picture_url || '', cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', projectLabel, item.departments?.name || '—', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
     });
     view.stats = [[items.filter(item => item.status === 'ACTIVE').length, 'Active users', 'check'], [items.filter(item => item.status === 'PENDING').length, 'Pending accounts', 'circle-alert']];
   } else if (key === 'invitations') {
@@ -147,7 +163,8 @@ function action(label, index, key, record) {
       (canManage ? '<button class="admin-row-action" type="button" role="menuitem" data-row="' + index + '">' + icon('settings') + 'Manage account</button>' : '') +
       '</div><button class="btn btn-sm btn-outline admin-mobile-details-toggle" type="button" aria-expanded="false">Details</button></div>';
   }
-  if (key === 'departments' || key === 'projects') return '<div class="table-actions">' + (key === 'projects' ? '<button class="btn btn-sm btn-outline admin-project-details-open" type="button" data-row="' + index + '">' + icon('eye') + 'View</button>' : '') + '<button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Edit</button><button class="btn btn-sm btn-danger admin-delete-section" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button></div>';
+  if (key === 'projects') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-project-details-open" type="button" data-row="' + index + '">' + icon('eye') + 'View</button><button class="btn btn-sm btn-danger admin-delete-section" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button></div>';
+  if (key === 'departments') return '<div class="table-actions"><button class="btn btn-sm btn-outline admin-row-action" type="button" data-row="' + index + '">' + icon('square-pen') + 'Edit</button><button class="btn btn-sm btn-danger admin-delete-section" type="button" data-row="' + index + '">' + icon('trash') + 'Delete</button></div>';
   const iconName = /remove/i.test(label) ? 'trash' : /view|manage|review/i.test(label) ? 'eye' : /remark|edit/i.test(label) ? 'square-pen' : 'mail';
   const style = /remove/i.test(label) ? 'btn-danger' : 'btn-outline';
   return '<div class="table-actions"><button class="btn btn-sm ' + style + ' admin-row-action" type="button" data-row="' + index + '">' + icon(iconName) + esc(label) + '</button></div>';
@@ -259,7 +276,7 @@ function modal(view, primary, record) {
   const fields = remark ? [['Administrator remark', 'textarea', 'Add a clear internal remark for this time entry']]
     : primary && ['users', 'invitations'].includes(key) ? [['Work email', 'email', 'name@example.com'], ['Role', 'select', 'USER']]
         : (primary || edit) && key === 'departments' ? [['Department name', 'text', 'e.g. Client Services'], ['Description', 'textarea', 'What does this department handle?'], ...(edit ? [['Add employee (optional)', 'user-search', 'Search by employee name or email'], ['Schedule for selected employees (optional)', 'select', '']] : [])]
-        : (primary || edit) && key === 'projects' ? [['Project name', 'text', 'e.g. Customer Portal'], ['Description', 'textarea', 'Describe the project scope'], ...(edit ? [['Add employee (optional)', 'user-search', 'Search by employee name or email'], ['Schedule for selected employees (optional)', 'select', '']] : [])]
+        : primary && key === 'projects' ? [['Project name', 'text', 'e.g. Customer Portal'], ['Description', 'textarea', 'Describe the project scope']]
           : manage ? [['Role', 'select', 'USER'], ['Department', 'select', ''], ['Project assignment', 'select', ''], ['Schedule assignment', 'select', '']] : review ? [['Approval', 'select', 'ACTIVE']] : [];
   node.querySelector('.modal-title').textContent = primary ? view.action : label + ' ' + view.title.toLowerCase();
   const summary = record ? '<div class="detail-summary"><strong>' + esc(record.cells[0]) + '</strong><p>' + record.cells.slice(1, -1).map(esc).join(' · ') + '</p></div>' : '';
@@ -299,7 +316,7 @@ function modal(view, primary, record) {
     openModal('adminActionModal'); return;
   }
   const buttonLabel = remark ? 'Add remark' : review ? 'Save decision' : manage ? 'Save role' : primary ? view.action : 'Save changes';
-  node.querySelector('.modal-body').innerHTML = summary + '<form id="adminActionForm">' + fields.map((field, index) => formField(field[0], field[1], field[2], edit ? record.cells[index] : manage ? (index === 0 ? record.cells[2] : index === 1 ? record.cells[3] : '') : '', index)).join('') + '<div class="form-actions"><button class="btn btn-primary" type="submit">' + icon('check') + buttonLabel + '</button>' + (manage ? '<button class="btn btn-danger admin-remove-user" type="button">' + icon('folder') + 'Archive user</button>' : '') + (deleteRecord ? '<button class="btn btn-danger admin-delete-record" type="button">' + icon('trash') + 'Delete</button>' : '') + '<button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div></form>';
+  node.querySelector('.modal-body').innerHTML = summary + '<form id="adminActionForm">' + fields.map((field, index) => formField(field[0], field[1], field[2], edit ? record.cells[index] : manage ? (index === 0 ? record.cells[2] : index === 1 ? record.cells[4] : '') : '', index)).join('') + '<div class="form-actions"><button class="btn btn-primary" type="submit">' + icon('check') + buttonLabel + '</button>' + (manage ? '<button class="btn btn-danger admin-remove-user" type="button">' + icon('folder') + 'Archive user</button>' : '') + (deleteRecord ? '<button class="btn btn-danger admin-delete-record" type="button">' + icon('trash') + 'Delete</button>' : '') + '<button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div></form>';
   if (manage) {
     const assignedProjects = (typeof AppState === 'undefined' ? [] : AppState.userProjects || [])
       .filter(assignment => String(assignment.UserId) === String(record.id))
@@ -321,7 +338,7 @@ function modal(view, primary, record) {
       }
     }));
   }
-  if (manage || (edit && (key === 'departments' || key === 'projects'))) {
+  if (manage || (key === 'departments' && edit)) {
     const scheduleSelect = document.getElementById('adminField3');
     liveRequest('/v1/schedules').then(schedules => {
       const assigned = manage ? schedules.find(schedule => (schedule.user_schedule_assignments || []).some(assignment => String(assignment.user_id) === String(record.id))) : null;
@@ -336,21 +353,25 @@ function modal(view, primary, record) {
     const selectedUsers = [];
     const renderSelectedUsers = () => {
       selectedInput.value = selectedUsers.map(user => user.id).join(',');
-      selectedList.innerHTML = selectedUsers.length ? selectedUsers.map(user => '<button class="btn btn-sm btn-outline remove-department-user" type="button" data-id="' + esc(user.id) + '">' + esc(user.name) + ' ×</button>').join(' ') : 'No employees selected.';
-      selectedList.querySelectorAll('.remove-department-user').forEach(button => button.addEventListener('click', () => {
+      selectedList.innerHTML = selectedUsers.length ? selectedUsers.map(user => '<button class="btn btn-sm btn-outline remove-selected-user" type="button" data-id="' + esc(user.id) + '">' + esc(user.name) + ' ×</button>').join(' ') : 'No employees selected.';
+      selectedList.querySelectorAll('.remove-selected-user').forEach(button => button.addEventListener('click', () => {
         const index = selectedUsers.findIndex(user => user.id === button.dataset.id);
         if (index >= 0) selectedUsers.splice(index, 1);
         renderSelectedUsers();
       }));
     };
-    employeePicker.addEventListener('click', () => {
+    const addSelectedUser = () => {
       const option = Array.from(document.getElementById('adminField2Options')?.options || []).find(item => item.value === search.value);
       const userId = option?.dataset.userId;
       if (!userId) { showToast('Choose an employee from the search list first.', 'warning'); return; }
       if (!selectedUsers.some(user => user.id === userId)) selectedUsers.push({ id: userId, name: option.value });
       search.value = '';
       renderSelectedUsers();
-    });
+    };
+    employeePicker.addEventListener('click', addSelectedUser);
+    // Datalist selection is otherwise only text in the field. Add it to the
+    // hidden request list as soon as an employee is selected.
+    search.addEventListener('change', () => { if (search.value) addSelectedUser(); });
   }
   node.querySelector('.admin-modal-cancel').addEventListener('click', () => closeModal('adminActionModal'));
   node.querySelector('.admin-remove-user')?.addEventListener('click', async () => {
@@ -688,10 +709,25 @@ async function renderAdminSection() {
       const record = pageRecords[Number(button.dataset.row)]; if (!record) return;
       openAdminDetailsDrawer({ eyebrow: 'Time entry', title: record.cells[0], trigger: button, href: 'time-entry-details.html?entry=' + encodeURIComponent(record.id), fields: [['Project', record.cells[1]], ['Clocked in', record.clockInAt ? time(record.clockInAt) : record.cells[2]], ['Clocked out', record.clockOutAt ? time(record.clockOutAt) : record.cells[3]], ['Worked', record.cells[4]], ['Overtime', record.cells[5]], ['Remarks', record.cells[6]]] });
     }));
-    body.querySelectorAll('.admin-project-details-open').forEach(button => button.addEventListener('click', () => {
+    body.querySelectorAll('.admin-project-details-open').forEach(button => button.addEventListener('click', async () => {
       dismissActionMenu(button);
       const record = pageRecords[Number(button.dataset.row)]; if (!record) return;
-      openAdminDetailsDrawer({ eyebrow: 'Project', title: record.cells[0], trigger: button, fields: [['Description', record.cells[1]], ['Created', record.cells[2]], ['Status', record.cells[3]], ['Project ID', record.id]] });
+      let assignedEmployees = 'No employees assigned.';
+      try {
+        const [assignments, users] = await Promise.all([liveRequest('/v1/user-projects'), liveRequest('/v1/users')]);
+        const assignedIds = new Set(assignments
+          .filter(assignment => String(assignment.project_id) === String(record.id))
+          .map(assignment => String(assignment.user_id)));
+        const names = users
+          .filter(user => assignedIds.has(String(user.id)))
+          .map(user => user.full_name || user.email)
+          .filter(Boolean);
+        if (names.length) assignedEmployees = names.join(', ');
+      } catch (error) {
+        assignedEmployees = 'Could not load assigned employees.';
+        showToast(error.message || assignedEmployees, 'warning');
+      }
+      openAdminDetailsDrawer({ eyebrow: 'Project', title: record.cells[0], trigger: button, fields: [['Description', record.cells[1]], ['Created', record.cells[2]], ['Status', record.cells[3]], ['Assigned employees', assignedEmployees], ['Project ID', record.id]] });
     }));
     body.querySelectorAll('.admin-audit-details-open').forEach(button => button.addEventListener('click', () => {
       dismissActionMenu(button);
@@ -704,7 +740,7 @@ async function renderAdminSection() {
       dismissActionMenu(button);
       const record = pageRecords[Number(button.dataset.row)];
       if (!record) return;
-      openAdminDetailsDrawer({ eyebrow: 'Employee', title: record.cells[0], trigger: button, avatarUrl: record.avatarUrl, href: 'employee-profile.html?user=' + encodeURIComponent(record.id), fields: [['Email', record.cells[1]], ['Role', record.cells[2]], ['Department', record.cells[3]], ['Account status', record.cells[4]]] });
+      openAdminDetailsDrawer({ eyebrow: 'Employee', title: record.cells[0], trigger: button, avatarUrl: record.avatarUrl, href: 'employee-profile.html?user=' + encodeURIComponent(record.id), fields: [['Email', record.cells[1]], ['Role', record.cells[2]], ['Projects', record.cells[3]], ['Department', record.cells[4]], ['Account status', record.cells[5]]] });
     }));
     body.querySelectorAll('.admin-delete-entry').forEach(button => button.addEventListener('click', async () => {
       dismissActionMenu(button);
@@ -746,12 +782,13 @@ async function renderAdminSection() {
   const setCount = records => { const total = serverPaged ? view.total : records.length; count.textContent = total + ' record' + (total === 1 ? '' : 's'); }; setCount(initialRecords);
   let departmentFilter = null; let roleFilter = null; let employeeFilter = null; let projectFilter = null; let remarksFilter = null;
   if (key === 'users') {
-    const departments = serverPaged ? await liveRequest('/v1/departments') : [...new Set(view.records.map(record => record.cells[3]))].sort((a, b) => a.localeCompare(b));
+    const [departments, projects] = serverPaged ? await Promise.all([liveRequest('/v1/departments'), liveRequest('/v1/projects')]) : [[...new Set(view.records.map(record => record.cells[4]))].sort((a, b) => a.localeCompare(b)), []];
     const filters = document.createElement('div'); filters.className = 'admin-user-filters';
-    filters.innerHTML = '<label>Department<select class="form-select" id="userDepartmentFilter"><option value="">All departments</option>' + departments.map(department => '<option value="' + esc(serverPaged ? department.id : department) + '">' + esc(serverPaged ? department.name : department) + '</option>').join('') + '</select></label><label>Account type<select class="form-select" id="userRoleFilter"><option value="">All accounts</option><option value="Employee">Employees</option><option value="Admin">Administrators</option></select></label>';
+    filters.innerHTML = '<label>Department<select class="form-select" id="userDepartmentFilter"><option value="">All departments</option>' + departments.map(department => '<option value="' + esc(serverPaged ? department.id : department) + '">' + esc(serverPaged ? department.name : department) + '</option>').join('') + '</select></label><label>Account type<select class="form-select" id="userRoleFilter"><option value="">All accounts</option><option value="Employee">Employees</option><option value="Admin">Administrators</option></select></label><label>Projects<select class="form-select" id="userProjectFilter"><option value="">All projects</option><option value="__UNASSIGNED__">Unassigned employees</option>' + projects.filter(project => project.is_active).map(project => '<option value="' + esc(project.id) + '">' + esc(project.name) + '</option>').join('') + '</select></label>';
     search.insertAdjacentElement('beforebegin', filters);
-    departmentFilter = filters.querySelector('#userDepartmentFilter'); roleFilter = filters.querySelector('#userRoleFilter');
+    departmentFilter = filters.querySelector('#userDepartmentFilter'); roleFilter = filters.querySelector('#userRoleFilter'); projectFilter = filters.querySelector('#userProjectFilter');
     departmentFilter.value = activeFilters.departmentId || ''; roleFilter.value = activeFilters.role === 'ADMIN' ? 'Admin' : activeFilters.role === 'USER' ? 'Employee' : '';
+    projectFilter.value = activeFilters.projectId || '';
   }
   if (key === 'entries') {
     const employees = [...new Set(view.records.map(record => record.cells[0]))].sort((a, b) => a.localeCompare(b));
@@ -775,6 +812,7 @@ async function renderAdminSection() {
       activeFilters.q = search.value.trim();
       activeFilters.role = roleFilter?.value === 'Admin' ? 'ADMIN' : roleFilter?.value === 'Employee' ? 'USER' : '';
       activeFilters.departmentId = departmentFilter?.value || '';
+      activeFilters.projectId = key === 'users' ? (projectFilter?.value || '') : '';
       activeFilters.employee = employeeFilter?.value.trim() || '';
       activeFilters.project = projectFilter?.value.trim() || '';
       activeFilters.remarks = remarksFilter?.value || '';
@@ -783,7 +821,7 @@ async function renderAdminSection() {
     const term = search.value.trim().toLowerCase();
     const employeeTerm = employeeFilter?.value.trim().toLowerCase() || '';
     const projectTerm = projectFilter?.value.trim().toLowerCase() || '';
-    const records = view.records.filter(record => (!term || record.cells.join(' ').toLowerCase().includes(term)) && (!departmentFilter?.value || record.cells[3] === departmentFilter.value) && (!roleFilter?.value || record.cells[2] === roleFilter.value) && (!employeeTerm || record.cells[0].toLowerCase().includes(employeeTerm)) && (!projectTerm || record.cells[1].toLowerCase().includes(projectTerm)) && (!remarksFilter?.value || (remarksFilter.value === 'with' ? Boolean(record.remarks?.length) : !record.remarks?.length)));
+    const records = view.records.filter(record => (!term || record.cells.join(' ').toLowerCase().includes(term)) && (!departmentFilter?.value || record.cells[4] === departmentFilter.value) && (!roleFilter?.value || record.cells[2] === roleFilter.value) && (!employeeTerm || record.cells[0].toLowerCase().includes(employeeTerm)) && (!projectTerm || record.cells[1].toLowerCase().includes(projectTerm)) && (!remarksFilter?.value || (remarksFilter.value === 'with' ? Boolean(record.remarks?.length) : !record.remarks?.length)));
     pageState.page = 1; persistState(); draw(records); setCount(records);
   };
   actionButton.addEventListener('click', () => /export/i.test(view.action) ? openTimeEntryExport(view.records) : modal(view, true));
