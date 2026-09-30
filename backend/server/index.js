@@ -177,6 +177,12 @@ const mailTransport = smtpConfigured ? nodemailer.createTransport({
 }) : null;
 const applicationUrl = (frontendOrigins[0] || 'https://aceclock.onrender.com').replace(/\/$/, '');
 const base64Url = value => Buffer.from(value, 'utf8').toString('base64url');
+const emailHeader = value => {
+  const clean = String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
+  // Gmail API receives the complete RFC 2822 message. Encode any non-ASCII
+  // header value instead of relying on a recipient to guess its charset.
+  return /^[\x20-\x7e]*$/.test(clean) ? clean : `=?UTF-8?B?${Buffer.from(clean, 'utf8').toString('base64')}?=`;
+};
 const gmailApiError = (message, status) => Object.assign(new Error(message), { code: 'EGMAILAPI', status });
 const getGmailAccessToken = async () => {
   const body = new URLSearchParams({
@@ -201,9 +207,9 @@ const sendWithGmailApi = async ({ from, to, subject, text, html }) => {
   // RFC 2822 message encoded as base64url, as required by Gmail's send API.
   // Values originate from validated email addresses and fixed application text.
   const raw = [
-    `From: ${from}`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
+    `From: ${emailHeader(from)}`,
+    `To: ${emailHeader(to)}`,
+    `Subject: ${emailHeader(subject)}`,
     'MIME-Version: 1.0',
     'Content-Type: multipart/alternative; boundary="ace-clock-invitation"',
     '',
@@ -247,7 +253,9 @@ const buildInvitationEmail = ({ email, role, invitedBy }) => {
   const loginUrl = `${applicationUrl}/login`;
   const preheader = `You have been invited to ACE Clock In/Out as an ${roleName}.`;
   return {
-    subject: `You're invited to ACE Clock In/Out as ${roleName}`,
+    // Keep the visible subject deliberately plain ASCII across Gmail, Outlook,
+    // and clients that display malformed UTF-8 headers literally.
+    subject: `ACE Clock In Out invitation - ${roleName}`,
     text: `Hello,\n\n${inviterName} invited ${email} to ACE Clock In/Out as an ${roleName}.\n\n${roleDetails}\n\nOpen ACE Clock: ${loginUrl}\n\nBefore your first shift:\n1. Sign in with the exact Google email that received this invitation.\n2. Complete Profile & settings.\n3. Clock in when you begin work, then clock out when your shift is complete.\n\nIf you cannot sign in, make sure you are using the same Google account this invitation was sent to.\n\nACE Outsource Solutions`,
     // Table layout and inline CSS keep this dependable in Gmail and Outlook.
     html: `<!doctype html>
