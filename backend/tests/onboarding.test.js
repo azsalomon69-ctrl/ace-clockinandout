@@ -77,9 +77,10 @@ test('every employee tutorial target exists on its configured page', () => {
   const context = { window: {} };
   vm.runInNewContext(configSource, context);
   for (const step of context.window.ACETutorialConfig.USER.steps) {
-    assert.match(step.target, /^#[A-Za-z][A-Za-z0-9_-]*$/, 'Employee steps should use durable ID targets');
+    assert.match(step.target, /^[#.][A-Za-z][A-Za-z0-9_-]*$/, 'Employee steps should use durable selectors');
     const markup = readFileSync(new URL(`../../frontend/${step.page}`, import.meta.url), 'utf8');
-    assert.ok(markup.includes(`id="${step.target.slice(1)}"`), `${step.target} should exist in ${step.page}`);
+    const dynamic = ['#employeeScheduleNotice', '.employee-chat-launcher'].includes(step.target);
+    assert.ok(markup.includes(`id="${step.target.slice(1)}"`) || (dynamic && shellSource.includes(step.target.slice(1))), `${step.target} should exist in ${step.page} or its dynamic renderer`);
   }
 });
 

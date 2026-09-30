@@ -30,7 +30,9 @@ window.ACETutorial = (() => {
         step: Number(source?.tutorial_step ?? source?.step ?? 0) || 0,
         version: Number(source?.tutorial_version ?? source?.version ?? roleConfig.version) || roleConfig.version
     });
-    const tutorialState = () => normalized({ ...profile.RawTutorial, ...fallback() });
+    // Pending writes use status/step/version; normalize that complete snapshot
+    // before considering the server's differently named tutorial_* fields.
+    const tutorialState = () => normalized(fallback() || profile.RawTutorial);
     const launchMode = (account, config, state) => {
         if (!account || account.Status !== 'ACTIVE' || !config) return 'NONE';
         if (state.status === 'NOT_STARTED') return 'WELCOME';
@@ -145,7 +147,7 @@ window.ACETutorial = (() => {
             else confirmExit();
             return;
         }
-        if (event.key !== 'Tab' || !overlay) return;
+        if (event.key !== 'Tab' || !overlay || overlay.getAttribute('aria-modal') !== 'true') return;
         const nodes = [...overlay.querySelectorAll('button:not([disabled])')];
         if (!nodes.length) return;
         const first = nodes[0], last = nodes[nodes.length - 1];
@@ -157,16 +159,16 @@ window.ACETutorial = (() => {
         if (welcome) document.body.classList.add('ace-tutorial-welcome-open');
         overlay = document.createElement('section');
         overlay.className = `ace-tutorial-overlay${navigation ? ' ace-tutorial-navigation-overlay' : ''}`;
-        overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true'); overlay.setAttribute('aria-label', label);
+        overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', String(welcome)); overlay.setAttribute('aria-label', label);
         overlay.innerHTML = `<div class="ace-tutorial-scrim"></div><div class="ace-tutorial-live" aria-live="polite" aria-atomic="true"></div>${content}`;
         overlay.addEventListener('keydown', trap);
         document.body.append(overlay);
-        containFocus();
+        if (welcome) containFocus();
         return overlay;
     }
     function welcome() {
         const ui = makeOverlay(`<div class="ace-tutorial-card ace-tutorial-welcome"><p class="ace-tutorial-eyebrow">WELCOME</p><h2>Take a quick tour?</h2><p>We can show you the main tools in your ACE workspace. It only takes a moment.</p><div class="ace-tutorial-actions"><button class="btn btn-secondary" type="button" data-tutorial-skip>Skip tutorial</button><button class="btn btn-primary" type="button" data-tutorial-start>Start tutorial</button></div></div>`, 'Welcome to ACE', { welcome: true });
-        ui.querySelector('[data-tutorial-start]').addEventListener('click', () => start());
+        ui.querySelector('[data-tutorial-start]').addEventListener('click', () => start({ fromBeginning: true }));
         ui.querySelector('[data-tutorial-skip]').addEventListener('click', () => finish('SKIPPED'));
         ui.querySelector('[data-tutorial-start]').focus();
     }
@@ -375,6 +377,8 @@ window.ACETutorial = (() => {
         const card = ui?.querySelector('.ace-tutorial-card');
         if (!ui || !card) return;
         ui.dataset.exitConfirmation = 'true';
+        ui.setAttribute('aria-modal', 'true');
+        containFocus();
         card.classList.add('ace-tutorial-exit-confirmation');
         card.innerHTML = `<p class="ace-tutorial-progress">Tutorial paused</p><h2>Leave tutorial?</h2><p>You can restart it anytime from your account menu.</p><div class="ace-tutorial-actions ace-tutorial-confirm-actions"><button class="btn btn-secondary" type="button" data-tutorial-keep>Keep going</button><button class="btn btn-primary" type="button" data-tutorial-leave>Leave tutorial</button></div>`;
         card.querySelector('[data-tutorial-keep]').addEventListener('click', () => showStep(currentStepIndex));
@@ -587,7 +591,10 @@ window.ACETutorial = (() => {
             await showNavigationStep(stepIndex, step);
             return;
         }
-        const target = await waitForTarget(step.target);
+        let target = await waitForTarget(step.target);
+        if (step.alternateTargets && !targetIsVisible(target)) {
+            target = step.alternateTargets.map(selector => coachmarkTarget(document.querySelector(selector))).find(targetIsVisible) || null;
+        }
         if (step.optional && !targetIsVisible(target)) {
             void queuePersist({ status: 'IN_PROGRESS', step: stepIndex + 1 });
             return showStep(stepIndex + 1);

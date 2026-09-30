@@ -565,6 +565,8 @@ app.patch('/v1/me/tutorial', authenticate, activeOnly, async (req, res, next) =>
     ...(status === 'SKIPPED' ? { tutorial_skipped_at: now } : {})
   };
   const profile = await query(db.from('profiles').update(changes).eq('id', req.profile.id).select().single());
+  // D1: the destination page must read the tutorial progress just acknowledged.
+  profileCache.delete(req.profile.id);
   res.json({ profile: { ...profile, is_head_admin: isHeadAdmin(req) } });
 } catch (error) { next(error); } });
 app.post('/v1/me/avatar-upload', authenticate, activeOnly, async (req, res, next) => { try {
