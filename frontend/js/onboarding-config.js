@@ -4,9 +4,9 @@
 // tour must begin on that page even if the user launched it elsewhere.
 window.ACETutorialConfig = {
     USER: {
-        version: 8,
+        version: 9,
         steps: [
-            { page: 'user-dashboard.html', target: '#mainClockInBtn', title: 'Start and finish your shift', body: 'Start your shift here. Clock out is available in the same place and requires a short official clock-out note; clock-in notes are not used.', forcePage: false, navigation: { group: 'Workspace', label: 'Dashboard' } },
+            { page: 'user-dashboard.html', target: '#mainClockInBtn', title: 'Start and finish your shift', body: 'Start your shift here. When you clock in, you can select only projects assigned to you. Clock out is available in the same place and requires a short official clock-out note; clock-in notes are not used.', forcePage: false, navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'time-entries.html', target: '#timeEntriesList', title: 'Review your shifts', body: "Every shift you've worked, newest first.", navigation: { group: 'Work', label: 'My time entries' } },
             { page: 'time-entries.html', target: '#applyFiltersBtn', title: 'Find a past shift', body: 'Filter by date, project, or status to narrow your recorded time. Open View on a row for the clock-out note and full details.' },
             { page: 'remarks.html', target: '#remarksPageList', title: 'Read administrator remarks', body: 'Administrators can leave feedback on a time entry. Review related comments here whenever you see a remark notification.', navigation: { group: 'Work', label: 'Remarks' } },
@@ -19,7 +19,7 @@ window.ACETutorialConfig = {
     ADMIN: {
         // Bump this whenever administrator guidance materially changes so
         // existing admins are offered the improved tour again.
-        version: 17,
+        version: 18,
         steps: [
             { page: 'admin-dashboard.html', target: '#adminDashboardHeader', title: 'Your admin dashboard', body: 'Start here each day. This header orients you with the current date before you review live work and operational priorities.', navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'admin-dashboard.html', target: '#dashboardQuickActions', title: 'Use quick actions', body: 'These action buttons are the fastest way to invite a team member or open departments, projects, and schedules.' },
@@ -27,10 +27,10 @@ window.ACETutorialConfig = {
             { page: 'admin-dashboard.html', target: '#inviteUserBtn', title: 'Invite a team member', body: 'Choose Invite user to pre-authorize an employee or another administrator. Their access is created first, then the system sends the onboarding email.' },
             { page: 'admin-dashboard.html', target: '#analyticsTimeEntriesCard', title: 'Read the live analytics', body: 'This live Time entries chart shows completed work over time. Use its date range control when you want a different period, then compare it with the Hours by project card beside it.' },
             { page: 'admin-dashboard.html', target: '#reviewAlertsList', title: 'Review time-entry alerts', body: 'When this section appears, it flags a possible missed clock-out or an administrator-stopped shift. Open the entry, confirm the facts with the employee, then correct it only when needed.', optional: true },
-            { page: 'users.html', target: '#tutorialUserActions', title: 'Manage user accounts', body: 'Open Actions on a user row to manage that person’s account or view their employee profile. Use the department and account-type filters when you need to narrow the list.', navigation: { group: 'People', label: 'Users' } },
+            { page: 'users.html', target: '#tutorialUserActions', title: 'Manage user accounts', body: 'Open Actions on a user row to manage that person’s account or view their employee profile. The Projects filter can show one project or Unassigned employees; administrators are excluded from Unassigned. Each employee’s assigned project appears beside their role.', navigation: { group: 'People', label: 'Users' } },
             { page: 'users.html', target: '#adminSectionTabs', title: 'Track and cancel invitations', body: 'Use the Invitations tab beside Users to manage access. Review pending invitations and open one to cancel it when access is no longer needed.', navigation: { group: 'People', label: 'Users' } },
             { page: 'departments.html', target: '#sectionAction', title: 'Set up departments', body: 'Create departments before assigning employees to them. Edit a department to add employees and optionally apply one schedule to those selected employees.', navigation: { group: 'People', label: 'Departments' } },
-            { page: 'projects.html', target: '#sectionAction', title: 'Set up projects', body: 'Create projects employees can select while tracking time. Edit a project to add employees directly and optionally apply one schedule to those selected employees.', navigation: { group: 'Work', label: 'Projects' } },
+            { page: 'projects.html', target: '#sectionAction', title: 'Set up projects', body: 'Create projects employees can select while tracking time. Use View to see assigned employees. Assign or change an employee’s project from People → Users → Manage → Project assignment; the project list offers View and Delete, not Edit.', navigation: { group: 'Work', label: 'Projects' } },
             { page: 'schedule-flex.html', target: '#scheduleForm', title: 'Create schedules and flextime', body: 'Set the schedule name, fixed or flex type, workdays and expected hours. At least one working day is required.', navigation: { group: 'Work', label: 'Schedule & flextime' } },
             { page: 'schedule-flex.html', target: '#assignmentForm', title: 'Assign a schedule', body: 'After creating a schedule, choose an active employee and assign it here. This connects the employee to the working-day rules.' },
             { page: 'admin-time-entries.html', target: '#sectionAction', title: 'Review and export time entries', body: 'Choose Export entries here to select a date range and filters, then save a PDF or Excel workbook. The export is also saved automatically in Insights → Reports.', navigation: { group: 'Work', label: 'Time entries' } },
