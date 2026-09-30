@@ -35,7 +35,8 @@ test('project actions offer view and delete, and view includes assigned employee
   assert.match(projectActions, /admin-delete-section/);
   assert.doesNotMatch(projectActions, /admin-row-action/);
   assert.match(projectUi, /Promise\.all\(\[liveRequest\('\/v1\/user-projects'\), liveRequest\('\/v1\/users'\)\]\)/);
-  assert.match(projectUi, /\['Assigned employees', assignedEmployees\]/);
+  assert.match(projectUi, /employeeNames: assignedEmployees/);
+  assert.match(projectUi, /ASSIGNED EMPLOYEES · ' \+ employeeNames\.length/);
 });
 
 test('user projects are visible and filterable, with unassigned limited to employees', () => {

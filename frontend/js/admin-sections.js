@@ -475,7 +475,7 @@ function openTimeEntryExport(records) {
   updateSummary(); openModal(modal.id);
 }
 
-function openAdminDetailsDrawer({ eyebrow, title, fields, href, trigger, avatarUrl = '' }) {
+function openAdminDetailsDrawer({ eyebrow, title, fields, href, trigger, avatarUrl = '', employeeNames = null, employeeListNote = '' }) {
   let drawer = document.getElementById('adminDetailsDrawer');
   if (!drawer) {
     drawer = document.createElement('div');
@@ -494,7 +494,8 @@ function openAdminDetailsDrawer({ eyebrow, title, fields, href, trigger, avatarU
   const isEmployee = eyebrow === 'Employee';
   drawer.classList.toggle('is-employee-drawer', isEmployee);
   const identity = isEmployee ? '<div class="admin-details-drawer-identity"><span class="admin-details-drawer-avatar">' + (avatarUrl ? '<img src="' + esc(avatarUrl) + '" alt="">' : esc(String(title).trim().slice(0, 1).toUpperCase())) + '</span><div><p class="admin-section-kicker">' + esc(eyebrow) + '</p><h2 id="adminDetailsDrawerTitle">' + esc(title) + '</h2><span class="admin-details-drawer-status">' + esc(fields.find(([label]) => label === 'Account status')?.[1] || 'Active') + '</span></div></div>' : '<div><p class="admin-section-kicker">' + esc(eyebrow) + '</p><h2 id="adminDetailsDrawerTitle">' + esc(title) + '</h2></div>';
-  drawer.innerHTML = '<button class="admin-details-drawer-backdrop" type="button" aria-label="Close details"></button><aside class="admin-details-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="adminDetailsDrawerTitle"><header>' + identity + '<button class="modal-close" type="button" aria-label="Close details">' + icon('x') + '</button></header><section class="admin-details-drawer-section"><p>ACCOUNT DETAILS</p><dl>' + fields.map(([label, value]) => '<div><dt>' + esc(label) + '</dt><dd' + (label === 'Presence' || label === 'Account status' ? ' class="is-status"' : '') + '>' + esc(value || '—') + '</dd></div>').join('') + '</dl></section>' + (href ? '<footer><a class="btn btn-primary admin-details-drawer-link" href="' + esc(href) + '">Open full profile</a></footer>' : '') + '</aside>';
+  const employeeList = employeeNames === null ? '' : '<section class="admin-details-drawer-section admin-project-employees"><p>ASSIGNED EMPLOYEES · ' + employeeNames.length + '</p>' + (employeeListNote ? '<span class="admin-project-employees-note">' + esc(employeeListNote) + '</span>' : employeeNames.length ? '<ul>' + employeeNames.map(name => '<li>' + esc(name) + '</li>').join('') + '</ul>' : '<span class="admin-project-employees-note">No employees assigned.</span>') + '</section>';
+  drawer.innerHTML = '<button class="admin-details-drawer-backdrop" type="button" aria-label="Close details"></button><aside class="admin-details-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="adminDetailsDrawerTitle"><header>' + identity + '<button class="modal-close" type="button" aria-label="Close details">' + icon('x') + '</button></header><section class="admin-details-drawer-section"><p>ACCOUNT DETAILS</p><dl>' + fields.map(([label, value]) => '<div><dt>' + esc(label) + '</dt><dd' + (label === 'Presence' || label === 'Account status' ? ' class="is-status"' : '') + '>' + esc(value || '—') + '</dd></div>').join('') + '</dl></section>' + employeeList + (href ? '<footer><a class="btn btn-primary admin-details-drawer-link" href="' + esc(href) + '">Open full profile</a></footer>' : '') + '</aside>';
   drawer.querySelectorAll('.modal-close,.admin-details-drawer-backdrop').forEach(button => button.addEventListener('click', close));
   drawer.classList.add('is-open'); drawer.setAttribute('aria-hidden', 'false'); document.body.classList.add('drawer-open');
   document.addEventListener('keydown', drawer._onKeydown);
@@ -712,22 +713,22 @@ async function renderAdminSection() {
     body.querySelectorAll('.admin-project-details-open').forEach(button => button.addEventListener('click', async () => {
       dismissActionMenu(button);
       const record = pageRecords[Number(button.dataset.row)]; if (!record) return;
-      let assignedEmployees = 'No employees assigned.';
+      let assignedEmployees = [];
+      let employeeListNote = '';
       try {
         const [assignments, users] = await Promise.all([liveRequest('/v1/user-projects'), liveRequest('/v1/users')]);
         const assignedIds = new Set(assignments
           .filter(assignment => String(assignment.project_id) === String(record.id))
           .map(assignment => String(assignment.user_id)));
-        const names = users
+        assignedEmployees = users
           .filter(user => assignedIds.has(String(user.id)))
           .map(user => user.full_name || user.email)
           .filter(Boolean);
-        if (names.length) assignedEmployees = names.join(', ');
       } catch (error) {
-        assignedEmployees = 'Could not load assigned employees.';
-        showToast(error.message || assignedEmployees, 'warning');
+        employeeListNote = 'Could not load assigned employees.';
+        showToast(error.message || employeeListNote, 'warning');
       }
-      openAdminDetailsDrawer({ eyebrow: 'Project', title: record.cells[0], trigger: button, fields: [['Description', record.cells[1]], ['Created', record.cells[2]], ['Status', record.cells[3]], ['Assigned employees', assignedEmployees], ['Project ID', record.id]] });
+      openAdminDetailsDrawer({ eyebrow: 'Project', title: record.cells[0], trigger: button, fields: [['Description', record.cells[1]], ['Created', record.cells[2]], ['Status', record.cells[3]], ['Project ID', record.id]], employeeNames: assignedEmployees, employeeListNote });
     }));
     body.querySelectorAll('.admin-audit-details-open').forEach(button => button.addEventListener('click', () => {
       dismissActionMenu(button);
