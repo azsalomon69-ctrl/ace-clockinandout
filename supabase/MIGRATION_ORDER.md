@@ -32,6 +32,7 @@ Run these files in this order:
 22. `migrations/0019_admin_remark_notifications.sql`
 23. `migrations/0020_remove_access_request_flow.sql`
 24. `migrations/0021_require_invitation_for_google_login.sql`
+25. `migrations/0022_project_assignment_contract.sql`
 
 Then run:
 

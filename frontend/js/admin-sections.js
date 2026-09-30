@@ -300,6 +300,27 @@ function modal(view, primary, record) {
   }
   const buttonLabel = remark ? 'Add remark' : review ? 'Save decision' : manage ? 'Save role' : primary ? view.action : 'Save changes';
   node.querySelector('.modal-body').innerHTML = summary + '<form id="adminActionForm">' + fields.map((field, index) => formField(field[0], field[1], field[2], edit ? record.cells[index] : manage ? (index === 0 ? record.cells[2] : index === 1 ? record.cells[3] : '') : '', index)).join('') + '<div class="form-actions"><button class="btn btn-primary" type="submit">' + icon('check') + buttonLabel + '</button>' + (manage ? '<button class="btn btn-danger admin-remove-user" type="button">' + icon('folder') + 'Archive user</button>' : '') + (deleteRecord ? '<button class="btn btn-danger admin-delete-record" type="button">' + icon('trash') + 'Delete</button>' : '') + '<button class="btn btn-outline admin-modal-cancel" type="button">' + icon('x') + 'Cancel</button></div></form>';
+  if (manage) {
+    const assignedProjects = (typeof AppState === 'undefined' ? [] : AppState.userProjects || [])
+      .filter(assignment => String(assignment.UserId) === String(record.id))
+      .map(assignment => (AppState.projects || []).find(project => String(project.ProjectId) === String(assignment.ProjectId)))
+      .filter(Boolean);
+    const form = node.querySelector('#adminActionForm');
+    form.insertAdjacentHTML('beforeend', '<div class="form-group project-assignment-current"><label class="form-label">Current project assignments</label><div class="project-assignment-list">' + (assignedProjects.length ? assignedProjects.map(project => '<button class="btn btn-sm btn-outline admin-unassign-project" type="button" data-project-id="' + esc(project.ProjectId) + '">' + esc(project.ProjectName) + ' ×</button>').join(' ') : '<span class="form-help">No projects assigned.</span>') + '</div></div>');
+    form.querySelectorAll('.admin-unassign-project').forEach(button => button.addEventListener('click', async () => {
+      if (button.disabled) return;
+      button.disabled = true;
+      try {
+        await liveRequest('/v1/users/' + record.id + '/projects/' + button.dataset.projectId, { method: 'DELETE' });
+        button.remove();
+        if (!form.querySelector('.admin-unassign-project')) form.querySelector('.project-assignment-list').innerHTML = '<span class="form-help">No projects assigned.</span>';
+        showToast('Project assignment removed.', 'success');
+      } catch (error) {
+        button.disabled = false;
+        showToast(error.message || 'Could not remove the project assignment.', 'error');
+      }
+    }));
+  }
   if (manage || (edit && (key === 'departments' || key === 'projects'))) {
     const scheduleSelect = document.getElementById('adminField3');
     liveRequest('/v1/schedules').then(schedules => {

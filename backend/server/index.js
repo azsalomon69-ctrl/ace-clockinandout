@@ -635,7 +635,23 @@ app.put('/v1/users/:id/schedule', authenticate, adminOnly, async (req, res, next
   await audit(req, 'ASSIGN_SCHEDULE', 'PROFILE', employee.id, `Assigned ${schedule.name} to ${employee.full_name || employee.email}`); res.json(assignment);
 } catch (error) { next(error); } });
 app.get('/v1/user-projects', authenticate, activeOnly, async (req, res, next) => { try { let request = db.from('user_projects').select('*'); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
-app.put('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try { const target = await query(db.from('profiles').select('id,email').eq('id', req.params.id).single()); if (!protectHeadAdmin(req, res, target)) return; const item = await query(db.from('user_projects').upsert({ user_id: req.params.id, project_id: req.params.projectId }).select().single()); await audit(req, 'ASSIGN_PROJECT', 'PROFILE', req.params.id, `Assigned project ${req.params.projectId}`); res.json(item); } catch (error) { next(error); } });
+app.put('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try {
+  const target = await query(db.from('profiles').select('id,email,full_name,role,status').eq('id', req.params.id).single());
+  if (!protectHeadAdmin(req, res, target)) return;
+  if (target.role !== 'USER' || target.status !== 'ACTIVE') return fail(res, 409, 'Projects can only be assigned to active employees');
+  const project = await query(db.from('projects').select('id,name').eq('id', req.params.projectId).eq('is_active', true).single());
+  const item = await query(db.from('user_projects')
+    .upsert({ user_id: target.id, project_id: project.id }, { onConflict: 'user_id,project_id' })
+    .select()
+    .single());
+  await audit(req, 'ASSIGN_PROJECT', 'PROFILE', target.id, `Assigned ${project.name} to ${target.full_name || target.email}`);
+  res.json(item);
+} catch (error) {
+  // A missing composite key is a deployment/schema problem, not an opaque
+  // application crash. Keep database details server-side but make remediation clear.
+  if (['42P01', '42P10'].includes(error?.code)) return fail(res, 503, 'Project assignments are not configured. Apply database migration 0022 and try again.');
+  next(error);
+} });
 app.delete('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try { const target = await query(db.from('profiles').select('id,email').eq('id', req.params.id).single()); if (!protectHeadAdmin(req, res, target)) return; await query(db.from('user_projects').delete().eq('user_id', req.params.id).eq('project_id', req.params.projectId).select()); await audit(req, 'UNASSIGN_PROJECT', 'PROFILE', req.params.id, `Unassigned project ${req.params.projectId}`); res.status(204).end(); } catch (error) { next(error); } });
 
 app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
