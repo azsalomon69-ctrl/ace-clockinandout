@@ -73,6 +73,16 @@ test('every administrator tutorial target exists on its configured page', () => 
   }
 });
 
+test('every employee tutorial target exists on its configured page', () => {
+  const context = { window: {} };
+  vm.runInNewContext(configSource, context);
+  for (const step of context.window.ACETutorialConfig.USER.steps) {
+    assert.match(step.target, /^#[A-Za-z][A-Za-z0-9_-]*$/, 'Employee steps should use durable ID targets');
+    const markup = readFileSync(new URL(`../../frontend/${step.page}`, import.meta.url), 'utf8');
+    assert.ok(markup.includes(`id="${step.target.slice(1)}"`), `${step.target} should exist in ${step.page}`);
+  }
+});
+
 test('tutorial launch rules welcome, resume, or stay quiet as appropriate', () => {
   const tutorial = engineHarness();
   const config = { version: 1, steps: [{}] };
@@ -89,13 +99,15 @@ test('tutorial updates preserve a prior skip or completion choice', () => {
   assert.match(engineSource, /\['SKIPPED', 'COMPLETED'\]\.includes\(state\.status\)/, 'A tutorial update must respect an existing skip or completion choice');
   assert.match(engineSource, /await queuePersist\(\{ status: state\.status, step: state\.step \}\)/, 'A skipped or completed tutorial should be silently updated to the current version');
   assert.match(engineSource, /let persistenceQueue = Promise\.resolve\(\)/, 'Tutorial saves should be serialized without blocking guide controls');
-  assert.match(engineSource, /async function go\(step\) \{ void queuePersist\(/, 'Next should advance immediately instead of waiting for a tutorial-state request');
+  assert.match(engineSource, /async function go\(stepIndex\)/, 'Tutorial controls should route through a single step-advance function');
 });
 
-test('tutorial guides navigation instead of forcing a page change', () => {
+test('tutorial automatically navigates between pages without losing progress', () => {
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
-  assert.doesNotMatch(engineSource, /location\.assign\(`\/\$\{step\.page/, 'Tutorial steps must not navigate pages automatically');
-  assert.match(engineSource, /showNavigationStep/, 'Tutorial should explain where to navigate');
+  assert.match(engineSource, /async function navigateToStep\(stepIndex, step\)/, 'Tutorial should own cross-page navigation while it is active');
+  assert.match(engineSource, /await queuePersist\(\{ status: 'IN_PROGRESS', step: stepIndex \}\);\s*window\.location\.assign\(destination\)/, 'Tutorial must save the destination step before loading its page');
+  assert.match(engineSource, /if \(await navigateToStep\(stepIndex, step\)\) return;/, 'A resumed tutorial should return directly to its current page');
+  assert.match(engineSource, /showNavigationStep/, 'Manual sidebar guidance should remain available as a fallback');
   assert.match(engineSource, /ace:route-ready/, 'Tutorial should resume after shell navigation');
   assert.match(engineSource, /shell-mobile-open/, 'Tutorial should detect a closed mobile sidebar');
   assert.match(engineSource, /shell-collapsed/, 'Tutorial should detect a collapsed desktop sidebar');
@@ -121,11 +133,16 @@ test('tutorial guides navigation instead of forcing a page change', () => {
   assert.match(styles, /\.ace-tutorial-card\[data-placement="below"\]::after/, 'Mobile tutorial cards should display a directional pointer arrow');
   assert.match(engineSource, /target\.matches\('\.shell-collapse'\)/, 'Sidebar-edge control should receive dedicated pointer placement');
   assert.match(engineSource, /card\.dataset\.placement = 'right'/, 'Sidebar-edge tutorial card should point left at the real control');
+  assert.match(engineSource, /const overlapsTarget = position =>/, 'Tutorial placement should detect when a coachmark would cover its target');
+  assert.match(engineSource, /Clamp each candidate first and rank it by whether it overlaps the/, 'Edge targets should use collision-aware placement instead of a top-clamped fallback');
+  assert.match(engineSource, /overlapDifference/, 'Tutorial placement should prefer an unobstructed target over the first nominal placement');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse/, 'Tutorial should keep the actual sidebar expand control visible while highlighting it');
   assert.match(styles, /\.ace-tutorial-target\.shell-collapse \{ position: fixed !important;/, 'Highlighting must preserve the real edge control position');
   assert.match(engineSource, /shell-nav-group-items/, 'Tutorial should detect a closed sidebar group');
   assert.match(engineSource, /navigationTarget/, 'Tutorial should identify the exact sidebar control to use');
   assert.match(engineSource, /ace-tutorial-navigation-overlay/, 'Tutorial navigation overlay should allow sidebar interaction');
+  assert.match(engineSource, /target instanceof HTMLAnchorElement && target\.href/, 'Tutorial navigation links must be recognized before the page unloads');
+  assert.match(engineSource, /await queuePersist\(\{ status: 'IN_PROGRESS', step: stepIndex \}\);\s*window\.location\.assign\(target\.href\)/, 'Tutorial must persist the current navigation step before following a page link');
   assert.doesNotMatch(engineSource, /\$\{isMobile\(\) \? 'Open sidebar' : 'Use sidebar'\}/, 'Desktop navigation should not show a redundant Use sidebar button');
   assert.match(engineSource, /if \(isMobile\(\) && !document\.body\.classList\.contains\('shell-mobile-open'\)\)/, 'Tutorial should reveal the mobile sidebar before teaching a destination');
   assert.match(engineSource, /const needsReveal = mobile \|\| !isVisible/, 'Every phone step should scroll its taught control into the clear area above the guide');

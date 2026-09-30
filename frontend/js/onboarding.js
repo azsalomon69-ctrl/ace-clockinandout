@@ -304,9 +304,35 @@ window.ACETutorial = (() => {
             { placement: 'right', top: targetRect.top + (targetRect.height - height) / 2, left: targetRect.right + gap },
             { placement: 'left', top: targetRect.top + (targetRect.height - height) / 2, left: targetRect.left - width - gap }
         ];
-        const candidate = candidates.find(position => position.top >= margin && position.left >= margin && position.top + height <= viewportHeight - margin && position.left + width <= viewportWidth - margin) || candidates[0];
-        const left = Math.max(margin, Math.min(candidate.left, viewportWidth - width - margin));
-        const top = Math.max(margin, Math.min(candidate.top, viewportHeight - height - margin));
+        // A sidebar target is often close to the top-left edge.  Requiring a
+        // candidate to fit *before* clamping it made every candidate appear
+        // invalid, then chose "above" and covered the very link being taught.
+        // Clamp each candidate first and rank it by whether it overlaps the
+        // target. This keeps every admin and employee lesson actionable,
+        // including targets near any viewport edge.
+        const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(value, maximum));
+        const overlapsTarget = position => {
+            const right = position.left + width;
+            const bottom = position.top + height;
+            return Math.max(0, Math.min(right, targetRect.right) - Math.max(position.left, targetRect.left))
+                * Math.max(0, Math.min(bottom, targetRect.bottom) - Math.max(position.top, targetRect.top));
+        };
+        const candidate = candidates
+            .map((position, order) => ({
+                ...position,
+                order,
+                left: clamp(position.left, margin, viewportWidth - width - margin),
+                top: clamp(position.top, margin, viewportHeight - height - margin)
+            }))
+            .sort((first, second) => {
+                const overlapDifference = overlapsTarget(first) - overlapsTarget(second);
+                if (overlapDifference) return overlapDifference;
+                const firstShift = Math.abs(first.left - candidates[first.order].left) + Math.abs(first.top - candidates[first.order].top);
+                const secondShift = Math.abs(second.left - candidates[second.order].left) + Math.abs(second.top - candidates[second.order].top);
+                return firstShift - secondShift || first.order - second.order;
+            })[0];
+        const left = candidate.left;
+        const top = candidate.top;
         card.dataset.placement = candidate.placement;
         card.style.left = `${left}px`;
         card.style.top = `${top}px`;
@@ -403,6 +429,33 @@ window.ACETutorial = (() => {
             }
         }
         return navigationTarget(step);
+    }
+    const navigationHref = step => {
+        if (!step.navigation) return '';
+        const { group, label } = step.navigation;
+        const normalizedLabel = label.toLowerCase();
+        if (group === 'Account') {
+            const accountLink = [...document.querySelectorAll('.shell-account-menu [role="menuitem"]')].find(element => {
+                const itemLabel = element.textContent.trim().toLowerCase();
+                return itemLabel === normalizedLabel || itemLabel.includes(normalizedLabel) || normalizedLabel.includes(itemLabel);
+            });
+            return accountLink?.href || '';
+        }
+        const groupElement = [...document.querySelectorAll('.shell-nav-group')].find(element => element.dataset.groupLabel === group);
+        const links = [...(groupElement?.querySelectorAll('.shell-link') || document.querySelectorAll('.shell-link'))];
+        const link = links.find(element => element.textContent.trim().toLowerCase() === normalizedLabel)
+            || links.find(element => element.textContent.trim().toLowerCase().includes(normalizedLabel));
+        return link?.href || '';
+    };
+    async function navigateToStep(stepIndex, step) {
+        const destination = navigationHref(step);
+        if (!destination) return false;
+        // This is active only while the tutorial is running.  Persisting
+        // before navigation prevents an older page's request from overwriting
+        // the newest step after the destination has loaded.
+        await queuePersist({ status: 'IN_PROGRESS', step: stepIndex });
+        window.location.assign(destination);
+        return true;
     }
     const navigationTarget = step => {
         if (!step.navigation) return null;
@@ -502,6 +555,21 @@ window.ACETutorial = (() => {
             if (target === accountToggle) accountToggle?.addEventListener('click', refreshNavigation, { once: true });
             window.addEventListener('ace:sidebar-state-change', refreshNavigation, { once: true });
             if (target.matches('.shell-nav-group-toggle') && target !== sidebarToggle) target.addEventListener('click', refreshNavigation, { once: true });
+            // A page link normally unloads this script immediately.  If that
+            // happens while an older step is still being saved, the older
+            // request can win and make the next page resume the tour from a
+            // previous destination.  Save this navigation point first, then
+            // follow the same link only after the queue has settled.
+            if (target instanceof HTMLAnchorElement && target.href) {
+                target.addEventListener('click', event => {
+                    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                    event.preventDefault();
+                    void (async () => {
+                        await queuePersist({ status: 'IN_PROGRESS', step: stepIndex });
+                        window.location.assign(target.href);
+                    })();
+                }, { capture: true });
+            }
             watchNavigationState(ui, stepIndex, step);
         }
         (ui.querySelector('[data-tutorial-navigate]') || ui.querySelector('[data-tutorial-back]:not([disabled])') || ui.querySelector('[data-tutorial-skip]'))?.focus();
@@ -511,6 +579,7 @@ window.ACETutorial = (() => {
         if (!step) return finish('COMPLETED');
         currentStepIndex = stepIndex;
         if (pageName() !== step.page) {
+            if (await navigateToStep(stepIndex, step)) return;
             void queuePersist({ status: 'IN_PROGRESS', step: stepIndex });
             await showNavigationStep(stepIndex, step);
             return;
@@ -536,7 +605,12 @@ window.ACETutorial = (() => {
         }
         ui.querySelector('[data-tutorial-next]').focus();
     }
-    async function go(step) { void queuePersist({ status: 'IN_PROGRESS', step }); await showStep(step); }
+    async function go(stepIndex) {
+        const step = roleConfig.steps[stepIndex];
+        if (step && pageName() !== step.page && await navigateToStep(stepIndex, step)) return;
+        void queuePersist({ status: 'IN_PROGRESS', step: stepIndex });
+        await showStep(stepIndex);
+    }
     async function finish(status) { void queuePersist({ status, step: status === 'COMPLETED' ? roleConfig.steps.length : 0 }); close(); }
     async function start({ fromBeginning = false } = {}) {
         const matching = roleConfig.steps.findIndex(step => step.page === pageName());
