@@ -37,6 +37,7 @@
   "devDependencies": {
     "clean-css": "^5.3.3",
     "html-minifier-terser": "^7.2.0",
+    "parse5": "^8.0.1",
     "terser": "^5.51.2"
   }
 }

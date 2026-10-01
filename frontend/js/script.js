@@ -1558,11 +1558,14 @@ function initializeAppShell() {
             if (!terms.length) return escapeHtml(source);
             const expression = new RegExp(`(${terms.map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
             let cursor = 0;
-            return source.replace(expression, (match, _group, offset) => {
-                const before = escapeHtml(source.slice(cursor, offset));
-                cursor = offset + match.length;
-                return `${before}<mark class="shell-search-highlight">${escapeHtml(match)}</mark>`;
-            }) + escapeHtml(source.slice(cursor));
+            const parts = [];
+            for (const match of source.matchAll(expression)) {
+                parts.push(escapeHtml(source.slice(cursor, match.index)));
+                parts.push(`<mark class="shell-search-highlight">${escapeHtml(match[0])}</mark>`);
+                cursor = match.index + match[0].length;
+            }
+            parts.push(escapeHtml(source.slice(cursor)));
+            return parts.join('');
         };
         const matches = (item, value) => `${item.label || ''} ${item.detail || ''} ${item.keywords || ''}`.toLowerCase().includes(value);
         const matchesNaturalPhrase = action => {

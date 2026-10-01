@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import CleanCSS from 'clean-css';
 import { minify as minifyHtml } from 'html-minifier-terser';
 import { minify as minifyJs } from 'terser';
+import { deduplicateAssetScripts } from './html-transforms.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const frontend = path.join(root, 'frontend');
@@ -104,14 +105,7 @@ async function buildPages(assetMap) {
     const withXlsxBundle = source.includes('js/script.js')
       ? withProductionAssets.replace(`<script src="${appScriptTarget}"></script>`, `<script src="${xlsxTarget}"></script><script src="${appScriptTarget}"></script>`)
       : withProductionAssets;
-    const emittedScripts = new Set();
-    const deduplicatedScripts = withXlsxBundle.replace(/<script\b([^>]*)\bsrc=(['"])([^'"]+)\2([^>]*)><\/script>/gi, (tag, before, quote, sourcePath, after) => {
-      if (!sourcePath.startsWith('assets/js/') || !emittedScripts.has(sourcePath)) {
-        emittedScripts.add(sourcePath);
-        return tag;
-      }
-      return '';
-    });
+    const deduplicatedScripts = deduplicateAssetScripts(withXlsxBundle);
     const output = await minifyHtml(deduplicatedScripts, {
       collapseWhitespace: true,
       conservativeCollapse: true,

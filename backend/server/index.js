@@ -885,9 +885,9 @@ app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, 
   res.status(204).end();
 } catch (error) { next(error); } });
 app.post('/v1/invitations', sensitiveActionLimiter, authenticate, adminOnly, async (req, res, next) => { try {
-  const email = req.body.email?.trim().toLowerCase();
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
-  if (!email || !emailPattern.test(email) || email.length > 254) return fail(res, 400, 'A valid email is required');
+  if (!email || email.length > 254 || !emailPattern.test(email)) return fail(res, 400, 'A valid email is required');
   if (!isAllowedCompanyEmail(email)) return fail(res, 400, 'Use an approved company email address.');
   const departmentId = optionalUuid(req.body.departmentId);
   if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
@@ -934,29 +934,30 @@ app.delete('/v1/invitations/:id', sensitiveActionLimiter, authenticate, adminOnl
 } catch (error) { next(error); } });
 app.get('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)', paging.paged ? { count: 'exact' } : undefined).order('invited_at', { ascending: false }); if (req.query.q) request = request.ilike('email', `%${String(req.query.q).replace(/[%_,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 
-app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => { try {
-  const own = req.profile.role !== 'ADMIN' || req.query.mine === 'true'; const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1); const pageSize = Math.min(100, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 25)); const paged = req.query.page !== undefined;
+const listTimeEntries = async (req, res, next) => { try {
+  const filters = req.method === 'POST' ? (req.body || {}) : req.query;
+  const own = req.profile.role !== 'ADMIN' || filters.mine === 'true'; const page = Math.max(1, Number.parseInt(filters.page, 10) || 1); const pageSize = Math.min(100, Math.max(1, Number.parseInt(filters.pageSize, 10) || 25)); const paged = filters.page !== undefined;
   let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email,role,profile_picture_url), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)', paged ? { count: 'exact' } : undefined).order('clock_in_at', { ascending: false });
-  request = req.query.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null);
+  request = filters.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null);
   if (own) request = request.eq('user_id', req.profile.id);
-  if (req.query.userId) request = request.eq('user_id', req.query.userId);
-  if (req.query.projectId) request = request.eq('project_id', req.query.projectId);
-  if (req.query.status === 'ACTIVE') request = request.is('clock_out_at', null);
-  if (req.query.status === 'COMPLETED') request = request.not('clock_out_at', 'is', null);
+  if (filters.userId) request = request.eq('user_id', filters.userId);
+  if (filters.projectId) request = request.eq('project_id', filters.projectId);
+  if (filters.status === 'ACTIVE') request = request.is('clock_out_at', null);
+  if (filters.status === 'COMPLETED') request = request.not('clock_out_at', 'is', null);
   const matchingIds = async (table, field, value) => {
     const term = String(value || '').trim().replace(/[,()]/g, ' '); if (!term) return null;
     const records = await query(db.from(table).select('id').ilike(field, `%${term}%`)); return records.map(record => record.id);
   };
-  if (req.query.employee) { const ids = await matchingIds('profiles', 'full_name', req.query.employee); if (!ids?.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('user_id', ids); }
-  if (req.query.project) { const ids = await matchingIds('projects', 'name', req.query.project); if (!ids?.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('project_id', ids); }
-  if (req.query.remarks === 'with' || req.query.remarks === 'without') {
+  if (filters.employee) { const ids = await matchingIds('profiles', 'full_name', filters.employee); if (!ids?.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('user_id', ids); }
+  if (filters.project) { const ids = await matchingIds('projects', 'name', filters.project); if (!ids?.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('project_id', ids); }
+  if (filters.remarks === 'with' || filters.remarks === 'without') {
     const remarks = await query(db.from('admin_remarks').select('time_entry_id'));
     const ids = [...new Set(remarks.map(remark => remark.time_entry_id))];
-    if (req.query.remarks === 'with') { if (!ids.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('id', ids); }
+    if (filters.remarks === 'with') { if (!ids.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('id', ids); }
     else if (ids.length) request = request.not('id', 'in', `(${ids.join(',')})`);
   }
-  if (req.query.q) {
-    const term = String(req.query.q).trim().replace(/[,()]/g, ' ');
+  if (filters.q) {
+    const term = String(filters.q).trim().replace(/[,()]/g, ' ');
     if (term) {
       const pattern = `%${term}%`;
       const [people, projects] = await Promise.all([
@@ -973,7 +974,10 @@ app.get('/v1/time-entries', authenticate, activeOnly, async (req, res, next) => 
   if (!paged) return res.json(await query(request));
   const response = await request.range((page - 1) * pageSize, page * pageSize - 1); if (response.error) throw response.error;
   res.json({ items: response.data || [], total: response.count || 0, page, pageSize });
-} catch (error) { next(error); } });
+} catch (error) { next(error); } };
+// Keep GET compatible with already-open clients during the search transport transition.
+app.get('/v1/time-entries', authenticate, activeOnly, listTimeEntries);
+app.post('/v1/time-entries/search', authenticate, activeOnly, listTimeEntries);
 app.get('/v1/time-leaderboard', authenticate, adminOnly, async (req, res, next) => { try {
   const [people, entries] = await Promise.all([
     query(db.from('profiles').select('id,full_name,profile_picture_url,role').eq('role', 'USER').eq('status', 'ACTIVE').is('permanently_deleted_at', null)),

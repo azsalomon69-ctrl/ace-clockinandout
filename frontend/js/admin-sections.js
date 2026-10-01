@@ -1,4 +1,6 @@
 // Akio <3: Project source maintained by Akio Zaki Salomon.
+// Searches survive live redraws, but never a page reload or a browser session.
+const adminPageFilters = new Map();
 async function liveRequest(path, options = {}) {
   if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
   return window.ACEAuth.request(path, options);
@@ -105,7 +107,9 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     // Active entries are a separate, one-time snapshot for the admin review
     // panel. This intentionally does not add page polling or realtime listeners.
     const activeRequest = liveRequest('/v1/time-entries?status=ACTIVE&page=1&pageSize=100');
-    const response = await liveRequest('/v1/time-entries' + (params.size ? '?' + params.toString() : ''));
+    const response = filters.q || filters.employee || filters.project
+      ? await liveRequest('/v1/time-entries/search', { method: 'POST', body: JSON.stringify(Object.fromEntries(params)) })
+      : await liveRequest('/v1/time-entries' + (params.size ? '?' + params.toString() : ''));
     const [activeResponse] = await Promise.all([activeRequest]);
     const items = response.items || response; view.total = response.total ?? items.length;
     const activeItems = activeResponse.items || activeResponse;
@@ -542,10 +546,15 @@ async function renderAdminSection() {
   let savedState = {};
   try { savedState = JSON.parse(sessionStorage.getItem(stateKey) || '{}'); } catch { savedState = {}; }
   const pageState = { page: Number(savedState.page) || 1, size: Number(savedState.size) || 25 };
-  const activeFilters = { ...(savedState.filters || {}) };
+  const activeFilters = adminPageFilters.get(key) || {};
+  adminPageFilters.set(key, activeFilters);
   const requestedRemarks = key === 'entries' ? new URLSearchParams(window.location.search).get('remarks') : null;
   if (requestedRemarks === 'with' || requestedRemarks === 'without') activeFilters.remarks = requestedRemarks;
-  const persistState = () => sessionStorage.setItem(stateKey, JSON.stringify({ page: pageState.page, size: pageState.size, filters: activeFilters }));
+  const persistState = () => {
+    try { sessionStorage.setItem(stateKey, JSON.stringify({ page: pageState.page, size: pageState.size })); } catch { /* Storage may be disabled. */ }
+  };
+  // Remove previously saved staff searches; only pagination belongs in storage.
+  persistState();
   // A live redraw must not stack filters or click handlers from the previous
   // pass. It only runs while no form or dialog is being edited.
   document.querySelectorAll('.admin-user-filters').forEach(node => node.remove());

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { tutorialBackend } from './tutorial-backend.mjs';
+import { removeScripts } from '../../../scripts/html-transforms.mjs';
 
 const root = path.resolve(fileURLToPath(new URL('../../../frontend/', import.meta.url)));
 let backend = tutorialBackend(), options = {}, results = [];
@@ -52,10 +53,10 @@ const server = http.createServer(async (req, res) => {
     let data = await readFile(filename);
     if (filename.endsWith('.html')) {
       // Actual page markup/CSS, with test-only authentication/bootstrap. No production tutorial edits.
-      data = data.toString().replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '').replace('</body>', '<script src="/js/onboarding-config.js"></script><script src="/production-fragments.js"></script><script src="/js/onboarding.js"></script><script type="module" src="/fixture-boot.js"></script></body>');
+      data = removeScripts(data.toString()).replace('</body>', '<script src="/js/onboarding-config.js"></script><script src="/production-fragments.js"></script><script src="/js/onboarding.js"></script><script type="module" src="/fixture-boot.js"></script></body>');
     }
     const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
     res.setHeader('Content-Type', types[path.extname(filename)] || 'application/octet-stream'); res.end(data);
-  } catch (error) { res.writeHead(500); res.end(String(error.stack)); }
+  } catch (error) { console.error(error); res.writeHead(500); res.end('Fixture request failed'); }
 });
 server.listen(4179, '127.0.0.1', () => console.log('Tutorial fixture listening at http://127.0.0.1:4179/runner'));
