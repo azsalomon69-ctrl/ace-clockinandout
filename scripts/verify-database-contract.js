@@ -23,6 +23,7 @@ async function requireRpc(name, args) {
 }
 
 await requireQuery('profiles columns', db.from('profiles').select('id,last_seen_at,profile_picture_url,profile_picture_public_id,permanently_deleted_at,tutorial_status,tutorial_step,tutorial_version').limit(1));
+await requireQuery('D3 role tutorial progress', db.from('profile_tutorial_progress').select('profile_id,role,tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').limit(1));
 await requireQuery('project assignments table', db.from('user_projects').select('user_id,project_id,assigned_at').limit(1));
 await requireQuery('time entry schedule columns', db.from('time_entries').select('id,duration_seconds,deleted_at,schedule_id,schedule_type,scheduled_start_time,scheduled_end_time,target_seconds,scheduled_weekdays').limit(1));
 await requireQuery('employee chat table', db.from('employee_messages').select('id,sender_id,recipient_id,body,edited_at,deleted_at,read_at').limit(1));

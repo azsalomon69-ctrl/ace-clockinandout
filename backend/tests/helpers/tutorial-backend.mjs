@@ -9,14 +9,21 @@ export function tutorialBackend({ role = 'USER', cache = true, status = 'NOT_STA
   version ??= config.window.ACETutorialConfig[role].version;
   const source = readFileSync(new URL('../../server/index.js', import.meta.url), 'utf8');
   const tables = { profiles: [{ id: 'fixture-user', role, status: 'ACTIVE', tutorial_status: status, tutorial_step: step, tutorial_version: version }], profile_tutorial_progress: [] };
+  // Seed the storage fixture in the post-migration shape. This is fixture data,
+  // not execution or verification of the SQL migration.
+  tables.profile_tutorial_progress.push({ profile_id: 'fixture-user', role,
+    tutorial_status: status, tutorial_step: step, tutorial_version: version,
+    tutorial_started_at: null, tutorial_completed_at: null, tutorial_skipped_at: null });
   const handlers = new Map();
   const profileCache = new Map();
   const clone = value => structuredClone(value);
   const db = { from(table) {
     if (!tables[table]) throw new Error(`Unexpected table: ${table}`);
-    let filters = [], patch, upsert;
+    let filters = [], patch, upsert, columns;
+    const project = row => !row || !columns || columns === '*' ? clone(row)
+      : Object.fromEntries(columns.split(',').map(key => [key, clone(row[key])]));
     const builder = {
-      select() { return builder; }, eq(k, v) { filters.push([k, v]); return builder; },
+      select(value) { columns = value; return builder; }, eq(k, v) { filters.push([k, v]); return builder; },
       update(value) { patch = value; return builder; },
       upsert(value) { upsert = value; return builder; },
       async single() { const result = await builder.maybeSingle(); if (!result) throw new Error('No row'); return result; },
@@ -24,12 +31,12 @@ export function tutorialBackend({ role = 'USER', cache = true, status = 'NOT_STA
         if (upsert) {
           let row = tables[table].find(r => r.profile_id === upsert.profile_id && r.role === upsert.role);
           if (row) Object.assign(row, clone(upsert)); else tables[table].push(clone(upsert));
-          return clone(upsert);
+          return project(row || upsert);
         }
         const row = tables[table].find(r => filters.every(([k, v]) => r[k] === v));
         if (!row) return null;
         if (patch) Object.assign(row, clone(patch));
-        return clone(row);
+        return project(row);
       }
     };
     return builder;

@@ -25,3 +25,26 @@ test('B4: promotion starts ADMIN independently and preserves completed USER prog
   backend.promote('ADMIN');
   assert.equal((await backend.request('GET', '/v1/me')).body.profile.tutorial_status, 'SKIPPED');
 });
+
+test('D3: role timestamps, reset, and legacy snapshot stay independent', async () => {
+  const backend = tutorialBackend();
+  const legacy = structuredClone(backend.tables.profiles[0]);
+  const write = (status, step = 0) => backend.request('PATCH', '/v1/me/tutorial', { status, step, version: 10 });
+  const started = (await write('IN_PROGRESS')).body.profile.tutorial_started_at;
+  assert.ok(started);
+  assert.equal((await write('IN_PROGRESS', 1)).body.profile.tutorial_started_at, started);
+  const completed = (await write('COMPLETED', 10)).body.profile;
+  backend.promote('ADMIN');
+  const fresh = (await backend.request('GET', '/v1/me')).body.profile;
+  assert.equal(fresh.tutorial_status, 'NOT_STARTED');
+  assert.equal(fresh.tutorial_started_at, null);
+  assert.equal(fresh.tutorial_completed_at, null);
+  await write('SKIPPED');
+  const reset = (await write('NOT_STARTED')).body.profile;
+  assert.equal(reset.tutorial_skipped_at, null);
+  backend.promote('USER');
+  const restored = (await backend.request('GET', '/v1/me')).body.profile;
+  assert.equal(restored.tutorial_completed_at, completed.tutorial_completed_at);
+  assert.equal(restored.tutorial_started_at, started);
+  assert.deepEqual(backend.tables.profiles[0], legacy);
+});

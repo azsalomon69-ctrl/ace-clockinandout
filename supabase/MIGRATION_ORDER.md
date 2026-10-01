@@ -33,6 +33,9 @@ Run these files in this order:
 23. `migrations/0020_remove_access_request_flow.sql`
 24. `migrations/0021_require_invitation_for_google_login.sql`
 25. `migrations/0022_project_assignment_contract.sql`
+26. `migrations/0023_restore_change_user_status_with_audit.sql`
+27. `migrations/0024_restore_change_user_role_with_audit.sql`
+28. `migrations/0025_role_tutorial_progress.sql`
 
 Then run:
 
@@ -62,7 +65,27 @@ The repository retains several older, feature-specific SQL files because earlier
 
 Apply migration 0020 only after the deployed API no longer exposes access-request routes. It removes the retired table and related database functions. Existing rows in `audit_logs` are intentionally not removed: those immutable records remain valid history.
 
-## Re-offer the tutorial
+## D3 role-specific tutorial deployment
+
+Apply `migrations/0025_role_tutorial_progress.sql` after the earlier migrations and before deploying this API. This migration has not been applied to a live database by the repair task. The database verifier now checks the new table.
+
+Attribution: each existing profile's legacy progress is assigned to its `profiles.role` at migration time. The other role starts at `NOT_STARTED`, step 0, version 1, with null timestamps. Both role records are seeded; reruns preserve existing records. Current-role completed/skipped users remain completed/skipped. A role change before migration cannot be reconstructed from the old record; any historical misattribution needs an explicit, targeted reset.
+
+Reversibility: legacy profile columns remain unchanged as a rollback snapshot. Reverting the API can read that snapshot, but progress saved after migration is only in the new table. Two independent role histories cannot be losslessly merged into the old single slot; preserve the new table during rollback and reconcile deliberately.
+
+The browser now keys pending writes by user and role. Old unscoped local-only pending writes are ignored (retained in storage), because their role is unknowable; an unsynchronized old skip/completion may therefore need to be repeated. Server-saved progress is preserved by the migration.
+
+After migration, reset the new table, not legacy profile columns. For example, to re-offer only one selected user's employee tutorial:
+
+```sql
+UPDATE public.profile_tutorial_progress
+SET tutorial_status = 'NOT_STARTED', tutorial_step = 0, tutorial_version = 10,
+    tutorial_started_at = NULL, tutorial_completed_at = NULL, tutorial_skipped_at = NULL
+WHERE profile_id = (SELECT id FROM public.profiles WHERE email = 'employee@example.com')
+  AND role = 'USER';
+```
+
+## Re-offer the tutorial (legacy, before migration 0025 only)
 
 Tutorial progress lives in `public.profiles`. Reset only the users who should receive the tutorial again.
 

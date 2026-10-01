@@ -537,9 +537,13 @@ app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPAB
 // The browser needs to know which navigation and safeguards to show, but it
 // must never duplicate the protected account's email or make the permission
 // decision itself.  Keep the source of truth in the server environment.
-app.get('/v1/me', authenticate, (req, res) => res.json({
-  profile: { ...req.profile, is_head_admin: isHeadAdmin(req) }
-}));
+app.get('/v1/me', authenticate, async (req, res, next) => { try {
+  const progress = await query(db.from('profile_tutorial_progress').select('tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').eq('profile_id', req.profile.id).eq('role', req.profile.role).maybeSingle());
+  res.json({ profile: { ...req.profile, ...(progress || {
+    tutorial_status: 'NOT_STARTED', tutorial_step: 0, tutorial_version: 1,
+    tutorial_started_at: null, tutorial_completed_at: null, tutorial_skipped_at: null
+  }), is_head_admin: isHeadAdmin(req) } });
+} catch (error) { next(error); } });
 app.patch('/v1/me', authenticate, activeOnly, async (req, res, next) => { try {
   const fullName = requireText(req.body.fullName, 'Full name', 160);
   const profile = await query(db.from('profiles').update({ full_name: fullName }).eq('id', req.profile.id).select().single());
@@ -555,19 +559,23 @@ app.patch('/v1/me/tutorial', authenticate, activeOnly, async (req, res, next) =>
     return fail(res, 400, 'Tutorial status, step, and version are invalid');
   }
   const now = new Date().toISOString();
+  const previous = await query(db.from('profile_tutorial_progress').select('tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').eq('profile_id', req.profile.id).eq('role', req.profile.role).maybeSingle());
   const changes = {
+    tutorial_started_at: previous?.tutorial_started_at || null,
+    tutorial_completed_at: previous?.tutorial_completed_at || null,
+    tutorial_skipped_at: previous?.tutorial_skipped_at || null,
     tutorial_status: status,
     tutorial_step: step,
     tutorial_version: version,
     ...(status === 'NOT_STARTED' ? { tutorial_started_at: null, tutorial_completed_at: null, tutorial_skipped_at: null } : {}),
-    ...(status === 'IN_PROGRESS' ? { tutorial_started_at: req.profile.tutorial_started_at || now } : {}),
+    ...(status === 'IN_PROGRESS' ? { tutorial_started_at: previous?.tutorial_started_at || now } : {}),
     ...(status === 'COMPLETED' ? { tutorial_completed_at: now } : {}),
     ...(status === 'SKIPPED' ? { tutorial_skipped_at: now } : {})
   };
-  const profile = await query(db.from('profiles').update(changes).eq('id', req.profile.id).select().single());
+  const progress = await query(db.from('profile_tutorial_progress').upsert({ profile_id: req.profile.id, role: req.profile.role, ...changes }, { onConflict: 'profile_id,role' }).select('tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').single());
   // D1: the destination page must read the tutorial progress just acknowledged.
   profileCache.delete(req.profile.id);
-  res.json({ profile: { ...profile, is_head_admin: isHeadAdmin(req) } });
+  res.json({ profile: { ...req.profile, ...progress, is_head_admin: isHeadAdmin(req) } });
 } catch (error) { next(error); } });
 app.post('/v1/me/avatar-upload', authenticate, activeOnly, async (req, res, next) => { try {
   if (!cloudinaryConfigured) return fail(res, 503, 'Profile photo uploads are not configured yet');

@@ -121,6 +121,21 @@ const tests = {
       assert(doc().querySelector('.ace-tutorial-overlay').getAttribute('aria-modal') !== 'true', `${role}: interactive lesson still modal`);
     }
   },
+  async B4local() {
+    await setup({ role: 'USER', offline: true }, 'user-dashboard.html');
+    await click('[data-tutorial-skip]'); await sleep(800);
+    await post('/promote', { role: 'ADMIN' });
+    // Keep the employee's real localStorage pending write across promotion.
+    await load('admin-dashboard.html');
+    assert(title() === 'Take a quick tour?', 'Employee local skip suppressed ADMIN welcome');
+    await post('/promote', { role: 'USER' });
+    await load('user-dashboard.html');
+    assert(!doc().querySelector('.ace-tutorial-overlay'), 'Employee local skip was lost after role roundtrip');
+    await post('/fault', { offline: false }); await load('user-dashboard.html'); await saveSettled();
+    assert((await profile()).tutorial_status === 'SKIPPED', 'Employee pending skip did not synchronize');
+    await post('/promote', { role: 'ADMIN' });
+    assert((await profile()).tutorial_status === 'NOT_STARTED', 'Employee pending write contaminated ADMIN storage');
+  },
   async B7() {
     for (const role of ['USER', 'ADMIN']) {
       await setup({ role, cache: false }, 'settings.html');

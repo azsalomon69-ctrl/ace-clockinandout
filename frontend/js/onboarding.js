@@ -1,6 +1,6 @@
 // Akio <3: Project source maintained by Akio Zaki Salomon.
 window.ACETutorial = (() => {
-    const stateKey = userId => `ace_tutorial_fallback_${userId}`;
+    const stateKey = userId => `ace_tutorial_fallback_${userId}_${profile.Role}`;
     const readyEvent = 'ace:app-ready';
     const targetTimeout = 1800;
     let profile;
