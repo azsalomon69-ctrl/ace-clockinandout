@@ -935,7 +935,12 @@ app.delete('/v1/invitations/:id', sensitiveActionLimiter, authenticate, adminOnl
 app.get('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)', paging.paged ? { count: 'exact' } : undefined).order('invited_at', { ascending: false }); if (req.query.q) request = request.ilike('email', `%${String(req.query.q).replace(/[%_,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 
 const listTimeEntries = async (req, res, next) => { try {
+  const listingKeys = ['page', 'pageSize', 'mine', 'removed', 'userId', 'projectId', 'status', 'remarks'];
+  if (req.method === 'GET' && Object.keys(req.query).some(key => !listingKeys.includes(key))) {
+    return fail(res, 400, 'Search now requires POST. Please refresh this page and try again.');
+  }
   const filters = req.method === 'POST' ? (req.body || {}) : req.query;
+  const search = req.method === 'POST' ? (req.body || {}) : {};
   const own = req.profile.role !== 'ADMIN' || filters.mine === 'true'; const page = Math.max(1, Number.parseInt(filters.page, 10) || 1); const pageSize = Math.min(100, Math.max(1, Number.parseInt(filters.pageSize, 10) || 25)); const paged = filters.page !== undefined;
   let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email,role,profile_picture_url), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)', paged ? { count: 'exact' } : undefined).order('clock_in_at', { ascending: false });
   request = filters.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null);
@@ -948,16 +953,16 @@ const listTimeEntries = async (req, res, next) => { try {
     const term = String(value || '').trim().replace(/[,()]/g, ' '); if (!term) return null;
     const records = await query(db.from(table).select('id').ilike(field, `%${term}%`)); return records.map(record => record.id);
   };
-  if (filters.employee) { const ids = await matchingIds('profiles', 'full_name', filters.employee); if (!ids?.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('user_id', ids); }
-  if (filters.project) { const ids = await matchingIds('projects', 'name', filters.project); if (!ids?.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('project_id', ids); }
+  if (search.employee) { const ids = await matchingIds('profiles', 'full_name', search.employee); if (!ids?.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('user_id', ids); }
+  if (search.project) { const ids = await matchingIds('projects', 'name', search.project); if (!ids?.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('project_id', ids); }
   if (filters.remarks === 'with' || filters.remarks === 'without') {
     const remarks = await query(db.from('admin_remarks').select('time_entry_id'));
     const ids = [...new Set(remarks.map(remark => remark.time_entry_id))];
     if (filters.remarks === 'with') { if (!ids.length) return res.json(paged ? { items: [], total: 0, page, pageSize } : []); request = request.in('id', ids); }
     else if (ids.length) request = request.not('id', 'in', `(${ids.join(',')})`);
   }
-  if (filters.q) {
-    const term = String(filters.q).trim().replace(/[,()]/g, ' ');
+  if (search.q) {
+    const term = String(search.q).trim().replace(/[,()]/g, ' ');
     if (term) {
       const pattern = `%${term}%`;
       const [people, projects] = await Promise.all([
@@ -975,7 +980,7 @@ const listTimeEntries = async (req, res, next) => { try {
   const response = await request.range((page - 1) * pageSize, page * pageSize - 1); if (response.error) throw response.error;
   res.json({ items: response.data || [], total: response.count || 0, page, pageSize });
 } catch (error) { next(error); } };
-// Keep GET compatible with already-open clients during the search transport transition.
+// GET serves listing controls only; private text searches are accepted in POST bodies.
 app.get('/v1/time-entries', authenticate, activeOnly, listTimeEntries);
 app.post('/v1/time-entries/search', authenticate, activeOnly, listTimeEntries);
 app.get('/v1/time-leaderboard', authenticate, adminOnly, async (req, res, next) => { try {

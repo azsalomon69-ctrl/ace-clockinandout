@@ -104,11 +104,11 @@ test('#5/#6: admin entry search sends names in a JSON body, never its URL', asyn
   assert.ok(calls.some(call => call.url === '/v1/time-entries?page=2&pageSize=25' && !call.options), 'Unfiltered pages retain GET compatibility');
 });
 
-test('#5/#6: POST search matches legacy GET filters, paging and employee ownership', async () => {
+test('#12/#13: searches require POST; GET listing, paging and ownership remain intact', async () => {
   const handlers = new Map();
   const operations = [];
   const authenticate = () => {}, activeOnly = () => {};
-  const context = vm.createContext({ authenticate, activeOnly,
+  const context = vm.createContext({ authenticate, activeOnly, fail: (res, code, error) => res.status(code).json({ error }),
     app: Object.fromEntries(['get', 'post'].map(method => [method, (path, ...middleware) => handlers.set(method + path, middleware)])),
     query: async builder => builder.table === 'profiles' ? [{ id: 'person' }] : builder.table === 'projects' ? [{ id: 'project' }] : [{ id: 'entry' }],
     db: { from(table) {
@@ -128,18 +128,27 @@ test('#5/#6: POST search matches legacy GET filters, paging and employee ownersh
   assert.equal(post[1], activeOnly);
   const filters = { page: '2', pageSize: '10', employee: 'Name', project: 'Project', q: 'query', status: 'ACTIVE', removed: 'true' };
   const invoke = async (method, role, input) => {
-    operations.length = 0; let result;
+    operations.length = 0; let result; let status = 200;
     const handler = handlers.get(method === 'post' ? 'post/v1/time-entries/search' : 'get/v1/time-entries').at(-1);
     await handler({ method: method.toUpperCase(), profile: { role, id: 'self' }, query: method === 'get' ? input : {}, body: method === 'post' ? input : {} },
-      { json(value) { result = JSON.parse(JSON.stringify(value)); } }, error => { throw error; });
-    return { result, operations: JSON.parse(JSON.stringify(operations)) };
+      { status(code) { status = code; return this; }, json(value) { result = JSON.parse(JSON.stringify(value)); } }, error => { throw error; });
+    return { result, status, operations: JSON.parse(JSON.stringify(operations)) };
   };
   for (const role of ['ADMIN', 'USER']) {
-    const legacy = await invoke('get', role, filters);
     const body = await invoke('post', role, filters);
-    assert.deepEqual(body, legacy);
+    assert.equal(body.status, 200);
+    assert.ok(body.operations.some(op => op[0] === 'profiles' && op[1] === 'ilike' && op[3] === '%Name%'));
+    assert.ok(body.operations.some(op => op[0] === 'projects' && op[1] === 'ilike' && op[3] === '%Project%'));
     assert.deepEqual(body.result, { items: [{ id: 'entry' }], total: 1, page: 2, pageSize: 10 });
     assert.equal(body.operations.some(op => op[1] === 'eq' && op[2] === 'user_id' && op[3] === 'self'), role === 'USER');
+    const listing = { page: '2', pageSize: '10', status: 'ACTIVE', removed: 'true', mine: 'true', userId: 'self', projectId: 'project', remarks: 'without' };
+    assert.deepEqual(await invoke('get', role, listing), await invoke('post', role, listing));
+    for (const key of ['employee', 'project', 'q']) {
+      const rejected = await invoke('get', role, { [key]: 'Private text' });
+      assert.equal(rejected.status, 400, `${key} must not be searched through GET`);
+      assert.deepEqual(rejected.operations, [], 'Rejected searches must not reach the database');
+      assert.match(rejected.result.error, /refresh/i);
+    }
   }
   assert.deepEqual((await invoke('get', 'USER', {})).result, [{ id: 'entry' }]);
 });
