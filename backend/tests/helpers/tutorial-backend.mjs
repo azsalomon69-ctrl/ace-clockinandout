@@ -3,7 +3,7 @@ import vm from 'node:vm';
 
 // Execute the production route registrations and cache, not a copy of their logic.
 // Only verified identity, Supabase storage, and the Express response are doubles.
-export function tutorialBackend({ role = 'USER', cache = true, status = 'NOT_STARTED', step = 0, version } = {}) {
+export function tutorialBackend({ role = 'USER', cache = true, status = 'NOT_STARTED', step = 0, version, tutorialError } = {}) {
   const config = { window: {} };
   vm.runInNewContext(readFileSync(new URL('../../../frontend/js/onboarding-config.js', import.meta.url), 'utf8'), config);
   version ??= config.window.ACETutorialConfig[role].version;
@@ -28,6 +28,7 @@ export function tutorialBackend({ role = 'USER', cache = true, status = 'NOT_STA
       upsert(value) { upsert = value; return builder; },
       async single() { const result = await builder.maybeSingle(); if (!result) throw new Error('No row'); return result; },
       async maybeSingle() {
+        if (table === 'profile_tutorial_progress' && tutorialError) throw tutorialError;
         if (upsert) {
           let row = tables[table].find(r => r.profile_id === upsert.profile_id && r.role === upsert.role);
           if (row) Object.assign(row, clone(upsert)); else tables[table].push(clone(upsert));
@@ -41,7 +42,7 @@ export function tutorialBackend({ role = 'USER', cache = true, status = 'NOT_STA
     };
     return builder;
   } };
-  const context = vm.createContext({ Date, Promise, Map, Number, db, profileCache, cacheMaxEntries: 500,
+  const context = vm.createContext({ Date, Promise, Map, Number, console: { warn() {} }, db, profileCache, cacheMaxEntries: 500,
     query: async value => value, authenticate() {}, activeOnly() {}, isHeadAdmin: () => false,
     fail: (res, code, error) => res.status(code).json({ error }),
     app: { get(path, ...fns) { handlers.set(`GET ${path}`, fns.at(-1)); }, patch(path, ...fns) { handlers.set(`PATCH ${path}`, fns.at(-1)); } }

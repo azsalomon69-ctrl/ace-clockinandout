@@ -2,6 +2,20 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { tutorialBackend } from './helpers/tutorial-backend.mjs';
 
+for (const role of ['USER', 'ADMIN']) for (const code of ['PGRST205', '42P01', '42501']) {
+  test(`Startup ${role}: unavailable tutorial storage (${code}) cannot block the profile`, async () => {
+    const backend = tutorialBackend({ role, status: 'COMPLETED', tutorialError: { code, message: 'Tutorial table unavailable' } });
+    const before = structuredClone(backend.tables);
+    const result = await backend.request('GET', '/v1/me');
+    assert.equal(result.code, 200);
+    assert.equal(result.body.profile.id, 'fixture-user');
+    assert.equal(result.body.profile.role, role);
+    assert.equal(result.body.profile.status, 'ACTIVE');
+    assert.equal(result.body.profile.tutorial_status, 'COMPLETED');
+    assert.deepEqual(backend.tables, before, 'Startup must not write or migrate data');
+  });
+}
+
 for (const role of ['USER', 'ADMIN']) test(`B5 ${role}: immediate profile read observes saved tutorial step`, async () => {
   const backend = tutorialBackend({ role, status: 'IN_PROGRESS', step: 1 });
   await backend.request('GET', '/v1/me');

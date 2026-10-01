@@ -538,7 +538,15 @@ app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPAB
 // must never duplicate the protected account's email or make the permission
 // decision itself.  Keep the source of truth in the server environment.
 app.get('/v1/me', authenticate, async (req, res, next) => { try {
-  const progress = await query(db.from('profile_tutorial_progress').select('tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').eq('profile_id', req.profile.id).eq('role', req.profile.role).maybeSingle());
+  // Tutorial storage is optional for startup. During a staged migration or a
+  // tutorial-table outage, return the already authenticated legacy profile.
+  let progress;
+  try {
+    progress = await query(db.from('profile_tutorial_progress').select('tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').eq('profile_id', req.profile.id).eq('role', req.profile.role).maybeSingle());
+  } catch (error) {
+    console.warn('[onboarding] Tutorial progress unavailable; returning legacy profile', { code: error.code });
+    return res.json({ profile: { ...req.profile, is_head_admin: isHeadAdmin(req) } });
+  }
   res.json({ profile: { ...req.profile, ...(progress || {
     tutorial_status: 'NOT_STARTED', tutorial_step: 0, tutorial_version: 1,
     tutorial_started_at: null, tutorial_completed_at: null, tutorial_skipped_at: null
