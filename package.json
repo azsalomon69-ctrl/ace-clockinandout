@@ -9,6 +9,7 @@
     "seed:admin": "node scripts/seed-admin.js",
     "build": "node scripts/build-frontend.js",
     "test": "node --test",
+    "test:overtime-acl": "node --test scripts/overtime-acl.integration.mjs",
     "test:security": "node scripts/security-regression-check.js",
     "test:security:integration": "node scripts/security-integration.staging.js",
     "test:concurrency": "node backend/tests/time-entries.concurrency.staging.js",
