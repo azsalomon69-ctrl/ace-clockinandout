@@ -1,0 +1,5 @@
+Isolated build passed with ACE_API_URL=https://audit-api.example.test.
+HTML pages: 23
+Bundled assets: 17
+Dashboard hashed JS references: 7
+Generated assets inspected; original dist preserved. No browser or deployment verification performed.
