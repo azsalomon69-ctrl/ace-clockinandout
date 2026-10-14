@@ -18039,33 +18039,6 @@ html[data-theme="dark"] .user-dashboard .employee-status-panel::before {
 .user-dashboard .employee-dashboard-hero-grid { margin-bottom: 18px; }
 .employee-quick-action-list a { background: var(--ace-surface-raised); }
 .employee-quick-action-list a:hover { background: var(--ace-accent-muted); }
-.user-dashboard .employee-status-panel .clock-actions .btn-primary {
-  color: #d5f4f6!important;
-  background: #00758e!important;
-  border-color: #00758e!important;
-  box-shadow: none!important;
-}
-.user-dashboard .employee-status-panel .clock-actions .btn-primary > svg,
-.user-dashboard .employee-status-panel .clock-actions .btn-primary > svg * {
-  color: #d5f4f6!important;
-  stroke: #d5f4f6!important;
-  filter: none!important;
-  opacity: 1!important;
-}
-.user-dashboard .employee-status-panel .clock-actions .btn-primary:hover,
-.user-dashboard .employee-status-panel .clock-actions .btn-primary:focus-visible {
-  background: #006d84!important;
-  border-color: #006d84!important;
-}
-html[data-theme="dark"] .user-dashboard .employee-status-panel .clock-actions .btn-primary {
-  background: var(--ace-accent)!important;
-  border-color: var(--ace-accent)!important;
-}
-html[data-theme="dark"] .user-dashboard .employee-status-panel .clock-actions .btn-primary:hover,
-html[data-theme="dark"] .user-dashboard .employee-status-panel .clock-actions .btn-primary:focus-visible {
-  background: var(--ace-accent-hover)!important;
-  border-color: var(--ace-accent-hover)!important;
-}
 .employee-schedule-notice {
   color: var(--ace-text-secondary)!important;
   background: var(--ace-surface-raised)!important;
@@ -18201,4 +18174,47 @@ html[data-theme="dark"] .has-app-shell .btn-primary:focus-visible { color: #1021
   .user-dashboard .employee-status-panel { min-height: 0; padding: 21px 18px; }
   .user-dashboard .employee-week-card { min-height: 236px; }
   .admin-dashboard .hours-line-chart { height: 190px; }
+}
+
+/* One shared treatment for the employee Clock In action across pages. */
+.has-app-shell .employee-clock-action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid #00758e!important;
+  border-radius: 8px;
+  color: #d5f4f6!important;
+  background: #00758e!important;
+  box-shadow: none!important;
+  font-size: .85rem;
+  font-weight: 750;
+}
+.has-app-shell .employee-clock-action > svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  color: currentColor!important;
+  filter: none!important;
+  opacity: 1!important;
+}
+.has-app-shell .employee-clock-action > svg * { stroke: currentColor!important; }
+.has-app-shell .employee-clock-action:hover,
+.has-app-shell .employee-clock-action:focus-visible {
+  color: #d5f4f6!important;
+  background: #006d84!important;
+  border-color: #006d84!important;
+}
+html[data-theme="dark"] body.has-app-shell .employee-clock-action {
+  color: #102126!important;
+  background: var(--ace-accent)!important;
+  border-color: var(--ace-accent)!important;
+}
+html[data-theme="dark"] body.has-app-shell .employee-clock-action:hover,
+html[data-theme="dark"] body.has-app-shell .employee-clock-action:focus-visible {
+  color: #102126!important;
+  background: var(--ace-accent-hover)!important;
+  border-color: var(--ace-accent-hover)!important;
 }
