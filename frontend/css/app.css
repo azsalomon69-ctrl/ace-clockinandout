@@ -17452,13 +17452,7 @@ html[data-theme="dark"] :is(.shell-link .shell-icon,.shell-nav-group-toggle .she
 html[data-theme="dark"] .shell-collapse { color: var(--ace-text-secondary)!important; background: #1c272c!important; border-color: var(--ace-border-strong)!important; box-shadow: none!important; }
 html[data-theme="dark"] .shell-account { color: var(--ace-text-primary)!important; background: #202a2f!important; border-color: #39484e!important; }
 html[data-theme="dark"] .shell-user :is(strong,span) { color: inherit!important; }
-html[data-theme="dark"] .shell-sidebar-help {
-  color: #142126!important;
-  background: #fff!important;
-  border-color: #fff!important;
-  box-shadow: none!important;
-}
-html[data-theme="dark"] .shell-sidebar-help .shell-icon { filter: brightness(0) saturate(100%) invert(11%) sepia(10%) saturate(1212%) hue-rotate(146deg) brightness(92%) contrast(90%)!important; }
+html[data-theme="dark"] .shell-sidebar-help .shell-icon { filter: brightness(0) invert(1)!important; }
 html[data-theme="dark"] .btn-primary {
   color: #142126!important;
   background: #fff!important;
