@@ -42,6 +42,9 @@ await requireQuery('admin remark notification column', db.from('admin_remarks').
 await requireQuery('audit log table', db.from('audit_logs').select('id,user_id,action,entity_type,entity_id,description,request_id,created_at').limit(1));
 
 if (debugWorkspace) {
+  await requireQuery('debug invitations and inviter relationship', db.from('invitations').select('id,invited_by_user_id, profiles!invitations_invited_by_user_id_fkey(full_name,email)').limit(1));
+  await requireQuery('debug reports and report-export relationship', db.from('reports').select('id,created_by_user_id,profiles!reports_created_by_user_id_fkey(full_name),report_exports(*)').limit(1));
+  await requireQuery('debug report exports and foreign keys', db.from('report_exports').select('id,report_id,exported_by_user_id,report_file:reports(id),exporter:profiles!report_exports_exported_by_user_id_fkey(id)').limit(1));
   const { data, error } = await db.rpc('ace_backend_contract');
   if (error || data !== 1) throw new Error(`Debug database contract is missing or incompatible: ${error?.message || 'unexpected contract version'}`);
   console.log('Isolated employee debug database contract checks passed.');

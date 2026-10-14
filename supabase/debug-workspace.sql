@@ -22,10 +22,10 @@ declare
   v_fk record;
   v_definition text;
   v_tables text[] := array[
-    'departments', 'profiles', 'projects', 'user_projects',
+    'departments', 'profiles', 'projects', 'invitations', 'user_projects',
     'time_entries', 'work_schedules', 'user_schedule_assignments',
     'admin_remarks', 'employee_messages', 'profile_tutorial_progress',
-    'audit_logs'
+    'reports', 'report_exports', 'audit_logs'
   ];
 begin
   foreach v_table in array v_tables loop
@@ -92,10 +92,10 @@ declare
   v_table text;
 begin
   foreach v_table in array array[
-    'departments', 'profiles', 'projects', 'user_projects',
+    'departments', 'profiles', 'projects', 'invitations', 'user_projects',
     'time_entries', 'work_schedules', 'user_schedule_assignments',
     'admin_remarks', 'employee_messages', 'profile_tutorial_progress',
-    'audit_logs'
+    'reports', 'report_exports', 'audit_logs'
   ] loop
     execute format('alter table ace_debug.%I enable row level security', v_table);
   end loop;

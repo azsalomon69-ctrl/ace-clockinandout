@@ -21,10 +21,10 @@ begin
       and source_ns.nspname = 'ace_debug'
       and target_ns.nspname = 'public'
       and target.relname = any(array[
-        'departments', 'profiles', 'projects', 'user_projects',
+        'departments', 'profiles', 'projects', 'invitations', 'user_projects',
         'time_entries', 'work_schedules', 'user_schedule_assignments',
         'admin_remarks', 'employee_messages', 'profile_tutorial_progress',
-        'audit_logs'
+        'reports', 'report_exports', 'audit_logs'
       ])
   loop
     v_definition := pg_get_constraintdef(v_fk.constraint_oid);
