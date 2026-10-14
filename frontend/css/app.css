@@ -17783,3 +17783,341 @@ html[data-theme="dark"] .user-dashboard :is(
   border-color: var(--ace-border)!important;
   box-shadow: 0 6px 18px rgba(0,0,0,.16);
 }
+
+/* Shared visual system: calm surfaces, readable hierarchy, and cyan used as an accent. */
+:root {
+  color-scheme: light;
+  --ace-page-bg: #f4f7f8;
+  --ace-page-subtle: #edf2f3;
+  --ace-surface: #ffffff;
+  --ace-surface-raised: #f6f8f8;
+  --ace-surface-input: #ffffff;
+  --ace-surface-nav: #edf2f3;
+  --ace-surface-modal: #ffffff;
+  --ace-text-primary: #223238;
+  --ace-text-secondary: #52656c;
+  --ace-text-tertiary: #687b81;
+  --ace-text-disabled: #87969a;
+  --ace-border: #dce4e6;
+  --ace-border-strong: #c5d1d4;
+  --ace-accent: #087f91;
+  --ace-accent-hover: #066c7c;
+  --ace-accent-active: #075765;
+  --ace-accent-muted: #e8f1f2;
+  --ace-navy: #183d49;
+  --ace-navy-2: #244c58;
+  --ace-cyan: var(--ace-accent);
+  --ace-cyan-dark: var(--ace-accent-active);
+  --ace-blue: var(--ace-accent-active);
+  --ace-blue-dark: var(--ace-accent-active);
+  --ace-sky: #edf4f5;
+  --ace-sky-2: var(--ace-page-bg);
+  --ace-white: var(--ace-surface);
+  --ace-text: var(--ace-text-primary);
+  --ace-muted: var(--ace-text-secondary);
+  --ace-line: var(--ace-border);
+  --ace-line-strong: var(--ace-border-strong);
+  --ace-shadow-xs: 0 1px 2px rgba(24,53,61,.04);
+  --ace-shadow-sm: 0 4px 14px rgba(24,53,61,.06);
+  --ace-shadow-md: 0 16px 36px rgba(24,53,61,.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --ace-page-bg: #101416;
+  --ace-page-subtle: #151a1d;
+  --ace-surface: #191f22;
+  --ace-surface-raised: #222b2f;
+  --ace-surface-input: #151a1d;
+  --ace-surface-nav: #151a1d;
+  --ace-surface-modal: #20272a;
+  --ace-text-primary: #edf2f3;
+  --ace-text-secondary: #b7c2c5;
+  --ace-text-tertiary: #929fa3;
+  --ace-text-disabled: #6e7b7f;
+  --ace-border: #2d373b;
+  --ace-border-strong: #414d52;
+  --ace-accent: #38bfcb;
+  --ace-accent-hover: #55cbd4;
+  --ace-accent-active: #2395a1;
+  --ace-accent-muted: #1d3034;
+  --ace-navy: #151a1d;
+  --ace-navy-2: var(--ace-surface);
+  --ace-cyan: var(--ace-accent);
+  --ace-cyan-dark: var(--ace-accent-hover);
+  --ace-blue: var(--ace-accent-active);
+  --ace-blue-dark: var(--ace-accent-active);
+  --ace-sky: var(--ace-page-subtle);
+  --ace-sky-2: var(--ace-page-bg);
+  --ace-white: var(--ace-surface);
+  --ace-text: var(--ace-text-primary);
+  --ace-muted: var(--ace-text-secondary);
+  --ace-line: var(--ace-border);
+  --ace-line-strong: var(--ace-border-strong);
+  --ace-shadow-xs: 0 1px 2px rgba(0,0,0,.12);
+  --ace-shadow-sm: 0 4px 14px rgba(0,0,0,.14);
+  --ace-shadow-md: 0 16px 36px rgba(0,0,0,.28);
+}
+html,
+body { color: var(--ace-text-primary); background: var(--ace-page-bg); }
+.has-app-shell .main-content { background: var(--ace-page-bg); }
+
+/* One restrained card treatment across dashboards and workspace pages. */
+.has-app-shell :is(
+  .dashboard-section,.recent-activity-section,.projects-section,.admin-remarks-section,
+  .analytics-card,.analytics-toolbar,.stat-card,.summary-card,.settings-section,
+  .filters-section,.table-container,.time-entries-list-section,.current-session-card,
+  .active-entries-panel,.employee-week-card,.employee-quick-actions,.dashboard-command-center
+) {
+  background: var(--ace-surface)!important;
+  border-color: var(--ace-border)!important;
+  border-radius: 12px;
+  box-shadow: var(--ace-shadow-sm);
+}
+.has-app-shell .shell-topbar {
+  background: var(--ace-surface)!important;
+  border-color: var(--ace-border)!important;
+  box-shadow: 0 1px 3px rgba(18,38,44,.035);
+}
+.app-sidebar,
+.shell-brand,
+.shell-account-wrap {
+  background-color: var(--ace-surface-nav)!important;
+  background-image: none!important;
+  border-color: var(--ace-border)!important;
+}
+.shell-nav-group-toggle {
+  color: var(--ace-text-secondary)!important;
+  background: transparent!important;
+  border-color: transparent!important;
+  box-shadow: none!important;
+}
+.shell-nav-group-toggle:hover,
+.shell-nav-group-toggle[aria-expanded="true"],
+.shell-nav-group.is-open .shell-nav-group-toggle {
+  color: var(--ace-text-primary)!important;
+  background: var(--ace-surface-raised)!important;
+  border-color: transparent!important;
+}
+.shell-link { color: var(--ace-text-secondary)!important; border-color: transparent!important; }
+.shell-link:hover,
+.shell-link:focus-visible { color: var(--ace-text-primary)!important; background: var(--ace-surface-raised)!important; }
+.shell-link.active {
+  color: var(--ace-text-primary)!important;
+  background: var(--ace-accent-muted)!important;
+  border-color: transparent!important;
+  box-shadow: inset 3px 0 0 var(--ace-accent)!important;
+}
+.shell-link.active::before { background: var(--ace-accent)!important; border-radius: 2px; }
+.shell-collapse {
+  color: var(--ace-text-secondary)!important;
+  background: var(--ace-surface)!important;
+  border-color: var(--ace-border)!important;
+  box-shadow: none!important;
+}
+.shell-collapse:hover,.shell-collapse:focus-visible {
+  color: var(--ace-text-primary)!important;
+  background: var(--ace-surface-raised)!important;
+  border-color: var(--ace-border-strong)!important;
+}
+html[data-theme="dark"] .has-app-shell .shell-topbar { box-shadow: none; }
+html[data-theme="dark"] .app-sidebar,
+html[data-theme="dark"] .shell-brand,
+html[data-theme="dark"] .shell-account-wrap { background-color: var(--ace-surface-nav)!important; }
+html[data-theme="dark"] .shell-link.active { color: var(--ace-text-primary)!important; }
+html[data-theme="dark"] .shell-link.active {
+  background: var(--ace-accent-muted)!important;
+  box-shadow: inset 3px 0 0 var(--ace-accent)!important;
+}
+html[data-theme="dark"] .shell-link.active::before { background: var(--ace-accent)!important; }
+html[data-theme="dark"] .shell-collapse {
+  color: var(--ace-text-secondary)!important;
+  background: var(--ace-surface-raised)!important;
+  border-color: var(--ace-border)!important;
+}
+html[data-theme="dark"] .shell-sidebar-help {
+  color: var(--ace-text-primary)!important;
+  background: var(--ace-surface-raised)!important;
+  border-color: var(--ace-border)!important;
+}
+html[data-theme="dark"] .has-app-shell :is(.employee-eyebrow,.employee-section-kicker,.clock-kicker,.admin-section-kicker) {
+  color: var(--ace-text-tertiary)!important;
+}
+html[data-theme="dark"] .admin-dashboard :is(
+  .admin-dashboard-date,.dashboard-command-center,.dashboard-header-stats .stat-card,
+  .dashboard-insights-grid .analytics-card
+) {
+  color: var(--ace-text-primary)!important;
+  background: var(--ace-surface)!important;
+  border-color: var(--ace-border)!important;
+  box-shadow: var(--ace-shadow-sm)!important;
+}
+html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-icon {
+  color: var(--ace-accent)!important;
+  background: var(--ace-surface-raised)!important;
+}
+html[data-theme="dark"] .admin-dashboard #reviewAlertsSection {
+  background: var(--ace-surface)!important;
+  border-color: var(--ace-border)!important;
+}
+html[data-theme="dark"] .admin-dashboard #reviewAlertsSection .dashboard-section-heading {
+  background: var(--ace-surface)!important;
+  border-color: var(--ace-border)!important;
+}
+html[data-theme="dark"] .admin-dashboard .review-alert-card { background: var(--ace-surface-raised)!important; }
+
+/* Keep page titles clear without letting them compete with the work surface. */
+.has-app-shell :is(.admin-section-header h1,.dashboard-title,.welcome-title,.reports-title,.settings-title,.time-entries-title) {
+  font-size: clamp(1.9rem,2.7vw,2.15rem);
+  line-height: 1.18;
+  letter-spacing: -.035em;
+}
+.user-dashboard .employee-dashboard-intro { margin-bottom: 16px; padding-bottom: 16px; }
+.user-dashboard .employee-dashboard-intro h1 {
+  max-width: 760px;
+  margin-bottom: 6px;
+  font-size: clamp(1.9rem,2.8vw,2.15rem);
+  line-height: 1.18;
+  letter-spacing: -.035em;
+}
+.user-dashboard .employee-dashboard-intro > div > p:last-child { font-size: .9rem; line-height: 1.55; }
+.has-app-shell :is(.employee-section-heading .section-title,.employee-card-title h2,.dashboard-insights-heading h2,.dashboard-chart-title .analytics-label) {
+  font-size: 1.08rem;
+  line-height: 1.3;
+  letter-spacing: -.02em;
+}
+.has-app-shell :is(.employee-eyebrow,.employee-section-kicker,.clock-kicker,.admin-section-kicker) {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .095em;
+}
+.has-app-shell :is(.employee-section-heading > p,.employee-dashboard-intro > div > p:last-child,.dashboard-insights-heading p:last-child) {
+  color: var(--ace-text-secondary);
+}
+.has-app-shell :is(.employee-section-heading > p,.employee-quick-action-list small,.employee-week-metrics span,.employee-week-day strong,.employee-week-day small) {
+  font-size: max(.68rem, 11px);
+  line-height: 1.4;
+}
+
+/* The status panel stays the focal point, but its landscape becomes texture. */
+.user-dashboard .employee-status-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 260px;
+  padding: clamp(24px,3vw,34px);
+  background: #26363b!important;
+  border: 1px solid #3a4a4f!important;
+  border-radius: 12px;
+  box-shadow: var(--ace-shadow-sm);
+}
+html[data-theme="dark"] .user-dashboard .employee-status-panel {
+  background: #26363b!important;
+  background-image: none!important;
+  border-color: #3a4a4f!important;
+}
+.user-dashboard .employee-status-panel::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  content: '';
+  background: url('/assets/images/analytics-mountain-banner-v1.png') center/cover no-repeat;
+  filter: grayscale(1);
+  opacity: .18;
+  pointer-events: none;
+}
+.user-dashboard .employee-status-panel > * { position: relative; z-index: 1; }
+.user-dashboard .employee-status-panel .employee-status-copy h2 {
+  font-size: clamp(1.55rem,2.2vw,1.85rem);
+  line-height: 1.18;
+  letter-spacing: -.03em;
+}
+.user-dashboard .employee-status-panel .employee-session-detail,
+.user-dashboard .employee-status-panel .employee-session-facts { border-color: rgba(237,242,243,.16); }
+.user-dashboard .employee-status-panel .employee-session-detail { border-right: 0; }
+.user-dashboard .employee-dashboard-hero-grid,
+.user-dashboard .employee-work-grid,
+.user-dashboard .employee-dashboard-support-grid { gap: 14px; }
+.user-dashboard .employee-dashboard-hero-grid { margin-bottom: 18px; }
+.employee-quick-action-list a { background: var(--ace-surface-raised); }
+.employee-quick-action-list a:hover { background: var(--ace-accent-muted); }
+.user-dashboard .employee-status-panel .clock-actions .btn-primary {
+  color: #102126!important;
+  background: var(--ace-accent)!important;
+  border-color: var(--ace-accent)!important;
+  box-shadow: none!important;
+}
+.user-dashboard .employee-status-panel .clock-actions .btn-primary:hover,
+.user-dashboard .employee-status-panel .clock-actions .btn-primary:focus-visible {
+  background: var(--ace-accent-hover)!important;
+  border-color: var(--ace-accent-hover)!important;
+}
+.employee-schedule-notice {
+  color: var(--ace-text-secondary)!important;
+  background: var(--ace-surface-raised)!important;
+  border: 1px solid var(--ace-border)!important;
+  border-left: 3px solid var(--ace-accent)!important;
+  box-shadow: none!important;
+}
+html[data-theme="dark"] .employee-schedule-notice,
+html[data-theme="dark"] .employee-schedule-notice.is-late {
+  color: var(--ace-text-secondary)!important;
+  background: var(--ace-surface-raised)!important;
+  border-color: var(--ace-border)!important;
+  border-left-color: var(--ace-accent)!important;
+}
+
+/* Make weekly and admin charts use their space and keep labels readable. */
+.user-dashboard .employee-week-card { min-height: 260px; padding: 18px; }
+.employee-week-metrics { margin: 14px 0 8px; }
+.employee-week-chart { min-height: 86px; gap: 6px; padding-top: 3px; }
+.employee-week-day { grid-template-rows: minmax(60px,1fr) auto auto; gap: 4px; }
+.employee-week-bar { width: 8px; background: var(--ace-accent); }
+.employee-week-day strong,.employee-week-day small { color: var(--ace-text-secondary); font-size: .68rem; }
+.employee-week-day small { color: var(--ace-text-tertiary); }
+html[data-theme="dark"] .employee-quick-action-list a {
+  color: var(--ace-text-primary)!important;
+  background: var(--ace-surface-raised)!important;
+}
+html[data-theme="dark"] .employee-quick-action-list a:hover { background: var(--ace-accent-muted)!important; }
+.admin-dashboard .hours-line-chart { height: 218px; color: var(--ace-accent); }
+.line-chart-gridline text,.line-chart-x-label { font-size: 11px; }
+.line-chart-area { fill: rgba(8,127,145,.09)!important; }
+.admin-dashboard .project-allocation-card .allocation-fill,
+.project-bar-fill { background: var(--ace-accent)!important; }
+html[data-theme="dark"] .line-chart-area { fill: rgba(56,191,203,.12)!important; }
+html[data-theme="dark"] .line-chart-gridline line,
+html[data-theme="dark"] .line-chart-gridline--vertical { stroke: #343e42; }
+html[data-theme="dark"] :is(.line-chart-gridline text,.line-chart-x-label) { fill: #b7c2c5; }
+html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-number { color: var(--ace-text-primary); }
+html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-icon { background: var(--ace-surface-raised); }
+
+/* Buttons share a height and focus treatment; outlines are reserved for focus. */
+.has-app-shell .btn { min-height: 40px; border-radius: 8px; box-shadow: none; }
+.has-app-shell .btn-sm { min-height: 34px; }
+.has-app-shell .btn-primary { color: #fff!important; background: var(--ace-accent)!important; border-color: var(--ace-accent)!important; }
+.has-app-shell .btn-primary:hover,
+.has-app-shell .btn-primary:focus-visible { color: #fff!important; background: var(--ace-accent-hover)!important; border-color: var(--ace-accent-hover)!important; }
+html[data-theme="dark"] .has-app-shell .btn-primary {
+  color: #102126!important;
+  background: var(--ace-accent)!important;
+  border-color: var(--ace-accent)!important;
+}
+html[data-theme="dark"] .has-app-shell .btn-primary:hover,
+html[data-theme="dark"] .has-app-shell .btn-primary:focus-visible { color: #102126!important; background: var(--ace-accent-hover)!important; border-color: var(--ace-accent-hover)!important; }
+.has-app-shell :is(.btn-secondary,.btn-outline) {
+  color: var(--ace-text-primary)!important;
+  background: var(--ace-surface-raised)!important;
+  border-color: var(--ace-border)!important;
+}
+.has-app-shell :is(.btn-secondary,.btn-outline):hover,
+.has-app-shell :is(.btn-secondary,.btn-outline):focus-visible {
+  background: var(--ace-accent-muted)!important;
+  border-color: var(--ace-border-strong)!important;
+}
+
+@media (max-width: 760px) {
+  .user-dashboard .employee-dashboard-support-grid { grid-template-columns: 1fr; }
+  .user-dashboard .employee-status-panel { min-height: 0; padding: 21px 18px; }
+  .user-dashboard .employee-week-card { min-height: 236px; }
+  .admin-dashboard .hours-line-chart { height: 190px; }
+}
