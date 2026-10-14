@@ -34,3 +34,41 @@ services:
         sync: false
       - key: GMAIL_FROM
         sync: false
+
+  # Employee-test service in the same Render project/Blueprint.
+  # Production remains pinned to public above; this instance uses ace_debug.
+  - type: web
+    name: ace-clock-debug-workspace
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ACE_DEBUG_MODE
+        value: "true"
+      - key: SUPABASE_DB_SCHEMA
+        value: ace_debug
+      - key: ACE_API_URL
+        fromService:
+          type: web
+          name: ace-clock-debug-workspace
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ACE_ADMIN_WORKSPACE_URL
+        value: https://aceclock.onrender.com/
+      - key: FRONTEND_ORIGIN
+        fromService:
+          type: web
+          name: ace-clock-debug-workspace
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: HEAD_ADMIN_EMAIL
+        sync: false

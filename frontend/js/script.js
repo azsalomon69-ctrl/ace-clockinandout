@@ -2390,7 +2390,10 @@ async function performLogout() {
                 showToast('You have been signed out. Session activity could not be recorded.', 'warning');
             }
             const auth = await window.ACEAuth.client();
-            const { error } = await auth.auth.signOut();
+            // Debug logout ends only this browser's debug session. A global
+            // Supabase sign-out would also revoke the admin's production tab.
+            const signOutOptions = window.ACE_EXPECTED_WORKSPACE_MODE === 'employee-test' ? { scope: 'local' } : undefined;
+            const { error } = await auth.auth.signOut(signOutOptions);
             if (error) throw error;
         }
     } catch (error) {

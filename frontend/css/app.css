@@ -60,6 +60,12 @@
   --transition-slow: 350ms ease
 }
 
+/* Added only to the separately built employee-test frontend. */
+.ace-debug-banner { position: sticky; top: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 42px; padding: 8px 16px; background: #78350f; color: #fff7ed; font-size: .875rem; text-align: center; }
+.ace-debug-banner strong { color: #fde68a; letter-spacing: .06em; }
+.ace-debug-banner a { color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 640px) { .ace-debug-banner { flex-wrap: wrap; gap: 4px 10px; font-size: .75rem; } }
+
 /* Built-in onboarding tutorial */
 .ace-tutorial-overlay { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 24px; pointer-events: none; }
 .ace-tutorial-navigation-overlay { pointer-events: none; }

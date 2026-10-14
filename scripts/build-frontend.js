@@ -12,11 +12,25 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const frontend = path.join(root, 'frontend');
 const dist = path.join(root, 'dist');
 const sourceHash = source => createHash('sha256').update(source).digest('hex').slice(0, 16);
+const debugWorkspace = process.env.ACE_DEBUG_MODE === 'true';
+let adminWorkspaceUrl = '';
+if (debugWorkspace) {
+  try {
+    const parsed = new URL(process.env.ACE_ADMIN_WORKSPACE_URL || '');
+    if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error('invalid URL');
+    adminWorkspaceUrl = parsed.href;
+  } catch {
+    throw new Error('ACE_ADMIN_WORKSPACE_URL must be a valid HTTP(S) URL when ACE_DEBUG_MODE=true.');
+  }
+}
 const filesIn = async directory => (await readdir(directory, { withFileTypes: true }))
   .filter(entry => entry.isFile())
   .map(entry => entry.name);
 const apiUrl = String(process.env.ACE_API_URL || process.env.ACE_API_URL_FALLBACK || '').replace(/\/$/, '');
 if (!apiUrl) throw new Error('Missing ACE_API_URL and ACE_API_URL_FALLBACK. Set one before building the frontend.');
+if (debugWorkspace && !process.env.ACE_API_URL) {
+  throw new Error('ACE_API_URL must explicitly point to the debug API when ACE_DEBUG_MODE=true.');
+}
 try {
   const parsed = new URL(apiUrl);
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('unsupported protocol');
@@ -42,6 +56,7 @@ async function buildScripts() {
   // while reducing the number of deployed readable entry points.
   const coreSource = [
     `window.ACE_API_URL = window.ACE_API_URL || ${JSON.stringify(apiUrl)};`,
+    `window.ACE_EXPECTED_WORKSPACE_MODE = ${JSON.stringify(debugWorkspace ? 'employee-test' : null)};`,
     await readFile(path.join(sourceDirectory, 'supabase-auth.js'), 'utf8')
   ].join('\n');
   const core = await minifyJs(coreSource, {
@@ -95,7 +110,14 @@ async function buildStyles() {
 async function buildPages(assetMap) {
   for (const file of (await filesIn(frontend)).filter(file => file.endsWith('.html'))) {
     const source = await readFile(path.join(frontend, file), 'utf8');
-    const withProductionAssets = source.replace(/\b(src|href)=(['"])((?:\.\/)?(?:js|css)\/[^?'"\s]+)(?:\?[^'"]*)?\2/gi, (match, attribute, quote, sourcePath) => {
+    const withWorkspaceBanner = debugWorkspace
+      ? (() => {
+        const output = source.replace(/<body\b[^>]*>/i, match => `${match}\n<div class="ace-debug-banner" role="status"><strong>TEST DATA</strong><span>This is an isolated employee test workspace. Changes here do not affect employee records.</span><a href="${adminWorkspaceUrl}" rel="noopener">Return to admin workspace</a></div>`);
+        if (output === source) throw new Error(`Cannot add the test-data banner to ${file}: no body element found.`);
+        return output;
+      })()
+      : source;
+    const withProductionAssets = withWorkspaceBanner.replace(/\b(src|href)=(['"])((?:\.\/)?(?:js|css)\/[^?'"\s]+)(?:\?[^'"]*)?\2/gi, (match, attribute, quote, sourcePath) => {
       const normalized = sourcePath.replace(/^\.\//, '');
       const target = assetMap.get(normalized);
       return target ? `${attribute}=${quote}${target}${quote}` : match;
@@ -126,5 +148,20 @@ await mkdir(dist, { recursive: true });
 await cp(path.join(frontend, 'assets'), path.join(dist, 'assets'), { recursive: true });
 const assetMap = new Map([...(await buildScripts()), ...(await buildStyles())]);
 await buildPages(assetMap);
-await cp(path.join(frontend, '_headers'), path.join(dist, '_headers'));
+const headersPath = path.join(frontend, '_headers');
+let headers = await readFile(headersPath, 'utf8');
+if (debugWorkspace) {
+  const debugApiOrigin = new URL(apiUrl).origin;
+  let updatedCsp = false;
+  headers = headers.replace(/(^\s*Content-Security-Policy:[^\r\n]*\bconnect-src\s+)([^;\r\n]*)(;)/im, (match, prefix, rawSources, suffix) => {
+    const sources = rawSources.split(/\s+/).filter(source => source
+      && source !== 'https://ace-clockinandout.onrender.com'
+      && source !== 'https://api.cloudinary.com');
+    if (!sources.includes(debugApiOrigin)) sources.push(debugApiOrigin);
+    updatedCsp = true;
+    return `${prefix}${sources.join(' ')}${suffix}`;
+  });
+  if (!updatedCsp) throw new Error('Cannot configure debug Content-Security-Policy: connect-src directive not found.');
+}
+await writeFile(path.join(dist, '_headers'), headers);
 console.log(`Built ${dist} with ${assetMap.size} minified, hashed frontend assets and Cloudflare headers.`);

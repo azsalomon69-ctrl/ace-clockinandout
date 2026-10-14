@@ -5,6 +5,7 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { createHash, createPublicKey, randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
 import jwt from 'jsonwebtoken';
 import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
@@ -15,7 +16,21 @@ const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_K
 const missing = required.filter(name => !process.env[name]);
 if (missing.length) throw new Error(`Missing required environment variable(s): ${missing.join(', ')}`);
 
+// Each API deployment is pinned to one PostgREST schema. Production keeps the
+// default public schema; a separate debug deployment can point at ace_debug.
+// Never accept a schema name from a request or browser setting.
+const databaseSchema = process.env.SUPABASE_DB_SCHEMA?.trim() || 'public';
+if (databaseSchema.length > 63 || !/^[a-z_][a-z0-9_]*$/.test(databaseSchema)) {
+  throw new Error('SUPABASE_DB_SCHEMA must be a lowercase PostgreSQL schema name');
+}
+const debugWorkspace = process.env.ACE_DEBUG_MODE === 'true';
+if (debugWorkspace ? databaseSchema !== 'ace_debug' : databaseSchema !== 'public') {
+  throw new Error(debugWorkspace
+    ? 'ACE_DEBUG_MODE requires SUPABASE_DB_SCHEMA=ace_debug'
+    : 'A non-public SUPABASE_DB_SCHEMA requires ACE_DEBUG_MODE=true');
+}
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
+  db: { schema: databaseSchema },
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
 const cloudinaryConfigured = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].every(key => Boolean(process.env[key]));
@@ -85,15 +100,34 @@ if (process.env.NODE_ENV === 'production' && !frontendOrigins.length) {
 }
 // This service is an API, not an embeddable document.  Keep the header policy
 // explicit so API responses cannot be framed or interpreted as active content.
-app.use(helmet({
-  contentSecurityPolicy: {
+const apiContentSecurityPolicy = debugWorkspace
+  ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      formAction: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      connectSrc: ["'self'", 'https://*.supabase.co'],
+      fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
+      manifestSrc: ["'self'"],
+      workerSrc: ["'none'"],
+      upgradeInsecureRequests: []
+    }
+  }
+  : {
     directives: {
       defaultSrc: ["'none'"],
       baseUri: ["'none'"],
       formAction: ["'none'"],
       frameAncestors: ["'none'"]
     }
-  },
+  };
+app.use(helmet({
+  contentSecurityPolicy: apiContentSecurityPolicy,
   crossOriginResourcePolicy: false
 }));
 app.use(cors({
@@ -449,7 +483,13 @@ async function authenticate(req, res, next) {
       user = await getUserFromGoTrue(token, tokenKey);
     }
     req.profile = await cached(profileCache, user.id, 5_000, () => query(db.from('profiles').select('*').eq('id', user.id).is('permanently_deleted_at', null).single()));
-    req.profile = await persistGoogleAvatar(req.profile, user);
+    if (debugWorkspace
+      && (user.email?.toLowerCase() !== headAdminEmail || req.profile.email?.toLowerCase() !== headAdminEmail)) {
+      return fail(res, 403, 'Employee test workspace access is restricted');
+    }
+    // A debug session must not call shared avatar storage or mutate the copied
+    // public profile; its seeded employee profile uses its own test-only data.
+    if (!debugWorkspace) req.profile = await persistGoogleAvatar(req.profile, user);
     req.authUser = user;
     req.authToken = token;
     req.authTokenCacheKey = tokenKey;
@@ -481,7 +521,9 @@ const specialAdminOnly = async (req, res, next) => {
     return next();
   } catch { return fail(res, 401, 'Invalid or expired session'); }
 };
-const isHeadAdmin = req => req.profile.email?.toLowerCase() === headAdminEmail;
+// The test workspace deliberately treats the head administrator's Auth
+// identity as an ordinary employee for all feature flags and UI responses.
+const isHeadAdmin = req => !debugWorkspace && req.profile.email?.toLowerCase() === headAdminEmail;
 const protectHeadAdmin = (req, res, target) => {
   if (target.email?.toLowerCase() !== headAdminEmail || isHeadAdmin(req)) return true;
   fail(res, 403, 'Only the head administrator can change this administrator account.');
@@ -527,13 +569,13 @@ app.get('/health', async (_, res) => {
   try {
     const { error } = await db.from('profiles').select('id', { head: true, count: 'exact' }).limit(1);
     if (error) throw error;
-    res.json({ ok: true, service: 'ace-clock-api', database: 'connected' });
+    res.json({ ok: true, service: debugWorkspace ? 'ace-clock-api-debug' : 'ace-clock-api', database: 'connected', schema: databaseSchema });
   } catch (error) {
     console.error('health check database error:', error.message);
-    res.status(503).json({ ok: false, service: 'ace-clock-api', database: 'unavailable' });
+    res.status(503).json({ ok: false, service: debugWorkspace ? 'ace-clock-api-debug' : 'ace-clock-api', database: 'unavailable', schema: databaseSchema });
   }
 });
-app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
+app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY, workspaceMode: debugWorkspace ? 'employee-test' : 'production' }));
 // The browser needs to know which navigation and safeguards to show, but it
 // must never duplicate the protected account's email or make the permission
 // decision itself.  Keep the source of truth in the server environment.
@@ -586,6 +628,7 @@ app.patch('/v1/me/tutorial', authenticate, activeOnly, async (req, res, next) =>
   res.json({ profile: { ...req.profile, ...progress, is_head_admin: isHeadAdmin(req) } });
 } catch (error) { next(error); } });
 app.post('/v1/me/avatar-upload', authenticate, activeOnly, async (req, res, next) => { try {
+  if (debugWorkspace) return fail(res, 503, 'Profile photo uploads are disabled in the employee test workspace');
   if (!cloudinaryConfigured) return fail(res, 503, 'Profile photo uploads are not configured yet');
   const contentType = String(req.body.contentType || '');
   const contentLength = Number(req.body.contentLength);
@@ -596,6 +639,7 @@ app.post('/v1/me/avatar-upload', authenticate, activeOnly, async (req, res, next
   res.json({ uploadUrl: `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`, apiKey: process.env.CLOUDINARY_API_KEY, timestamp, signature, publicId });
 } catch (error) { next(error); } });
 app.post('/v1/me/avatar-complete', authenticate, activeOnly, async (req, res, next) => { try {
+  if (debugWorkspace) return fail(res, 503, 'Profile photo uploads are disabled in the employee test workspace');
   if (!cloudinaryConfigured) return fail(res, 503, 'Profile photo uploads are not configured yet');
   const publicId = requireText(req.body.publicId, 'Upload ID', 300);
   if (!publicId.startsWith(`ace-profiles/${req.profile.id}/`)) return fail(res, 403, 'That upload does not belong to your account');
@@ -710,7 +754,7 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   const profileResponse = await request;
   if (profileResponse.error) throw profileResponse.error; const profiles = profileResponse.data || []; const items = profiles.map(profile => ({
     ...profile,
-    is_head_admin: profile.email?.toLowerCase() === headAdminEmail
+    is_head_admin: !debugWorkspace && profile.email?.toLowerCase() === headAdminEmail
   }));
   res.json(paged ? { items, total: profileResponse.count || 0, page, pageSize } : items);
 } catch (error) { next(error); } });
@@ -1199,6 +1243,17 @@ app.delete('/v1/reports/:id', authenticate, adminOnly, async (req, res, next) =>
   res.json(report);
 } catch (error) { next(error); } });
 app.get('/v1/audit-logs', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('audit_logs').select('*, profiles(full_name,email)', paging.paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false }); if (req.query.q) request = request.or(`action.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); if (!paging.paged) request = request.limit(250); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
+
+// The isolated Render service can serve its own separately built frontend.
+// Production remains API-only, and debug pages/assets share the debug API's
+// origin so the browser never needs a connection to the production API.
+if (debugWorkspace) {
+  app.use((_, res, next) => {
+    res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    next();
+  });
+  app.use(express.static(resolve(process.cwd(), 'dist'), { extensions: ['html'], index: 'index.html' }));
+}
 
 app.use((error, _, res, __) => {
   // Keep diagnostics server-side. Never return database/provider details,

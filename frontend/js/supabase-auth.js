@@ -11,6 +11,9 @@ window.ACEAuth = (() => {
             clientPromise = fetch(`${apiUrl()}/v1/auth/config`).then(async response => {
                 if (!response.ok) throw new Error('Authentication service is not configured.');
                 const config = await response.json();
+                if (window.ACE_EXPECTED_WORKSPACE_MODE && config.workspaceMode !== window.ACE_EXPECTED_WORKSPACE_MODE) {
+                    throw new Error('This test workspace is connected to the wrong API environment.');
+                }
                 const created = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, {
                     auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
                 });
