@@ -18132,17 +18132,27 @@ html[data-theme="dark"] .has-app-shell .btn-primary:focus-visible {
   background: var(--ace-primary-button-hover)!important;
   border-color: var(--ace-primary-button-hover)!important;
 }
-html:not([data-theme="dark"]) .has-app-shell .btn {
+html:not([data-theme="dark"]) .has-app-shell .btn-primary {
   color: var(--ace-primary-button-text)!important;
   background: var(--ace-primary-button-bg)!important;
   border-color: var(--ace-primary-button-bg)!important;
   box-shadow: 0 5px 13px rgba(9,64,79,.1)!important;
 }
-html:not([data-theme="dark"]) .has-app-shell .btn:hover,
-html:not([data-theme="dark"]) .has-app-shell .btn:focus-visible {
+html:not([data-theme="dark"]) .has-app-shell .btn-primary:hover,
+html:not([data-theme="dark"]) .has-app-shell .btn-primary:focus-visible {
   color: var(--ace-primary-button-text)!important;
   background: var(--ace-primary-button-hover)!important;
   border-color: var(--ace-primary-button-hover)!important;
+}
+html:not([data-theme="dark"]) .has-app-shell :is(.btn-secondary,.btn-outline) {
+  color: var(--ace-text-primary)!important;
+  background: var(--ace-surface-raised)!important;
+  border-color: var(--ace-border)!important;
+}
+html:not([data-theme="dark"]) .has-app-shell :is(.btn-secondary,.btn-outline):hover,
+html:not([data-theme="dark"]) .has-app-shell :is(.btn-secondary,.btn-outline):focus-visible {
+  background: var(--ace-accent-muted)!important;
+  border-color: var(--ace-border-strong)!important;
 }
 
 /* Use a denser dashboard rhythm on desktop-sized screens so the main overview fits together. */
