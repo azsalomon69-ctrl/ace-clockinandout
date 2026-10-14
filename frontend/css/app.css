@@ -17783,12 +17783,12 @@ html[data-theme="dark"] .user-dashboard :is(
 /* Shared visual system: calm surfaces, readable hierarchy, and cyan used as an accent. */
 :root {
   color-scheme: light;
-  --ace-page-bg: #f4f7f8;
-  --ace-page-subtle: #edf2f3;
+  --ace-page-bg: #f4fbfc;
+  --ace-page-subtle: #e9f8fb;
   --ace-surface: #ffffff;
-  --ace-surface-raised: #f6f8f8;
+  --ace-surface-raised: #eff9fa;
   --ace-surface-input: #ffffff;
-  --ace-surface-nav: #edf2f3;
+  --ace-surface-nav: #e4f2f5;
   --ace-surface-modal: #ffffff;
   --ace-text-primary: #223238;
   --ace-text-secondary: #52656c;
@@ -17799,15 +17799,15 @@ html[data-theme="dark"] .user-dashboard :is(
   --ace-accent: #087f91;
   --ace-accent-hover: #066c7c;
   --ace-accent-active: #075765;
-  --ace-accent-muted: #e8f1f2;
+  --ace-accent-muted: #e5f6f8;
   --ace-navy: #183d49;
   --ace-navy-2: #244c58;
   --ace-cyan: var(--ace-accent);
   --ace-cyan-dark: var(--ace-accent-active);
   --ace-blue: var(--ace-accent-active);
   --ace-blue-dark: var(--ace-accent-active);
-  --ace-sky: #edf4f5;
-  --ace-sky-2: var(--ace-page-bg);
+  --ace-sky: #e9f8fb;
+  --ace-sky-2: #f4fbfc;
   --ace-white: var(--ace-surface);
   --ace-text: var(--ace-text-primary);
   --ace-muted: var(--ace-text-secondary);
