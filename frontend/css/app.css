@@ -18045,9 +18045,12 @@ html[data-theme="dark"] .user-dashboard .employee-status-panel::before {
   border-color: #00758e!important;
   box-shadow: none!important;
 }
-.user-dashboard .employee-status-panel .clock-actions .btn-primary .ui-icon {
+.user-dashboard .employee-status-panel .clock-actions .btn-primary > svg,
+.user-dashboard .employee-status-panel .clock-actions .btn-primary > svg * {
   color: #d5f4f6!important;
+  stroke: #d5f4f6!important;
   filter: none!important;
+  opacity: 1!important;
 }
 .user-dashboard .employee-status-panel .clock-actions .btn-primary:hover,
 .user-dashboard .employee-status-panel .clock-actions .btn-primary:focus-visible {
