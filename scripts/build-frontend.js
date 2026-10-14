@@ -112,7 +112,7 @@ async function buildPages(assetMap) {
     const source = await readFile(path.join(frontend, file), 'utf8');
     const withWorkspaceBanner = debugWorkspace
       ? (() => {
-        const output = source.replace(/<body\b[^>]*>/i, match => `${match}\n<div class="ace-debug-banner" role="status"><strong>TEST DATA</strong><span>This is an isolated employee test workspace. Changes here do not affect employee records.</span><a href="${adminWorkspaceUrl}" rel="noopener">Return to admin workspace</a></div>`);
+        const output = source.replace(/<body\b[^>]*>/i, match => `${match}\n<div class="ace-debug-banner" role="region" aria-label="Test data workspace"><strong>TEST DATA</strong><span>This is an isolated employee test workspace. Changes here do not affect employee records.</span><button type="button" data-ace-debug-role-toggle hidden>Switch to admin view</button><a href="${adminWorkspaceUrl}" rel="noopener">Return to admin workspace</a></div>`);
         if (output === source) throw new Error(`Cannot add the test-data banner to ${file}: no body element found.`);
         return output;
       })()

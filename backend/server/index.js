@@ -576,6 +576,23 @@ app.get('/health', async (_, res) => {
   }
 });
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY, workspaceMode: debugWorkspace ? 'employee-test' : 'production' }));
+app.post('/v1/debug/switch-role', authenticate, async (req, res, next) => { try {
+  if (!debugWorkspace || req.profile.status !== 'ACTIVE'
+    || req.profile.id !== req.authUser.id
+    || req.profile.email?.toLowerCase() !== headAdminEmail
+    || req.authUser.email?.toLowerCase() !== headAdminEmail) {
+    return fail(res, 403, 'Debug role switching is restricted to the head administrator in the isolated test workspace');
+  }
+  const verifiedUser = await getFreshUserFromGoTrue(req.authToken);
+  if (verifiedUser.id !== req.profile.id || verifiedUser.email?.toLowerCase() !== headAdminEmail) {
+    return fail(res, 403, 'Debug role switching is restricted to the head administrator in the isolated test workspace');
+  }
+  const role = req.profile.role === 'ADMIN' ? 'USER' : req.profile.role === 'USER' ? 'ADMIN' : null;
+  if (!role) return fail(res, 409, 'This debug account cannot switch roles');
+  await query(db.from('profiles').update({ role }).eq('id', req.profile.id).select('id').single());
+  profileCache.delete(req.profile.id);
+  res.json({ role });
+} catch (error) { next(error); } });
 // The browser needs to know which navigation and safeguards to show, but it
 // must never duplicate the protected account's email or make the permission
 // decision itself.  Keep the source of truth in the server environment.
@@ -587,12 +604,12 @@ app.get('/v1/me', authenticate, async (req, res, next) => { try {
     progress = await query(db.from('profile_tutorial_progress').select('tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').eq('profile_id', req.profile.id).eq('role', req.profile.role).maybeSingle());
   } catch (error) {
     console.warn('[onboarding] Tutorial progress unavailable; returning legacy profile', { code: error.code });
-    return res.json({ profile: { ...req.profile, is_head_admin: isHeadAdmin(req) } });
+    return res.json({ profile: { ...req.profile, is_head_admin: isHeadAdmin(req), debug_role_switch_available: debugWorkspace && req.authUser?.email?.toLowerCase() === headAdminEmail } });
   }
   res.json({ profile: { ...req.profile, ...(progress || {
     tutorial_status: 'NOT_STARTED', tutorial_step: 0, tutorial_version: 1,
     tutorial_started_at: null, tutorial_completed_at: null, tutorial_skipped_at: null
-  }), is_head_admin: isHeadAdmin(req) } });
+  }), is_head_admin: isHeadAdmin(req), debug_role_switch_available: debugWorkspace && req.authUser?.email?.toLowerCase() === headAdminEmail } });
 } catch (error) { next(error); } });
 app.patch('/v1/me', authenticate, activeOnly, async (req, res, next) => { try {
   const fullName = requireText(req.body.fullName, 'Full name', 160);

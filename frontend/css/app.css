@@ -64,6 +64,9 @@
 .ace-debug-banner { position: sticky; top: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 42px; padding: 8px 16px; background: #78350f; color: #fff7ed; font-size: .875rem; text-align: center; }
 .ace-debug-banner strong { color: #fde68a; letter-spacing: .06em; }
 .ace-debug-banner a { color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.ace-debug-banner [data-ace-debug-role-toggle] { padding: 6px 10px; color: #fff7ed; background: rgba(255,255,255,.1); border: 1px solid rgba(255,247,237,.55); border-radius: 8px; font: inherit; font-weight: 700; cursor: pointer; }
+.ace-debug-banner [data-ace-debug-role-toggle]:hover:not(:disabled) { background: rgba(255,255,255,.18); }
+.ace-debug-banner [data-ace-debug-role-toggle]:disabled { cursor: wait; opacity: .7; }
 @media (max-width: 640px) { .ace-debug-banner { flex-wrap: wrap; gap: 4px 10px; font-size: .75rem; } }
 /* The app shell uses fixed-position navigation, so reserve space below the
    debug banner instead of letting the banner cover the sidebar and topbar. */
@@ -13425,13 +13428,14 @@ html[data-theme="dark"] .form-select option {
   opacity: .62
 }
 .ace-select-menu {
-  position: absolute;
-  z-index: 80;
-  top: calc(100% + 7px);
-  right: 0;
+  position: fixed;
+  z-index: 10050;
+  top: 0;
   left: 0;
   display: none;
-  overflow: hidden;
+  max-height: min(40vh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 6px;
   background: #fff;
   border: 1px solid #b9dbe2;
@@ -13439,7 +13443,7 @@ html[data-theme="dark"] .form-select option {
   box-shadow: 0 14px 28px rgba(5,55,70,.2);
   transform-origin: top center
 }
-.ace-select.is-open .ace-select-menu {
+.ace-select-menu.is-open {
   display: grid;
   gap: 2px;
   animation: 150ms ease-out both ace-select-open
@@ -13476,9 +13480,6 @@ html[data-theme="dark"] .form-select option {
 .ace-select-option:disabled {
   cursor: not-allowed;
   opacity: .48
-}
-.analytics-toolbar.ace-select-menu-open {
-  overflow: visible
 }
 .admin-dashboard .analytics-toolbar .ace-select-trigger {
   min-height: 44px;
