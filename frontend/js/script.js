@@ -97,9 +97,38 @@ function closeAceSelectMenus(except = null) {
         if (control === except) return;
         control.classList.remove('is-open');
         control.querySelector('.ace-select-trigger')?.setAttribute('aria-expanded', 'false');
+        const menu = control._aceSelectMenu;
+        menu?.classList.remove('is-open');
+        const placeholder = control._aceSelectMenuPlaceholder;
+        if (menu && placeholder?.parentNode) placeholder.replaceWith(menu);
+        control._aceSelectMenuPlaceholder = null;
+        menu?.removeAttribute('style');
     });
-    document.querySelectorAll('.analytics-toolbar.ace-select-menu-open').forEach(toolbar => toolbar.classList.remove('ace-select-menu-open'));
-    if (except?.closest('.analytics-toolbar')) except.closest('.analytics-toolbar').classList.add('ace-select-menu-open');
+}
+
+function positionAceSelectMenu(control) {
+    const trigger = control?.querySelector('.ace-select-trigger');
+    const menu = control?._aceSelectMenu;
+    if (!trigger || !menu || !control.classList.contains('is-open')) return;
+    const rect = trigger.getBoundingClientRect();
+    const gap = 7;
+    const edge = 8;
+    const width = Math.min(rect.width, window.innerWidth - edge * 2);
+    const left = Math.max(edge, Math.min(rect.left, window.innerWidth - width - edge));
+    const below = Math.max(0, window.innerHeight - rect.bottom - edge - gap);
+    const above = Math.max(0, rect.top - edge - gap);
+    const openAbove = below < Math.min(320, menu.scrollHeight) && above > below;
+    const available = openAbove ? above : below;
+    const maxHeight = Math.max(80, Math.min(320, available));
+    menu.style.left = `${left}px`;
+    menu.style.width = `${width}px`;
+    menu.style.maxHeight = `${maxHeight}px`;
+    const requestedTop = openAbove ? rect.top - Math.min(menu.scrollHeight, maxHeight) - gap : rect.bottom + gap;
+    menu.style.top = `${Math.max(edge, Math.min(requestedTop, window.innerHeight - maxHeight - edge))}px`;
+}
+
+function positionOpenAceSelectMenus() {
+    document.querySelectorAll('.ace-select.is-open').forEach(positionAceSelectMenu);
 }
 
 function enhanceSelectControl(select) {
@@ -118,6 +147,7 @@ function enhanceSelectControl(select) {
     const menu = document.createElement('div');
     menu.className = 'ace-select-menu';
     menu.setAttribute('role', 'listbox');
+    control._aceSelectMenu = menu;
     select.classList.add('ace-native-select');
     select.insertAdjacentElement('afterend', control);
     control.append(trigger, menu);
@@ -146,9 +176,16 @@ function enhanceSelectControl(select) {
         if (trigger.disabled) return;
         const opening = !control.classList.contains('is-open');
         closeAceSelectMenus(opening ? control : null);
-        control.classList.toggle('is-open', opening);
-        trigger.setAttribute('aria-expanded', String(opening));
-        if (opening) menu.querySelector('.is-selected:not(:disabled), .ace-select-option:not(:disabled)')?.focus();
+        if (!opening) return;
+        control.classList.add('is-open');
+        menu.classList.add('is-open');
+        trigger.setAttribute('aria-expanded', 'true');
+        const placeholder = document.createComment('select menu position');
+        menu.before(placeholder);
+        control._aceSelectMenuPlaceholder = placeholder;
+        document.body.append(menu);
+        positionAceSelectMenu(control);
+        menu.querySelector('.is-selected:not(:disabled), .ace-select-option:not(:disabled)')?.focus();
     });
     trigger.addEventListener('keydown', event => {
         if (event.key === 'Escape') { closeAceSelectMenus(); trigger.focus(); }
@@ -162,8 +199,10 @@ function enhanceSelectControl(select) {
 function initializeSelectControls(root = document) {
     root.querySelectorAll?.('select.form-select:not(.ace-native-select)').forEach(enhanceSelectControl);
     if (aceSelectObserver) return;
-    document.addEventListener('pointerdown', event => { if (!event.target.closest('.ace-select')) closeAceSelectMenus(); });
+    document.addEventListener('pointerdown', event => { if (!event.target.closest('.ace-select,.ace-select-menu')) closeAceSelectMenus(); });
     document.addEventListener('keydown', event => { if (event.key === 'Escape') closeAceSelectMenus(); });
+    window.addEventListener('resize', positionOpenAceSelectMenus);
+    document.addEventListener('scroll', positionOpenAceSelectMenus, true);
     aceSelectObserver = new MutationObserver(records => records.forEach(record => {
         if (record.type === 'childList' && record.target instanceof HTMLSelectElement && record.target.classList.contains('ace-native-select')) record.target._aceSelectRefresh?.();
         record.addedNodes.forEach(node => {
