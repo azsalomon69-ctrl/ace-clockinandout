@@ -18079,19 +18079,54 @@ html[data-theme="dark"] :is(.line-chart-gridline text,.line-chart-x-label) { fil
 html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-number { color: var(--ace-text-primary); }
 html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-icon { background: var(--ace-surface-raised); }
 
-/* Buttons share a height and focus treatment; outlines are reserved for focus. */
-.has-app-shell .btn { min-height: 40px; border-radius: 8px; box-shadow: none; }
-.has-app-shell .btn-sm { min-height: 34px; }
-.has-app-shell .btn-primary { color: #fff!important; background: var(--ace-accent)!important; border-color: var(--ace-accent)!important; }
+/* Employee controls share geometry and theme tokens; variants retain their role. */
+.has-app-shell {
+  --ace-control-radius: 8px;
+  --ace-control-height: 40px;
+  --ace-control-padding-inline: 14px;
+  --ace-control-font-size: .82rem;
+  --ace-primary-button-bg: var(--ace-accent);
+  --ace-primary-button-hover: var(--ace-accent-hover);
+  --ace-primary-button-text: #d5f4f6;
+}
+html[data-theme="dark"] .has-app-shell { --ace-primary-button-text: #102126; }
+.has-app-shell .btn:not(.btn-sm) {
+  min-height: var(--ace-control-height);
+  padding: 9px var(--ace-control-padding-inline);
+  border-radius: var(--ace-control-radius);
+  font-size: var(--ace-control-font-size);
+  font-weight: 750;
+  line-height: 1.2;
+}
+.has-app-shell .btn-sm {
+  min-height: 34px;
+  border-radius: var(--ace-control-radius);
+}
+.has-app-shell .btn:not(.btn-sm) > svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.has-app-shell .shell-link { border-radius: var(--ace-control-radius); }
+.has-app-shell .btn { box-shadow: none; }
+.has-app-shell .btn-primary {
+  color: var(--ace-primary-button-text)!important;
+  background: var(--ace-primary-button-bg)!important;
+  border-color: var(--ace-primary-button-bg)!important;
+}
 .has-app-shell .btn-primary:hover,
-.has-app-shell .btn-primary:focus-visible { color: #fff!important; background: var(--ace-accent-hover)!important; border-color: var(--ace-accent-hover)!important; }
+.has-app-shell .btn-primary:focus-visible {
+  color: var(--ace-primary-button-text)!important;
+  background: var(--ace-primary-button-hover)!important;
+  border-color: var(--ace-primary-button-hover)!important;
+}
 html[data-theme="dark"] .has-app-shell .btn-primary {
-  color: #102126!important;
-  background: var(--ace-accent)!important;
-  border-color: var(--ace-accent)!important;
+  color: var(--ace-primary-button-text)!important;
+  background: var(--ace-primary-button-bg)!important;
+  border-color: var(--ace-primary-button-bg)!important;
 }
 html[data-theme="dark"] .has-app-shell .btn-primary:hover,
-html[data-theme="dark"] .has-app-shell .btn-primary:focus-visible { color: #102126!important; background: var(--ace-accent-hover)!important; border-color: var(--ace-accent-hover)!important; }
+html[data-theme="dark"] .has-app-shell .btn-primary:focus-visible {
+  color: var(--ace-primary-button-text)!important;
+  background: var(--ace-primary-button-hover)!important;
+  border-color: var(--ace-primary-button-hover)!important;
+}
 .has-app-shell :is(.btn-secondary,.btn-outline) {
   color: var(--ace-text-primary)!important;
   background: var(--ace-surface-raised)!important;
@@ -18176,45 +18211,3 @@ html[data-theme="dark"] .has-app-shell .btn-primary:focus-visible { color: #1021
   .admin-dashboard .hours-line-chart { height: 190px; }
 }
 
-/* One shared treatment for the employee Clock In action across pages. */
-.has-app-shell .employee-clock-action {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border: 1px solid #00758e!important;
-  border-radius: 8px;
-  color: #d5f4f6!important;
-  background: #00758e!important;
-  box-shadow: none!important;
-  font-size: .85rem;
-  font-weight: 750;
-}
-.has-app-shell .employee-clock-action > svg {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-  color: currentColor!important;
-  filter: none!important;
-  opacity: 1!important;
-}
-.has-app-shell .employee-clock-action > svg * { stroke: currentColor!important; }
-.has-app-shell .employee-clock-action:hover,
-.has-app-shell .employee-clock-action:focus-visible {
-  color: #d5f4f6!important;
-  background: #006d84!important;
-  border-color: #006d84!important;
-}
-html[data-theme="dark"] body.has-app-shell .employee-clock-action {
-  color: #102126!important;
-  background: var(--ace-accent)!important;
-  border-color: var(--ace-accent)!important;
-}
-html[data-theme="dark"] body.has-app-shell .employee-clock-action:hover,
-html[data-theme="dark"] body.has-app-shell .employee-clock-action:focus-visible {
-  color: #102126!important;
-  background: var(--ace-accent-hover)!important;
-  border-color: var(--ace-accent-hover)!important;
-}
