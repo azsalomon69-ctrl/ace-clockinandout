@@ -17926,6 +17926,12 @@ html[data-theme="dark"] .shell-link.active {
   box-shadow: inset 3px 0 0 var(--ace-accent)!important;
 }
 html[data-theme="dark"] .shell-link.active::before { background: var(--ace-accent)!important; }
+/* Standalone navigation links already get the active ::before marker. Avoid
+   drawing a second cyan stripe with box-shadow; nested dropdown links retain
+   their existing rail-aligned treatment. */
+.shell-nav-group:not(.shell-nav-group--collapsible) .shell-link.active {
+  box-shadow: none!important;
+}
 html[data-theme="dark"] .shell-collapse {
   color: var(--ace-text-secondary)!important;
   background: var(--ace-surface-raised)!important;
