@@ -18112,7 +18112,11 @@ html[data-theme="dark"] .has-app-shell .btn-primary:focus-visible { color: #1021
 }
 
 /* Use a denser dashboard rhythm on desktop-sized screens so the main overview fits together. */
-@media (min-width: 1181px) and (min-height: 700px) and (max-height: 900px) {
+@media (min-width: 1181px) and (min-height: 700px) {
+  .has-app-shell .main-content.user-dashboard {
+    padding-top: 76px!important;
+    padding-bottom: 12px!important;
+  }
   .user-dashboard .employee-dashboard-intro {
     margin-bottom: 8px;
     padding-bottom: 9px;
