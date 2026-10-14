@@ -17764,9 +17764,13 @@ html[data-theme="dark"] .active-entries-heading p:not(.admin-section-kicker),htm
 @media (max-width: 900px) { .active-entry-card { grid-template-columns: 1fr auto; } .active-entry-meta { grid-column: 1 / -1; } }
 @media (max-width: 620px) { .active-entries-panel { margin: 16px 0; padding: 16px; border-radius: 13px; } .active-entries-heading { align-items: center; } .active-entries-heading-copy { gap: 10px; } .active-entries-icon { width: 36px; height: 36px; flex-basis: 36px; } .active-entries-heading h2 { font-size: 1rem; } .active-entries-heading p:not(.admin-section-kicker) { font-size: .77rem; } .active-entry-card { grid-template-columns: 1fr; gap: 13px; } .active-entry-meta { grid-column: auto; } .active-entry-actions { justify-content: stretch; } .active-entry-actions .btn { flex: 1; justify-content: center; } }
 
-/* Keep employee dashboard cards on one dark surface and stretch paired cards evenly. */
-html[data-theme="dark"] .user-dashboard .employee-dashboard-support-grid {
+/* Keep the paired employee dashboard support cards the same size. */
+.user-dashboard .employee-dashboard-support-grid {
+  grid-template-columns: repeat(2,minmax(0,1fr));
   align-items: stretch;
+}
+.user-dashboard .employee-dashboard-support-grid > :is(.employee-quick-actions,.admin-remarks-section) {
+  margin-bottom: 0;
 }
 html[data-theme="dark"] .user-dashboard :is(
   .employee-week-card,
