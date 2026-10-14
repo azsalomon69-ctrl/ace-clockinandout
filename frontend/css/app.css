@@ -65,6 +65,15 @@
 .ace-debug-banner strong { color: #fde68a; letter-spacing: .06em; }
 .ace-debug-banner a { color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 640px) { .ace-debug-banner { flex-wrap: wrap; gap: 4px 10px; font-size: .75rem; } }
+/* The app shell uses fixed-position navigation, so reserve space below the
+   debug banner instead of letting the banner cover the sidebar and topbar. */
+body:has(> .ace-debug-banner) { --ace-debug-banner-height: 42px; }
+body:has(> .ace-debug-banner) .app-sidebar { top: var(--ace-debug-banner-height); }
+body:has(> .ace-debug-banner) .shell-topbar { top: var(--ace-debug-banner-height); }
+body:has(> .ace-debug-banner) .app-shell-skeleton { top: calc(64px + var(--ace-debug-banner-height)); }
+@media (max-width: 1180px) {
+  body:has(> .ace-debug-banner) .shell-mobile-toggle { top: calc(var(--ace-debug-banner-height) + 18px); }
+}
 
 /* Built-in onboarding tutorial */
 .ace-tutorial-overlay { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 24px; pointer-events: none; }
