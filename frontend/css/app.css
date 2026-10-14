@@ -18041,14 +18041,18 @@ html[data-theme="dark"] .user-dashboard .employee-status-panel::before {
 .employee-quick-action-list a:hover { background: var(--ace-accent-muted); }
 .user-dashboard .employee-status-panel .clock-actions .btn-primary {
   color: #102126!important;
-  background: #08a2c2!important;
-  border-color: #08a2c2!important;
+  background: #25c7db!important;
+  border-color: #25c7db!important;
   box-shadow: none!important;
+}
+.user-dashboard .employee-status-panel .clock-actions .btn-primary .ui-icon {
+  color: #102126!important;
+  filter: none!important;
 }
 .user-dashboard .employee-status-panel .clock-actions .btn-primary:hover,
 .user-dashboard .employee-status-panel .clock-actions .btn-primary:focus-visible {
-  background: #087d99!important;
-  border-color: #087d99!important;
+  background: #17aabd!important;
+  border-color: #17aabd!important;
 }
 html[data-theme="dark"] .user-dashboard .employee-status-panel .clock-actions .btn-primary {
   background: var(--ace-accent)!important;
