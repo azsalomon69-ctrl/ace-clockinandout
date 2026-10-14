@@ -18086,11 +18086,15 @@ html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-icon { ba
   --ace-control-height: 40px;
   --ace-control-padding-inline: 14px;
   --ace-control-font-size: .82rem;
+  --ace-primary-button-bg: #0c5069;
+  --ace-primary-button-hover: #083e53;
+  --ace-primary-button-text: #f2f7f8;
+}
+html[data-theme="dark"] .has-app-shell {
   --ace-primary-button-bg: var(--ace-accent);
   --ace-primary-button-hover: var(--ace-accent-hover);
-  --ace-primary-button-text: #d5f4f6;
+  --ace-primary-button-text: #102126;
 }
-html[data-theme="dark"] .has-app-shell { --ace-primary-button-text: #102126; }
 .has-app-shell .btn:not(.btn-sm) {
   min-height: var(--ace-control-height);
   padding: 9px var(--ace-control-padding-inline);
@@ -18128,15 +18132,17 @@ html[data-theme="dark"] .has-app-shell .btn-primary:focus-visible {
   background: var(--ace-primary-button-hover)!important;
   border-color: var(--ace-primary-button-hover)!important;
 }
-.has-app-shell :is(.btn-secondary,.btn-outline) {
-  color: var(--ace-text-primary)!important;
-  background: var(--ace-surface-raised)!important;
-  border-color: var(--ace-border)!important;
+html:not([data-theme="dark"]) .has-app-shell .btn {
+  color: var(--ace-primary-button-text)!important;
+  background: var(--ace-primary-button-bg)!important;
+  border-color: var(--ace-primary-button-bg)!important;
+  box-shadow: 0 5px 13px rgba(9,64,79,.1)!important;
 }
-.has-app-shell :is(.btn-secondary,.btn-outline):hover,
-.has-app-shell :is(.btn-secondary,.btn-outline):focus-visible {
-  background: var(--ace-accent-muted)!important;
-  border-color: var(--ace-border-strong)!important;
+html:not([data-theme="dark"]) .has-app-shell .btn:hover,
+html:not([data-theme="dark"]) .has-app-shell .btn:focus-visible {
+  color: var(--ace-primary-button-text)!important;
+  background: var(--ace-primary-button-hover)!important;
+  border-color: var(--ace-primary-button-hover)!important;
 }
 
 /* Use a denser dashboard rhythm on desktop-sized screens so the main overview fits together. */
