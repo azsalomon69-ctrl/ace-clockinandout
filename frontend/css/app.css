@@ -17783,10 +17783,10 @@ html[data-theme="dark"] .user-dashboard :is(
 /* Shared visual system: calm surfaces, readable hierarchy, and cyan used as an accent. */
 :root {
   color-scheme: light;
-  --ace-page-bg: #f4fbfc;
-  --ace-page-subtle: #e9f8fb;
+  --ace-page-bg: #eaf8fa;
+  --ace-page-subtle: #e2f4f7;
   --ace-surface: #ffffff;
-  --ace-surface-raised: #eff9fa;
+  --ace-surface-raised: #eaf8fa;
   --ace-surface-input: #ffffff;
   --ace-surface-nav: #e4f2f5;
   --ace-surface-modal: #ffffff;
@@ -17799,15 +17799,15 @@ html[data-theme="dark"] .user-dashboard :is(
   --ace-accent: #087f91;
   --ace-accent-hover: #066c7c;
   --ace-accent-active: #075765;
-  --ace-accent-muted: #e5f6f8;
+  --ace-accent-muted: #def4f7;
   --ace-navy: #183d49;
   --ace-navy-2: #244c58;
   --ace-cyan: var(--ace-accent);
   --ace-cyan-dark: var(--ace-accent-active);
   --ace-blue: var(--ace-accent-active);
   --ace-blue-dark: var(--ace-accent-active);
-  --ace-sky: #e9f8fb;
-  --ace-sky-2: #f4fbfc;
+  --ace-sky: #e2f4f7;
+  --ace-sky-2: #eaf8fa;
   --ace-white: var(--ace-surface);
   --ace-text: var(--ace-text-primary);
   --ace-muted: var(--ace-text-secondary);
