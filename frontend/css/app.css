@@ -18111,6 +18111,68 @@ html[data-theme="dark"] .has-app-shell .btn-primary:focus-visible { color: #1021
   border-color: var(--ace-border-strong)!important;
 }
 
+/* Use a denser dashboard rhythm on desktop-sized screens so the main overview fits together. */
+@media (min-width: 1181px) and (min-height: 700px) and (max-height: 900px) {
+  .user-dashboard .employee-dashboard-intro {
+    margin-bottom: 8px;
+    padding-bottom: 9px;
+  }
+  .user-dashboard .employee-dashboard-intro h1 {
+    margin-bottom: 3px;
+    font-size: clamp(1.65rem,2.4vw,1.95rem);
+  }
+  .user-dashboard .employee-dashboard-intro > div > p:last-child { font-size: .8rem; }
+  .user-dashboard .employee-schedule-notice {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    line-height: 1.35;
+  }
+  .user-dashboard .employee-dashboard-hero-grid,
+  .user-dashboard .employee-work-grid,
+  .user-dashboard .employee-dashboard-support-grid { gap: 10px; }
+  .user-dashboard .employee-dashboard-hero-grid { margin-bottom: 10px; }
+  .user-dashboard .employee-status-panel {
+    min-height: 205px;
+    padding: 19px 22px;
+  }
+  .user-dashboard .employee-status-panel .employee-status-copy h2 {
+    margin: 8px 0;
+    font-size: clamp(1.35rem,1.8vw,1.6rem);
+  }
+  .user-dashboard .employee-status-panel .employee-status-copy > p:last-child {
+    margin-bottom: 8px;
+    font-size: .8rem;
+  }
+  .user-dashboard .employee-status-panel .clock-actions .btn { min-height: 44px; }
+  .user-dashboard .employee-week-card {
+    min-height: 205px;
+    padding: 14px;
+  }
+  .employee-week-metrics { margin: 10px 0 4px; }
+  .employee-week-chart { min-height: 66px; }
+  .employee-week-day { grid-template-rows: minmax(44px,1fr) auto auto; }
+  .user-dashboard .employee-work-grid { margin-bottom: 10px; }
+  .user-dashboard .employee-work-grid :is(.recent-activity-section,.projects-section),
+  .user-dashboard .employee-dashboard-support-grid > :is(.employee-quick-actions,.admin-remarks-section) {
+    padding: 13px;
+  }
+  .user-dashboard .employee-section-heading {
+    min-height: 0;
+    margin-bottom: 8px;
+  }
+  .user-dashboard .employee-section-heading .section-title { font-size: 1rem; }
+  .user-dashboard .employee-quick-actions .employee-section-heading { margin-bottom: 8px; }
+  .user-dashboard .employee-quick-action-list { gap: 6px; }
+  .user-dashboard .employee-quick-action-list a { min-height: 42px; padding: 6px 9px; }
+  .user-dashboard .employee-quick-action-list small { font-size: .65rem; }
+  .user-dashboard .recent-activity-section .employee-activity-list { gap: 6px; }
+  .user-dashboard .recent-activity-section .activity-item { min-height: 38px; padding: 7px 10px; }
+  .user-dashboard .recent-activity-section .btn-block { min-height: 34px; margin-top: 8px; }
+  .user-dashboard .projects-section .project-card { padding: 11px 13px; }
+  body[data-user-role="employee"] .admin-remarks-section { min-height: 0; }
+  .user-dashboard .admin-remarks-section .empty-state { min-height: 104px; padding: 12px; }
+}
+
 @media (max-width: 760px) {
   .user-dashboard .employee-dashboard-support-grid { grid-template-columns: 1fr; }
   .user-dashboard .employee-status-panel { min-height: 0; padding: 21px 18px; }
