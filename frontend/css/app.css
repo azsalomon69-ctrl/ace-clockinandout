@@ -122,7 +122,7 @@ body.ace-tutorial-welcome-open { overflow: hidden; }
   .ace-tutorial-actions > span .btn { min-width: 0; }
   .ace-tutorial-actions [data-tutorial-skip], .ace-tutorial-actions [data-tutorial-hide] { min-width: 0; }
   .ace-tutorial-mobile-hide { display: block; }
-  .ace-tutorial-restore { position: fixed; z-index: 2; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); display: block; }
+  .ace-tutorial-restore { position: fixed; z-index: 2; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); display: block; pointer-events: auto; }
 }
 @keyframes ace-tutorial-sheet-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .ace-tutorial-card { animation: none; } }
