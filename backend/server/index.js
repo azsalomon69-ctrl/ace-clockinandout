@@ -11,6 +11,7 @@ import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
 import nodemailer from 'nodemailer';
+import { createSessionSecurity } from './session-security.js';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_KEY'];
 const missing = required.filter(name => !process.env[name]);
@@ -33,6 +34,7 @@ const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KE
   db: { schema: databaseSchema },
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
+const sessionSecurity = createSessionSecurity(db);
 const cloudinaryConfigured = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].every(key => Boolean(process.env[key]));
 if (cloudinaryConfigured) cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET, secure: true });
 const app = express();
@@ -482,19 +484,31 @@ async function authenticate(req, res, next) {
       // remains the authoritative fallback and rejects invalid/revoked tokens.
       user = await getUserFromGoTrue(token, tokenKey);
     }
-    req.profile = await cached(profileCache, user.id, 5_000, () => query(db.from('profiles').select('*').eq('id', user.id).is('permanently_deleted_at', null).single()));
+    // Signature verification alone cannot detect a session ended on another
+    // instance. Read durable session state and current permissions each time.
+    const authorized = await sessionSecurity.authorizeVerifiedToken(token, user.id);
+    req.profile = authorized.profile;
     if (debugWorkspace
       && (user.email?.toLowerCase() !== headAdminEmail || req.profile.email?.toLowerCase() !== headAdminEmail)) {
       return fail(res, 403, 'Employee test workspace access is restricted');
     }
     // A debug session must not call shared avatar storage or mutate the copied
     // public profile; its seeded employee profile uses its own test-only data.
-    if (!debugWorkspace) req.profile = await persistGoogleAvatar(req.profile, user);
+    if (!debugWorkspace) {
+      const avatarProfile = await persistGoogleAvatar(req.profile, user);
+      // Avatar caching must never replace freshly authorized permissions.
+      req.profile = { ...req.profile, profile_picture_url: avatarProfile.profile_picture_url,
+        profile_picture_public_id: avatarProfile.profile_picture_public_id };
+    }
     req.authUser = user;
     req.authToken = token;
     req.authTokenCacheKey = tokenKey;
+    req.authSessionId = authorized.sessionId;
     next();
-  } catch (error) { return fail(res, error.message === 'Invalid or expired session' ? 401 : 403, error.message === 'Invalid or expired session' ? error.message : 'User profile is not available'); }
+  } catch (error) {
+    if (error.status === 503 && error.expose) return fail(res, 503, error.message);
+    return fail(res, error.message === 'Invalid or expired session' ? 401 : 403, error.message === 'Invalid or expired session' ? error.message : 'User profile is not available');
+  }
 }
 const adminOnly = async (req, res, next) => {
   if (req.profile.role !== 'ADMIN' || req.profile.status !== 'ACTIVE') return fail(res, 403, 'Active administrator access required');
@@ -676,13 +690,13 @@ app.post('/v1/auth/heartbeat', authenticate, activeOnly, async (req, res, next) 
   res.status(204).end();
 } catch (error) { next(error); } });
 app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
+  if (!isUuid(req.authSessionId)) return fail(res, 401, 'Invalid or expired session');
   authUserCache.delete(req.authTokenCacheKey);
   profileCache.delete(req.profile.id);
   revokeToken(req.authTokenCacheKey);
-  queuePresence(req.profile.id);
-  await flushPresence([req.profile.id]);
-  await query(db.from('profiles').update({ last_logout_at: new Date().toISOString() }).eq('id', req.profile.id).select().single());
-  await audit(req, 'LOGOUT', 'PROFILE', req.profile.id, 'Signed out successfully');
+  // Logout ends online presence immediately; it does not create a heartbeat or
+  // change the employee's independent time-entry state.
+  await sessionSecurity.end(req.profile.id, req.authSessionId, req.requestId);
   res.status(204).end();
 } catch (error) { next(error); } });
 app.get('/v1/departments', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); const load = () => { let request = db.from('departments').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); return pagedResult(request, paging); }; res.json(!paging.paged && !req.query.q ? await cached(referenceDataCache, 'departments', referenceDataTtlMs, load) : await load()); } catch (error) { next(error); } });
