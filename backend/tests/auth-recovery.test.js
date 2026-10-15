@@ -11,7 +11,8 @@ test('login retries configuration after a temporary service failure and shares s
   let created = 0;
   const auth = {};
   const context = vm.createContext({
-    window: { supabase: { createClient() { created++; return auth; } } },
+    AbortController,
+    window: { setTimeout, clearTimeout, supabase: { createClient() { created++; return auth; } } },
     fetch: async () => {
       calls++;
       if (calls === 1) throw new Error('Temporary network failure');
@@ -34,7 +35,8 @@ function requestHarness(send, refresh = async () => ({ data: { session: { access
     signOut: async () => { effects.signedOut++; }
   } };
   const context = vm.createContext({
-    window: { ACE_API_URL: 'https://api.example.test/', supabase: { createClient: () => auth }, location: { replace: url => effects.redirects.push(url) } },
+    AbortController,
+    window: { ACE_API_URL: 'https://api.example.test/', setTimeout, clearTimeout, supabase: { createClient: () => auth }, location: { replace: url => effects.redirects.push(url) } },
     localStorage: { removeItem: key => effects.removed.push(key) },
     sessionStorage: { setItem: (key, value) => effects.notices.push({ key, value }) },
     fetch: async (url, options) => url.endsWith('/v1/auth/config')

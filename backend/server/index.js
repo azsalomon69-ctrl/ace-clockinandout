@@ -10,6 +10,8 @@ import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
 import nodemailer from 'nodemailer';
+import { flushPresenceBatch, isPresenceOnline, presenceFlushIntervalMs, queuePresenceForActiveSession } from './presence.js';
+import { createSessionSecurity } from './session-security.js';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_KEY'];
 const missing = required.filter(name => !process.env[name]);
@@ -18,6 +20,7 @@ if (missing.length) throw new Error(`Missing required environment variable(s): $
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
+const sessionSecurity = createSessionSecurity(db);
 const cloudinaryConfigured = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].every(key => Boolean(process.env[key]));
 if (cloudinaryConfigured) cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET, secure: true });
 const app = express();
@@ -51,19 +54,17 @@ const revokeToken = tokenKey => {
 const clearReferenceData = prefix => {
   for (const key of referenceDataCache.keys()) if (key.startsWith(prefix)) referenceDataCache.delete(key);
 };
-const queuePresence = userId => pendingPresence.set(userId, Date.now());
+const isTokenRevoked = tokenKey => revokedTokenCache.get(tokenKey) > Date.now();
+const capturePresenceRequestTime = (req, res, next) => {
+  req.presenceHeartbeatAt = Date.now();
+  next();
+};
 const flushPresence = async userIds => {
-  const ids = userIds || [...pendingPresence.keys()];
-  if (!ids.length) return;
-  const snapshots = new Map(ids.map(id => [id, pendingPresence.get(id)]));
-  // A shared timestamp allows this to remain one PostgREST UPDATE instead of
-  // one write per heartbeat. It is presence bookkeeping, never clock data.
-  await query(db.from('profiles').update({ last_seen_at: new Date().toISOString() }).in('id', ids));
-  for (const [id, queuedAt] of snapshots) if (pendingPresence.get(id) === queuedAt) pendingPresence.delete(id);
+  return flushPresenceBatch(pendingPresence, userIds, rows => query(db.rpc('ace_flush_presence', { p_presence: rows })));
 };
 const presenceFlushTimer = setInterval(() => {
   flushPresence().catch(error => console.error('presence flush failed:', error.message));
-}, 5 * 60 * 1000);
+}, presenceFlushIntervalMs);
 presenceFlushTimer.unref();
 const publishChatEvent = (userId, detail) => {
   const subscribers = chatSubscribers.get(userId);
@@ -453,6 +454,7 @@ async function authenticate(req, res, next) {
     req.authUser = user;
     req.authToken = token;
     req.authTokenCacheKey = tokenKey;
+    req.authSessionId = jwt.decode(token)?.session_id;
     next();
   } catch (error) { return fail(res, error.message === 'Invalid or expired session' ? 401 : 403, error.message === 'Invalid or expired session' ? error.message : 'User profile is not available'); }
 }
@@ -610,18 +612,25 @@ app.post('/v1/auth/session-start', authenticate, async (req, res, next) => { try
   await audit(req, 'LOGIN', 'PROFILE', req.profile.id, 'Signed in successfully');
   res.status(204).end();
 } catch (error) { next(error); } });
-app.post('/v1/auth/heartbeat', authenticate, activeOnly, async (req, res, next) => { try {
-  queuePresence(req.profile.id);
+app.post('/v1/auth/heartbeat', capturePresenceRequestTime, authenticate, activeOnly, async (req, res, next) => { try {
+  if (!isUuid(req.authSessionId)) return fail(res, 401, 'Invalid or expired session');
+  const queued = queuePresenceForActiveSession(pendingPresence, {
+    userId: req.profile.id,
+    sessionId: req.authSessionId,
+    tokenKey: req.authTokenCacheKey,
+    heartbeatAt: req.presenceHeartbeatAt,
+    isTokenRevoked
+  });
+  if (!queued) return fail(res, 401, 'Session has ended');
   res.status(204).end();
 } catch (error) { next(error); } });
 app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
+  if (!isUuid(req.authSessionId)) return fail(res, 401, 'Invalid or expired session');
   authUserCache.delete(req.authTokenCacheKey);
   profileCache.delete(req.profile.id);
   revokeToken(req.authTokenCacheKey);
-  queuePresence(req.profile.id);
-  await flushPresence([req.profile.id]);
-  await query(db.from('profiles').update({ last_logout_at: new Date().toISOString() }).eq('id', req.profile.id).select().single());
-  await audit(req, 'LOGOUT', 'PROFILE', req.profile.id, 'Signed out successfully');
+  // Logout closes online presence without touching independent clock records.
+  await sessionSecurity.end(req.profile.id, req.authSessionId, req.requestId);
   res.status(204).end();
 } catch (error) { next(error); } });
 app.get('/v1/departments', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); const load = () => { let request = db.from('departments').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); return pagedResult(request, paging); }; res.json(!paging.paged && !req.query.q ? await cached(referenceDataCache, 'departments', referenceDataTtlMs, load) : await load()); } catch (error) { next(error); } });
@@ -715,7 +724,7 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   res.json(paged ? { items, total: profileResponse.count || 0, page, pageSize } : items);
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
-  let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
+  let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,last_logout_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
   if (req.profile.role !== 'ADMIN') contactRequest = contactRequest.eq('role', 'ADMIN');
   const [contacts, unread] = await Promise.all([
     query(contactRequest),
@@ -732,12 +741,16 @@ app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res,
     return summary;
   }, {});
   res.json({
-    contacts: contacts.map(contact => ({
-      ...contact,
-      unread_count: unreadByContact[contact.id]?.count || 0,
-      last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
-      last_unread_at: unreadByContact[contact.id]?.latest?.created_at || null
-    }))
+    contacts: contacts.map(contact => {
+      const { last_logout_at: lastLogoutAt, ...publicContact } = contact;
+      return {
+        ...publicContact,
+        is_online: isPresenceOnline(contact.last_seen_at, lastLogoutAt),
+        unread_count: unreadByContact[contact.id]?.count || 0,
+        last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
+        last_unread_at: unreadByContact[contact.id]?.latest?.created_at || null
+      };
+    })
   });
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/stream', authenticate, activeOnly, (req, res) => {

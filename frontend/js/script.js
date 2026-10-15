@@ -29,7 +29,6 @@ const AppState = {
     recentEntriesPageSize: 3,
     database: null
 };
-const presenceWindowMs = 4 * 60 * 1000;
 window.AppState = AppState;
 
 const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, LastSeenAt: item.last_seen_at, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
@@ -1054,7 +1053,7 @@ function initializeEmployeeChat() {
     const renderContacts = () => {
         const query = contactSearch.value.trim().toLowerCase();
         const people = allContacts.filter(person => `${person.full_name || ''} ${person.email || ''}`.toLowerCase().includes(query));
-        contacts.innerHTML = people.length ? people.map(person => { const name = person.full_name || person.email; const online = Boolean(person.last_seen_at && Date.now() - new Date(person.last_seen_at).getTime() < presenceWindowMs); const isTyping = typingContacts.has(String(person.id)); return `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(name)}" data-picture="${escapeHtml(person.profile_picture_url || '')}" data-online="${online}" type="button"><span class="employee-chat-avatar">${avatarContent(name, person.profile_picture_url)}<i class="employee-chat-online-dot${online ? ' is-online' : ''}"></i></span><div><strong>${escapeHtml(name)}</strong><small class="${isTyping ? 'is-typing' : ''}">${isTyping ? 'Typing…' : online ? 'Online' : 'Offline'}</small></div>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(name)}"></b>` : ''}</button>`; }).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
+        contacts.innerHTML = people.length ? people.map(person => { const name = person.full_name || person.email; const online = Boolean(person.is_online); const isTyping = typingContacts.has(String(person.id)); return `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(name)}" data-picture="${escapeHtml(person.profile_picture_url || '')}" data-online="${online}" type="button"><span class="employee-chat-avatar">${avatarContent(name, person.profile_picture_url)}<i class="employee-chat-online-dot${online ? ' is-online' : ''}"></i></span><div><strong>${escapeHtml(name)}</strong><small class="${isTyping ? 'is-typing' : ''}">${isTyping ? 'Typing…' : online ? 'Online' : 'Offline'}</small></div>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(name)}"></b>` : ''}</button>`; }).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
         contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { void publishTyping(false); selectedId = button.dataset.id; selectedName = button.dataset.name; selectedPictureUrl = button.dataset.picture; selectedOnline = button.dataset.online === 'true'; chat.classList.add('employee-chat-chatting'); renderContacts(); loadMessages(); }));
     };
     const loadContacts = async () => {
@@ -1087,7 +1086,7 @@ function initializeEmployeeChat() {
                 }))
             } }));
             const selectedContact = people.find(person => person.id === selectedId);
-            if (selectedContact) { selectedOnline = Boolean(selectedContact.last_seen_at && Date.now() - new Date(selectedContact.last_seen_at).getTime() < presenceWindowMs); selectedPictureUrl = selectedContact.profile_picture_url || ''; }
+            if (selectedContact) { selectedOnline = Boolean(selectedContact.is_online); selectedPictureUrl = selectedContact.profile_picture_url || ''; }
             renderContacts();
         } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
     };
@@ -1183,7 +1182,7 @@ function initializeEmployeeChat() {
             selectedId = person.id;
             selectedName = person.full_name || person.email;
             selectedPictureUrl = person.profile_picture_url || '';
-            selectedOnline = Boolean(person.last_seen_at && Date.now() - new Date(person.last_seen_at).getTime() < presenceWindowMs);
+            selectedOnline = Boolean(person.is_online);
             panel.hidden = false;
             launcher.setAttribute('aria-expanded', 'true');
             chat.classList.add('employee-chat-chatting');
