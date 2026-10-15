@@ -38,3 +38,11 @@ test('live stream refreshes bell notifications for new remarks', () => {
   assert.match(shellSource, /new CustomEvent\('ace:live-notification'/, 'The client should route live notification events to the bell data source');
   assert.match(shellSource, /addEventListener\('ace:live-notification', refreshFromLiveNotification\)/, 'New remarks should refresh bell content immediately');
 });
+
+test('chat recovery backs off repeated stream failures and coalesces contact loads', () => {
+  assert.match(shellSource, /let chatStreamRetryDelay = 1500/, 'Reconnect starts with the current short retry delay');
+  assert.match(shellSource, /chatStreamRetryDelay = Math\.min\(chatStreamRetryDelay \* 2, 30_000\)/, 'Repeated failures back off to a bounded 30-second retry');
+  assert.match(shellSource, /if \(type === 'ready'\) \{[\s\S]*?chatStreamRetryDelay = 1500;[\s\S]*?return;\s*\}/, 'A healthy stream resets the backoff');
+  assert.match(shellSource, /if \(contactsRequest\) return contactsRequest/, 'Concurrent contact refreshes share one active request');
+  assert.match(shellSource, /if \(chatStreamConnected\) \{[\s\S]*?kind: 'remarks', recovered: true/, 'A reconnected stream reloads notifications missed while disconnected');
+});

@@ -986,6 +986,33 @@ function installPageFadeNavigation() {
     });
 }
 
+function isChatContactOnline(person, now = Date.now()) {
+    const seenAt = Date.parse(person?.last_seen_at || '');
+    const age = now - seenAt;
+    return person?.is_online === true && Number.isFinite(seenAt) && age >= 0 && age < 4 * 60 * 1000;
+}
+
+function startChatPresenceRefresh({ isOpen, refresh, render }) {
+    let lastAttemptAt = Date.now();
+    const tick = (force = false) => {
+        if (document.visibilityState !== 'visible' || !isOpen()) return;
+        render();
+        if (force || Date.now() - lastAttemptAt >= 30_000) {
+            lastAttemptAt = Date.now();
+            void refresh();
+        }
+    };
+    const resume = () => tick(true);
+    const timer = window.setInterval(() => tick(), 1000);
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('online', resume);
+    return () => {
+        window.clearInterval(timer);
+        document.removeEventListener('visibilitychange', resume);
+        window.removeEventListener('online', resume);
+    };
+}
+
 function initializeEmployeeChat() {
     if (AppState.currentUser?.Status !== 'ACTIVE' || document.getElementById('employeeChat')) return;
     const chat = document.createElement('section');
@@ -1006,9 +1033,12 @@ function initializeEmployeeChat() {
     let selectedPictureUrl = '';
     let contactsLoaded = false;
     let allContacts = [];
+    let contactsRequest = null;
     const unreadByContact = new Map();
     let chatStreamAbort;
     let chatStreamRetry;
+    let chatStreamRetryDelay = 1500;
+    let chatStreamConnected = false;
     const typingContacts = new Map();
     const typingClearTimers = new Map();
     let typingLastSentAt = 0;
@@ -1079,14 +1109,32 @@ function initializeEmployeeChat() {
             }));
         } catch (error) { thread.innerHTML = `<div class="employee-chat-empty">${escapeHtml(error.message || 'Unable to load this conversation.')}</div>`; }
     };
+    const updateChatPresence = () => {
+        contacts.querySelectorAll('.employee-chat-contact').forEach(button => {
+            const person = allContacts.find(person => String(person.id) === button.dataset.id);
+            const online = isChatContactOnline(person);
+            button.dataset.online = String(online);
+            button.querySelector('.employee-chat-online-dot')?.classList.toggle('is-online', online);
+            const label = button.querySelector('small');
+            if (label && !typingContacts.has(button.dataset.id)) label.textContent = online ? 'Online' : 'Offline';
+        });
+        selectedOnline = isChatContactOnline(allContacts.find(person => person.id === selectedId));
+        const status = thread.querySelector('.employee-chat-presence');
+        if (status) {
+            status.classList.toggle('is-online', selectedOnline);
+            status.textContent = selectedOnline ? 'Online now' : 'Offline';
+        }
+    };
     const renderContacts = () => {
         const query = contactSearch.value.trim().toLowerCase();
         const people = allContacts.filter(person => `${person.full_name || ''} ${person.email || ''}`.toLowerCase().includes(query));
-        contacts.innerHTML = people.length ? people.map(person => { const name = person.full_name || person.email; const online = Boolean(person.last_seen_at && Date.now() - new Date(person.last_seen_at).getTime() < presenceWindowMs); const isTyping = typingContacts.has(String(person.id)); return `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(name)}" data-picture="${escapeHtml(person.profile_picture_url || '')}" data-online="${online}" type="button"><span class="employee-chat-avatar">${avatarContent(name, person.profile_picture_url)}<i class="employee-chat-online-dot${online ? ' is-online' : ''}"></i></span><div><strong>${escapeHtml(name)}</strong><small class="${isTyping ? 'is-typing' : ''}">${isTyping ? 'Typing…' : online ? 'Online' : 'Offline'}</small></div>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(name)}"></b>` : ''}</button>`; }).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
+        contacts.innerHTML = people.length ? people.map(person => { const name = person.full_name || person.email; const online = isChatContactOnline(person); const isTyping = typingContacts.has(String(person.id)); return `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(name)}" data-picture="${escapeHtml(person.profile_picture_url || '')}" data-online="${online}" type="button"><span class="employee-chat-avatar">${avatarContent(name, person.profile_picture_url)}<i class="employee-chat-online-dot${online ? ' is-online' : ''}"></i></span><div><strong>${escapeHtml(name)}</strong><small class="${isTyping ? 'is-typing' : ''}">${isTyping ? 'Typing…' : online ? 'Online' : 'Offline'}</small></div>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(name)}"></b>` : ''}</button>`; }).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
         contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { void publishTyping(false); selectedId = button.dataset.id; selectedName = button.dataset.name; selectedPictureUrl = button.dataset.picture; selectedOnline = button.dataset.online === 'true'; chat.classList.add('employee-chat-chatting'); renderContacts(); loadMessages(); }));
     };
-    const loadContacts = async () => {
-        try {
+    const loadContacts = () => {
+        if (contactsRequest) return contactsRequest;
+        contactsRequest = (async () => {
+          try {
             const response = await window.ACEAuth.request('/v1/employee-chat/contacts');
             const people = Array.isArray(response) ? response : response.contacts || [];
             const totalUnread = people.reduce((total, person) => total + (person.unread_count || 0), 0);
@@ -1115,9 +1163,12 @@ function initializeEmployeeChat() {
                 }))
             } }));
             const selectedContact = people.find(person => person.id === selectedId);
-            if (selectedContact) { selectedOnline = Boolean(selectedContact.last_seen_at && Date.now() - new Date(selectedContact.last_seen_at).getTime() < presenceWindowMs); selectedPictureUrl = selectedContact.profile_picture_url || ''; }
+            if (selectedContact) { selectedOnline = isChatContactOnline(selectedContact); selectedPictureUrl = selectedContact.profile_picture_url || ''; }
             renderContacts();
-        } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
+            updateChatPresence();
+          } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
+        })().finally(() => { contactsRequest = null; });
+        return contactsRequest;
     };
     contactSearch.addEventListener('input', renderContacts);
     const openChat = open => { if (!open) void publishTyping(false); panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); if (open) { chat.classList.remove('employee-chat-chatting'); loadContacts(); } };
@@ -1190,6 +1241,17 @@ function initializeEmployeeChat() {
                 events.forEach(event => {
                     const type = event.match(/^event: (.+)$/m)?.[1];
                     const data = event.match(/^data: (.+)$/m)?.[1];
+                    if (type === 'ready') {
+                        chatStreamRetryDelay = 1500;
+                        if (document.visibilityState === 'visible' && !panel.hidden) void loadContacts();
+                        if (chatStreamConnected) {
+                            // SSE has no replay cursor, so reconcile remarks that
+                            // may have arrived while this stream was disconnected.
+                            window.dispatchEvent(new CustomEvent('ace:live-notification', { detail: { kind: 'remarks', recovered: true } }));
+                        }
+                        chatStreamConnected = true;
+                        return;
+                    }
                     if (type !== 'chat' || !data) return;
                     try { handleChatEvent(JSON.parse(data)); } catch { /* Ignore one malformed live event. */ }
                 });
@@ -1199,7 +1261,9 @@ function initializeEmployeeChat() {
         } finally {
             if (!chatStreamAbort?.signal.aborted) {
                 window.clearTimeout(chatStreamRetry);
-                chatStreamRetry = window.setTimeout(() => void startChatStream(), 1500);
+                const retryDelay = chatStreamRetryDelay;
+                chatStreamRetryDelay = Math.min(chatStreamRetryDelay * 2, 30_000);
+                chatStreamRetry = window.setTimeout(() => void startChatStream(), retryDelay);
             }
         }
     };
@@ -1211,7 +1275,7 @@ function initializeEmployeeChat() {
             selectedId = person.id;
             selectedName = person.full_name || person.email;
             selectedPictureUrl = person.profile_picture_url || '';
-            selectedOnline = Boolean(person.last_seen_at && Date.now() - new Date(person.last_seen_at).getTime() < presenceWindowMs);
+            selectedOnline = isChatContactOnline(person);
             panel.hidden = false;
             launcher.setAttribute('aria-expanded', 'true');
             chat.classList.add('employee-chat-chatting');
@@ -1224,6 +1288,9 @@ function initializeEmployeeChat() {
     // Fetch immediately, then keep the unread indicator fresh without a page reload.
     loadContacts();
     void startChatStream();
+    const stopChatPresence = startChatPresenceRefresh({
+        isOpen: () => !panel.hidden, refresh: loadContacts, render: updateChatPresence
+    });
     // The live stream handles normal delivery. A slow visible-thread fallback
     // recovers from a dropped stream without polling every signed-in page.
     const poller = window.setInterval(() => {
@@ -1232,7 +1299,7 @@ function initializeEmployeeChat() {
             if (selectedId) loadMessages();
         }
     }, 5 * 60 * 1000);
-    window.addEventListener('pagehide', () => { void publishTyping(false); window.clearInterval(poller); window.clearTimeout(chatStreamRetry); typingClearTimers.forEach(timer => window.clearTimeout(timer)); chatStreamAbort?.abort(); }, { once: true });
+    window.addEventListener('pagehide', () => { stopChatPresence(); void publishTyping(false); window.clearInterval(poller); window.clearTimeout(chatStreamRetry); typingClearTimers.forEach(timer => window.clearTimeout(timer)); chatStreamAbort?.abort(); }, { once: true });
 }
 
 // Shared application shell for every authenticated page.

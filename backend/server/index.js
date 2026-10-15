@@ -11,7 +11,7 @@ import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
 import nodemailer from 'nodemailer';
-import { flushPresenceBatch, presenceFlushIntervalMs, queuePresenceForActiveSession } from './presence.js';
+import { flushPresenceBatch, isPresenceOnline, presenceFlushIntervalMs, queuePresenceForActiveSession } from './presence.js';
 import { createSessionSecurity } from './session-security.js';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_KEY'];
@@ -797,7 +797,7 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   res.json(paged ? { items, total: profileResponse.count || 0, page, pageSize } : items);
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
-  let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
+  let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,last_logout_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
   if (req.profile.role !== 'ADMIN') contactRequest = contactRequest.eq('role', 'ADMIN');
   const [contacts, unread] = await Promise.all([
     query(contactRequest),
@@ -814,12 +814,16 @@ app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res,
     return summary;
   }, {});
   res.json({
-    contacts: contacts.map(contact => ({
-      ...contact,
+    contacts: contacts.map(contact => {
+      const { last_logout_at: lastLogoutAt, ...publicContact } = contact;
+      return {
+      ...publicContact,
+      is_online: isPresenceOnline(contact.last_seen_at, lastLogoutAt),
       unread_count: unreadByContact[contact.id]?.count || 0,
       last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
       last_unread_at: unreadByContact[contact.id]?.latest?.created_at || null
-    }))
+      };
+    })
   });
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/stream', authenticate, activeOnly, (req, res) => {
