@@ -2521,12 +2521,20 @@ async function performLogout() {
 
 function startPresenceHeartbeat() {
     stopPresenceHeartbeat();
+    let inFlight = null;
+    let lastAttemptAt = 0;
     const send = () => {
         if (document.visibilityState !== 'visible' || !window.ACEAuth) return;
-        window.ACEAuth.request('/v1/auth/heartbeat', { method: 'POST' }).catch(() => {});
+        if (inFlight) return inFlight;
+        if (Date.now() - lastAttemptAt < 30 * 1000) return;
+        lastAttemptAt = Date.now();
+        inFlight = window.ACEAuth.request('/v1/auth/heartbeat', { method: 'POST' }).catch(() => {}).finally(() => { inFlight = null; });
+        return inFlight;
     };
     send();
-    AppState.presenceInterval = window.setInterval(send, 90 * 1000);
+    // Two-minute heartbeats pair with 90-second server flushes to leave
+    // timing margin below the four-minute online cutoff.
+    AppState.presenceInterval = window.setInterval(send, 2 * 60 * 1000);
     AppState.presenceVisibilityHandler = send;
     document.addEventListener('visibilitychange', AppState.presenceVisibilityHandler);
 }

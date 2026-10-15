@@ -11,6 +11,7 @@ import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
 import nodemailer from 'nodemailer';
+import { flushPresenceBatch, presenceFlushIntervalMs, queuePresenceForActiveSession } from './presence.js';
 import { createSessionSecurity } from './session-security.js';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_KEY'];
@@ -68,19 +69,17 @@ const revokeToken = tokenKey => {
 const clearReferenceData = prefix => {
   for (const key of referenceDataCache.keys()) if (key.startsWith(prefix)) referenceDataCache.delete(key);
 };
-const queuePresence = userId => pendingPresence.set(userId, Date.now());
+const isTokenRevoked = tokenKey => revokedTokenCache.get(tokenKey) > Date.now();
+const capturePresenceRequestTime = (req, res, next) => {
+  req.presenceHeartbeatAt = Date.now();
+  next();
+};
 const flushPresence = async userIds => {
-  const ids = userIds || [...pendingPresence.keys()];
-  if (!ids.length) return;
-  const snapshots = new Map(ids.map(id => [id, pendingPresence.get(id)]));
-  // A shared timestamp allows this to remain one PostgREST UPDATE instead of
-  // one write per heartbeat. It is presence bookkeeping, never clock data.
-  await query(db.from('profiles').update({ last_seen_at: new Date().toISOString() }).in('id', ids));
-  for (const [id, queuedAt] of snapshots) if (pendingPresence.get(id) === queuedAt) pendingPresence.delete(id);
+  return flushPresenceBatch(pendingPresence, userIds, rows => query(db.rpc('ace_flush_presence', { p_presence: rows })));
 };
 const presenceFlushTimer = setInterval(() => {
   flushPresence().catch(error => console.error('presence flush failed:', error.message));
-}, 5 * 60 * 1000);
+}, presenceFlushIntervalMs);
 presenceFlushTimer.unref();
 const publishChatEvent = (userId, detail) => {
   const subscribers = chatSubscribers.get(userId);
@@ -685,8 +684,16 @@ app.post('/v1/auth/session-start', authenticate, async (req, res, next) => { try
   await audit(req, 'LOGIN', 'PROFILE', req.profile.id, 'Signed in successfully');
   res.status(204).end();
 } catch (error) { next(error); } });
-app.post('/v1/auth/heartbeat', authenticate, activeOnly, async (req, res, next) => { try {
-  queuePresence(req.profile.id);
+app.post('/v1/auth/heartbeat', capturePresenceRequestTime, authenticate, activeOnly, async (req, res, next) => { try {
+  if (!isUuid(req.authSessionId)) return fail(res, 401, 'Invalid or expired session');
+  const queued = queuePresenceForActiveSession(pendingPresence, {
+    userId: req.profile.id,
+    sessionId: req.authSessionId,
+    tokenKey: req.authTokenCacheKey,
+    heartbeatAt: req.presenceHeartbeatAt,
+    isTokenRevoked
+  });
+  if (!queued) return fail(res, 401, 'Session has ended');
   res.status(204).end();
 } catch (error) { next(error); } });
 app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
