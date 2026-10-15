@@ -392,6 +392,40 @@ async function refreshUserProjectAssignments() {
 
 const pause = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 const inactiveAccountMessage = 'Your account is not active. Contact your administrator or HR representative for an invitation.';
+let startupWarmupInterval = null;
+
+function showStartupWarmupNotice() {
+    const shell = document.querySelector('.app-shell-skeleton');
+    if (!shell || shell.querySelector('.shell-startup-warmup')) return;
+    shell.setAttribute('aria-hidden', 'false');
+    const notice = document.createElement('section');
+    notice.className = 'shell-startup-warmup';
+    notice.setAttribute('role', 'status');
+    notice.setAttribute('aria-live', 'polite');
+    notice.innerHTML = '<div><strong>ACE is connecting</strong><p>Render may be waking up after inactivity. Please wait about one minute while ACE keeps trying.</p></div><button class="btn btn-secondary" type="button" data-startup-refresh disabled>Refresh available in 1:00</button>';
+    shell.appendChild(notice);
+    let secondsLeft = 60;
+    startupWarmupInterval = window.setInterval(() => {
+        secondsLeft -= 1;
+        const refresh = notice.querySelector('[data-startup-refresh]');
+        if (!refresh) return;
+        if (secondsLeft <= 0) {
+            window.clearInterval(startupWarmupInterval);
+            startupWarmupInterval = null;
+            refresh.disabled = false;
+            refresh.textContent = 'Refresh page';
+            refresh.addEventListener('click', () => window.location.reload(), { once: true });
+        } else {
+            refresh.textContent = `Refresh available in 0:${String(secondsLeft).padStart(2, '0')}`;
+        }
+    }, 1000);
+}
+
+function clearStartupWarmupNotice() {
+    if (startupWarmupInterval) window.clearInterval(startupWarmupInterval);
+    startupWarmupInterval = null;
+    document.querySelector('.shell-startup-warmup')?.remove();
+}
 
 async function loadDatabaseWhenServiceIsReady() {
     // Free Render services can sleep. Keep the page skeleton visible while the
@@ -417,11 +451,14 @@ async function loadDatabaseWhenServiceIsReady() {
                     reject(timeoutError);
                 }, remaining);
             });
-            return await Promise.race([loadDatabase(), deadline]);
+            const loaded = await Promise.race([loadDatabase(), deadline]);
+            clearStartupWarmupNotice();
+            return loaded;
         } catch (error) {
             lastError = error;
             const retryable = !error.status || error.status >= 500 || error.status === 429;
             if (!retryable || attempt === retryDelays.length || Date.now() >= startupDeadline) throw error;
+            showStartupWarmupNotice();
             console.info(`Waiting for ACE services to wake up (attempt ${attempt + 1}).`);
             await pause(Math.min(retryDelays[attempt], Math.max(0, startupDeadline - Date.now())));
         } finally {
@@ -4188,6 +4225,7 @@ function hideSpinner() {
 const startApp = () => {
     initApp().catch(error => {
         console.error('Application startup failed.', error);
+        clearStartupWarmupNotice();
         document.body.classList.remove('app-shell-pending');
         const shell = document.querySelector('.app-shell-skeleton');
         if (!shell) return;
