@@ -18300,10 +18300,18 @@ html:not([data-theme="dark"]) .has-app-shell :is(.btn-secondary,.btn-outline):fo
 .shell-startup-error { width: min(540px,100%); padding: 30px; border: 1px solid var(--ace-line); border-radius: 16px; background: var(--ace-surface, #fff); box-shadow: 0 12px 32px rgb(12 45 56 / 10%); }
 .shell-startup-error h1 { margin: 0 0 10px; color: var(--ace-ink, #123d49); font-size: 1.4rem; }
 .shell-startup-error p { margin: 0 0 20px; color: var(--ace-muted, #607c85); line-height: 1.55; }
+.shell-startup-warmup { position: absolute; right: 24px; bottom: 24px; left: 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; width: min(760px,calc(100% - 48px)); margin: 0 auto; padding: 16px 18px; border: 1px solid var(--ace-line); border-radius: 12px; background: var(--ace-surface, #fff); box-shadow: 0 8px 24px rgb(12 45 56 / 12%); }
+.shell-startup-warmup strong { display: block; margin-bottom: 4px; color: var(--ace-ink, #123d49); }
+.shell-startup-warmup p { margin: 0; color: var(--ace-muted, #607c85); font-size: .9rem; line-height: 1.45; }
+.shell-startup-warmup button { flex: 0 0 auto; min-width: 185px; }
+.shell-startup-warmup button:disabled { opacity: .7; cursor: wait; }
 html[data-theme="dark"] :is(.shell-skeleton-card,.shell-skeleton-panel.is-clock-card,.shell-skeleton-profile-heading,.shell-skeleton-empty) { background-color: #1b272b; border-color: #34454b; }
 html[data-theme="dark"] .shell-startup-error { background: #1b272b; border-color: #34454b; }
 html[data-theme="dark"] .shell-startup-error h1 { color: #e2e8ea; }
 html[data-theme="dark"] .shell-startup-error p { color: #b5c0c4; }
+html[data-theme="dark"] .shell-startup-warmup { background: #1b272b; border-color: #34454b; }
+html[data-theme="dark"] .shell-startup-warmup strong { color: #e2e8ea; }
+html[data-theme="dark"] .shell-startup-warmup p { color: #b5c0c4; }
 html[data-theme="dark"] :is(.shell-skeleton-line,.shell-skeleton-kicker,.shell-skeleton-title,.shell-skeleton-subtitle,.shell-skeleton-control) { background-color: #35474d; }
 html[data-theme="dark"] .shell-skeleton-line.is-control { background-color: #202d31; border-color: #34454b; }
 html[data-theme="dark"] .shell-skeleton-table-head { background: #202d31; }
@@ -18329,5 +18337,7 @@ html[data-theme="dark"] .shell-skeleton-row.is-table-row::after { background: re
   .shell-skeleton-panel.is-clock-card .shell-skeleton-control { grid-column: auto; }
   .shell-skeleton-filter-row { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .shell-skeleton-table-head, .shell-skeleton-row.is-table-row { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .shell-startup-warmup { right: 12px; bottom: calc(88px + env(safe-area-inset-bottom)); left: 12px; align-items: stretch; flex-direction: column; width: calc(100% - 24px); padding: 14px; }
+  .shell-startup-warmup button { width: 100%; }
 }
 
