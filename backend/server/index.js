@@ -11,7 +11,7 @@ import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
 import nodemailer from 'nodemailer';
-import { flushPresenceBatch, isPresenceOnline, presenceFlushIntervalMs, queuePresenceForActiveSession } from './presence.js';
+import { countActiveEmployeeClockIns, flushPresenceBatch, isPresenceOnline, presenceFlushIntervalMs, queuePresenceForActiveSession } from './presence.js';
 import { createSessionSecurity } from './session-security.js';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_KEY'];
@@ -825,6 +825,9 @@ app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res,
       };
     })
   });
+} catch (error) { next(error); } });
+app.get('/v1/admin-dashboard/active-clock-in-count', authenticate, adminOnly, async (req, res, next) => { try {
+  res.json({ count: await countActiveEmployeeClockIns(db) });
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/stream', authenticate, activeOnly, (req, res) => {
   const userId = req.profile.id;

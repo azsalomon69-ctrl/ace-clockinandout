@@ -11,6 +11,9 @@ const AppState = {
     currentSession: null,
     presenceInterval: null,
     presenceVisibilityHandler: null,
+    adminClockInCountInterval: null,
+    adminClockInCountVisibilityHandler: null,
+    adminClockInCountRequest: null,
     clockInTime: null,
     timerInterval: null,
     remarkNotificationInterval: null,
@@ -3666,10 +3669,60 @@ async function loadReviewAlerts() {
     } catch (error) { section.hidden = true; console.warn('Could not load time-entry review alerts.', error); }
 }
 
+async function refreshAdminClockInCount() {
+    const countElement = document.getElementById('clockedInUsers');
+    if (!countElement || document.visibilityState !== 'visible') return;
+    if (AppState.adminClockInCountRequest && AppState.adminClockInCountElement === countElement) return AppState.adminClockInCountRequest;
+    AppState.adminClockInCountElement = countElement;
+    const request = window.ACEAuth.request('/v1/admin-dashboard/active-clock-in-count')
+        .then(result => {
+            if (!Number.isSafeInteger(result?.count) || result.count < 0) throw new Error('Invalid active clock-in count');
+            if (document.getElementById('clockedInUsers') === countElement) {
+                AppState.adminClockInCount = result.count;
+                countElement.textContent = String(result.count);
+            }
+        })
+        .catch(error => console.warn('Could not refresh the active clock-in count.', error))
+        .finally(() => {
+            if (AppState.adminClockInCountRequest === request) AppState.adminClockInCountRequest = null;
+        });
+    AppState.adminClockInCountRequest = request;
+    return request;
+}
+
+function startAdminClockInCountRefresh() {
+    if (!AppState.adminClockInCountInterval) {
+        AppState.adminClockInCountInterval = window.setInterval(() => {
+            if (document.getElementById('clockedInUsers')) void refreshAdminClockInCount();
+            else {
+                window.clearInterval(AppState.adminClockInCountInterval);
+                AppState.adminClockInCountInterval = null;
+                if (AppState.adminClockInCountVisibilityHandler) {
+                    document.removeEventListener('visibilitychange', AppState.adminClockInCountVisibilityHandler);
+                    AppState.adminClockInCountVisibilityHandler = null;
+                }
+            }
+        }, 60 * 1000);
+    }
+    if (!AppState.adminClockInCountVisibilityHandler) {
+        AppState.adminClockInCountVisibilityHandler = () => {
+            if (document.visibilityState === 'visible' && document.getElementById('clockedInUsers')) {
+                void refreshAdminClockInCount();
+            }
+        };
+        document.addEventListener('visibilitychange', AppState.adminClockInCountVisibilityHandler);
+    }
+}
+
 function loadAdminDashboard() {
     // Update stats
     const clockedInUsers = document.getElementById('clockedInUsers');
-    if (clockedInUsers) clockedInUsers.textContent = employeeTimeEntries().filter(entry => !entry.ClockOutAt).length;
+    if (clockedInUsers) {
+        // Never replace a fresh server count with the older dashboard history.
+        clockedInUsers.textContent = Number.isSafeInteger(AppState.adminClockInCount) ? String(AppState.adminClockInCount) : '—';
+        startAdminClockInCountRefresh();
+        void refreshAdminClockInCount();
+    }
     
     void loadReviewAlerts();
     
