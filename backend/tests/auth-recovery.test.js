@@ -11,7 +11,8 @@ test('login retries configuration after a temporary service failure and shares s
   let created = 0;
   const auth = {};
   const context = vm.createContext({
-    window: { supabase: { createClient() { created++; return auth; } } },
+    AbortController,
+    window: { setTimeout, clearTimeout, supabase: { createClient() { created++; return auth; } } },
     fetch: async () => {
       calls++;
       if (calls === 1) throw new Error('Temporary network failure');
@@ -26,19 +27,20 @@ test('login retries configuration after a temporary service failure and shares s
   assert.equal(created, 1);
 });
 
-function requestHarness(send, refresh = async () => ({ data: { session: { access_token: 'new-token' } }, error: null })) {
-  const effects = { refreshes: 0, signedOut: 0, removed: [], notices: [], redirects: [] };
+function requestHarness(send, refresh = async () => ({ data: { session: { access_token: 'new-token' } }, error: null }), workspaceMode) {
+  const effects = { refreshes: 0, signedOut: 0, signOutScopes: [], removed: [], notices: [], redirects: [] };
   const auth = { auth: {
     getSession: async () => ({ data: { session: { access_token: 'old-token' } } }),
     refreshSession: async () => { effects.refreshes++; return refresh(); },
-    signOut: async () => { effects.signedOut++; }
+    signOut: async options => { effects.signedOut++; effects.signOutScopes.push(options?.scope); }
   } };
   const context = vm.createContext({
-    window: { ACE_API_URL: 'https://api.example.test/', supabase: { createClient: () => auth }, location: { replace: url => effects.redirects.push(url) } },
+    AbortController,
+    window: { ACE_API_URL: 'https://api.example.test/', ACE_EXPECTED_WORKSPACE_MODE: workspaceMode, setTimeout, clearTimeout, supabase: { createClient: () => auth }, location: { replace: url => effects.redirects.push(url) } },
     localStorage: { removeItem: key => effects.removed.push(key) },
     sessionStorage: { setItem: (key, value) => effects.notices.push({ key, value }) },
     fetch: async (url, options) => url.endsWith('/v1/auth/config')
-      ? { ok: true, json: async () => ({}) }
+      ? { ok: true, json: async () => ({ workspaceMode: workspaceMode || 'production' }) }
       : send(url, options)
   });
   vm.runInContext(source, context);
@@ -74,6 +76,26 @@ test('failed token refresh clears stale session state and redirects to login', a
   assert.deepEqual(effects.redirects, ['/login']);
   assert.equal(effects.notices[0].key, 'ace_login_notice');
 });
+
+for (const workspaceMode of ['employee-test', undefined]) {
+  for (const refreshFails of [true, false]) {
+    test(`${workspaceMode || 'production'} recovery uses the intended sign-out scope after ${refreshFails ? 'failed refresh' : 'repeated 401'}`, async () => {
+      let requests = 0;
+      const { request, effects } = requestHarness(async () => {
+        requests++;
+        return { status: 401 };
+      }, async () => refreshFails
+        ? { data: { session: null }, error: { message: 'expired' } }
+        : { data: { session: { access_token: 'new-token' } }, error: null }, workspaceMode);
+      await assert.rejects(request('/v1/me'), error => error.status === 401);
+      assert.equal(requests, refreshFails ? 1 : 2);
+      assert.deepEqual(effects.signOutScopes, [workspaceMode === 'employee-test' ? 'local' : undefined]);
+      assert.deepEqual(effects.removed, ['ace_current_user', 'ace_current_session']);
+      assert.deepEqual(effects.redirects, ['/login']);
+      assert.equal(effects.notices[0].key, 'ace_login_notice');
+    });
+  }
+}
 
 test('permission denial is preserved without refreshing or signing out', async () => {
   const { request, effects } = requestHarness(async () => ({ status: 403, ok: false, json: async () => ({ error: 'Administrator access required' }) }));

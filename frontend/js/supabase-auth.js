@@ -65,7 +65,9 @@ window.ACEAuth = (() => {
         return clientPromise;
     }
     async function expireSession(auth) {
-        await auth.auth.signOut().catch(() => {});
+        // Debug shares Auth with production; recovery must end only its own session.
+        const signOutOptions = window.ACE_EXPECTED_WORKSPACE_MODE === 'employee-test' ? { scope: 'local' } : undefined;
+        await auth.auth.signOut(signOutOptions).catch(() => {});
         cachedSession = null;
         localStorage.removeItem('ace_current_user');
         localStorage.removeItem('ace_current_session');
