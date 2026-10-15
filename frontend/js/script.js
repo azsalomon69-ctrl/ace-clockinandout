@@ -397,16 +397,35 @@ async function loadDatabaseWhenServiceIsReady() {
     // Free Render services can sleep. Keep the page skeleton visible while the
     // service wakes, and only reveal the application after a complete live load.
     const retryDelays = [1500, 2500, 4000, 6000, 8000, 10000, 10000, 10000, 10000];
+    const startupDeadline = Date.now() + 120000;
     let lastError;
     for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+        const remaining = startupDeadline - Date.now();
+        if (remaining <= 0) {
+            const timeoutError = new Error('ACE could not finish loading the workspace before the startup deadline.');
+            timeoutError.status = 504;
+            timeoutError.code = 'ETIMEDOUT';
+            throw timeoutError;
+        }
+        let deadlineTimer;
         try {
-            return await loadDatabase();
+            const deadline = new Promise((_, reject) => {
+                deadlineTimer = window.setTimeout(() => {
+                    const timeoutError = new Error('ACE could not finish loading the workspace before the startup deadline.');
+                    timeoutError.status = 504;
+                    timeoutError.code = 'ETIMEDOUT';
+                    reject(timeoutError);
+                }, remaining);
+            });
+            return await Promise.race([loadDatabase(), deadline]);
         } catch (error) {
             lastError = error;
             const retryable = !error.status || error.status >= 500 || error.status === 429;
-            if (!retryable || attempt === retryDelays.length) throw error;
+            if (!retryable || attempt === retryDelays.length || Date.now() >= startupDeadline) throw error;
             console.info(`Waiting for ACE services to wake up (attempt ${attempt + 1}).`);
-            await pause(retryDelays[attempt]);
+            await pause(Math.min(retryDelays[attempt], Math.max(0, startupDeadline - Date.now())));
+        } finally {
+            window.clearTimeout(deadlineTimer);
         }
     }
     throw lastError;
@@ -480,7 +499,7 @@ async function initApp() {
             try { shellMounted = initializeAppShell(); }
             catch (error) { console.error('Could not mount the application navigation.', error); }
         }
-        if (!shellMounted) return;
+        if (!shellMounted) throw new Error('The application navigation could not be initialized.');
         startPresenceHeartbeat();
         initializeNavigation();
         initializeModals();
@@ -4170,7 +4189,12 @@ const startApp = () => {
     initApp().catch(error => {
         console.error('Application startup failed.', error);
         document.body.classList.remove('app-shell-pending');
-        document.querySelector('.app-shell-skeleton')?.remove();
+        const shell = document.querySelector('.app-shell-skeleton');
+        if (!shell) return;
+        shell.classList.add('is-startup-error');
+        shell.setAttribute('aria-hidden', 'false');
+        shell.innerHTML = '<main class="shell-skeleton-main"><section class="shell-startup-error" role="alert"><h1>Workspace could not load</h1><p>ACE did not finish connecting. Check your connection, then try again.</p><button class="btn btn-primary" type="button" data-startup-retry>Try again</button></section></main>';
+        shell.querySelector('[data-startup-retry]')?.addEventListener('click', () => window.location.reload());
     });
 };
 

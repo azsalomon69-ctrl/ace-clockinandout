@@ -18278,7 +18278,14 @@ html:not([data-theme="dark"]) .has-app-shell :is(.btn-secondary,.btn-outline):fo
 .shell-skeleton-panel.is-profile-card .shell-skeleton-profile-heading .shell-skeleton-line { margin: 10px 0; }
 .shell-skeleton-panel.is-profile-card .shell-skeleton-cards { margin-bottom: 0; }
 .shell-skeleton-empty { min-height: 140px; border-radius: 10px; background: #edf5f7; }
+.app-shell-skeleton.is-startup-error { display: grid; place-items: center; overflow-y: auto; }
+.shell-startup-error { width: min(540px,100%); padding: 30px; border: 1px solid var(--ace-line); border-radius: 16px; background: var(--ace-surface, #fff); box-shadow: 0 12px 32px rgb(12 45 56 / 10%); }
+.shell-startup-error h1 { margin: 0 0 10px; color: var(--ace-ink, #123d49); font-size: 1.4rem; }
+.shell-startup-error p { margin: 0 0 20px; color: var(--ace-muted, #607c85); line-height: 1.55; }
 html[data-theme="dark"] :is(.shell-skeleton-card,.shell-skeleton-panel.is-clock-card,.shell-skeleton-profile-heading,.shell-skeleton-empty) { background-color: #1b272b; border-color: #34454b; }
+html[data-theme="dark"] .shell-startup-error { background: #1b272b; border-color: #34454b; }
+html[data-theme="dark"] .shell-startup-error h1 { color: #e2e8ea; }
+html[data-theme="dark"] .shell-startup-error p { color: #b5c0c4; }
 html[data-theme="dark"] :is(.shell-skeleton-line,.shell-skeleton-kicker,.shell-skeleton-title,.shell-skeleton-subtitle,.shell-skeleton-control) { background-color: #35474d; }
 html[data-theme="dark"] .shell-skeleton-line.is-control { background-color: #202d31; border-color: #34454b; }
 html[data-theme="dark"] .shell-skeleton-table-head { background: #202d31; }
