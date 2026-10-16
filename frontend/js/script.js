@@ -29,7 +29,7 @@ const AppState = {
 };
 window.AppState = AppState;
 
-const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), CanSwitchDebugRole: Boolean(item.debug_role_switch_available), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
+const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
 // Render serves the real .html files, while these clean routes are resolved by
 // the Static Site rewrite rules. Keep every internal page link canonical.
 const cleanInternalRoute = value => {

@@ -411,5 +411,3 @@ Changes involving authentication, permissions, employee records, time tracking, 
 ## Documentation
 
 This README contains the general documentation for ACE Clock In/Out, including the application's purpose, features, architecture, setup, development structure, testing, and deployment.
-
-The ACE Debug workspace setup, branch workflow, and frontend-only promotion policy are documented in [`deliverables/ace-debug-workspace-and-branch.md`](deliverables/ace-debug-workspace-and-branch.md).
