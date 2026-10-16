@@ -11,7 +11,7 @@ import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
 import nodemailer from 'nodemailer';
-import { countActiveEmployeeClockIns, flushPresenceBatch, isPresenceOnline, presenceFlushIntervalMs, queuePresenceForActiveSession } from './presence.js';
+import { countActiveEmployeeClockIns } from './clock-in-count.js';
 import { createSessionSecurity } from './session-security.js';
 
 const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_KEY'];
@@ -45,7 +45,6 @@ const profileCache = new Map();
 const avatarPersistenceCache = new Map();
 const revokedTokenCache = new Map();
 const referenceDataCache = new Map();
-const pendingPresence = new Map();
 let supabaseJwksCache = { keys: new Map(), expiresAt: 0, refresh: null };
 const cacheMaxEntries = 500;
 const referenceDataTtlMs = 15 * 60 * 1000;
@@ -70,17 +69,6 @@ const clearReferenceData = prefix => {
   for (const key of referenceDataCache.keys()) if (key.startsWith(prefix)) referenceDataCache.delete(key);
 };
 const isTokenRevoked = tokenKey => revokedTokenCache.get(tokenKey) > Date.now();
-const capturePresenceRequestTime = (req, res, next) => {
-  req.presenceHeartbeatAt = Date.now();
-  next();
-};
-const flushPresence = async userIds => {
-  return flushPresenceBatch(pendingPresence, userIds, rows => query(db.rpc('ace_flush_presence', { p_presence: rows })));
-};
-const presenceFlushTimer = setInterval(() => {
-  flushPresence().catch(error => console.error('presence flush failed:', error.message));
-}, presenceFlushIntervalMs);
-presenceFlushTimer.unref();
 const publishChatEvent = (userId, detail) => {
   const subscribers = chatSubscribers.get(userId);
   if (!subscribers) return;
@@ -680,20 +668,9 @@ app.post('/v1/me/avatar-complete', authenticate, activeOnly, async (req, res, ne
   res.json({ profile });
 } catch (error) { next(error); } });
 app.post('/v1/auth/session-start', authenticate, async (req, res, next) => { try {
-  await query(db.from('profiles').update({ last_login_at: new Date().toISOString(), last_seen_at: new Date().toISOString() }).eq('id', req.profile.id).select().single());
+  const sessionStartedAt = new Date().toISOString();
+  await query(db.from('profiles').update({ last_login_at: sessionStartedAt }).eq('id', req.profile.id).select().single());
   await audit(req, 'LOGIN', 'PROFILE', req.profile.id, 'Signed in successfully');
-  res.status(204).end();
-} catch (error) { next(error); } });
-app.post('/v1/auth/heartbeat', capturePresenceRequestTime, authenticate, activeOnly, async (req, res, next) => { try {
-  if (!isUuid(req.authSessionId)) return fail(res, 401, 'Invalid or expired session');
-  const queued = queuePresenceForActiveSession(pendingPresence, {
-    userId: req.profile.id,
-    sessionId: req.authSessionId,
-    tokenKey: req.authTokenCacheKey,
-    heartbeatAt: req.presenceHeartbeatAt,
-    isTokenRevoked
-  });
-  if (!queued) return fail(res, 401, 'Session has ended');
   res.status(204).end();
 } catch (error) { next(error); } });
 app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
@@ -701,8 +678,7 @@ app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
   authUserCache.delete(req.authTokenCacheKey);
   profileCache.delete(req.profile.id);
   revokeToken(req.authTokenCacheKey);
-  // Logout ends online presence immediately; it does not create a heartbeat or
-  // change the employee's independent time-entry state.
+  // Revoke the session without changing the employee's time-entry state.
   await sessionSecurity.end(req.profile.id, req.authSessionId, req.requestId);
   res.status(204).end();
 } catch (error) { next(error); } });
@@ -797,7 +773,7 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   res.json(paged ? { items, total: profileResponse.count || 0, page, pageSize } : items);
 } catch (error) { next(error); } });
 app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
-  let contactRequest = db.from('profiles').select('id,full_name,email,role,last_seen_at,last_logout_at,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
+  let contactRequest = db.from('profiles').select('id,full_name,email,role,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
   if (req.profile.role !== 'ADMIN') contactRequest = contactRequest.eq('role', 'ADMIN');
   const [contacts, unread] = await Promise.all([
     query(contactRequest),
@@ -815,10 +791,8 @@ app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res,
   }, {});
   res.json({
     contacts: contacts.map(contact => {
-      const { last_logout_at: lastLogoutAt, ...publicContact } = contact;
       return {
-      ...publicContact,
-      is_online: isPresenceOnline(contact.last_seen_at, lastLogoutAt),
+      ...contact,
       unread_count: unreadByContact[contact.id]?.count || 0,
       last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
       last_unread_at: unreadByContact[contact.id]?.latest?.created_at || null

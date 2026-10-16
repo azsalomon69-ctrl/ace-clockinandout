@@ -92,12 +92,10 @@ create index if not exists time_entries_planned_end_idx
 create index if not exists time_entries_deleted_at_idx on public.time_entries(deleted_at);
 
 alter table public.profiles
-  add column if not exists last_seen_at timestamptz,
   add column if not exists profile_picture_url text,
   add column if not exists profile_picture_public_id text,
   add column if not exists permanently_deleted_at timestamptz;
 
-create index if not exists profiles_last_seen_at_idx on public.profiles(last_seen_at desc);
 create index if not exists profiles_permanently_deleted_at_idx
   on public.profiles(permanently_deleted_at)
   where permanently_deleted_at is not null;

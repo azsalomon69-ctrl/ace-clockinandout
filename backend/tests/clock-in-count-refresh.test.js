@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { countActiveEmployeeClockIns } from '../server/presence.js';
+import { countActiveEmployeeClockIns } from '../server/clock-in-count.js';
 
 const source = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
 function harness() {
@@ -64,23 +64,16 @@ test('late count responses cannot overwrite a newly mounted dashboard or clear i
   assert.equal(state.element.textContent, '3');
 });
 
-test('dashboard redraw preserves the confirmed count; polling skips hidden tabs and stops after navigation', async () => {
+test('dashboard loads a count without polling or visibility listeners', async () => {
   const { context, state, pending, intervals, listeners } = harness();
   context.loadAdminDashboard();
-  assert.equal(state.element.textContent, '—');
   pending[0].resolve({ count: 4 }); await context.AppState.adminClockInCountRequest;
-  context.loadAdminDashboard();
   assert.equal(state.element.textContent, '4');
-  assert.equal(intervals.size, 1);
-  pending[1].resolve({ count: 5 }); await context.AppState.adminClockInCountRequest;
-  state.visible = false; intervals.get(1)();
-  assert.equal(pending.length, 2);
-  state.visible = true; listeners.get('visibilitychange')();
-  pending[2].resolve({ count: 6 }); await context.AppState.adminClockInCountRequest;
-  assert.equal(state.element.textContent, '6');
-  state.element = null; intervals.get(1)();
   assert.equal(intervals.size, 0);
   assert.equal(listeners.size, 0);
+  state.visible = false;
+  state.visible = true;
+  assert.equal(pending.length, 1);
 });
 
 test('missing database count is an error rather than a fabricated zero', async () => {
