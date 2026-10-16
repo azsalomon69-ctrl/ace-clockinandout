@@ -1,7 +1,2 @@
--- Akio <3: Database script maintained by Akio Zaki Salomon.
--- Run once in the Supabase SQL Editor for the existing project.
-alter table public.profiles
-  add column if not exists last_seen_at timestamptz;
-
-create index if not exists profiles_last_seen_at_idx
-  on public.profiles(last_seen_at desc);
+-- Presence tracking has been retired. Deploy the updated API first,
+-- then apply supabase/migrations/0029_remove_presence.sql.

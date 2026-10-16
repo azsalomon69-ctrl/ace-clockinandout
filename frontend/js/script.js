@@ -9,11 +9,9 @@ const AppState = {
     isAuthenticated: false,
     isClockedIn: false,
     currentSession: null,
-    presenceInterval: null,
-    presenceVisibilityHandler: null,
+    adminClockInCountRequest: null,
     clockInTime: null,
     timerInterval: null,
-    remarkNotificationInterval: null,
     projects: [],
     departments: [],
     timeEntries: [],
@@ -31,7 +29,7 @@ const AppState = {
 };
 window.AppState = AppState;
 
-const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, LastSeenAt: item.last_seen_at, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
+const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), CanSwitchDebugRole: Boolean(item.debug_role_switch_available), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
 // Render serves the real .html files, while these clean routes are resolved by
 // the Static Site rewrite rules. Keep every internal page link canonical.
 const cleanInternalRoute = value => {
@@ -536,7 +534,6 @@ async function initApp() {
             catch (error) { console.error('Could not mount the application navigation.', error); }
         }
         if (!shellMounted) throw new Error('The application navigation could not be initialized.');
-        startPresenceHeartbeat();
         initializeNavigation();
         initializeModals();
         initializeForms();
@@ -963,7 +960,7 @@ function initializeEmployeeChat() {
     chat.id = 'employeeChat';
     chat.className = 'employee-chat';
     const employeeChat = AppState.currentUser.Role !== 'ADMIN';
-    chat.innerHTML = `<button class="employee-chat-launcher" type="button" aria-expanded="false" aria-controls="employeeChatPanel"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Chat</span><b class="employee-chat-badge" hidden>0</b></button><div class="employee-chat-panel" id="employeeChatPanel" hidden><header><strong>Team chat</strong><button type="button" class="employee-chat-close" aria-label="Close chat">×</button></header><div class="employee-chat-layout"><aside><p>${employeeChat ? 'Administrators' : 'All messages'}</p><label class="employee-chat-search"><span class="sr-only">Search teammates</span><input type="search" placeholder="Search teammates" autocomplete="off"></label><div class="employee-chat-contacts"></div></aside><section class="employee-chat-thread"><div class="employee-chat-empty">Choose a teammate to start a private chat.</div></section></div></div>`;
+    chat.innerHTML = `<button class="employee-chat-launcher" type="button" aria-expanded="false" aria-controls="employeeChatPanel"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Chat</span><b class="employee-chat-badge" hidden>0</b></button><div class="employee-chat-panel" id="employeeChatPanel" hidden><header><strong>Team chat</strong><small>Refresh the page for new messages</small><button type="button" class="employee-chat-close" aria-label="Close chat">×</button></header><div class="employee-chat-layout"><aside><p>${employeeChat ? 'Administrators' : 'All messages'}</p><label class="employee-chat-search"><span class="sr-only">Search teammates</span><input type="search" placeholder="Search teammates" autocomplete="off"></label><div class="employee-chat-contacts"></div></aside><section class="employee-chat-thread"><div class="employee-chat-empty">Choose a teammate to start a private chat.</div></section></div></div>`;
     document.body.appendChild(chat);
     const launcher = chat.querySelector('.employee-chat-launcher');
     const panel = chat.querySelector('.employee-chat-panel');
@@ -973,42 +970,36 @@ function initializeEmployeeChat() {
     const badge = chat.querySelector('.employee-chat-badge');
     let selectedId = null;
     let selectedName = '';
-    let selectedOnline = false;
     let selectedPictureUrl = '';
     let contactsLoaded = false;
     let allContacts = [];
+    let contactsRequest = null;
     const unreadByContact = new Map();
-    let chatStreamAbort;
-    let chatStreamRetry;
-    const typingContacts = new Map();
-    const typingClearTimers = new Map();
-    let typingLastSentAt = 0;
-    let typingActive = false;
-    let typingRecipientId = null;
+    const messagesByContact = new Map();
     const formatTime = value => new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    const loadMessages = async () => {
+    const loadMessages = async (reload = false) => {
         if (!selectedId) return;
         const previousComposer = thread.querySelector('.employee-chat-compose input');
         const draft = previousComposer?.value || '';
         const restoreComposerFocus = document.activeElement === previousComposer;
         try {
-            const messages = await window.ACEAuth.request(`/v1/employee-chat/messages/${selectedId}`);
+            const contactId = selectedId;
+            const messages = !reload && messagesByContact.has(contactId)
+                ? messagesByContact.get(contactId)
+                : await window.ACEAuth.request(`/v1/employee-chat/messages/${contactId}`);
+            messagesByContact.set(contactId, messages);
+            if (selectedId !== contactId) return;
             // The request can finish while the user is typing. Capture the
             // live value immediately before replacing the message list.
             const liveComposer = thread.querySelector('.employee-chat-compose input');
             const liveDraft = liveComposer?.value ?? draft;
             const keepComposerFocus = document.activeElement === liveComposer || restoreComposerFocus;
-            thread.innerHTML = `<div class="employee-chat-thread-head"><button class="employee-chat-back" type="button" aria-label="Back to chats">‹</button><span class="employee-chat-avatar">${avatarContent(selectedName, selectedPictureUrl)}</span><div><strong>${escapeHtml(selectedName)}</strong><span class="employee-chat-presence${selectedOnline ? ' is-online' : ''}">${selectedOnline ? 'Online now' : 'Offline'}</span><span class="employee-chat-typing"${typingContacts.has(String(selectedId)) ? '' : ' hidden'} aria-live="polite">${escapeHtml(selectedName)} is typing<span aria-hidden="true">…</span></span></div></div><div class="employee-chat-messages">${messages.map(message => { const mine = message.sender_id === AppState.currentUser.UserId; const deleted = Boolean(message.deleted_at); const time = `<time class="employee-chat-message-time">${formatTime(message.created_at)}</time>`; return `<div class="employee-chat-message-row${mine ? ' mine' : ''}"><div class="employee-chat-message${mine ? ' mine' : ''}${deleted ? ' deleted' : ''}"><span>${deleted ? 'This message was deleted.' : escapeHtml(message.body)}</span>${!deleted && message.edited_at ? '<em>edited</em>' : ''}</div>${mine && !deleted ? `<div class="employee-chat-actions">${time}<button type="button" data-chat-edit="${message.id}" data-chat-body="${escapeHtml(message.body)}">Edit</button><button type="button" data-chat-delete="${message.id}">Delete</button></div>` : `<div class="employee-chat-message-meta">${time}</div>`}</div>`; }).join('')}</div><form class="employee-chat-compose"><input maxlength="2000" aria-label="Message ${escapeHtml(selectedName)}" placeholder="Write a message…" required><button type="submit">Send</button></form>`;
+            thread.innerHTML = `<div class="employee-chat-thread-head"><button class="employee-chat-back" type="button" aria-label="Back to chats">‹</button><span class="employee-chat-avatar">${avatarContent(selectedName, selectedPictureUrl)}</span><div><strong>${escapeHtml(selectedName)}</strong></div></div><div class="employee-chat-messages">${messages.map(message => { const mine = message.sender_id === AppState.currentUser.UserId; const deleted = Boolean(message.deleted_at); const time = `<time class="employee-chat-message-time">${formatTime(message.created_at)}</time>`; return `<div class="employee-chat-message-row${mine ? ' mine' : ''}"><div class="employee-chat-message${mine ? ' mine' : ''}${deleted ? ' deleted' : ''}"><span>${deleted ? 'This message was deleted.' : escapeHtml(message.body)}</span>${!deleted && message.edited_at ? '<em>edited</em>' : ''}</div>${mine && !deleted ? `<div class="employee-chat-actions">${time}<button type="button" data-chat-edit="${message.id}" data-chat-body="${escapeHtml(message.body)}">Edit</button><button type="button" data-chat-delete="${message.id}">Delete</button></div>` : `<div class="employee-chat-message-meta">${time}</div>`}</div>`; }).join('')}</div><form class="employee-chat-compose"><input maxlength="2000" aria-label="Message ${escapeHtml(selectedName)}" placeholder="Write a message…" required><button type="submit">Send</button></form>`;
             const messagesBox = thread.querySelector('.employee-chat-messages');
             if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight;
             const composer = thread.querySelector('.employee-chat-compose input');
             if (composer && liveDraft) composer.value = liveDraft;
             if (composer && keepComposerFocus) composer.focus({ preventScroll: true });
-            composer?.addEventListener('input', () => {
-                if (composer.value.trim()) void publishTyping(true);
-                else void publishTyping(false);
-            });
-            composer?.addEventListener('blur', () => void publishTyping(false));
             thread.querySelector('.employee-chat-back')?.addEventListener('click', () => chat.classList.remove('employee-chat-chatting'));
             thread.querySelector('form').addEventListener('submit', async event => {
                 event.preventDefault();
@@ -1022,13 +1013,12 @@ function initializeEmployeeChat() {
                 messagesBox?.append(pending);
                 messagesBox.scrollTop = messagesBox.scrollHeight;
                 input.value = '';
-                void publishTyping(false);
                 sendButton.disabled = true;
                 input.focus({ preventScroll: true });
                 try {
                     await window.ACEAuth.request('/v1/employee-chat/messages', { method: 'POST', body: JSON.stringify({ recipientId: selectedId, body }) });
                     pending.remove();
-                    await loadMessages();
+                    await loadMessages(true);
                 }
                 catch (error) {
                     pending.remove();
@@ -1040,12 +1030,12 @@ function initializeEmployeeChat() {
             thread.querySelectorAll('[data-chat-edit]').forEach(button => button.addEventListener('click', async () => {
                 const body = (await window.ACEUI.prompt({ title: 'Edit message', label: 'Message', value: button.dataset.chatBody, confirmLabel: 'Save changes' }))?.trim();
                 if (!body) return;
-                try { await window.ACEAuth.request(`/v1/employee-chat/messages/${button.dataset.chatEdit}`, { method: 'PATCH', body: JSON.stringify({ body }) }); await loadMessages(); }
+                try { await window.ACEAuth.request(`/v1/employee-chat/messages/${button.dataset.chatEdit}`, { method: 'PATCH', body: JSON.stringify({ body }) }); await loadMessages(true); }
                 catch (error) { showToast(error.message || 'Unable to edit chat message.', 'error'); }
             }));
             thread.querySelectorAll('[data-chat-delete]').forEach(button => button.addEventListener('click', async () => {
                 if (!await window.ACEUI.confirm({ title: 'Delete message?', message: 'This removes the message from the conversation for everyone.', confirmLabel: 'Delete message', danger: true })) return;
-                try { await window.ACEAuth.request(`/v1/employee-chat/messages/${button.dataset.chatDelete}`, { method: 'DELETE' }); await loadMessages(); }
+                try { await window.ACEAuth.request(`/v1/employee-chat/messages/${button.dataset.chatDelete}`, { method: 'DELETE' }); await loadMessages(true); }
                 catch (error) { showToast(error.message || 'Unable to delete chat message.', 'error'); }
             }));
         } catch (error) { thread.innerHTML = `<div class="employee-chat-empty">${escapeHtml(error.message || 'Unable to load this conversation.')}</div>`; }
@@ -1053,11 +1043,14 @@ function initializeEmployeeChat() {
     const renderContacts = () => {
         const query = contactSearch.value.trim().toLowerCase();
         const people = allContacts.filter(person => `${person.full_name || ''} ${person.email || ''}`.toLowerCase().includes(query));
-        contacts.innerHTML = people.length ? people.map(person => { const name = person.full_name || person.email; const online = Boolean(person.is_online); const isTyping = typingContacts.has(String(person.id)); return `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(name)}" data-picture="${escapeHtml(person.profile_picture_url || '')}" data-online="${online}" type="button"><span class="employee-chat-avatar">${avatarContent(name, person.profile_picture_url)}<i class="employee-chat-online-dot${online ? ' is-online' : ''}"></i></span><div><strong>${escapeHtml(name)}</strong><small class="${isTyping ? 'is-typing' : ''}">${isTyping ? 'Typing…' : online ? 'Online' : 'Offline'}</small></div>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(name)}"></b>` : ''}</button>`; }).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
-        contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { void publishTyping(false); selectedId = button.dataset.id; selectedName = button.dataset.name; selectedPictureUrl = button.dataset.picture; selectedOnline = button.dataset.online === 'true'; chat.classList.add('employee-chat-chatting'); renderContacts(); loadMessages(); }));
+        contacts.innerHTML = people.length ? people.map(person => { const name = person.full_name || person.email; return `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(name)}" data-picture="${escapeHtml(person.profile_picture_url || '')}" type="button"><span class="employee-chat-avatar">${avatarContent(name, person.profile_picture_url)}</span><div><strong>${escapeHtml(name)}</strong></div>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(name)}"></b>` : ''}</button>`; }).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
+        contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.id; selectedName = button.dataset.name; selectedPictureUrl = button.dataset.picture; chat.classList.add('employee-chat-chatting'); renderContacts(); loadMessages(); }));
     };
-    const loadContacts = async () => {
-        try {
+    const loadContacts = () => {
+        if (contactsLoaded) return Promise.resolve();
+        if (contactsRequest) return contactsRequest;
+        contactsRequest = (async () => {
+          try {
             const response = await window.ACEAuth.request('/v1/employee-chat/contacts');
             const people = Array.isArray(response) ? response : response.contacts || [];
             const totalUnread = people.reduce((total, person) => total + (person.unread_count || 0), 0);
@@ -1086,103 +1079,21 @@ function initializeEmployeeChat() {
                 }))
             } }));
             const selectedContact = people.find(person => person.id === selectedId);
-            if (selectedContact) { selectedOnline = Boolean(selectedContact.is_online); selectedPictureUrl = selectedContact.profile_picture_url || ''; }
+            if (selectedContact) { selectedPictureUrl = selectedContact.profile_picture_url || ''; }
             renderContacts();
-        } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
+          } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
+        })().finally(() => { contactsRequest = null; });
+        return contactsRequest;
     };
     contactSearch.addEventListener('input', renderContacts);
-    const openChat = open => { if (!open) void publishTyping(false); panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); if (open) { chat.classList.remove('employee-chat-chatting'); loadContacts(); } };
-    const updateTypingIndicator = () => {
-        const indicator = thread.querySelector('.employee-chat-typing');
-        if (indicator) indicator.hidden = !typingContacts.has(String(selectedId));
-    };
-    const setTypingContact = (contactId, active) => {
-        const id = String(contactId);
-        window.clearTimeout(typingClearTimers.get(id));
-        if (!active) {
-            typingContacts.delete(id);
-            typingClearTimers.delete(id);
-        } else {
-            typingContacts.set(id, true);
-            typingClearTimers.set(id, window.setTimeout(() => {
-                typingContacts.delete(id);
-                typingClearTimers.delete(id);
-                updateTypingIndicator();
-                renderContacts();
-            }, 6000));
-        }
-        updateTypingIndicator();
-        renderContacts();
-    };
-    const publishTyping = async active => {
-        const recipientId = active ? selectedId : typingRecipientId || selectedId;
-        if (!recipientId) return;
-        if (active && Date.now() - typingLastSentAt < 3500) return;
-        if (!active && !typingActive) return;
-        typingActive = active;
-        typingRecipientId = active ? recipientId : null;
-        if (active) typingLastSentAt = Date.now();
-        try { await window.ACEAuth.request('/v1/employee-chat/typing', { method: 'POST', body: JSON.stringify({ recipientId, active }) }); }
-        catch { /* Typing feedback is optional; sending messages still works. */ }
-    };
-    const handleChatEvent = detail => {
-        if (!detail) return;
-        if (detail.type === 'typing') {
-            setTypingContact(detail.contactId, Boolean(detail.active));
-            return;
-        }
-        if (detail.type === 'message') {
-            setTypingContact(detail.contactId, false);
-            void loadContacts();
-            if (!panel.hidden && String(selectedId) === String(detail.contactId)) void loadMessages();
-            return;
-        }
-        if (detail.type === 'notification') {
-            window.dispatchEvent(new CustomEvent('ace:live-notification', { detail }));
-        }
-    };
-    const startChatStream = async () => {
-        chatStreamAbort?.abort();
-        chatStreamAbort = new AbortController();
-        try {
-            const response = await window.ACEAuth.authorizedFetch('/v1/employee-chat/stream', {
-                headers: { Accept: 'text/event-stream' }, signal: chatStreamAbort.signal
-            });
-            if (!response.ok || !response.body) throw new Error('Live chat stream is unavailable');
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                buffer += decoder.decode(value, { stream: true });
-                const events = buffer.split('\n\n');
-                buffer = events.pop();
-                events.forEach(event => {
-                    const type = event.match(/^event: (.+)$/m)?.[1];
-                    const data = event.match(/^data: (.+)$/m)?.[1];
-                    if (type !== 'chat' || !data) return;
-                    try { handleChatEvent(JSON.parse(data)); } catch { /* Ignore one malformed live event. */ }
-                });
-            }
-        } catch (error) {
-            if (!chatStreamAbort?.signal.aborted) console.warn('Live chat is reconnecting.', error);
-        } finally {
-            if (!chatStreamAbort?.signal.aborted) {
-                window.clearTimeout(chatStreamRetry);
-                chatStreamRetry = window.setTimeout(() => void startChatStream(), 1500);
-            }
-        }
-    };
+    const openChat = open => { panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); if (open) chat.classList.remove('employee-chat-chatting'); };
     window.ACEEmployeeChat = {
         openConversation(contactId) {
             const person = allContacts.find(contact => String(contact.id) === String(contactId));
             if (!person) { openChat(true); return; }
-            void publishTyping(false);
             selectedId = person.id;
             selectedName = person.full_name || person.email;
             selectedPictureUrl = person.profile_picture_url || '';
-            selectedOnline = Boolean(person.is_online);
             panel.hidden = false;
             launcher.setAttribute('aria-expanded', 'true');
             chat.classList.add('employee-chat-chatting');
@@ -1192,18 +1103,8 @@ function initializeEmployeeChat() {
     };
     launcher.addEventListener('click', () => openChat(panel.hidden));
     chat.querySelector('.employee-chat-close').addEventListener('click', () => openChat(false));
-    // Fetch immediately, then keep the unread indicator fresh without a page reload.
-    loadContacts();
-    void startChatStream();
-    // The live stream handles normal delivery. A slow visible-thread fallback
-    // recovers from a dropped stream without polling every signed-in page.
-    const poller = window.setInterval(() => {
-        if (document.visibilityState === 'visible' && !panel.hidden) {
-            loadContacts();
-            if (selectedId) loadMessages();
-        }
-    }, 5 * 60 * 1000);
-    window.addEventListener('pagehide', () => { void publishTyping(false); window.clearInterval(poller); window.clearTimeout(chatStreamRetry); typingClearTimers.forEach(timer => window.clearTimeout(timer)); chatStreamAbort?.abort(); }, { once: true });
+    // One contact snapshot per page load; new messages appear after refresh.
+    void loadContacts();
 }
 
 // Shared application shell for every authenticated page.
@@ -1450,7 +1351,7 @@ function initializeAppShell() {
             if (unreadRemarksCount > 3) notices.push(`<a class="shell-notification-item shell-notification-more" href="${isAdmin ? 'admin-time-entries.html?remarks=with' : 'remarks.html'}" role="menuitem"><span class="shell-notification-item-icon">${suppliedIconMarkup('bell', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${unreadRemarksCount - 3} more unread remark${unreadRemarksCount === 4 ? '' : 's'}</strong><small>Open the feedback list to review them.</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`);
         }
         const countLabel = total ? `<span class="shell-notification-count">${total > 99 ? '99+' : total} new</span>` : '';
-        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>Messages and administrator feedback will appear here.</span></div>`;
+        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>Refresh the page to check for new messages and administrator feedback.</span></div>`;
         notificationMenu.innerHTML = `<div class="shell-notification-header"><div><p class="shell-topbar-menu-title">Notifications</p><strong>Stay up to date</strong></div>${countLabel}</div><div class="shell-notification-list">${notices.length ? notices.join('') : emptyState}</div>`;
         notificationMenu.querySelectorAll('[data-open-chat]').forEach(button => button.addEventListener('click', () => {
             setTopbarMenu(notificationButton, notificationMenu, false);
@@ -1459,7 +1360,7 @@ function initializeAppShell() {
             else document.querySelector('.employee-chat-launcher')?.click();
         }));
     };
-    // The employee remark poll refreshes this same notification menu between page loads.
+    // Render the notification snapshot loaded with this page.
     window.ACERenderNotifications = renderNotifications;
     renderNotifications();
     window.addEventListener('ace:chat-unread', event => {
@@ -2458,7 +2359,7 @@ async function performLogout() {
             try {
                 await window.ACEAuth.request('/v1/auth/session-end', { method: 'POST' });
             } catch (error) {
-                // This endpoint records presence/audit bookkeeping only. The
+                // This endpoint records session/audit bookkeeping only. The
                 // Supabase sign-out below remains the authority for leaving.
                 console.warn('Could not record session end before logout:', error.message || error);
                 showToast('You have been signed out. Session activity could not be recorded.', 'warning');
@@ -2472,7 +2373,6 @@ async function performLogout() {
         return;
     }
     AppState.currentUser = null;
-    stopPresenceHeartbeat();
     AppState.isAuthenticated = false;
     AppState.isClockedIn = false;
     
@@ -2485,25 +2385,6 @@ async function performLogout() {
     setTimeout(() => {
         window.location.href = '/login';
     }, 450);
-}
-
-function startPresenceHeartbeat() {
-    stopPresenceHeartbeat();
-    const send = () => {
-        if (document.visibilityState !== 'visible' || !window.ACEAuth) return;
-        window.ACEAuth.request('/v1/auth/heartbeat', { method: 'POST' }).catch(() => {});
-    };
-    send();
-    AppState.presenceInterval = window.setInterval(send, 90 * 1000);
-    AppState.presenceVisibilityHandler = send;
-    document.addEventListener('visibilitychange', AppState.presenceVisibilityHandler);
-}
-
-function stopPresenceHeartbeat() {
-    if (AppState.presenceInterval) window.clearInterval(AppState.presenceInterval);
-    if (AppState.presenceVisibilityHandler) document.removeEventListener('visibilitychange', AppState.presenceVisibilityHandler);
-    AppState.presenceInterval = null;
-    AppState.presenceVisibilityHandler = null;
 }
 
 async function openClockInModal() {
@@ -3559,10 +3440,35 @@ async function loadReviewAlerts() {
     } catch (error) { section.hidden = true; console.warn('Could not load time-entry review alerts.', error); }
 }
 
+async function refreshAdminClockInCount() {
+    const countElement = document.getElementById('clockedInUsers');
+    if (!countElement) return;
+    if (AppState.adminClockInCountRequest && AppState.adminClockInCountElement === countElement) return AppState.adminClockInCountRequest;
+    AppState.adminClockInCountElement = countElement;
+    const request = window.ACEAuth.request('/v1/admin-dashboard/active-clock-in-count')
+        .then(result => {
+            if (!Number.isSafeInteger(result?.count) || result.count < 0) throw new Error('Invalid active clock-in count');
+            if (document.getElementById('clockedInUsers') === countElement) {
+                AppState.adminClockInCount = result.count;
+                countElement.textContent = String(result.count);
+            }
+        })
+        .catch(error => console.warn('Could not refresh the active clock-in count.', error))
+        .finally(() => {
+            if (AppState.adminClockInCountRequest === request) AppState.adminClockInCountRequest = null;
+        });
+    AppState.adminClockInCountRequest = request;
+    return request;
+}
+
 function loadAdminDashboard() {
     // Update stats
     const clockedInUsers = document.getElementById('clockedInUsers');
-    if (clockedInUsers) clockedInUsers.textContent = employeeTimeEntries().filter(entry => !entry.ClockOutAt).length;
+    if (clockedInUsers) {
+        // Never replace a fresh server count with the older dashboard history.
+        clockedInUsers.textContent = Number.isSafeInteger(AppState.adminClockInCount) ? String(AppState.adminClockInCount) : '—';
+        void refreshAdminClockInCount();
+    }
     
     void loadReviewAlerts();
     
@@ -3780,49 +3686,9 @@ async function markRemarksRead() {
 }
 
 function startRemarkNotifications() {
-    if (AppState.remarkNotificationInterval) return;
-    const isAdmin = AppState.currentUser?.Role === 'ADMIN';
-    let initialized = true;
-    const refresh = async () => {
-        try {
-            const remarks = (await window.ACEAuth.request('/v1/admin-remarks')).map(adminRemarkRecord);
-            const knownUnreadIds = new Set(AppState.adminRemarks.filter(remark => !remark.SeenAt).map(remark => remark.RemarkId));
-            AppState.adminRemarks = remarks;
-            updateRemarkNotificationBadge();
-            window.ACERenderNotifications?.();
-            const newlyReceived = remarks.filter(remark => !remark.SeenAt && !knownUnreadIds.has(remark.RemarkId));
-            if (!initialized && newlyReceived.length) {
-                const message = isAdmin
-                    ? (newlyReceived.length === 1
-                        ? 'A feedback item is awaiting employee review.'
-                        : `${newlyReceived.length} feedback items are awaiting employee review.`)
-                    : (newlyReceived.length === 1
-                        ? 'An administrator added feedback to one of your time entries. Open the bell to read it.'
-                        : `${newlyReceived.length} new administrator feedback messages were added. Open the bell to read them.`);
-                showToast(message, 'info');
-            }
-            initialized = false;
-        } catch (error) { console.warn('Could not refresh administrator remarks.', error); }
-    };
+    // Workspace loading supplies the notification snapshot for this page.
     updateRemarkNotificationBadge();
     window.ACERenderNotifications?.();
-    if (AppState.adminRemarks.some(remark => !remark.SeenAt)) {
-        showToast(isAdmin ? 'Feedback is awaiting employee review.' : 'You have new administrator feedback.', 'info');
-    }
-    const refreshFromLiveNotification = event => {
-        if (event.detail?.kind === 'remarks') void refresh();
-    };
-    window.addEventListener('ace:live-notification', refreshFromLiveNotification);
-    // Live notification events are the normal path. This low-frequency,
-    // visible-tab check only recovers if a connection was interrupted.
-    const recoveryRefresh = () => {
-        if (document.visibilityState === 'visible') void refresh();
-    };
-    AppState.remarkNotificationInterval = window.setInterval(recoveryRefresh, 5 * 60 * 1000);
-    window.addEventListener('pagehide', () => {
-        window.clearInterval(AppState.remarkNotificationInterval);
-        window.removeEventListener('ace:live-notification', refreshFromLiveNotification);
-    }, { once: true });
 }
 
 let reportsPage = 1; const reportsPageSize = 25; let reportsTotal = 0;
