@@ -10,4 +10,4 @@ dist/
 *.log
 
 # Temporary isolated checkout
-/.main-remove-presence/
+/.production-updates/
