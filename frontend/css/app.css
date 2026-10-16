@@ -1880,6 +1880,10 @@ html[data-theme="dark"] .entry-remark-author { color: var(--ace-text-secondary);
   border-top: 1px solid var(--ace-line)
 }
 .shell-avatar {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -1888,6 +1892,9 @@ html[data-theme="dark"] .entry-remark-author { color: var(--ace-text-secondary);
   font: 700 .78rem 'Montserrat',Arial,sans-serif
 }
 .shell-avatar img {
+  position: absolute;
+  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -17802,24 +17809,24 @@ html[data-theme="dark"] .user-dashboard :is(
 }
 html[data-theme="dark"] {
   color-scheme: dark;
-  --ace-page-bg: #101416;
-  --ace-page-subtle: #151a1d;
-  --ace-surface: #191f22;
-  --ace-surface-raised: #222b2f;
-  --ace-surface-input: #151a1d;
-  --ace-surface-nav: #151a1d;
-  --ace-surface-modal: #20272a;
-  --ace-text-primary: #E2E8EA;
-  --ace-text-secondary: #B5C0C4;
-  --ace-text-tertiary: #8E9DA3;
-  --ace-text-disabled: #8E9DA3;
-  --ace-border: #2d373b;
-  --ace-border-strong: #414d52;
-  --ace-accent: #38bfcb;
-  --ace-accent-hover: #55cbd4;
-  --ace-accent-active: #2395a1;
-  --ace-accent-muted: #1d3034;
-  --ace-navy: #151a1d;
+  --ace-page-bg: #0d141b;
+  --ace-page-subtle: #111d26;
+  --ace-surface: #17242e;
+  --ace-surface-raised: #20323e;
+  --ace-surface-input: #101c25;
+  --ace-surface-nav: #111d26;
+  --ace-surface-modal: #1c2d38;
+  --ace-text-primary: #e7f0f4;
+  --ace-text-secondary: #b2c4cf;
+  --ace-text-tertiary: #8fa6b5;
+  --ace-text-disabled: #8fa6b5;
+  --ace-border: #304552;
+  --ace-border-strong: #486573;
+  --ace-accent: #5cd6d0;
+  --ace-accent-hover: #83e4df;
+  --ace-accent-active: #299caa;
+  --ace-accent-muted: #183c43;
+  --ace-navy: #111d26;
   --ace-navy-2: var(--ace-surface);
   --ace-cyan: var(--ace-accent);
   --ace-cyan-dark: var(--ace-accent-hover);
@@ -17898,7 +17905,7 @@ body { color: var(--ace-text-primary); background: var(--ace-page-bg); }
   background: var(--ace-surface-raised)!important;
   border-color: var(--ace-border-strong)!important;
 }
-html[data-theme="dark"] .has-app-shell .shell-topbar { box-shadow: none; }
+html[data-theme="dark"] .has-app-shell .shell-topbar { box-shadow: 0 4px 18px rgb(0 0 0 / 12%); }
 html[data-theme="dark"] .app-sidebar,
 html[data-theme="dark"] .shell-brand,
 html[data-theme="dark"] .shell-account-wrap { background-color: var(--ace-surface-nav)!important; }
@@ -18323,3 +18330,47 @@ html[data-theme="dark"] .shell-skeleton-row.is-table-row::after { background: re
   .shell-startup-warmup button { width: 100%; }
 }
 
+
+/* Dark workspace refinement: distinct surfaces and visible interaction states. */
+html[data-theme="dark"] .has-app-shell :is(.shell-topbar-menu,.shell-account-menu,.shell-global-results) {
+  background: var(--ace-surface-modal)!important;
+  border-color: var(--ace-border-strong)!important;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 32%)!important;
+}
+html[data-theme="dark"] .has-app-shell :is(.form-control,.form-input,.form-select,.shell-topbar-search) {
+  color: var(--ace-text-primary);
+  background: var(--ace-surface-input)!important;
+  border-color: var(--ace-border-strong)!important;
+}
+html[data-theme="dark"] .has-app-shell :is(input,textarea)::placeholder {
+  color: var(--ace-text-tertiary);
+  opacity: 1;
+}
+html[data-theme="dark"] .has-app-shell :is(button,a,input,textarea,select):focus-visible {
+  outline: 2px solid var(--ace-accent)!important;
+  outline-offset: 3px;
+}
+html[data-theme="dark"] .has-app-shell :is(.shell-topbar-icon-button,.shell-topbar-user-button):hover {
+  background: var(--ace-surface-raised)!important;
+  border-color: var(--ace-border-strong)!important;
+}
+html[data-theme="dark"] .has-app-shell table thead th {
+  color: var(--ace-text-secondary)!important;
+  background: var(--ace-surface-nav)!important;
+  border-bottom-color: var(--ace-border-strong)!important;
+}
+html[data-theme="dark"] .has-app-shell table tbody tr:hover > td {
+  background: var(--ace-surface-raised)!important;
+}
+html[data-theme="dark"] .user-dashboard .employee-status-panel {
+  background: linear-gradient(125deg, #173d48, #162a37)!important;
+  border-color: #3b626d!important;
+}
+html[data-theme="dark"] .shell-skeleton-panel,
+html[data-theme="dark"] .shell-skeleton-card {
+  background-color: var(--ace-surface)!important;
+  border-color: var(--ace-border)!important;
+}
+html[data-theme="dark"] :is(.shell-skeleton-line,.shell-skeleton-kicker,.shell-skeleton-title,.shell-skeleton-subtitle,.shell-skeleton-control) {
+  background-color: var(--ace-surface-raised)!important;
+}
