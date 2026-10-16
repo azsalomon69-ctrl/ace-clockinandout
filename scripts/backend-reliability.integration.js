@@ -6,8 +6,8 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import dotenv from 'dotenv';
 import pg from 'pg';
 const c=dotenv.parse(await fs.readFile(new URL('../.env.local-test',import.meta.url)));
-if(c.PGHOST!=='127.0.0.1'||c.PGDATABASE!=='ace_green_local'||c.PGPORT!=='5432') throw Error('Only the verified local database is allowed');
-const pool=new pg.Pool({host:'127.0.0.1',port:5432,database:'ace_green_local',user:c.PGUSER,password:c.PGPASSWORD,ssl:false,max:5,connectionTimeoutMillis:3000});
+if(c.PGHOST!=='127.0.0.1'||c.PGDATABASE!=='ace_test_local'||c.PGPORT!=='5432') throw Error('Only the verified local database is allowed');
+const pool=new pg.Pool({host:'127.0.0.1',port:5432,database:'ace_test_local',user:c.PGUSER,password:c.PGPASSWORD,ssl:false,max:5,connectionTimeoutMillis:3000});
 const schema='ace_check_'+randomBytes(8).toString('hex'), auth=schema+'_auth';
 const rewrite=s=>s.replaceAll('public.',schema+'.').replaceAll('auth.',auth+'.');
 const query=(s,args)=>pool.query(rewrite(s),args);
@@ -85,7 +85,7 @@ try {
  await check('session revocation persists across separate DB connections',async()=>{
    assert.equal((await read()).rows[0].id,employee);
    await query('select public.ace_end_session($1,$2,$3)',[employee,session,randomUUID()]);
-   const independent = new pg.Client({host:'127.0.0.1',port:5432,database:'ace_green_local',user:c.PGUSER,password:c.PGPASSWORD,ssl:false});
+   const independent = new pg.Client({host:'127.0.0.1',port:5432,database:'ace_test_local',user:c.PGUSER,password:c.PGPASSWORD,ssl:false});
    try { await independent.connect(); assert.equal((await independent.query(rewrite('select (public.ace_session_profile($1,$2)).id'),[employee,session])).rows[0].id,null); }
    finally {await independent.end();}
    await query('select public.ace_end_session($1,$2,$3)',[employee,session,randomUUID()]);
