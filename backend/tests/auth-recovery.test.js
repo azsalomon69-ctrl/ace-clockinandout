@@ -36,7 +36,7 @@ function requestHarness(send, refresh = async () => ({ data: { session: { access
   } };
   const context = vm.createContext({
     AbortController,
-    window: { ACE_API_URL: 'https://api.example.test/', ACE_EXPECTED_WORKSPACE_MODE: workspaceMode, setTimeout, clearTimeout, supabase: { createClient: () => auth }, location: { replace: url => effects.redirects.push(url) } },
+    window: { ACE_API_URL: 'https://api.example.test/', setTimeout, clearTimeout, supabase: { createClient: () => auth }, location: { replace: url => effects.redirects.push(url) } },
     localStorage: { removeItem: key => effects.removed.push(key) },
     sessionStorage: { setItem: (key, value) => effects.notices.push({ key, value }) },
     fetch: async (url, options) => url.endsWith('/v1/auth/config')
@@ -77,19 +77,19 @@ test('failed token refresh clears stale session state and redirects to login', a
   assert.equal(effects.notices[0].key, 'ace_login_notice');
 });
 
-for (const workspaceMode of ['employee-test', undefined]) {
+{
   for (const refreshFails of [true, false]) {
-    test(`${workspaceMode || 'production'} recovery uses the intended sign-out scope after ${refreshFails ? 'failed refresh' : 'repeated 401'}`, async () => {
+    test(`production recovery uses the intended sign-out scope after ${refreshFails ? 'failed refresh' : 'repeated 401'}`, async () => {
       let requests = 0;
       const { request, effects } = requestHarness(async () => {
         requests++;
         return { status: 401 };
       }, async () => refreshFails
         ? { data: { session: null }, error: { message: 'expired' } }
-        : { data: { session: { access_token: 'new-token' } }, error: null }, workspaceMode);
+        : { data: { session: { access_token: 'new-token' } }, error: null });
       await assert.rejects(request('/v1/me'), error => error.status === 401);
       assert.equal(requests, refreshFails ? 1 : 2);
-      assert.deepEqual(effects.signOutScopes, [workspaceMode === 'employee-test' ? 'local' : undefined]);
+      assert.deepEqual(effects.signOutScopes, [undefined]);
       assert.deepEqual(effects.removed, ['ace_current_user', 'ace_current_session']);
       assert.deepEqual(effects.redirects, ['/login']);
       assert.equal(effects.notices[0].key, 'ace_login_notice');

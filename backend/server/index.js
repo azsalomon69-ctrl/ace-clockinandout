@@ -5,12 +5,12 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { createHash, createPublicKey, randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
 import jwt from 'jsonwebtoken';
 import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import { v2 as cloudinary } from 'cloudinary';
 import nodemailer from 'nodemailer';
+import { createSingleFlight } from './single-flight.js';
 import { countActiveEmployeeClockIns } from './clock-in-count.js';
 import { createSessionSecurity } from './session-security.js';
 
@@ -18,21 +18,11 @@ const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_K
 const missing = required.filter(name => !process.env[name]);
 if (missing.length) throw new Error(`Missing required environment variable(s): ${missing.join(', ')}`);
 
-// Each API deployment is pinned to one PostgREST schema. Production keeps the
-// default public schema; a separate debug deployment can point at ace_debug.
-// Never accept a schema name from a request or browser setting.
-const databaseSchema = process.env.SUPABASE_DB_SCHEMA?.trim() || 'public';
-if (databaseSchema.length > 63 || !/^[a-z_][a-z0-9_]*$/.test(databaseSchema)) {
-  throw new Error('SUPABASE_DB_SCHEMA must be a lowercase PostgreSQL schema name');
-}
-const debugWorkspace = process.env.ACE_DEBUG_MODE === 'true';
-if (debugWorkspace ? databaseSchema !== 'ace_debug' : databaseSchema !== 'public') {
-  throw new Error(debugWorkspace
-    ? 'ACE_DEBUG_MODE requires SUPABASE_DB_SCHEMA=ace_debug'
-    : 'A non-public SUPABASE_DB_SCHEMA requires ACE_DEBUG_MODE=true');
+// Reject stale alternate-schema deployments rather than directing them to production.
+if (process.env.SUPABASE_DB_SCHEMA && process.env.SUPABASE_DB_SCHEMA !== 'public') {
+  throw new Error('Only the public application schema is supported');
 }
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
-  db: { schema: databaseSchema },
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
 const sessionSecurity = createSessionSecurity(db);
@@ -45,7 +35,9 @@ const profileCache = new Map();
 const avatarPersistenceCache = new Map();
 const revokedTokenCache = new Map();
 const referenceDataCache = new Map();
-let supabaseJwksCache = { keys: new Map(), expiresAt: 0, refresh: null };
+const freshAuthUserInFlight = createSingleFlight();
+const jwksRefreshInFlight = createSingleFlight();
+let supabaseJwksCache = { keys: new Map(), expiresAt: 0, refreshedAt: 0 };
 const cacheMaxEntries = 500;
 const referenceDataTtlMs = 15 * 60 * 1000;
 const cached = (cache, key, ttlMs, loader) => {
@@ -89,32 +81,7 @@ if (process.env.NODE_ENV === 'production' && !frontendOrigins.length) {
 }
 // This service is an API, not an embeddable document.  Keep the header policy
 // explicit so API responses cannot be framed or interpreted as active content.
-const apiContentSecurityPolicy = debugWorkspace
-  ? {
-    directives: {
-      defaultSrc: ["'self'"],
-      baseUri: ["'self'"],
-      objectSrc: ["'none'"],
-      frameAncestors: ["'none'"],
-      formAction: ["'self'"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-      connectSrc: ["'self'", 'https://*.supabase.co'],
-      fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-      manifestSrc: ["'self'"],
-      workerSrc: ["'none'"],
-      upgradeInsecureRequests: []
-    }
-  }
-  : {
-    directives: {
-      defaultSrc: ["'none'"],
-      baseUri: ["'none'"],
-      formAction: ["'none'"],
-      frameAncestors: ["'none'"]
-    }
-  };
+const apiContentSecurityPolicy = { directives: { defaultSrc: ["'none'"], baseUri: ["'none'"], formAction: ["'none'"], frameAncestors: ["'none'"] } };
 app.use(helmet({
   contentSecurityPolicy: apiContentSecurityPolicy,
   crossOriginResourcePolicy: false
@@ -401,9 +368,12 @@ const supabaseJwtSecret = process.env.SUPABASE_JWT_SECRET?.trim();
 const supabaseJwtIssuer = `${process.env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1`;
 const supabaseJwksUrl = `${supabaseJwtIssuer}/.well-known/jwks.json`;
 const getSupabaseJwks = async forceRefresh => {
-  if (!forceRefresh && supabaseJwksCache.expiresAt > Date.now()) return supabaseJwksCache.keys;
-  if (!forceRefresh && supabaseJwksCache.refresh) return supabaseJwksCache.refresh;
-  const refresh = (async () => {
+  const now = Date.now();
+  if (!forceRefresh && supabaseJwksCache.expiresAt > now) return supabaseJwksCache.keys;
+  // An unrecognized key still falls back to GoTrue for authoritative
+  // validation. Avoid repeatedly downloading the same JWKS for that token.
+  if (forceRefresh && supabaseJwksCache.refreshedAt > now - 30_000) return supabaseJwksCache.keys;
+  return jwksRefreshInFlight('supabase-jwks', async () => {
     const response = await fetch(supabaseJwksUrl);
     if (!response.ok) throw new Error('Supabase signing keys are unavailable');
     const payload = await response.json();
@@ -411,13 +381,10 @@ const getSupabaseJwks = async forceRefresh => {
       .filter(key => key.kid && key.kty === 'EC' && key.crv === 'P-256' && key.alg === 'ES256' && key.use === 'sig')
       .map(key => [key.kid, createPublicKey({ key, format: 'jwk' })]));
     if (!keys.size) throw new Error('Supabase signing keys are unavailable');
-    supabaseJwksCache = { keys, expiresAt: Date.now() + 10 * 60 * 1000, refresh: null };
+    const refreshedAt = Date.now();
+    supabaseJwksCache = { keys, expiresAt: refreshedAt + 10 * 60 * 1000, refreshedAt };
     return keys;
-  })();
-  supabaseJwksCache.refresh = refresh;
-  try { return await refresh; } finally {
-    if (supabaseJwksCache.refresh === refresh) supabaseJwksCache.refresh = null;
-  }
+  });
 };
 const jwtUser = claims => {
   if (!claims?.sub || !isUuid(claims.sub)) throw new Error('Invalid or expired session');
@@ -450,17 +417,17 @@ const getUserFromGoTrue = (token, tokenKey) => cached(authUserCache, tokenKey, 3
   if (error || !data.user) throw new Error('Invalid or expired session');
   return data.user;
 });
-const getFreshUserFromGoTrue = async token => {
+const getFreshUserFromGoTrue = async token => freshAuthUserInFlight(tokenCacheKey(token), async () => {
   const { data, error } = await db.auth.getUser(token);
   if (error || !data.user) throw new Error('Invalid or expired session');
   return data.user;
-};
+});
 async function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
   if (!token) return fail(res, 401, 'Missing bearer token');
   try {
     const tokenKey = tokenCacheKey(token);
-    if (revokedTokenCache.get(tokenKey) > Date.now()) return fail(res, 401, 'Session has ended');
+    if (isTokenRevoked(tokenKey)) return fail(res, 401, 'Session has ended');
     // Verify locally against either an explicitly configured legacy HS256
     // secret or the project's current public ES256 signing keys.
     let user;
@@ -475,18 +442,10 @@ async function authenticate(req, res, next) {
     // instance. Read durable session state and current permissions each time.
     const authorized = await sessionSecurity.authorizeVerifiedToken(token, user.id);
     req.profile = authorized.profile;
-    if (debugWorkspace
-      && (user.email?.toLowerCase() !== headAdminEmail || req.profile.email?.toLowerCase() !== headAdminEmail)) {
-      return fail(res, 403, 'Employee test workspace access is restricted');
-    }
-    // A debug session must not call shared avatar storage or mutate the copied
-    // public profile; its seeded employee profile uses its own test-only data.
-    if (!debugWorkspace) {
-      const avatarProfile = await persistGoogleAvatar(req.profile, user);
-      // Avatar caching must never replace freshly authorized permissions.
-      req.profile = { ...req.profile, profile_picture_url: avatarProfile.profile_picture_url,
-        profile_picture_public_id: avatarProfile.profile_picture_public_id };
-    }
+    const avatarProfile = await persistGoogleAvatar(req.profile, user);
+    // Avatar caching must never replace freshly authorized permissions.
+    req.profile = { ...req.profile, profile_picture_url: avatarProfile.profile_picture_url,
+      profile_picture_public_id: avatarProfile.profile_picture_public_id };
     req.authUser = user;
     req.authToken = token;
     req.authTokenCacheKey = tokenKey;
@@ -524,7 +483,7 @@ const specialAdminOnly = async (req, res, next) => {
 };
 // The test workspace deliberately treats the head administrator's Auth
 // identity as an ordinary employee for all feature flags and UI responses.
-const isHeadAdmin = req => !debugWorkspace && req.profile.email?.toLowerCase() === headAdminEmail;
+const isHeadAdmin = req => req.profile.email?.toLowerCase() === headAdminEmail;
 const protectHeadAdmin = (req, res, target) => {
   if (target.email?.toLowerCase() !== headAdminEmail || isHeadAdmin(req)) return true;
   fail(res, 403, 'Only the head administrator can change this administrator account.');
@@ -570,30 +529,13 @@ app.get('/health', async (_, res) => {
   try {
     const { error } = await db.from('profiles').select('id', { head: true, count: 'exact' }).limit(1);
     if (error) throw error;
-    res.json({ ok: true, service: debugWorkspace ? 'ace-clock-api-debug' : 'ace-clock-api', database: 'connected', schema: databaseSchema });
+    res.json({ ok: true, service: 'ace-clock-api', database: 'connected', schema: 'public' });
   } catch (error) {
     console.error('health check database error:', error.message);
-    res.status(503).json({ ok: false, service: debugWorkspace ? 'ace-clock-api-debug' : 'ace-clock-api', database: 'unavailable', schema: databaseSchema });
+    res.status(503).json({ ok: false, service: 'ace-clock-api', database: 'unavailable', schema: 'public' });
   }
 });
-app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY, workspaceMode: debugWorkspace ? 'employee-test' : 'production' }));
-app.post('/v1/debug/switch-role', authenticate, async (req, res, next) => { try {
-  if (!debugWorkspace || req.profile.status !== 'ACTIVE'
-    || req.profile.id !== req.authUser.id
-    || req.profile.email?.toLowerCase() !== headAdminEmail
-    || req.authUser.email?.toLowerCase() !== headAdminEmail) {
-    return fail(res, 403, 'Debug role switching is restricted to the head administrator in the isolated test workspace');
-  }
-  const verifiedUser = await getFreshUserFromGoTrue(req.authToken);
-  if (verifiedUser.id !== req.profile.id || verifiedUser.email?.toLowerCase() !== headAdminEmail) {
-    return fail(res, 403, 'Debug role switching is restricted to the head administrator in the isolated test workspace');
-  }
-  const role = req.profile.role === 'ADMIN' ? 'USER' : req.profile.role === 'USER' ? 'ADMIN' : null;
-  if (!role) return fail(res, 409, 'This debug account cannot switch roles');
-  await query(db.from('profiles').update({ role }).eq('id', req.profile.id).select('id').single());
-  profileCache.delete(req.profile.id);
-  res.json({ role });
-} catch (error) { next(error); } });
+app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
 // The browser needs to know which navigation and safeguards to show, but it
 // must never duplicate the protected account's email or make the permission
 // decision itself.  Keep the source of truth in the server environment.
@@ -605,12 +547,12 @@ app.get('/v1/me', authenticate, async (req, res, next) => { try {
     progress = await query(db.from('profile_tutorial_progress').select('tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').eq('profile_id', req.profile.id).eq('role', req.profile.role).maybeSingle());
   } catch (error) {
     console.warn('[onboarding] Tutorial progress unavailable; returning legacy profile', { code: error.code });
-    return res.json({ profile: { ...req.profile, is_head_admin: isHeadAdmin(req), debug_role_switch_available: debugWorkspace && req.authUser?.email?.toLowerCase() === headAdminEmail } });
+    return res.json({ profile: { ...req.profile, is_head_admin: isHeadAdmin(req) } });
   }
   res.json({ profile: { ...req.profile, ...(progress || {
     tutorial_status: 'NOT_STARTED', tutorial_step: 0, tutorial_version: 1,
     tutorial_started_at: null, tutorial_completed_at: null, tutorial_skipped_at: null
-  }), is_head_admin: isHeadAdmin(req), debug_role_switch_available: debugWorkspace && req.authUser?.email?.toLowerCase() === headAdminEmail } });
+  }), is_head_admin: isHeadAdmin(req) } });
 } catch (error) { next(error); } });
 app.patch('/v1/me', authenticate, activeOnly, async (req, res, next) => { try {
   const fullName = requireText(req.body.fullName, 'Full name', 160);
@@ -646,7 +588,6 @@ app.patch('/v1/me/tutorial', authenticate, activeOnly, async (req, res, next) =>
   res.json({ profile: { ...req.profile, ...progress, is_head_admin: isHeadAdmin(req) } });
 } catch (error) { next(error); } });
 app.post('/v1/me/avatar-upload', authenticate, activeOnly, async (req, res, next) => { try {
-  if (debugWorkspace) return fail(res, 503, 'Profile photo uploads are disabled in the employee test workspace');
   if (!cloudinaryConfigured) return fail(res, 503, 'Profile photo uploads are not configured yet');
   const contentType = String(req.body.contentType || '');
   const contentLength = Number(req.body.contentLength);
@@ -657,7 +598,6 @@ app.post('/v1/me/avatar-upload', authenticate, activeOnly, async (req, res, next
   res.json({ uploadUrl: `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`, apiKey: process.env.CLOUDINARY_API_KEY, timestamp, signature, publicId });
 } catch (error) { next(error); } });
 app.post('/v1/me/avatar-complete', authenticate, activeOnly, async (req, res, next) => { try {
-  if (debugWorkspace) return fail(res, 503, 'Profile photo uploads are disabled in the employee test workspace');
   if (!cloudinaryConfigured) return fail(res, 503, 'Profile photo uploads are not configured yet');
   const publicId = requireText(req.body.publicId, 'Upload ID', 300);
   if (!publicId.startsWith(`ace-profiles/${req.profile.id}/`)) return fail(res, 403, 'That upload does not belong to your account');
@@ -768,7 +708,7 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   const profileResponse = await request;
   if (profileResponse.error) throw profileResponse.error; const profiles = profileResponse.data || []; const items = profiles.map(profile => ({
     ...profile,
-    is_head_admin: !debugWorkspace && profile.email?.toLowerCase() === headAdminEmail
+    is_head_admin: profile.email?.toLowerCase() === headAdminEmail
   }));
   res.json(paged ? { items, total: profileResponse.count || 0, page, pageSize } : items);
 } catch (error) { next(error); } });
@@ -1262,17 +1202,6 @@ app.delete('/v1/reports/:id', authenticate, adminOnly, async (req, res, next) =>
   res.json(report);
 } catch (error) { next(error); } });
 app.get('/v1/audit-logs', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('audit_logs').select('*, profiles(full_name,email)', paging.paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false }); if (req.query.q) request = request.or(`action.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); if (!paging.paged) request = request.limit(250); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
-
-// The isolated Render service can serve its own separately built frontend.
-// Production remains API-only, and debug pages/assets share the debug API's
-// origin so the browser never needs a connection to the production API.
-if (debugWorkspace) {
-  app.use((_, res, next) => {
-    res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
-    next();
-  });
-  app.use(express.static(resolve(process.cwd(), 'dist'), { extensions: ['html'], index: 'index.html' }));
-}
 
 app.use((error, _, res, __) => {
   // Keep diagnostics server-side. Never return database/provider details,

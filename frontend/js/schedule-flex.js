@@ -57,7 +57,7 @@
     pager.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => { schedulePage = Number(button.dataset.page); load(); })); pager.querySelector('select')?.addEventListener('change', event => { schedulePageSize = Number(event.target.value); schedulePage = 1; load(); });
     renderAssignments();
   };
-  const mount = async () => { try { const me = await request('/v1/me'); if (me.profile.role !== 'ADMIN') return location.replace('/user-dashboard'); await load(); } catch { location.replace('/login'); }
+  const mount = async () => { try { const currentUser = await window.ACEWaitForVerifiedProfile(); if (currentUser?.Role !== 'ADMIN') return location.replace('/user-dashboard'); await load(); } catch { location.replace('/login'); }
     const type = document.getElementById('scheduleType'); const typeHelp = document.getElementById('scheduleTypeHelp'); const scheduleForm = document.getElementById('scheduleForm'); const workdayInputs = [...document.querySelectorAll('input[name="scheduleWorkday"]')]; const workdayError = document.getElementById('scheduleWorkdayError'); const createButton = scheduleForm.querySelector('button[type="submit"]');
     const toggle = () => { const flexible = type.value === 'FLEX'; document.querySelectorAll('.fixed-time').forEach(node => node.hidden = flexible); typeHelp.textContent = flexible ? 'No late clock-in warning. Only selected workdays are tracked.' : 'Employees clock in at set times on selected workdays.'; };
     const validateWorkdays = () => { const valid = workdayInputs.some(input => input.checked); workdayError.hidden = valid; createButton.disabled = !valid; return valid; };

@@ -1,8 +1,11 @@
 // Akio <3: Project source maintained by Akio Zaki Salomon.
 const mountIndividualReports = async () => {
-  const me = await window.ACEAuth.request('/v1/me');
-  if (me.profile.role !== 'ADMIN') return location.replace('/user-dashboard');
-  let users = (await window.ACEAuth.request('/v1/users')).filter(user => user.role === 'USER' && user.status === 'ACTIVE');
+  const currentUser = await window.ACEWaitForVerifiedProfile();
+  if (currentUser?.Role !== 'ADMIN') return location.replace('/user-dashboard');
+  const allUsers = await window.ACEAuth.request('/v1/users');
+  window.AppState.users = allUsers.map(user => ({ UserId: user.id, Email: user.email, FullName: user.full_name, Role: user.role, Status: user.status, DepartmentId: user.department_id, ProfilePictureUrl: user.profile_picture_url }));
+  window.AppState.usersLoaded = true;
+  let users = allUsers.filter(user => user.role === 'USER' && user.status === 'ACTIVE');
   const input = document.getElementById('individualEmployee'); const dateFrom = document.getElementById('individualDateFrom'); const dateTo = document.getElementById('individualDateTo'); const customDates = document.getElementById('individualCustomDates'); const rangeInputs = [...document.querySelectorAll('input[name="individualReportRange"]')]; const rows = document.getElementById('individualReportRows'); const selection = document.getElementById('individualReportSelection'); const submitButton = document.querySelector('#individualReportForm button[type="submit"]');
   const localDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   const today = localDate(new Date()); const monthStart = `${today.slice(0, 8)}01`; dateFrom.value = monthStart; dateTo.value = today; dateFrom.max = today; dateTo.max = today;

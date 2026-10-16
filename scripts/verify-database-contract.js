@@ -6,18 +6,7 @@ const required = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY'];
 const missing = required.filter(name => !process.env[name]);
 if (missing.length) throw new Error(`Missing required environment variable(s): ${missing.join(', ')}`);
 
-const databaseSchema = process.env.SUPABASE_DB_SCHEMA?.trim() || 'public';
-if (databaseSchema.length > 63 || !/^[a-z_][a-z0-9_]*$/.test(databaseSchema)) {
-  throw new Error('SUPABASE_DB_SCHEMA must be a lowercase PostgreSQL schema name');
-}
-const debugWorkspace = process.env.ACE_DEBUG_MODE === 'true';
-if (debugWorkspace ? databaseSchema !== 'ace_debug' : databaseSchema !== 'public') {
-  throw new Error(debugWorkspace
-    ? 'ACE_DEBUG_MODE requires SUPABASE_DB_SCHEMA=ace_debug'
-    : 'A non-public SUPABASE_DB_SCHEMA requires ACE_DEBUG_MODE=true');
-}
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
-  db: { schema: databaseSchema },
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
 
@@ -40,16 +29,6 @@ await requireQuery('time entry schedule columns', db.from('time_entries').select
 await requireQuery('employee chat table', db.from('employee_messages').select('id,sender_id,recipient_id,body,edited_at,deleted_at,read_at').limit(1));
 await requireQuery('admin remark notification column', db.from('admin_remarks').select('id,seen_at').limit(1));
 await requireQuery('audit log table', db.from('audit_logs').select('id,user_id,action,entity_type,entity_id,description,request_id,created_at').limit(1));
-
-if (debugWorkspace) {
-  await requireQuery('debug invitations and inviter relationship', db.from('invitations').select('id,invited_by_user_id, profiles!invitations_invited_by_user_id_fkey(full_name,email)').limit(1));
-  await requireQuery('debug reports and report-export relationship', db.from('reports').select('id,created_by_user_id,profiles!reports_created_by_user_id_fkey(full_name),report_exports(*)').limit(1));
-  await requireQuery('debug report exports and foreign keys', db.from('report_exports').select('id,report_id,exported_by_user_id,report_file:reports(id),exporter:profiles!report_exports_exported_by_user_id_fkey(id)').limit(1));
-  const { data, error } = await db.rpc('ace_backend_contract');
-  if (error || data !== 1) throw new Error(`Debug database contract is missing or incompatible: ${error?.message || 'unexpected contract version'}`);
-  console.log('Isolated employee debug database contract checks passed.');
-  process.exit(0);
-}
 
 const absentId = '00000000-0000-4000-8000-000000000000';
 await requireRpc('compute_schedule_compliance', { p_entry_id: absentId });

@@ -7,14 +7,17 @@ const frontend = readFileSync(new URL('../../frontend/js/script.js', import.meta
 const server = readFileSync(new URL('../server/index.js', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../../supabase/migrations/0018_time_entry_clock_in_audit.sql', import.meta.url), 'utf8');
 
-test('reports load every time-entry page instead of filtering only the first page', () => {
+test('reports page through all entries while workspace bootstrap requests history only where used', () => {
   const start = frontend.indexOf('async function loadAllTimeEntries(');
   const loader = frontend.slice(start, frontend.indexOf('async function loadDatabase()', start));
   assert.match(loader, /pageSize = 100/);
   assert.match(loader, /page: String\(page\)/);
   assert.match(loader, /entries\.push\(\.\.\.items\)/);
   assert.match(loader, /entries\.length >= total/);
-  assert.match(frontend, /loadAllTimeEntries\(\{ mine: AppState\.currentUser\.Role !== 'ADMIN' \}\)/);
+  assert.match(frontend, /loadAllTimeEntries\(\{ mine: plan\.entries === 'mine' \}\)/);
+  assert.match(frontend, /function getStartupDataPlan\(/);
+  assert.equal(frontend.includes("page === 'admin-time-entries.html'"), false, 'The generic admin page plan must leave full entry history unloaded');
+  assert.match(frontend, /page === 'user-dashboard\.html' && !isAdmin[\s\S]*entries: 'mine'/);
 });
 
 test('clock-in writes the entry and audit record through one database RPC', () => {

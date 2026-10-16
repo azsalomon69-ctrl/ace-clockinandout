@@ -398,31 +398,6 @@ render.yaml
 
 The exact production configuration is managed through the hosting provider and environment configuration.
 
-### Isolated employee test workspace
-
-The employee-test workspace shares the Supabase project while keeping application data in the separate `ace_debug` schema. The existing Render Blueprint adds one additional web service in the same Render project; that service serves a dedicated debug frontend build and debug API on the same origin. Do not enable debug mode on the production API.
-
-Debug API environment:
-
-```text
-ACE_DEBUG_MODE=true
-SUPABASE_DB_SCHEMA=ace_debug
-FRONTEND_ORIGIN=<the debug frontend origin>
-HEAD_ADMIN_EMAIL=<the head administrator email>
-```
-
-The second service is defined in the existing `render.yaml` Blueprint. Syncing it adds the debug service to the current Render project; it does not create another Render project. It automatically points the frontend and CORS allowlist at that service's own URL. Supply the Supabase keys and head-admin email when Render requests them. Never add the debug service URL to the production frontend.
-
-Debug frontend build environment:
-
-```text
-ACE_DEBUG_MODE=true
-ACE_API_URL=<the debug API URL>
-ACE_ADMIN_WORKSPACE_URL=<the production admin frontend URL>
-```
-
-The debug build displays a persistent **TEST DATA** banner and a link back to the normal workspace. It explicitly targets the debug API, and its Content Security Policy blocks requests to the production API. The API rejects mismatched debug-mode/schema settings at startup. The `ace_debug` schema and synthetic seed have been applied to the shared Supabase project. The read-only check in `supabase/debug-workspace-verify-access.sql` passed: there are no foreign keys to `public`, no table or function grants to `anon` or `authenticated`, and the server-role checks are true. Continue to leave individual `ace_debug` table/function exposure toggles off. After Render assigns the debug URL, add `https://<debug-service-host>/login` to Supabase Authentication's allowed Redirect URLs; keep the existing Site URL unchanged.
-
 ## Development Notes
 
 The repository contains application source code, database migrations, tests, build scripts, and project documentation.

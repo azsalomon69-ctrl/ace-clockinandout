@@ -23,7 +23,7 @@ function store() {
   return state;
 }
 
-function instance(state, { fallback = false, debugWorkspace = false, avatar } = {}) {
+function instance(state, { fallback = false, avatar } = {}) {
   const security = createSessionSecurity(state.db);
   const context = vm.createContext({
     sessionSecurity: security,
@@ -36,7 +36,7 @@ function instance(state, { fallback = false, debugWorkspace = false, avatar } = 
       return { id: claims.sub, email: 'head@example.test' };
     },
     getUserFromGoTrue: async value => ({ id: jwt.verify(value, 'fixture-only').sub, email: 'head@example.test' }),
-    debugWorkspace, headAdminEmail: 'head@example.test',
+    headAdminEmail: 'head@example.test',
     persistGoogleAvatar: async profile => avatar || profile,
     fail: (res, status, error) => { res.status = status; res.error = error; }
   });
@@ -91,11 +91,3 @@ test('API middleware keeps fresh role/status even when avatar cache returns an o
   assert.equal(state.reads, 2);
 });
 
-test('debug API applies durable session checks and preserves account allowlist', async () => {
-  const state = store(), server = instance(state, { debugWorkspace: true });
-  assert.equal((await server.request()).allowed, true);
-  state.profile.email = 'other@example.test';
-  assert.equal((await server.request()).status, 403);
-  state.revoked.add(sessionId);
-  assert.equal((await server.request()).status, 401);
-});

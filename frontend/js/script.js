@@ -6,6 +6,7 @@
 // Global State
 const AppState = {
     currentUser: null,
+    profileVerified: false,
     isAuthenticated: false,
     isClockedIn: false,
     currentSession: null,
@@ -16,6 +17,7 @@ const AppState = {
     departments: [],
     timeEntries: [],
     reports: [],
+    reportPageItems: [],
     users: [],
     invitations: [],
     auditLogs: [],
@@ -29,7 +31,7 @@ const AppState = {
 };
 window.AppState = AppState;
 
-const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), CanSwitchDebugRole: Boolean(item.debug_role_switch_available), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
+const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
 // Render serves the real .html files, while these clean routes are resolved by
 // the Static Site rewrite rules. Keep every internal page link canonical.
 const cleanInternalRoute = value => {
@@ -211,33 +213,6 @@ function initializeSelectControls(root = document) {
     aceSelectObserver.observe(document.body, { childList: true, subtree: true });
 }
 
-function updateDebugRoleToggle() {
-    const button = document.querySelector('[data-ace-debug-role-toggle]');
-    if (!button) return;
-    const enabled = Boolean(AppState.currentUser?.CanSwitchDebugRole);
-    button.hidden = !enabled;
-    button.textContent = AppState.currentUser?.Role === 'ADMIN' ? 'Switch to employee view' : 'Switch to admin view';
-    button.setAttribute('aria-label', button.textContent);
-}
-
-document.addEventListener('click', async event => {
-    const button = event.target.closest('[data-ace-debug-role-toggle]');
-    if (!button || !AppState.currentUser?.CanSwitchDebugRole || button.disabled) return;
-    button.disabled = true;
-    const originalLabel = button.textContent;
-    button.textContent = 'Switching view…';
-    try {
-        const { role } = await window.ACEAuth.request('/v1/debug/switch-role', { method: 'POST' });
-        AppState.currentUser.Role = role;
-        localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
-        window.location.replace(role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard');
-    } catch (error) {
-        button.disabled = false;
-        button.textContent = originalLabel;
-        showToast(error.message || 'Could not switch debug view.', 'error');
-    }
-});
-
 // Browser datalist popups cannot be styled consistently (and some browsers use
 // an opaque black system bubble). Replace the presentation layer while keeping
 // the original input value and change events that the existing filters use.
@@ -360,50 +335,87 @@ async function loadDatabase() {
     if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
     const { profile } = await window.ACEAuth.request('/v1/me');
     AppState.currentUser = profileRecord(profile);
-    updateDebugRoleToggle();
+    AppState.profileVerified = true;
     AppState.isAuthenticated = true;
     localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
     // The identity is server-verified at this point. Let the persistent shell
     // appear while the remaining page data is fetched, instead of making the
     // workspace look like a full-page reload on every navigation.
     window.dispatchEvent(new CustomEvent('ace:verified-profile-ready'));
-    const [departments, projects, entries, userProjects, remarks, assignedSchedule] = await Promise.all([
-        window.ACEAuth.request('/v1/departments'),
-        window.ACEAuth.request('/v1/projects'),
-        loadAllTimeEntries({ mine: AppState.currentUser.Role !== 'ADMIN' }),
-        window.ACEAuth.request('/v1/user-projects'),
-        window.ACEAuth.request('/v1/admin-remarks'),
-        window.ACEAuth.request('/v1/my-schedule')
-    ]);
-    AppState.departments = departments.map(departmentRecord);
-    AppState.projects = projects.map(projectRecord);
-    AppState.timeEntries = entries.map(timeEntryRecord);
-    AppState.adminRemarks = remarks.map(adminRemarkRecord);
-    AppState.assignedSchedule = assignedSchedule;
-    AppState.userProjects = userProjects.map(item => ({ UserId: item.user_id, ProjectId: item.project_id, AssignedAt: item.assigned_at, IsActive: true }));
-    if (AppState.currentUser.Role === 'ADMIN') {
-        const [users, invitations, reports, auditLogs] = await Promise.all([
-            window.ACEAuth.request('/v1/users'), window.ACEAuth.request('/v1/invitations'),
-            window.ACEAuth.request('/v1/reports'), window.ACEAuth.request('/v1/audit-logs')
-        ]);
-        AppState.users = users.map(profileRecord);
-        AppState.invitations = invitations;
-        AppState.reports = reports.map(reportRecord);
-        AppState.auditLogs = auditLogs;
-    } else {
-        AppState.users = [AppState.currentUser]; AppState.invitations = []; AppState.reports = []; AppState.auditLogs = [];
-    }
-    // Administrators load the whole team's entries for reporting. Only the
-    // signed-in person's entry may control their timer or browser reminders.
-    const active = AppState.timeEntries.find(entry =>
-        !entry.ClockOutAt && entry.UserId === AppState.currentUser.UserId
-    );
-    AppState.currentSession = active || null;
-    AppState.isClockedIn = Boolean(active);
-    AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
-    if (active) startTimer();
+    await loadPlannedWorkspaceData(currentWorkspacePage());
     return true;
 }
+
+function currentWorkspacePage() {
+    const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
+    return routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
+}
+
+function getStartupDataPlan(page, role) {
+    const isAdmin = role === 'ADMIN';
+    const plan = { departments: false, projects: false, entries: isAdmin ? null : 'active', userProjects: false, remarks: true, schedule: false, users: false, reports: false };
+    if (page === 'user-dashboard.html' && !isAdmin) Object.assign(plan, { projects: true, entries: 'mine', userProjects: true, schedule: true });
+    if (page === 'admin-dashboard.html' && isAdmin) Object.assign(plan, { departments: true, projects: true, entries: 'all', users: true });
+    if (page === 'time-entries.html' && !isAdmin) Object.assign(plan, { projects: true, entries: 'mine', userProjects: true });
+    if (page === 'remarks.html' && !isAdmin) Object.assign(plan, { projects: true, entries: 'mine' });
+    if (page === 'time-entry-details.html' && isAdmin) Object.assign(plan, { departments: true, projects: true, entries: 'all', users: true });
+    if (page === 'reports.html' && isAdmin) Object.assign(plan, { departments: true, projects: true, entries: 'all', users: true });
+    if (page === 'individual-reports.html' && isAdmin) Object.assign(plan, { departments: true, projects: true, entries: 'all' });
+    return plan;
+}
+
+async function loadPlannedWorkspaceData(page) {
+    const plan = getStartupDataPlan(page, AppState.currentUser?.Role);
+    const loadSchedule = plan.schedule && !AppState.scheduleLoaded;
+    const tasks = {
+        departments: plan.departments && !AppState.departmentsLoaded ? window.ACEAuth.request('/v1/departments') : Promise.resolve(null),
+        projects: plan.projects && !AppState.projectsLoaded ? window.ACEAuth.request('/v1/projects') : Promise.resolve(null),
+        entries: plan.entries && !AppState.timeEntriesLoaded
+            ? plan.entries === 'active'
+                ? AppState.currentSessionLoaded
+                    ? Promise.resolve(null)
+                    : window.ACEAuth.request('/v1/time-entries?mine=true&status=ACTIVE&page=1&pageSize=1').then(response => response.items || response)
+                : loadAllTimeEntries({ mine: plan.entries === 'mine' })
+            : Promise.resolve(null),
+        userProjects: plan.userProjects && !AppState.userProjectsLoaded ? window.ACEAuth.request('/v1/user-projects') : Promise.resolve(null),
+        remarks: plan.remarks && !AppState.adminRemarksLoaded ? window.ACEAuth.request('/v1/admin-remarks') : Promise.resolve(null),
+        schedule: loadSchedule ? window.ACEAuth.request('/v1/my-schedule') : Promise.resolve(null),
+        users: plan.users && !AppState.usersLoaded ? window.ACEAuth.request('/v1/users') : Promise.resolve(null),
+        reports: plan.reports && !AppState.reportsLoaded ? window.ACEAuth.request('/v1/reports') : Promise.resolve(null)
+    };
+    const [departments, projects, entries, userProjects, remarks, assignedSchedule, users, reports] = await Promise.all(Object.values(tasks));
+    if (departments) { AppState.departments = departments.map(departmentRecord); AppState.departmentsLoaded = true; }
+    if (projects) { AppState.projects = projects.map(projectRecord); AppState.projectsLoaded = true; }
+    if (entries) {
+        const normalizedEntries = entries.map(timeEntryRecord);
+        AppState.timeEntries = plan.entries === 'active'
+            ? [...AppState.timeEntries.filter(entry => entry.ClockOutAt), ...normalizedEntries]
+            : normalizedEntries;
+        AppState.timeEntriesLoaded = plan.entries !== 'active';
+        if (plan.entries === 'active') AppState.currentSessionLoaded = true;
+        const active = normalizedEntries.find(entry => !entry.ClockOutAt && entry.UserId === AppState.currentUser.UserId);
+        AppState.currentSession = active || null;
+        AppState.isClockedIn = Boolean(active);
+        AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
+        if (active) startTimer();
+        else stopTimer();
+    }
+    if (userProjects) { AppState.userProjects = userProjects.map(item => ({ UserId: item.user_id, ProjectId: item.project_id, AssignedAt: item.assigned_at, IsActive: true })); AppState.userProjectsLoaded = true; }
+    if (remarks) { AppState.adminRemarks = remarks.map(adminRemarkRecord); AppState.adminRemarksLoaded = true; }
+    // A skipped request must preserve the cached schedule; a fetched null means
+    // the employee genuinely has no assignment and should still be remembered.
+    if (loadSchedule) { AppState.assignedSchedule = assignedSchedule; AppState.scheduleLoaded = true; }
+    if (users) { AppState.users = users.map(profileRecord); AppState.usersLoaded = true; }
+    else if (AppState.currentUser.Role !== 'ADMIN' && !AppState.usersLoaded) { AppState.users = [AppState.currentUser]; AppState.usersLoaded = true; }
+    if (reports) { AppState.reports = reports.map(reportRecord); AppState.reportsLoaded = true; }
+    if (AppState.currentUser.Role !== 'ADMIN') { AppState.invitations = []; AppState.reports = []; AppState.auditLogs = []; }
+}
+
+function waitForVerifiedProfile() {
+    if (AppState.profileVerified && AppState.currentUser) return Promise.resolve(AppState.currentUser);
+    return new Promise(resolve => window.addEventListener('ace:verified-profile-ready', () => resolve(AppState.currentUser), { once: true }));
+}
+window.ACEWaitForVerifiedProfile = waitForVerifiedProfile;
 
 async function refreshUserProjectAssignments() {
     const userProjects = await window.ACEAuth.request('/v1/user-projects');
@@ -897,6 +909,7 @@ function installPageFadeNavigation() {
         initializeForms();
         initializeUXEnhancements();
         initializeResponsiveTables();
+        await loadPlannedWorkspaceData(currentWorkspacePage());
         updateUI();
         startClock();
         loadPageSpecificData();
@@ -1408,6 +1421,7 @@ function initializeAppShell() {
 
     const searchInput = topbar.querySelector('#shellGlobalSearch');
     const searchResults = topbar.querySelector('.shell-global-results');
+    let searchDataPromise = null;
     const workspaceSearchItems = isAdmin ? [
         ['Dashboard', 'Workspace', 'admin-dashboard.html', 'dashboard home overview'],
         ['Invite user', 'People · Users tab', 'users.html', 'invite employee administrator email access'],
@@ -1631,8 +1645,32 @@ function initializeAppShell() {
         searchResults.querySelectorAll('[data-search-result]').forEach(button => button.addEventListener('click', () => openSearchResult(visibleSearchResults[Number(button.dataset.searchResult)])));
         activeSearchIndex = -1;
     };
+    const loadSearchableRecords = () => {
+        const query = searchInput.value.trim();
+        if (query.length < 2 || searchDataPromise) return;
+        searchDataPromise = (async () => {
+            const requests = {
+                entries: AppState.timeEntriesLoaded ? Promise.resolve(null) : loadAllTimeEntries({ mine: !isAdmin }),
+                projects: AppState.projectsLoaded ? Promise.resolve(null) : window.ACEAuth.request('/v1/projects'),
+                departments: isAdmin && !AppState.departmentsLoaded ? window.ACEAuth.request('/v1/departments') : Promise.resolve(null),
+                users: isAdmin && !AppState.usersLoaded ? window.ACEAuth.request('/v1/users') : Promise.resolve(null),
+                reports: isAdmin && !AppState.reportsLoaded ? window.ACEAuth.request('/v1/reports') : Promise.resolve(null)
+            };
+            const [entries, projects, departments, users, reports] = await Promise.all(Object.values(requests));
+            if (entries) { AppState.timeEntries = entries.map(timeEntryRecord); AppState.timeEntriesLoaded = true; }
+            if (projects) { AppState.projects = projects.map(projectRecord); AppState.projectsLoaded = true; }
+            if (departments) { AppState.departments = departments.map(departmentRecord); AppState.departmentsLoaded = true; }
+            if (users) { AppState.users = users.map(profileRecord); AppState.usersLoaded = true; }
+            if (reports) { AppState.reports = reports.map(reportRecord); AppState.reportsLoaded = true; }
+        })().then(() => {
+            if (searchInput.value.trim().length >= 2) renderSearchResults({ showSuggestions: true });
+        }).catch(error => {
+            searchDataPromise = null;
+            console.warn('Could not load records for workspace search.', error);
+        });
+    };
     searchInput.addEventListener('focus', () => renderSearchResults({ showSuggestions: true }));
-    searchInput.addEventListener('input', () => renderSearchResults({ showSuggestions: true }));
+    searchInput.addEventListener('input', () => { renderSearchResults({ showSuggestions: true }); loadSearchableRecords(); });
     searchInput.addEventListener('keydown', event => {
         if (event.key === 'Escape') { searchInput.value = ''; closeSearchResults(); searchInput.blur(); return; }
         if (event.key === 'ArrowDown') { event.preventDefault(); if (searchResults.hidden) renderSearchResults({ showSuggestions: true }); setActiveSearchResult(activeSearchIndex + 1); return; }
@@ -2395,8 +2433,7 @@ async function performLogout() {
             const auth = await window.ACEAuth.client();
             // Debug logout ends only this browser's debug session. A global
             // Supabase sign-out would also revoke the admin's production tab.
-            const signOutOptions = window.ACE_EXPECTED_WORKSPACE_MODE === 'employee-test' ? { scope: 'local' } : undefined;
-            const { error } = await auth.auth.signOut(signOutOptions);
+            const { error } = await auth.auth.signOut();
             if (error) throw error;
         }
     } catch (error) {
@@ -2848,7 +2885,7 @@ function updateUI() {
 // Clock
 function startClock() {
     updateClock();
-    setInterval(updateClock, 1000);
+    if (!AppState.clockInterval) AppState.clockInterval = setInterval(updateClock, 1000);
 }
 
 function updateClock() {
@@ -3726,11 +3763,21 @@ let reportsPage = 1; const reportsPageSize = 25; let reportsTotal = 0;
 async function loadReportsList() {
     const reportsList = document.getElementById('reportsList');
     if (reportsList && window.ACEAuth) {
-        try { const response = await window.ACEAuth.request('/v1/reports?page=' + reportsPage + '&pageSize=' + reportsPageSize); AppState.reports = (response.items || response).map(reportRecord); reportsTotal = response.total ?? AppState.reports.length; }
+        try {
+            const response = await window.ACEAuth.request('/v1/reports?page=' + reportsPage + '&pageSize=' + reportsPageSize);
+            AppState.reportPageItems = (response.items || response).map(reportRecord);
+            reportsTotal = response.total ?? AppState.reportPageItems.length;
+            // Keep the table page separate from the full search collection.
+            // Cache these records for view/export actions without discarding
+            // other pages or claiming that a partial collection is complete.
+            const reportsById = new Map(AppState.reports.map(report => [report.ReportId, report]));
+            AppState.reportPageItems.forEach(report => reportsById.set(report.ReportId, report));
+            AppState.reports = [...reportsById.values()];
+        }
         catch (error) { showToast(error.message || 'Could not load reports.', 'error'); return; }
     }
     if (reportsList) {
-        reportsList.innerHTML = AppState.reports.length ? AppState.reports.map(report => {
+        reportsList.innerHTML = AppState.reportPageItems.length ? AppState.reportPageItems.map(report => {
             const user = AppState.users.find(u => u.UserId === report.CreatedByUserId);
             return `
                 <tr data-type="${report.ReportType}" data-from="${report.DateFrom}" data-to="${report.DateTo}" data-user="${report.CreatedByUserId}" data-department="${report.Filters?.departmentId || ''}" data-project="${report.Filters?.projectId || ''}"${report.TotalRecords === 0 ? ' style="color: var(--ace-muted); opacity: .62"' : ''}>
