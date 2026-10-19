@@ -95,10 +95,10 @@ async function buildStyles() {
 async function buildPages(assetMap) {
   for (const file of (await filesIn(frontend)).filter(file => file.endsWith('.html'))) {
     const source = await readFile(path.join(frontend, file), 'utf8');
-    const withProductionAssets = source.replace(/\b(src|href)=(['"])((?:\.\/)?(?:js|css)\/[^?'"\s]+)(?:\?[^'"]*)?\2/gi, (match, attribute, quote, sourcePath) => {
-      const normalized = sourcePath.replace(/^\.\//, '');
+    const withProductionAssets = source.replace(/\b(src|href)=(['"])((?:\.\/|\/)?(?:js|css)\/[^?'"\s]+)(?:\?[^'"]*)?\2/gi, (match, attribute, quote, sourcePath) => {
+      const normalized = sourcePath.replace(/^(?:\.\/|\/)/, '');
       const target = assetMap.get(normalized);
-      return target ? `${attribute}=${quote}${target}${quote}` : match;
+      return target ? `${attribute}=${quote}${sourcePath.startsWith('/') ? '/' : ''}${target}${quote}` : match;
     });
     const xlsxTarget = assetMap.get('js/xlsx.js');
     const appScriptTarget = assetMap.get('js/script.js');

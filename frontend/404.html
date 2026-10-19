@@ -2,12 +2,12 @@
 <!-- Akio <3: Project page maintained by Akio Zaki Salomon. -->
 <html lang="en">
 <head>
-    <link rel="icon" type="image/png" href="assets/images/ace-logo.png">
+    <link rel="icon" type="image/png" href="/assets/images/ace-logo.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="The requested ACE page could not be found.">
     <title>Page not found · ACE Outsource Solutions</title>
-    <link rel="stylesheet" href="css/app.css?v=cache-bust-20260930-2">
+    <link rel="stylesheet" href="/css/app.css?v=20261019-404">
 </head>
 <body class="not-found-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -15,7 +15,8 @@
     <nav class="navbar" aria-label="Primary navigation">
         <div class="nav-container">
             <a class="nav-brand" href="/" aria-label="ACE home">
-                <span class="nav-title">ACE Clock In/Out</span>
+                <img class="not-found-logo" src="/assets/images/ace-logo-hd-cropped.png" alt="">
+                <span class="not-found-brand">ACE Workspace<small>Clock in. Stay connected.</small></span>
             </a>
             <div class="nav-links">
                 <a href="/" class="nav-link">Home</a>
@@ -28,24 +29,28 @@
         <section class="not-found-card" aria-labelledby="page-title">
             <div class="not-found-copy">
                 <p class="not-found-eyebrow"><span aria-hidden="true"></span> ERROR 404</p>
-                <p class="not-found-code" aria-hidden="true">404</p>
-                <h1 id="page-title">We couldn’t find that page.</h1>
-                <p class="not-found-lede">The page may have moved, or the link may be out of date. Your workspace is still here when you’re ready.</p>
+                <h1 id="page-title">Page not found</h1>
+                <p class="not-found-lede">We can’t find the page you’re looking for. The link may be out of date, or the page may have moved.</p>
                 <div class="not-found-actions">
-                    <a class="btn btn-primary btn-lg" href="/">Return home <span aria-hidden="true">→</span></a>
-                    <a class="btn btn-outline btn-lg" href="/login">Sign in</a>
+                    <a class="btn btn-primary" href="/">Back to home <span aria-hidden="true">→</span></a>
+                    <a class="btn btn-outline" href="/login">Sign in to workspace</a>
                 </div>
-                <p class="not-found-help">Need workspace access? <a href="/login">Sign in to your dashboard.</a></p>
+                <p class="not-found-tip">Entered the address yourself? Check the spelling and make sure you copied the full link.</p>
             </div>
             <div class="not-found-art" aria-hidden="true">
+                <p class="not-found-code">404</p>
                 <div class="not-found-clock">
                     <span class="not-found-clock-dot"></span>
                     <span class="not-found-hand not-found-hour"></span>
                     <span class="not-found-hand not-found-minute"></span>
                 </div>
-                <p>ACE CLOCK IN/OUT</p>
+                <p class="not-found-art-label">LET’S GET YOU BACK ON TRACK</p>
             </div>
         </section>
+        <aside class="not-found-help" aria-label="Help with a broken link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></svg>
+            <p><strong>Still can’t find what you need?</strong><br>If a link from ACE brought you here, let your administrator know which page you were trying to open.</p>
+        </aside>
     </main>
 </body>
 </html>
