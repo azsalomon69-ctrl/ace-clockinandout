@@ -17,7 +17,7 @@ async function setup() {
 test('employee history includes overtime, safe remarks and entry-specific actions', async () => {
   const f = await setup();
   const html = f.nodes.get('employeeHistoryRows').innerHTML;
-  assert.match(f.nodes.get('employeeProfileContent').innerHTML, /<th>Approved overtime<\/th><th>Remarks<\/th><th>Status<\/th><th>Actions<\/th>/);
+  assert.match(f.nodes.get('employeeProfileContent').innerHTML, /<th scope="col">Approved overtime<\/th><th scope="col">Remarks<\/th><th scope="col">Status<\/th><th scope="col">Actions<\/th>/);
   assert.match(html, /<td>0h 0m<\/td><td>1h 0m<\/td>/);
   assert.match(html, /&lt;img onerror=alert\(1\)&gt;/);
   assert.doesNotMatch(html, /<img onerror/);
@@ -38,4 +38,14 @@ test('feedback action selects the correct entry and retains the selected date pe
   await f.feedback[0].refresh();
   assert.equal(f.nodes.get('employeeHistoryPeriod').value, 'custom');
   assert.equal(f.nodes.get('employeeHistoryFrom').value, '2020-01-01');
+});
+
+test('all-time history ignores previously selected custom dates', async () => {
+  const f = await setup();
+  f.nodes.get('employeeHistoryFrom').value = '2099-01-01';
+  f.nodes.get('employeeHistoryPeriod').value = 'all';
+  f.nodes.get('employeeHistoryPeriod').handlers.change();
+  assert.match(f.nodes.get('employeeHistoryRows').innerHTML, /data-entry-id="entry-a"/);
+  assert.match(f.nodes.get('employeeHistoryRows').innerHTML, /data-entry-id="entry-b"/);
+  assert.equal(f.nodes.get('employeeHistoryDates').hidden, true);
 });
