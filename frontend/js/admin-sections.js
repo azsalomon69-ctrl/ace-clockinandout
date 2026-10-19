@@ -193,7 +193,7 @@ function formField(label, type, placeholder, value, index) {
   return '<div class="form-group"><label class="form-label" for="' + id + '">' + label + '</label><input class="form-input" id="' + id + '" type="' + type + '" placeholder="' + esc(placeholder) + '" value="' + esc(value) + '" required></div>';
 }
 
-function openEntryFeedback(record) {
+function openEntryFeedback(record, onSaved = renderAdminSection) {
   let node = document.getElementById('adminEntryFeedbackModal');
   if (!node) {
     node = document.createElement('div');
@@ -222,7 +222,7 @@ function openEntryFeedback(record) {
       await liveRequest('/v1/time-entries/' + record.id + '/remarks', { method: 'POST', body: JSON.stringify({ remark }) });
       closeModal(node.id);
       showToast('Feedback posted. The employee will be notified.', 'success');
-      renderAdminSection();
+      await onSaved();
     } catch (error) {
       showToast(error.message || 'Could not post feedback.', 'error');
       button.disabled = false;
@@ -232,7 +232,7 @@ function openEntryFeedback(record) {
   openModal(node.id);
 }
 
-function editEntryTime(record) {
+function editEntryTime(record, onSaved = null) {
   const asLocalInput = value => {
     const date = new Date(value || Date.now());
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
@@ -254,7 +254,9 @@ function editEntryTime(record) {
     if (Number.isNaN(clockInAt.getTime()) || Number.isNaN(clockOutAt.getTime()) || clockOutAt < clockInAt) { showToast('Clock-out must be after clock-in.', 'warning'); return; }
     try {
       await liveRequest('/v1/time-entries/' + record.id + '/admin-time', { method: 'PATCH', body: JSON.stringify({ clockInAt: clockInAt.toISOString(), clockOutAt: clockOutAt.toISOString() }) });
-      closeModal(node.id); showToast('Employee time corrected.', 'success'); window.setTimeout(() => window.location.reload(), 400);
+      closeModal(node.id); showToast('Employee time corrected.', 'success');
+      if (onSaved) await onSaved();
+      else window.setTimeout(() => window.location.reload(), 400);
     } catch (error) { showToast(error.message || 'Could not correct this time entry.', 'error'); }
   });
   openModal(node.id);

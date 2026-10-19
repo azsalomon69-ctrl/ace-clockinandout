@@ -18459,3 +18459,9 @@ body.data-layout-ready .app-shell-skeleton .shell-startup-warmup { pointer-event
 @media (max-width: 640px) { .user-dashboard .employee-status-panel { grid-template-columns: 1fr; } }
 body .main-content .data-value-pending { color: transparent!important; }
 .employee-session-facts[hidden] { display: none!important; }
+
+.employee-history-remarks { min-width: 220px; max-width: 340px; white-space: normal; overflow-wrap: anywhere; }
+.employee-history-remarks article + article { margin-top: 12px; }
+.employee-history-remarks p { margin: 4px 0; white-space: pre-wrap; }
+.employee-history-remarks small { color: var(--ace-text-secondary); }
+.employee-history-action { min-width: 150px; }

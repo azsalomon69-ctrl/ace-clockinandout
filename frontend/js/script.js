@@ -869,7 +869,7 @@ function installPageFadeNavigation() {
         loadPageSpecificData();
         initializeSelectControls();
         initializeAutocompleteControls();
-        if (document.body.dataset.adminView) {
+        if (documentFromRoute.querySelector('script[src*="admin-sections.js"]')) {
             if (!window.renderAdminSection) {
                 const source = documentFromRoute.querySelector('script[src*="admin-sections.js"]')?.src;
                 if (source) await new Promise((resolve, reject) => {
