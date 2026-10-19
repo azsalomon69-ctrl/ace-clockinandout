@@ -539,34 +539,15 @@ function openDeletedTimeEntriesModal(trigger) {
   openModal(modal.id); void render();
 }
 
-async function renderAdminSection() {
-  const key = document.body.dataset.adminView; const config = ADMIN_SECTION_CONFIG[key]; if (!config) return;
-  const serverPaged = ['users', 'entries', 'invitations', 'departments', 'projects', 'audit'].includes(key);
-  const stateKey = 'ace_admin_page_state_' + key;
-  let savedState = {};
-  try { savedState = JSON.parse(sessionStorage.getItem(stateKey) || '{}'); } catch { savedState = {}; }
-  const pageState = { page: Number(savedState.page) || 1, size: Number(savedState.size) || 25 };
-  const activeFilters = adminPageFilters.get(key) || {};
-  adminPageFilters.set(key, activeFilters);
-  const requestedRemarks = key === 'entries' ? new URLSearchParams(window.location.search).get('remarks') : null;
-  if (requestedRemarks === 'with' || requestedRemarks === 'without') activeFilters.remarks = requestedRemarks;
-  const persistState = () => {
-    try { sessionStorage.setItem(stateKey, JSON.stringify({ page: pageState.page, size: pageState.size })); } catch { /* Storage may be disabled. */ }
-  };
-  // Remove previously saved staff searches; only pagination belongs in storage.
-  persistState();
-  // A live redraw must not stack filters or click handlers from the previous
-  // pass. It only runs while no form or dialog is being edited.
-  document.querySelectorAll('.admin-user-filters').forEach(node => node.remove());
-  const existingAction = document.getElementById('sectionAction');
-  if (existingAction?.parentNode) existingAction.parentNode.replaceChild(existingAction.cloneNode(true), existingAction);
-  const existingSearch = document.getElementById('sectionSearch');
-  if (existingSearch?.parentNode) existingSearch.parentNode.replaceChild(existingSearch.cloneNode(true), existingSearch);
-  document.getElementById('deletedTimeEntriesButton')?.remove();
-  const view = { ...config, records: [], stats: [], total: 0 };
-  try { await applyLiveData(key, view, serverPaged ? pageState : null, activeFilters); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); }
-  document.title = view.title + ' · ACE Outsource Solutions';
-  document.getElementById('sectionTitle').textContent = view.title; document.getElementById('sectionDescription').textContent = view.description;
+// Paint interface copy without requesting records or trusting cached data.
+window.ACEPrepareAdminSection = function prepareAdminSection() {
+  const key = document.body.dataset.adminView;
+  const view = ADMIN_SECTION_CONFIG[key];
+  if (!view) return;
+  document.getElementById('sectionTitle').textContent = view.title;
+  document.getElementById('sectionDescription').textContent = view.description;
+  document.getElementById('sectionTableTitle').textContent = view.title;
+  document.getElementById('sectionTableHead').innerHTML = '<tr>' + view.columns.map(column => '<th>' + esc(column) + '</th>').join('') + '</tr>';
   const tabGroups = {
     users: [['Users', 'users.html'], ['Invitations', 'invitations.html']],
     invitations: [['Users', 'users.html'], ['Invitations', 'invitations.html']],
@@ -598,6 +579,52 @@ async function renderAdminSection() {
   } else tabBar?.remove();
   const actionButton = document.getElementById('sectionAction'); actionButton.hidden = !view.action;
   if (view.action) actionButton.innerHTML = icon(view.actionIcon) + view.action;
+
+  const labels = {
+    users: ['Active users', 'Pending accounts'], invitations: ['Pending', 'Accepted', 'Expires today'],
+    departments: ['Total departments', 'Active departments'], projects: ['Total projects', 'Active projects'],
+    entries: ['Tracked time', 'Open entries', 'Time entries'], audit: ['Recorded events', 'Sign-ins', 'Reports exported']
+  };
+  const statIcons = { users: ['check', 'circle-alert'], invitations: ['timer', 'check', 'circle-alert'], departments: ['building', 'check'], projects: ['folder', 'check'], entries: ['timer', 'circle-alert', 'check'], audit: ['brick-wall-shield', 'key-round', 'download'] };
+  document.getElementById('sectionStats').innerHTML = (labels[key] || []).map((label, index) => '<div class="stat-card"><div class="stat-icon">' + icon(statIcons[key][index]) + '</div><div class="stat-info"><div class="stat-number data-value-pending">—</div><div class="stat-label">' + esc(label) + '</div></div></div>').join('');
+  if (key === 'users' && !document.querySelector('.admin-user-filters')) {
+    const filters = document.createElement('div');
+    filters.className = 'admin-user-filters';
+    filters.innerHTML = ['Department', 'Account type', 'Projects'].map((label, index) => '<label>' + label + '<select class="form-select" disabled><option>' + ['All departments', 'All accounts', 'All projects'][index] + '</option></select></label>').join('');
+    document.getElementById('sectionSearch').insertAdjacentElement('beforebegin', filters);
+  }
+};
+
+async function renderAdminSection() {
+  const key = document.body.dataset.adminView; const config = ADMIN_SECTION_CONFIG[key]; if (!config) return;
+  const serverPaged = ['users', 'entries', 'invitations', 'departments', 'projects', 'audit'].includes(key);
+  const stateKey = 'ace_admin_page_state_' + key;
+  let savedState = {};
+  try { savedState = JSON.parse(sessionStorage.getItem(stateKey) || '{}'); } catch { savedState = {}; }
+  const pageState = { page: Number(savedState.page) || 1, size: Number(savedState.size) || 25 };
+  const activeFilters = adminPageFilters.get(key) || {};
+  adminPageFilters.set(key, activeFilters);
+  const requestedRemarks = key === 'entries' ? new URLSearchParams(window.location.search).get('remarks') : null;
+  if (requestedRemarks === 'with' || requestedRemarks === 'without') activeFilters.remarks = requestedRemarks;
+  const persistState = () => {
+    try { sessionStorage.setItem(stateKey, JSON.stringify({ page: pageState.page, size: pageState.size })); } catch { /* Storage may be disabled. */ }
+  };
+  // Remove previously saved staff searches; only pagination belongs in storage.
+  persistState();
+  // A live redraw must not stack filters or click handlers from the previous
+  // pass. It only runs while no form or dialog is being edited.
+  const existingAction = document.getElementById('sectionAction');
+  if (existingAction?.parentNode) existingAction.parentNode.replaceChild(existingAction.cloneNode(true), existingAction);
+  const existingSearch = document.getElementById('sectionSearch');
+  if (existingSearch?.parentNode) existingSearch.parentNode.replaceChild(existingSearch.cloneNode(true), existingSearch);
+  document.getElementById('deletedTimeEntriesButton')?.remove();
+  const view = { ...config, records: [], stats: [], total: 0 };
+  try { await applyLiveData(key, view, serverPaged ? pageState : null, activeFilters); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); }
+  document.title = view.title + ' · ACE Outsource Solutions';
+  document.getElementById('sectionTitle').textContent = view.title; document.getElementById('sectionDescription').textContent = view.description;
+  window.ACEPrepareAdminSection();
+  document.querySelectorAll('.admin-user-filters').forEach(node => node.remove());
+  const actionButton = document.getElementById('sectionAction');
   if (key === 'entries') {
     const deletedButton = document.createElement('button');
     deletedButton.id = 'deletedTimeEntriesButton';
