@@ -18,7 +18,7 @@ test('details expose appropriate actions and completed zero-duration sessions', 
   assert.doesNotMatch(active.root.innerHTML, /data-entry-action="approve"/);
   const completed = render({ TimeEntryId: 'one', UserId: 'user', ClockOutAt: '2026-10-19T09:00:00Z', DurationSeconds: 0, ScheduleType: 'FIXED', ScheduledEndTime: '18:00', OvertimeApprovedSeconds: 120 });
   assert.match(completed.root.innerHTML, /Worked time<\/span><strong>0/);
-  assert.match(completed.root.innerHTML, /Approved overtime<\/span><strong>120/);
+  assert.match(completed.root.innerHTML, /Approved overtime<\/dt><dd>120/);
   assert.match(completed.root.innerHTML, /data-entry-action="approve"/);
   assert.doesNotMatch(completed.root.innerHTML, /data-entry-action="stop"/);
 });
