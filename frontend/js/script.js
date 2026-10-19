@@ -54,7 +54,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else enableCleanInternalPageLinks();
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
-const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
+const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, ScheduleType: item.schedule_type, ScheduledEndTime: item.scheduled_end_time, OvertimeApprovedSeconds: item.overtime_approved_seconds || 0, OvertimeApprovedAt: item.overtime_approved_at, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, SeenAt: item.seen_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
 const employeeTimeEntries = () => AppState.timeEntries.filter(entry => AppState.users.find(user => String(user.UserId) === String(entry.UserId))?.Role === 'USER');
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
@@ -2924,13 +2924,37 @@ function loadAdminTimeEntryDetails() {
     const user = AppState.users.find(item => String(item.UserId) === String(entry.UserId));
     const project = AppState.projects.find(item => String(item.ProjectId) === String(entry.ProjectId));
     const remarks = AppState.adminRemarks.filter(item => String(item.TimeEntryId) === String(entry.TimeEntryId));
-    const worked = entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : entry.ClockOutAt ? '—' : 'Active';
+    const worked = entry.ClockOutAt ? formatDuration(Number(entry.DurationSeconds) || 0) : 'In progress';
+    const canManage = AppState.currentUser?.Role === 'ADMIN';
+    const canApprove = entry.ClockOutAt && entry.ScheduleType === 'FIXED' && entry.ScheduledEndTime && !entry.OvertimeApprovedAt;
     const dateTime = value => value ? new Date(value).toLocaleString() : '—';
-    root.innerHTML = `<header class="time-entry-detail-header"><div><a class="time-entry-detail-back" href="admin-dashboard.html">← Back to dashboard</a><p class="admin-section-kicker">TIME ENTRY</p><h1>${escapeHtml(user?.FullName || entry.UserName || 'Employee')}’s work session</h1><p>${dateTime(entry.ClockInAt)}</p></div><span class="badge ${entry.ClockOutAt ? 'badge-success' : 'badge-warning'}">${entry.ClockOutAt ? 'Completed' : 'Active'}</span></header>
-        <section class="time-entry-detail-grid" aria-label="Time entry summary"><article><span>Clock in</span><strong>${dateTime(entry.ClockInAt)}</strong></article><article><span>Clock out</span><strong>${dateTime(entry.ClockOutAt)}</strong></article><article><span>Worked time</span><strong>${worked}</strong></article><article><span>Project</span><strong>${escapeHtml(project?.ProjectName || entry.ProjectName || 'Unassigned')}</strong></article><article><span>Entry status</span><strong>${entry.ClockOutAt ? 'Completed' : 'Currently active'}</strong></article></section>
+    root.innerHTML = `<header class="time-entry-detail-header"><div><a class="time-entry-detail-back" href="admin-dashboard.html">← Back to dashboard</a><p class="admin-section-kicker">TIME ENTRY</p><h1>${escapeHtml(user?.FullName || entry.UserName || 'Employee')}’s work session</h1><p>${dateTime(entry.ClockInAt)}</p></div><div class="time-entry-detail-toolbar"><span class="badge ${entry.ClockOutAt ? 'badge-success' : 'badge-warning'}">${entry.ClockOutAt ? 'Completed' : 'Active'}</span><a class="btn btn-outline btn-sm" href="employee-profile.html?user=${encodeURIComponent(entry.UserId)}">Employee profile</a>${canManage ? `<div class="time-entry-detail-actions"><button class="btn btn-primary btn-sm" data-entry-action="remark">Add remark</button><button class="btn btn-outline btn-sm" data-entry-action="correct">Correct time</button>${canApprove ? '<button class="btn btn-outline btn-sm" data-entry-action="approve">Approve overtime</button>' : ''}${!entry.ClockOutAt ? '<button class="btn btn-danger btn-sm" data-entry-action="stop">Stop clock-in</button>' : ''}<button class="btn btn-outline btn-sm" data-entry-action="delete">Move to deleted</button></div>` : ''}</div></header>
+        <section class="time-entry-detail-grid" aria-label="Time entry summary"><article><span>Clock in</span><strong>${dateTime(entry.ClockInAt)}</strong></article><article><span>Clock out</span><strong>${dateTime(entry.ClockOutAt)}</strong></article><article><span>Worked time</span><strong>${worked}</strong></article><article><span>Project</span><strong>${escapeHtml(project?.ProjectName || entry.ProjectName || 'Unassigned')}</strong></article><article><span>Approved overtime</span><strong>${formatDuration(Number(entry.OvertimeApprovedSeconds) || 0)}</strong></article><article><span>Entry status</span><strong>${entry.ClockOutAt ? 'Completed' : 'Currently active'}</strong></article></section>
         <section class="time-entry-detail-notes"><article><h2>Clock-out note</h2><p>${escapeHtml(entry.FinalNote || 'No clock-out note was added.')}</p></article>${entry.UserNote ? `<article><h2>Legacy clock-in note</h2><p>${escapeHtml(entry.UserNote)}</p></article>` : ''}</section>
         ${entry.StoppedByName ? `<section class="time-entry-stopped"><h2>Stopped by an administrator</h2><p>${escapeHtml(entry.StoppedByName)} stopped this session on ${dateTime(entry.StoppedByAt || entry.ClockOutAt)}.</p></section>` : ''}
         <section class="time-entry-detail-remarks"><div><p class="admin-section-kicker">ADMINISTRATOR NOTES</p><h2>Feedback history</h2></div>${remarks.length ? `<div class="time-entry-remark-list">${remarks.map(remark => `<article><strong>${escapeHtml(remark.AdminName)}</strong><p>${escapeHtml(remark.Remark)}</p><small>Posted ${dateTime(remark.CreatedAt)}</small><span class="admin-remark-read-status ${remark.SeenAt ? 'is-seen' : 'is-unseen'}">${suppliedIconMarkup(remark.SeenAt ? 'check' : 'circle-alert')}${remark.SeenAt ? `Seen ${dateTime(remark.SeenAt)}` : 'Not seen yet'}</span></article>`).join('')}</div>` : '<p class="time-entry-no-remarks">No administrator feedback has been added to this entry.</p>'}<form class="entry-feedback-form" id="entryDetailFeedbackForm"><div class="form-group"><label class="form-label" for="entryDetailFeedbackText">Add a follow-up comment</label><textarea class="form-textarea" id="entryDetailFeedbackText" maxlength="2000" required placeholder="Add clear feedback for the employee about this time entry"></textarea></div><div class="form-actions"><button class="btn btn-primary" type="submit">${suppliedIconMarkup('message-circle-plus')}Post comment</button></div></form></section>`;
+    root.querySelectorAll('[data-entry-action]').forEach(button => button.addEventListener('click', async () => {
+        if (!canManage || button.disabled) return;
+        const action = button.dataset.entryAction;
+        if (action === 'remark') { root.querySelector('#entryDetailFeedbackText')?.focus(); return; }
+        if (action === 'correct') {
+            editEntryTime({ id: entry.TimeEntryId, clockInAt: entry.ClockInAt, clockOutAt: entry.ClockOutAt, cells: [user?.FullName || entry.UserName || 'Employee', project?.ProjectName || entry.ProjectName || 'Unassigned'] });
+            return;
+        }
+        const operations = {
+            stop: { title: 'Stop this clock-in?', message: 'This ends the employee’s active shift now.', label: 'Stop clock-in', suffix: '/admin-stop', method: 'POST' },
+            approve: { title: 'Approve overtime?', message: 'Only time after the scheduled end will be approved as overtime.', label: 'Approve', suffix: '/overtime/approve', method: 'POST' },
+            delete: { title: 'Move this entry to Deleted?', message: 'You can restore it later from Deleted time entries.', label: 'Move to deleted', suffix: '', method: 'DELETE' }
+        };
+        const operation = operations[action];
+        if (!operation || !await window.ACEUI.confirm({ title: operation.title, message: operation.message, confirmLabel: operation.label, danger: action !== 'approve' })) return;
+        button.disabled = true;
+        try {
+            await window.ACEAuth.request('/v1/time-entries/' + encodeURIComponent(entry.TimeEntryId) + operation.suffix, { method: operation.method });
+            if (action === 'delete') window.location.assign('deleted-time-entries.html');
+            else window.location.reload();
+        } catch (error) { showToast(error.message || 'Could not update this entry.', 'error'); button.disabled = false; }
+    }));
     const feedbackForm = root.querySelector('#entryDetailFeedbackForm');
     feedbackForm?.addEventListener('submit', async event => {
         event.preventDefault();

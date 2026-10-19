@@ -18465,3 +18465,16 @@ body .main-content .data-value-pending { color: transparent!important; }
 .employee-history-remarks p { margin: 4px 0; white-space: pre-wrap; }
 .employee-history-remarks small { color: var(--ace-text-secondary); }
 .employee-history-action { min-width: 150px; }
+
+/* Entry details: a compact action area and balanced summary cards. */
+.time-entry-detail-header { gap: 24px; }
+.time-entry-detail-header > div:first-child { min-width: 0; flex: 1; }
+.time-entry-detail-toolbar { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; max-width: 440px; }
+.time-entry-detail-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.time-entry-detail-notes > article:only-child { grid-column: 1/-1; }
+.time-entry-detail-notes p, .time-entry-remark-list p { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .time-entry-detail-header { flex-direction: column; align-items: stretch; }
+  .time-entry-detail-toolbar { align-items: flex-start; max-width: none; }
+  .time-entry-detail-actions { justify-content: flex-start; }
+}
