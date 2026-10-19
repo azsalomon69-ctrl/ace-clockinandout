@@ -18604,3 +18604,24 @@ html[data-theme="dark"] .entry-action-options .entry-danger { color: #ff94a7; }
  #employeeProfileContent .employee-history-header { gap: 16px; }
  #employeeProfileContent .employee-profile-card-head { flex-wrap: wrap; }
 }
+/* Schedule setup: visible steps and a review before saving. */
+.schedule-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:0 0 20px; }
+.schedule-steps a { display:flex; align-items:center; gap:12px; padding:16px; border:1px solid var(--ace-border, #c9e1e8); border-radius:12px; color:var(--ace-text-primary, #173f4c); text-decoration:none; background:var(--ace-surface, #fff); }
+.schedule-steps a:hover { border-color:#0085a1; }
+.schedule-steps a:focus-visible { outline:3px solid #0085a1; outline-offset:3px; }
+.schedule-steps a > span { display:grid; place-items:center; flex:0 0 32px; height:32px; border-radius:50%; background:#e6f4f7; color:#0c5067; font-weight:750; }
+.schedule-steps strong { display:block; font-size:.9rem; }
+.schedule-steps small { display:block; margin-top:4px; font-size:.78rem; color:var(--ace-text-secondary, #5b7680); line-height:1.4; }
+.schedule-preview { grid-column:1/-1; border:1px solid var(--ace-border, #c9e1e8); border-left:3px solid #0085a1; border-radius:8px; padding:14px 16px; color:var(--ace-text-primary, #173f4c); }
+.schedule-preview strong { font-size:.8rem; }
+.schedule-preview p { margin:6px 0 0; font-size:.88rem; line-height:1.6; overflow-wrap:anywhere; }
+.schedule-save-row { grid-column:1/-1; display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.schedule-save-row > span { color:var(--ace-text-secondary, #5b7680); font-size:.8rem; }
+.schedule-context-note { border-left:3px solid #0085a1; padding:10px 12px; margin:0 0 20px; font-size:.85rem; line-height:1.5; color:var(--ace-text-primary, #173f4c); background:var(--ace-bg, #f0f8fa); }
+.schedule-workspace .schedule-assign-card { height:auto; }
+.schedule-workspace .form-input, .schedule-workspace .form-select { box-shadow:none; border:1px solid var(--ace-border, #bdd8e1); }
+.schedule-workspace [hidden] { display:none !important; }
+#scheduleForm, #assignmentForm, #savedSchedules { scroll-margin-top:90px; }
+html[data-theme="dark"] .schedule-steps a { background:var(--ace-bg-secondary, #172d38); }
+html[data-theme="dark"] .schedule-context-note { background:var(--ace-bg-secondary, #172d38); }
+@media(max-width:900px) { .schedule-steps { grid-template-columns:1fr; } .schedule-steps a { padding:12px 16px; } }
