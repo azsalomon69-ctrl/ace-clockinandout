@@ -50,3 +50,32 @@ test('saving carries the created schedule into assignment even outside the curre
   assert.equal(payload.dailyElapsedMinutes, 540);
   assert.deepEqual(payload.workdays, [1, 2, 3, 4, 5]);
 });
+
+test('as-needed flextime saves without recurring workdays and restores fixed validation', async () => {
+  const app = fixture(); await app.window.mountScheduleFlex();
+  app.days.forEach(day => { day.checked = false; });
+  app.element('scheduleType').value = 'AS_NEEDED';
+  app.element('scheduleType').listeners.change();
+  assert.equal(app.element('scheduleWorkdays').hidden, true);
+  assert.equal(app.element('createButton').disabled, false);
+  assert.match(app.element('schedulePreview').textContent, /only when worked/);
+  await app.element('scheduleForm').listeners.submit({ preventDefault() {}, target: app.element('scheduleForm') });
+  const payload = JSON.parse(app.calls.find(call => call.options?.method === 'POST').options.body);
+  assert.equal(payload.scheduleType, 'AS_NEEDED');
+  assert.deepEqual(payload.workdays, []);
+  app.element('scheduleType').value = 'FIXED';
+  app.element('scheduleType').listeners.change();
+  assert.equal(app.element('scheduleWorkdays').hidden, false);
+  assert.equal(app.element('createButton').disabled, true);
+});
+
+test('as-needed schedules never require attendance on a recurring weekday', () => {
+  const dashboard = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
+  const helper = dashboard.slice(dashboard.indexOf('const defaultScheduleWeekdays'), dashboard.indexOf('// Native select popups'));
+  const context = vm.createContext({});
+  vm.runInContext(helper + '\nglobalThis.check = isScheduledToday;', context);
+  for (let day = 0; day < 7; day++) {
+    assert.equal(context.check({ schedule_type: 'AS_NEEDED', scheduled_weekdays: [] }, { getDay: () => day }), false);
+    assert.equal(context.check({ schedule_type: 'FLEX', scheduled_weekdays: [1, 2, 3, 4, 5] }, { getDay: () => day }), day > 0 && day < 6);
+  }
+});

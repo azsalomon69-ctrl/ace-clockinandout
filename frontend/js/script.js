@@ -80,6 +80,7 @@ const reportDateTime = value => {
 };
 const defaultScheduleWeekdays = [1, 2, 3, 4, 5];
 const isScheduledToday = (schedule, date = new Date()) => {
+    if (schedule?.schedule_type === 'AS_NEEDED') return false;
     const weekdays = Array.isArray(schedule?.scheduled_weekdays) && schedule.scheduled_weekdays.length ? schedule.scheduled_weekdays.map(Number) : defaultScheduleWeekdays;
     return weekdays.includes(date.getDay());
 };
@@ -2988,7 +2989,11 @@ function loadUserDashboard() {
         const notice = document.createElement('section'); notice.id = 'employeeScheduleNotice'; notice.className = 'employee-schedule-notice';
         const now = new Date(); const active = AppState.currentSession;
         let message = ''; let isLate = false;
-        if (!isScheduledToday(schedule, now)) {
+        if (schedule.schedule_type === 'AS_NEEDED') {
+            message = active
+                ? `${schedule.name}: as-needed shift in progress. Target: ${Number(schedule.daily_elapsed_minutes) / 60} hours for this shift.`
+                : `${schedule.name}: clock in when assigned work, any day. Days without work are not absences.`;
+        } else if (!isScheduledToday(schedule, now)) {
             message = `${schedule.name}: no work is scheduled today.`;
         } else if (schedule.schedule_type === 'FLEX' && active) {
             const finish = new Date(new Date(active.ClockInAt).getTime() + Number(schedule.daily_elapsed_minutes || 540) * 60000);

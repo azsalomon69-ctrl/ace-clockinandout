@@ -23,11 +23,11 @@
         <div class="schedule-card-heading"><p class="admin-section-kicker">STEP 1</p><h2>Create a schedule</h2><p>Save once and reuse for multiple employees.</p></div>
         <form id="scheduleForm" class="form-grid">
           <label>Schedule name<input class="form-input" id="scheduleName" maxlength="80" required placeholder="e.g. Morning shift"></label>
-          <label>Type<select class="form-select" id="scheduleType"><option value="FIXED">Fixed schedule</option><option value="FLEX">Flextime</option></select><small class="schedule-field-help" id="scheduleTypeHelp">Employees clock in at set times on selected workdays.</small></label>
+          <label>Type<select class="form-select" id="scheduleType"><option value="FIXED">Fixed schedule</option><option value="FLEX">Flextime</option><option value="AS_NEEDED">As-needed flextime</option></select><small class="schedule-field-help" id="scheduleTypeHelp">Employees clock in at set times on selected workdays.</small></label>
           <label class="fixed-time">Start time<input class="form-input" id="scheduleStart" type="time" value="09:00"></label>
           <label class="fixed-time">End time<input class="form-input" id="scheduleEnd" type="time" value="18:00"></label>
           <div class="schedule-duration-fields" role="group" aria-labelledby="scheduleDurationLabel"><span id="scheduleDurationLabel">Daily target time</span><div><label>Hours<input class="form-input" id="scheduleHours" type="number" min="0" max="24" value="9" inputmode="numeric" required></label><label>Minutes<input class="form-input" id="scheduleMinutes" type="number" min="0" max="59" value="0" inputmode="numeric" required></label></div><small class="schedule-field-help">Expected work per day (1–24 hours). This target is separate from the start and end times.</small></div>
-          <fieldset class="schedule-workdays">
+          <fieldset class="schedule-workdays" id="scheduleWorkdays">
             <legend>Working days</legend>
             <div class="schedule-workdays-heading"><p>Select the days this schedule applies. Days left unselected are treated as days off.</p></div>
             <div class="schedule-day-selector">
