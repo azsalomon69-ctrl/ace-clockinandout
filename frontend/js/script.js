@@ -394,17 +394,21 @@ let startupWarmupInterval = null;
 
 function showStartupWarmupNotice() {
     const shell = document.querySelector('.app-shell-skeleton');
-    if (!shell || shell.querySelector('.shell-startup-warmup')) return;
-    shell.setAttribute('aria-hidden', 'false');
+    const host = shell || document.body;
+    if (!host || document.querySelector('.shell-startup-warmup')) return;
+    if (shell) shell.setAttribute('aria-hidden', 'false');
     const notice = document.createElement('section');
-    notice.className = 'shell-startup-warmup';
-    notice.setAttribute('role', 'status');
-    notice.setAttribute('aria-live', 'polite');
-    notice.innerHTML = '<div><strong>ACE is connecting</strong><p>Render may be waking up after inactivity. Please wait about one minute while ACE keeps trying.</p></div><button class="btn btn-secondary" type="button" data-startup-refresh disabled>Refresh available in 1:00</button>';
-    shell.appendChild(notice);
-    let secondsLeft = 60;
+    notice.className = 'shell-startup-warmup' + (shell ? '' : ' startup-warmup-fullpage');
+    notice.setAttribute('aria-label', 'Service connection status');
+    notice.innerHTML = '<div class="startup-warmup-heading"><span class="startup-warmup-icon" aria-hidden="true">◷</span><div><strong data-warmup-title>ACE is starting up</strong><p data-warmup-description>The service may be waking up after inactivity. Please wait one minute before refreshing.</p></div></div><div class="startup-warmup-footer"><span class="startup-warmup-countdown" aria-hidden="true">1:00</span><button class="btn btn-secondary" type="button" data-startup-refresh disabled>Refresh available in 1:00</button></div><p class="startup-warmup-status" role="status">We’ll continue automatically if ACE connects sooner.</p>';
+    notice.insertAdjacentHTML('afterbegin', '<div class="startup-brand"><img src="/assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"><span>YOUR WORKSPACE, GETTING READY</span></div><div class="startup-orbit" aria-hidden="true"><span></span><i></i><b>ACE</b></div>');
+    host.prepend(notice);
+    const deadline = Date.now() + 60000;
+    notice.querySelector('[data-startup-refresh]').addEventListener('click', () => window.location.reload());
     startupWarmupInterval = window.setInterval(() => {
-        secondsLeft -= 1;
+        const secondsLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+        const time = Math.floor(secondsLeft / 60) + ':' + String(secondsLeft % 60).padStart(2, '0');
+        notice.querySelector('.startup-warmup-countdown').textContent = time;
         const refresh = notice.querySelector('[data-startup-refresh]');
         if (!refresh) return;
         if (secondsLeft <= 0) {
@@ -412,9 +416,12 @@ function showStartupWarmupNotice() {
             startupWarmupInterval = null;
             refresh.disabled = false;
             refresh.textContent = 'Refresh page';
-            refresh.addEventListener('click', () => window.location.reload(), { once: true });
+            notice.querySelector('[data-warmup-title]').textContent = 'You can refresh now';
+            notice.querySelector('[data-warmup-description]').textContent = 'Refresh the page to try connecting again.';
+            notice.querySelector('.startup-warmup-status').textContent = 'Still waiting for ACE to connect.';
+            notice.classList.add('is-refresh-ready');
         } else {
-            refresh.textContent = `Refresh available in 0:${String(secondsLeft).padStart(2, '0')}`;
+            refresh.textContent = 'Refresh available in ' + time;
         }
     }, 1000);
 }
@@ -425,7 +432,18 @@ function clearStartupWarmupNotice() {
     document.querySelector('.shell-startup-warmup')?.remove();
 }
 
-async function loadDatabaseWhenServiceIsReady() {
+async function withStartupWarmup(operation) {
+    const timer = window.setTimeout(showStartupWarmupNotice, 3000);
+    try {
+        const result = await operation();
+        clearStartupWarmupNotice();
+        return result;
+    } finally {
+        window.clearTimeout(timer);
+    }
+}
+
+async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
     // Free Render services can sleep. Keep the page skeleton visible while the
     // service wakes, and only reveal the application after a complete live load.
     const retryDelays = [1500, 2500, 4000, 6000, 8000, 10000, 10000, 10000, 10000];
@@ -449,7 +467,7 @@ async function loadDatabaseWhenServiceIsReady() {
                     reject(timeoutError);
                 }, remaining);
             });
-            const loaded = await Promise.race([loadDatabase(), deadline]);
+            const loaded = await Promise.race([operation(), deadline]);
             clearStartupWarmupNotice();
             return loaded;
         } catch (error) {
@@ -484,7 +502,6 @@ async function initApp() {
         localStorage.removeItem('ace_current_session');
     }
     if (isPublicRoute()) {
-        await resumePublicSession();
         initializeNavigation();
         initializeModals();
         initializeForms();
@@ -497,6 +514,14 @@ async function initApp() {
             window.setTimeout(() => showToast(loginNotice, 'warning'), 0);
         }
         clearInitialSkeletons();
+        try { await withStartupWarmup(() => loadDatabaseWhenServiceIsReady(resumePublicSession)); }
+        catch (error) {
+            if (error?.status !== 401 && error?.status !== 403) {
+                showStartupWarmupNotice();
+                const status = document.querySelector('.startup-warmup-status');
+                if (status) status.textContent = 'ACE is still unavailable. Once the countdown finishes, refresh the page to try again.';
+            }
+        }
         return;
     }
 
@@ -509,7 +534,7 @@ async function initApp() {
     window.addEventListener('ace:verified-profile-ready', mountVerifiedShell, { once: true });
     let loaded;
     try {
-        loaded = await loadDatabaseWhenServiceIsReady();
+        loaded = await withStartupWarmup(() => loadDatabaseWhenServiceIsReady());
     } catch (error) {
         // Static files can be requested directly, but protected page
         // content must never be mounted unless the Render API confirms a valid
@@ -2318,15 +2343,18 @@ function initializeSecondaryActions() {
 // Auth Handlers
 async function handleGoogleLogin(event) {
     event?.preventDefault();
-    showSpinner();
+    const loginButton = document.getElementById('googleLoginBtn');
+    if (loginButton) loginButton.disabled = true;
     try {
         if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
-        const auth = await window.ACEAuth.client();
+        const auth = await withStartupWarmup(() => loadDatabaseWhenServiceIsReady(() => window.ACEAuth.client()));
         const { error } = await auth.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/login`, queryParams: { prompt: 'select_account' } } });
         if (error) throw error;
     } catch (error) {
         hideSpinner();
         showToast(error.message || 'Unable to start Google sign-in', 'error');
+    } finally {
+        if (loginButton) loginButton.disabled = false;
     }
 }
 

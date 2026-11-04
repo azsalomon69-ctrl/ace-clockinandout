@@ -18230,3 +18230,48 @@ html[data-theme="dark"] .entry-action-options .entry-danger { color: #ff94a7; }
 html[data-theme="dark"] .schedule-steps a { background:var(--ace-bg-secondary, #172d38); }
 html[data-theme="dark"] .schedule-context-note { background:var(--ace-bg-secondary, #172d38); }
 @media(max-width:900px) { .schedule-steps { grid-template-columns:1fr; } .schedule-steps a { padding:12px 16px; } }
+/* Connection notice stays visible while a sleeping service starts. */
+.shell-startup-warmup { top:50%; bottom:auto; transform:translateY(-50%); z-index:5; display:flex; flex-direction:column; align-items:stretch; gap:20px; width:min(480px,calc(100% - 40px)); padding:26px; border:1px solid var(--ace-border); border-radius:16px; background:var(--ace-surface); box-shadow:var(--ace-shadow-md); }
+.startup-warmup-heading { display:flex; align-items:flex-start; gap:12px; }
+.startup-warmup-icon { display:grid; place-items:center; flex:0 0 38px; height:38px; color:var(--ace-accent); background:var(--ace-accent-muted); border-radius:10px; font-size:26px; line-height:1; }
+.shell-startup-warmup .startup-warmup-heading strong { color:var(--ace-text-primary); font-size:1.08rem; margin:0 0 7px; }
+.shell-startup-warmup .startup-warmup-heading p { color:var(--ace-text-secondary); font-size:.88rem; line-height:1.65; }
+.startup-warmup-footer { display:flex; align-items:center; justify-content:space-between; gap:14px; padding-top:18px; border-top:1px solid var(--ace-border); }
+.startup-warmup-countdown { color:var(--ace-accent); font-size:1.8rem; font-weight:750; font-variant-numeric:tabular-nums; line-height:1; }
+.shell-startup-warmup .startup-warmup-status { font-size:.76rem; color:var(--ace-text-tertiary); line-height:1.5; margin:0; }
+.shell-startup-warmup.startup-warmup-inline { position:static; transform:none; width:100%; margin:0 0 22px; padding:20px; box-shadow:none; }
+.shell-startup-warmup button { min-width:0; min-height:44px; font-size:.8rem; }
+@media(max-width:480px) { .shell-startup-warmup { left:20px; right:20px; padding:20px; } .startup-warmup-footer { align-items:stretch; flex-direction:column; } .startup-warmup-countdown { text-align:center; } }
+/* A slow workspace startup is a dedicated page, not a skeleton overlay. */
+.app-shell-skeleton:has(> .shell-startup-warmup) { position:fixed; inset:0; z-index:10000; display:grid; place-items:center; padding:24px; overflow-y:auto; background:var(--ace-page-bg); pointer-events:auto; }
+.app-shell-skeleton:has(> .shell-startup-warmup) > :not(.shell-startup-warmup) { display:none !important; }
+.app-shell-skeleton > .shell-startup-warmup { position:static; inset:auto; transform:none; width:min(480px,100%); margin:auto; padding:32px; box-shadow:var(--ace-shadow-sm); }
+body:has(.app-shell-skeleton > .shell-startup-warmup) { overflow:hidden; }
+body.data-layout-ready .app-shell-skeleton:has(> .shell-startup-warmup) { background:var(--ace-page-bg); pointer-events:auto; }
+@media(max-width:480px) { .app-shell-skeleton > .shell-startup-warmup { padding:24px; } }
+/* Branded full-page connection experience for workspace and sign-in. */
+body:has(.shell-startup-warmup) { overflow:hidden; }
+.shell-startup-warmup.startup-warmup-fullpage { position:fixed; inset:0; z-index:10000; transform:none; width:100%; height:100dvh; max-height:none; margin:0; border:0; border-radius:0; overflow-y:auto; padding:clamp(28px,6vh,64px) 24px; box-shadow:none; }
+.app-shell-skeleton > .shell-startup-warmup, .shell-startup-warmup.startup-warmup-fullpage { display:flex; align-items:center; justify-content:center; gap:24px; width:100%; min-height:100%; background:radial-gradient(ellipse at 50% 42%,var(--ace-accent-muted),transparent 60%),var(--ace-page-bg); border:0; border-radius:0; box-shadow:none; text-align:center; }
+.app-shell-skeleton:has(> .shell-startup-warmup) { padding:0; }
+.startup-brand { display:grid; justify-items:center; gap:14px; }
+.startup-brand img { width:82px; height:62px; object-fit:contain; }
+.startup-brand > span { color:var(--ace-text-secondary); font-size:.65rem; font-weight:750; letter-spacing:.18em; }
+.startup-orbit { position:relative; display:grid; place-items:center; flex:0 0 144px; width:144px; height:144px; margin:8px 0; border:1px solid var(--ace-border-strong); border-radius:50%; box-shadow:0 0 0 16px var(--ace-accent-muted); }
+.startup-orbit::before { content:''; position:absolute; inset:12px; border:1px dashed var(--ace-border-strong); border-radius:50%; }
+.startup-orbit span { position:absolute; inset:-2px; border:3px solid transparent; border-top-color:var(--ace-accent); border-right-color:var(--ace-accent); border-radius:50%; animation:ace-startup-turn 5s linear infinite; }
+.startup-orbit i { position:absolute; width:10px; height:10px; top:0; left:calc(50% - 5px); background:var(--ace-accent); border-radius:50%; box-shadow:0 0 0 6px var(--ace-accent-muted); }
+.startup-orbit b { color:var(--ace-accent); font-size:1.8rem; letter-spacing:-.04em; }
+.shell-startup-warmup .startup-warmup-heading { display:block; max-width:440px; }
+.shell-startup-warmup .startup-warmup-icon { display:none; }
+.shell-startup-warmup .startup-warmup-heading strong { font-size:clamp(1.65rem,4vw,2.2rem); letter-spacing:-.035em; margin-bottom:12px; }
+.shell-startup-warmup .startup-warmup-heading p { font-size:.95rem; line-height:1.75; }
+.shell-startup-warmup .startup-warmup-footer { display:flex; flex-direction:column; width:min(340px,100%); border:0; padding:0; gap:20px; }
+.shell-startup-warmup .startup-warmup-countdown { font-size:3.3rem; letter-spacing:-.05em; font-weight:650; }
+.shell-startup-warmup button { width:100%; min-height:48px; }
+.shell-startup-warmup .startup-warmup-status { max-width:400px; }
+.shell-startup-warmup.is-refresh-ready .startup-orbit span { animation:none; border-color:var(--ace-accent); }
+@keyframes ace-startup-turn { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .startup-orbit span { animation:none; } }
+@media(max-height:720px) { .shell-startup-warmup.startup-warmup-fullpage,.app-shell-skeleton > .shell-startup-warmup { justify-content:flex-start; gap:18px; padding:24px; } .startup-orbit { flex-basis:104px; width:104px; height:104px; margin:8px 0; } .startup-brand img { width:64px; height:46px; } }
+body:has(> .startup-warmup-fullpage) > :not(.startup-warmup-fullpage):not(script):not(style) { display:none !important; }
