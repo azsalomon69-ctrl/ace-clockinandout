@@ -390,8 +390,6 @@ async function refreshUserProjectAssignments() {
 
 const pause = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 const inactiveAccountMessage = 'Your account is not active. Contact your administrator or HR representative for an invitation.';
-let startupWarmupInterval = null;
-
 function showStartupWarmupNotice() {
     const shell = document.querySelector('.app-shell-skeleton');
     const host = shell || document.body;
@@ -400,35 +398,23 @@ function showStartupWarmupNotice() {
     const notice = document.createElement('section');
     notice.className = 'shell-startup-warmup' + (shell ? '' : ' startup-warmup-fullpage');
     notice.setAttribute('aria-label', 'Service connection status');
-    notice.innerHTML = '<div class="startup-warmup-heading"><span class="startup-warmup-icon" aria-hidden="true">◷</span><div><strong data-warmup-title>ACE is starting up</strong><p data-warmup-description>The service may be waking up after inactivity. Please wait one minute before refreshing.</p></div></div><div class="startup-warmup-footer"><span class="startup-warmup-countdown" aria-hidden="true">1:00</span><button class="btn btn-secondary" type="button" data-startup-refresh disabled>Refresh available in 1:00</button></div><p class="startup-warmup-status" role="status">We’ll continue automatically if ACE connects sooner.</p>';
-    notice.insertAdjacentHTML('afterbegin', '<div class="startup-brand"><img src="/assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"><span>YOUR WORKSPACE, GETTING READY</span></div><div class="startup-orbit" aria-hidden="true"><span></span><i></i><b>ACE</b></div>');
+    notice.innerHTML = '<div class="startup-brand"><img src="/assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"><span>ACE CLOCK IN / OUT</span></div><div class="startup-scene" aria-hidden="true"><div class="startup-scene-orbit"></div><div class="startup-float startup-float-time"><span>↗</span><div>Time<strong>tracking</strong></div></div><div class="startup-scene-clock"><span class="startup-clock-tick"></span><span class="startup-clock-index index-12">12</span><span class="startup-clock-index index-3">3</span><span class="startup-clock-index index-6">6</span><span class="startup-clock-index index-9">9</span><span class="startup-clock-signature">ACE</span><i></i><b></b><span class="startup-clock-second"></span><em></em><span class="startup-clock-caption">CLOCK IN / OUT</span></div><div class="startup-float startup-float-team"><span>✓</span><div>Employee<strong>workspace</strong></div></div><span class="startup-scene-spark spark-one">+</span><span class="startup-scene-spark spark-two">+</span><span class="startup-detail-line detail-line-one"></span><span class="startup-detail-line detail-line-two"></span></div><div class="startup-message"><p class="startup-eyebrow">PLEASE WAIT</p><div class="startup-warmup-heading"><strong data-warmup-title>Connecting<br><span>to ACE.</span></strong><p data-warmup-description>The server may be starting after inactivity. Please wait while we try to connect.</p></div><div class="startup-loading-track" aria-hidden="true"><span></span></div><p class="startup-warmup-status" role="status">Keep this page open. You don’t need to refresh. We’ll continue when ACE is ready.</p><button class="btn btn-primary" type="button" data-startup-refresh hidden>Try again</button></div>';
     host.prepend(notice);
-    const deadline = Date.now() + 60000;
     notice.querySelector('[data-startup-refresh]').addEventListener('click', () => window.location.reload());
-    startupWarmupInterval = window.setInterval(() => {
-        const secondsLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-        const time = Math.floor(secondsLeft / 60) + ':' + String(secondsLeft % 60).padStart(2, '0');
-        notice.querySelector('.startup-warmup-countdown').textContent = time;
-        const refresh = notice.querySelector('[data-startup-refresh]');
-        if (!refresh) return;
-        if (secondsLeft <= 0) {
-            window.clearInterval(startupWarmupInterval);
-            startupWarmupInterval = null;
-            refresh.disabled = false;
-            refresh.textContent = 'Refresh page';
-            notice.querySelector('[data-warmup-title]').textContent = 'You can refresh now';
-            notice.querySelector('[data-warmup-description]').textContent = 'Refresh the page to try connecting again.';
-            notice.querySelector('.startup-warmup-status').textContent = 'Still waiting for ACE to connect.';
-            notice.classList.add('is-refresh-ready');
-        } else {
-            refresh.textContent = 'Refresh available in ' + time;
-        }
-    }, 1000);
+}
+
+function showStartupConnectionError() {
+    showStartupWarmupNotice();
+    const notice = document.querySelector('.shell-startup-warmup');
+    if (!notice) return;
+    notice.classList.add('is-connection-error');
+    notice.querySelector('[data-warmup-title]').textContent = 'Unable to connect';
+    notice.querySelector('[data-warmup-description]').textContent = 'ACE is taking longer than expected. Check your internet connection, then try again.';
+    notice.querySelector('.startup-warmup-status').textContent = 'Select Try again to reconnect.';
+    notice.querySelector('[data-startup-refresh]').hidden = false;
 }
 
 function clearStartupWarmupNotice() {
-    if (startupWarmupInterval) window.clearInterval(startupWarmupInterval);
-    startupWarmupInterval = null;
     document.querySelector('.shell-startup-warmup')?.remove();
 }
 
@@ -438,6 +424,10 @@ async function withStartupWarmup(operation) {
         const result = await operation();
         clearStartupWarmupNotice();
         return result;
+    } catch (error) {
+        if (error?.status === 401 || error?.status === 403) clearStartupWarmupNotice();
+        else showStartupConnectionError();
+        throw error;
     } finally {
         window.clearTimeout(timer);
     }
@@ -517,9 +507,7 @@ async function initApp() {
         try { await withStartupWarmup(() => loadDatabaseWhenServiceIsReady(resumePublicSession)); }
         catch (error) {
             if (error?.status !== 401 && error?.status !== 403) {
-                showStartupWarmupNotice();
-                const status = document.querySelector('.startup-warmup-status');
-                if (status) status.textContent = 'ACE is still unavailable. Once the countdown finishes, refresh the page to try again.';
+                showStartupConnectionError();
             }
         }
         return;
@@ -4193,6 +4181,7 @@ function hideSpinner() {
 const startApp = () => {
     initApp().catch(error => {
         console.error('Application startup failed.', error);
+        if (document.querySelector('.shell-startup-warmup')) { showStartupConnectionError(); return; }
         clearStartupWarmupNotice();
         document.body.classList.remove('app-shell-pending');
         const shell = document.querySelector('.app-shell-skeleton');

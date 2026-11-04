@@ -3,26 +3,30 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 const source=readFileSync(new URL('../../frontend/js/script.js',import.meta.url),'utf8');
-const functions=source.slice(source.indexOf('let startupWarmupInterval'),source.indexOf('async function loadDatabaseWhenServiceIsReady'));
-function fixture(inline=false) {
- let now=0, tick, delayed, notice, reloads=0;
- const nodes=new Map(); const node=id=>{if(!nodes.has(id)) nodes.set(id,{textContent:'',disabled:true,addEventListener(_,fn){this.click=fn;}});return nodes.get(id);};
+const functions=source.slice(source.indexOf('function showStartupWarmupNotice()'),source.indexOf('async function loadDatabaseWhenServiceIsReady'));
+function fixture(publicPage=false) {
+ let delayed, notice, reloads=0;
+ const nodes=new Map(); const node=id=>{if(!nodes.has(id)) nodes.set(id,{hidden:true,textContent:'',addEventListener(_,fn){this.click=fn;}});return nodes.get(id);};
  const host={setAttribute(){},prepend(value){notice=value;}};
- const document={body:host,querySelector(selector){if(selector==='.app-shell-skeleton')return inline?null:host;if(selector==='.login-body')return inline?host:null;if(selector==='.shell-startup-warmup')return notice;return null;},createElement(){return {classList:{add(){}},insertAdjacentHTML(){},setAttribute(){},querySelector:node,remove(){notice=null;}};}};
- const context=vm.createContext({document,Date:{now:()=>now},window:{setInterval(fn){tick=fn;return 1;},clearInterval(){tick=null;},setTimeout(fn){delayed=fn;return 2;},clearTimeout(){delayed=null;},location:{reload(){reloads++;}}}});
+ const document={body:host,querySelector(selector){if(selector==='.app-shell-skeleton')return publicPage?null:host;if(selector==='.shell-startup-warmup')return notice;return null;},createElement(){return {innerHTML:'',classList:{add(){}},setAttribute(){},querySelector:node,remove(){notice=null;}};}};
+ const context=vm.createContext({document,window:{setTimeout(fn){delayed=fn;return 2;},clearTimeout(){delayed=null;},location:{reload(){reloads++;}}}});
  vm.runInContext(functions,context);
- return {context,node,get notice(){return notice;},advance(ms){now+=ms;tick?.();},showDelayed(){delayed?.();},get reloads(){return reloads;}};
+ return {context,node,get notice(){return notice;},showDelayed(){delayed?.();},get reloads(){return reloads;}};
 }
-for(const inline of [false,true])test(`countdown enables refresh after 60 seconds in ${inline?'login':'dashboard'}`,()=>{
- const f=fixture(inline);f.context.showStartupWarmupNotice();assert.ok(f.notice);
- f.advance(59000);assert.equal(f.node('[data-startup-refresh]').disabled,true);assert.equal(f.node('.startup-warmup-countdown').textContent,'0:01');
- f.advance(1000);assert.equal(f.node('[data-startup-refresh]').disabled,false);assert.equal(f.node('[data-warmup-title]').textContent,'You can refresh now');assert.equal(f.reloads,0);
+for(const publicPage of [false,true])test('automatic loading screen has no countdown on '+(publicPage?'login':'dashboard'),()=>{
+ const f=fixture(publicPage);f.context.showStartupWarmupNotice();assert.ok(f.notice);
+ assert.match(f.notice.innerHTML,/You don’t need to refresh/);assert.doesNotMatch(f.notice.innerHTML,/Connecting automatically/);assert.doesNotMatch(f.notice.innerHTML,/countdown|1:00|Refresh available/);
+});
+test('fast connections never show the loading screen',async()=>{const f=fixture();assert.equal(await f.context.withStartupWarmup(async()=>42),42);f.showDelayed();assert.equal(f.notice,undefined);});
+test('automatic recovery removes the screen without refreshing',async()=>{const f=fixture();await f.context.withStartupWarmup(async()=>{f.showDelayed();assert.ok(f.notice);});assert.equal(f.notice,null);assert.equal(f.reloads,0);});
+test('exhausted connection attempts offer manual retry without an automatic reload',async()=>{
+ const f=fixture();await assert.rejects(f.context.withStartupWarmup(async()=>{throw Object.assign(new Error('Unavailable'),{status:503});}));
+ assert.equal(f.node('[data-startup-refresh]').hidden,false);assert.match(f.node('[data-warmup-title]').textContent,/Unable to connect/);assert.equal(f.reloads,0);
  f.node('[data-startup-refresh]').click();assert.equal(f.reloads,1);
 });
-test('countdown catches up after a background tab is throttled',()=>{const f=fixture();f.context.showStartupWarmupNotice();f.advance(90000);assert.equal(f.node('[data-startup-refresh]').disabled,false);assert.equal(f.node('.startup-warmup-countdown').textContent,'0:00');});
-test('fast connections never show the notice',async()=>{const f=fixture();assert.equal(await f.context.withStartupWarmup(async()=>42),42);f.showDelayed();assert.equal(f.notice,undefined);});
-test('successful recovery removes the notice and timer',async()=>{const f=fixture();await f.context.withStartupWarmup(async()=>{f.showDelayed();assert.ok(f.notice);});assert.equal(f.notice,null);});
-
+test('authentication failures do not retain a reconnecting screen',async()=>{
+ const f=fixture();await assert.rejects(f.context.withStartupWarmup(async()=>{f.showDelayed();throw Object.assign(new Error('Expired'),{status:401});}));assert.equal(f.notice,null);
+});
 const retrySource = source.slice(source.indexOf('async function loadDatabaseWhenServiceIsReady'), source.indexOf('// Initialize App'));
 function retryHarness(operation) {
  let notices=0, cleared=0;
