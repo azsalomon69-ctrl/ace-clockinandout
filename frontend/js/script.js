@@ -1342,7 +1342,8 @@ function initializeAppShell() {
         renderThemeToggle();
     });
     const renderNotifications = () => {
-        const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt);
+        const reviewedRemarks = getReviewedAdminRemarkIds();
+        const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt && (!isAdmin || !reviewedRemarks.has(String(remark.RemarkId))));
         const unreadRemarksCount = unreadRemarks.length;
         const total = unreadMessages + unreadRemarksCount;
         notificationBadge.hidden = !total;
@@ -1363,7 +1364,7 @@ function initializeAppShell() {
                 const employee = AppState.users.find(user => String(user.UserId) === String(entry?.UserId));
                 const summary = String(remark.Remark || '').replace(/\s+/g, ' ').trim();
                 const preview = summary.length > 100 ? `${summary.slice(0, 99)}…` : summary;
-                const href = isAdmin ? 'admin-time-entries.html?remarks=with' : `remarks.html?remark=${encodeURIComponent(remark.RemarkId)}`;
+                const href = isAdmin ? `time-entry-details.html?entry=${encodeURIComponent(remark.TimeEntryId)}` : `remarks.html?remark=${encodeURIComponent(remark.RemarkId)}`;
                 const title = isAdmin
                     ? `Feedback awaiting review${employee?.FullName ? ` · ${employee.FullName}` : ''}`
                     : `Feedback from ${remark.AdminName || 'an administrator'}`;
@@ -2963,6 +2964,7 @@ function loadAdminTimeEntryDetails() {
         <section class="entry-note-card"><div class="entry-section-heading"><h2>Employee notes</h2>${suppliedIconMarkup('message-circle-more')}</div><h3>Clock-out note</h3><p>${escapeHtml(entry.FinalNote || (entry.ClockOutAt ? 'No note was added when this session ended.' : 'A clock-out note will appear here when the session ends.'))}</p>${entry.UserNote ? `<h3>Clock-in note</h3><p>${escapeHtml(entry.UserNote)}</p>` : ''}</section>
         ${entry.StoppedByName ? `<section class="entry-stop-notice"><strong>Stopped by an administrator</strong><p>${escapeHtml(entry.StoppedByName)} · ${dateTime(entry.StoppedByAt || entry.ClockOutAt)}</p></section>` : ''}</div>
         <section class="entry-feedback-card" aria-labelledby="entryFeedbackTitle"><div class="entry-section-heading"><div><p class="admin-section-kicker">ADMINISTRATOR NOTES</p><h2 id="entryFeedbackTitle">Feedback <span class="entry-feedback-count">${remarks.length}</span></h2></div>${suppliedIconMarkup('message-circle-more')}</div>${remarks.length ? `<div class="entry-feedback-timeline">${remarks.map(remark => `<article><div class="entry-feedback-author"><strong>${escapeHtml(remark.AdminName)}</strong><small>${dateTime(remark.CreatedAt)}</small></div><p>${escapeHtml(remark.Remark)}</p><span class="admin-remark-read-status ${remark.SeenAt ? 'is-seen' : 'is-unseen'}">${suppliedIconMarkup(remark.SeenAt ? 'check' : 'circle-alert')}${remark.SeenAt ? `Seen ${dateTime(remark.SeenAt)}` : 'Not seen yet'}</span></article>`).join('')}</div>` : `<div class="entry-feedback-empty">${suppliedIconMarkup('message-circle-more')}<strong>No feedback yet</strong><p>Add a note about this session to start the conversation.</p></div>`}${canManage ? `<form class="entry-feedback-form" id="entryDetailFeedbackForm"><div class="form-group"><label class="form-label" for="entryDetailFeedbackText">Add a remark</label><textarea class="form-textarea" id="entryDetailFeedbackText" rows="4" maxlength="2000" required aria-describedby="entryFeedbackHelp" placeholder="What should the employee know about this session?"></textarea><small id="entryFeedbackHelp">The employee will be notified when you post.</small></div><div class="form-actions"><button class="btn btn-primary" type="submit">${suppliedIconMarkup('message-circle-plus')}Post remark</button></div></form>` : ''}</section></div>`;
+    acknowledgeAdminRemarks(remarks.map(remark => remark.RemarkId));
     const actionDisclosure = root.querySelector('.entry-action-disclosure');
     actionDisclosure?.addEventListener('keydown', event => {
         if (event.key === 'Escape') { actionDisclosure.open = false; actionDisclosure.querySelector('summary')?.focus(); }
@@ -3720,6 +3722,27 @@ function loadRemarksPage() {
         window.setTimeout(() => target.classList.remove('remark-notification-target'), 2600);
     }));
 }
+
+// Employee SeenAt is a read receipt, not the administrator's notification state.
+const reviewedAdminRemarks = new Map();
+function getReviewedAdminRemarkIds() {
+    const userId = AppState.currentUser?.UserId;
+    if (AppState.currentUser?.Role !== 'ADMIN' || !userId) return new Set();
+    if (!reviewedAdminRemarks.has(userId)) {
+        let ids = [];
+        try { const saved = JSON.parse(localStorage.getItem(`ace_reviewed_remarks_${userId}`) || '[]'); if (Array.isArray(saved)) ids = saved.filter(id => typeof id === 'string'); } catch {}
+        reviewedAdminRemarks.set(userId, new Set(ids));
+    }
+    return reviewedAdminRemarks.get(userId);
+}
+function acknowledgeAdminRemarks(ids) {
+    if (AppState.currentUser?.Role !== 'ADMIN' || !AppState.currentUser?.UserId) return;
+    const reviewed = getReviewedAdminRemarkIds();
+    ids.filter(Boolean).forEach(id => reviewed.add(String(id)));
+    try { localStorage.setItem(`ace_reviewed_remarks_${AppState.currentUser.UserId}`, JSON.stringify([...reviewed])); } catch {}
+    window.ACERenderNotifications?.();
+}
+window.ACEAcknowledgeAdminRemarks = acknowledgeAdminRemarks;
 
 function updateRemarkNotificationBadge() {
     const unread = AppState.currentUser?.Role === 'ADMIN' ? 0 : AppState.adminRemarks.filter(remark => !remark.SeenAt).length;
