@@ -180,10 +180,10 @@ test('every application page references the same shell-script version', () => {
   assert.ok([...versions][0], 'Pages must include a cache-busted shell script revision');
 });
 
-test('late schedule notices have a dedicated dark-theme treatment', () => {
+test('schedule notices stay factual and time-entry alerts retain dark-theme treatment', () => {
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
-  assert.match(shellSource, /notice\.classList\.toggle\('is-late', isLate\)/, 'The dashboard should label late notices instead of treating every schedule message alike');
-  assert.match(styles, /html\[data-theme="dark"\] \.employee-schedule-notice\.is-late/, 'Late notices must have a readable dark-theme surface');
+  assert.match(shellSource, /notice\.classList\.remove\('is-late'\)/, 'The dashboard should clear stale late-warning styling');
+  assert.doesNotMatch(shellSource, /You are late for/, 'The current clock must not declare an employee late');
   assert.match(styles, /html\[data-theme="dark"\] \.admin-dashboard #reviewAlertsSection/, 'The time-entry alert banner needs its own dark-theme surface');
   assert.match(styles, /html\[data-theme="dark"\] \.review-alert-card/, 'Time-entry alert cards need a distinct dark-theme surface');
   assert.match(styles, /html\[data-theme="dark"\] \.review-alert-icon \.ui-icon/, 'Alert-card icons must remain visible in dark mode');

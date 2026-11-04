@@ -3,17 +3,18 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../frontend/js/schedule-flex.js', import.meta.url), 'utf8');
-function fixture({ schedules = [], employees = [] } = {}) {
+function fixture({ schedules = [], employees = [], respond } = {}) {
   const nodes = new Map();
   const element = id => {
-    if (!nodes.has(id)) nodes.set(id, { value: '', textContent: '', hidden: false, disabled: false, dataset: {}, listeners: {}, addEventListener(name, fn) { this.listeners[name] = fn; }, querySelector() { return element('createButton'); }, querySelectorAll() { return []; }, closest() { return { insertAdjacentElement() {} }; }, insertAdjacentHTML(_, html) { this.innerHTML += html; }, focus() { this.focused = true; }, reset() {}, scrollIntoView() {} });
+    if (!nodes.has(id)) nodes.set(id, { value: '', textContent: '', hidden: false, disabled: false, dataset: {}, listeners: {}, addEventListener(name, fn) { this.listeners[name] = fn; }, querySelector() { return element('createButton'); }, querySelectorAll() { return []; }, closest() { return { insertAdjacentElement() {} }; }, insertAdjacentHTML(_, html) { this.innerHTML += html; }, focus() { this.focused = true; }, reset() {}, scrollIntoView() {}, remove() {}, prepend() {}, setAttribute() {} });
     return nodes.get(id);
   };
   const days = [1, 2, 3, 4, 5, 6, 0].map(day => ({ ...element('day' + day), value: String(day), checked: day > 0 && day < 6 }));
   Object.entries({ scheduleType: 'FIXED', scheduleStart: '09:00', scheduleEnd: '18:00', scheduleHours: '9', scheduleMinutes: '0' }).forEach(([id, value]) => { element(id).value = value; });
-  const calls = [];
+  const calls = []; const redirects = [];
   const window = { ACEWaitForVerifiedProfile: async () => ({ Role: 'ADMIN' }), ACEAuth: { request: async (url, options) => {
     calls.push({ url, options });
+    if (respond) { const response = await respond(url, options); if (response !== undefined) return response; }
     if (url === '/v1/me') return { profile: { role: 'ADMIN' } };
     if (url === '/v1/users') return employees;
     if (options?.method === 'POST') return { id: 'new-schedule', name: 'Night shift', is_active: true };
@@ -21,8 +22,8 @@ function fixture({ schedules = [], employees = [] } = {}) {
     return {};
   } }, showToast() {}, addEventListener() {} };
   const document = { body: { dataset: {} }, getElementById: element, querySelector: () => element('assignButton'), querySelectorAll: query => query.includes('scheduleWorkday') ? days : [], addEventListener() {} };
-  vm.runInNewContext(source, { window, document, location: { replace() { throw new Error('Unexpected redirect'); } } });
-  return { window, element, calls, days };
+  vm.runInNewContext(source, { window, document, location: { replace(url) { redirects.push(url); } } });
+  return { window, element, calls, days, redirects };
 }
 test('empty setup explains why assignment is unavailable', async () => {
   const app = fixture({ employees: [{ id: 'person', full_name: 'Alex', email: 'alex@example.com', role: 'USER', status: 'ACTIVE' }] });
@@ -75,7 +76,37 @@ test('as-needed schedules never require attendance on a recurring weekday', () =
   const context = vm.createContext({});
   vm.runInContext(helper + '\nglobalThis.check = isScheduledToday;', context);
   for (let day = 0; day < 7; day++) {
-    assert.equal(context.check({ schedule_type: 'AS_NEEDED', scheduled_weekdays: [] }, { getDay: () => day }), false);
-    assert.equal(context.check({ schedule_type: 'FLEX', scheduled_weekdays: [1, 2, 3, 4, 5] }, { getDay: () => day }), day > 0 && day < 6);
+    assert.equal(context.check({ schedule_type: 'AS_NEEDED', scheduled_weekdays: [] }, new Date(Date.UTC(2026, 10, 1 + day, 4))), false);
+    assert.equal(context.check({ schedule_type: 'FLEX', scheduled_weekdays: [1, 2, 3, 4, 5] }, new Date(Date.UTC(2026, 10, 1 + day, 4))), day > 0 && day < 6);
   }
+});
+
+for (const status of [503, 504, undefined]) test(`schedule service failure ${status || 'network'} keeps sign-in and offers retry`, async () => {
+ let failing = true;
+ const app=fixture({respond:async url=>{if(failing && url.startsWith('/v1/schedules')) throw Object.assign(new Error('Unavailable'),{status});}});
+ await app.window.mountScheduleFlex();
+ assert.deepEqual(app.redirects,[]);assert.match(app.element('scheduleLoadError').innerHTML,/Try again/);
+ assert.equal(app.element('scheduleForm').inert,true);
+ failing=false;await app.element('createButton').listeners.click();
+ assert.equal(app.element('scheduleForm').inert,false);
+ assert.equal(typeof app.element('scheduleForm').listeners.submit,'function');
+});
+test('expired authentication redirects to sign-in, while non-admin users go to their dashboard', async()=>{
+ const expired=fixture({respond:async()=>{throw Object.assign(new Error('Expired'),{status:401});}});
+ await expired.window.mountScheduleFlex();assert.deepEqual(expired.redirects,['/login']);
+ const employee=fixture({respond:async url=>url==='/v1/me'?{profile:{role:'USER'}}:undefined});
+ await employee.window.mountScheduleFlex();assert.deepEqual(employee.redirects,['/user-dashboard']);
+});
+test('assignment choices span all pages while the management table stays paginated', async()=>{
+ const all=Array.from({length:126},(_,index)=>({id:'schedule-'+index,name:'Schedule '+index,is_active:index!==125,schedule_type:'FLEX'}));
+ const app=fixture({respond:async url=>{
+  if(!url.startsWith('/v1/schedules?'))return;
+  const params=new URLSearchParams(url.split('?')[1]);const page=Number(params.get('page')),size=Number(params.get('pageSize'));
+  return {items:all.slice((page-1)*size,page*size),total:all.length};
+ }});
+ await app.window.mountScheduleFlex();
+ assert.match(app.element('scheduleAssignment').innerHTML,/value="schedule-124"/);
+ assert.doesNotMatch(app.element('scheduleAssignment').innerHTML,/value="schedule-125"/);
+ assert.doesNotMatch(app.element('scheduleRows').innerHTML,/Schedule 124/);
+ assert.ok(app.calls.some(call=>call.url==='/v1/schedules?page=2&pageSize=100'));
 });

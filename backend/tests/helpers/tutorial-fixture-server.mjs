@@ -42,7 +42,7 @@ const server = http.createServer(async (req, res) => {
       const action = admin.slice(admin.indexOf('function action('), admin.indexOf('\nfunction ', admin.indexOf('function action(') + 1));
       const profile = shell.split(/\r?\n/).find(line => line.startsWith('const profileRecord ='));
       const clock = shell.slice(shell.indexOf('    // Update clock buttons'), shell.indexOf('    // Update current session card'));
-      const schedule = shell.slice(shell.indexOf('function loadUserDashboard() {'), shell.indexOf('    const userEntriesForStats', shell.indexOf('function loadUserDashboard() {'))) + '}';
+      const schedule = shell.slice(shell.indexOf('function employeeScheduleMessage('), shell.indexOf('    const userEntriesForStats', shell.indexOf('function loadUserDashboard() {'))) + '}';
       const chat = shell.slice(shell.indexOf('function initializeEmployeeChat() {'), shell.indexOf('    const launcher = chat.querySelector', shell.indexOf('function initializeEmployeeChat() {'))) + '}';
       res.setHeader('Content-Type', 'text/javascript');
       return res.end(`${profile}\nwindow.fixtureProfileRecord=profileRecord;\nconst esc = s => String(s ?? ''); const icon = () => '';\n${action}\nwindow.fixtureRowAction=action;\nwindow.fixtureClock=function(){${clock}};\nconst isScheduledToday=()=>true;\n${schedule}\nwindow.fixtureSchedule=loadUserDashboard;\n${chat}\nwindow.fixtureChat=initializeEmployeeChat;`);

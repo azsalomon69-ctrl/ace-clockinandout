@@ -82,7 +82,7 @@ const defaultScheduleWeekdays = [1, 2, 3, 4, 5];
 const isScheduledToday = (schedule, date = new Date()) => {
     if (schedule?.schedule_type === 'AS_NEEDED') return false;
     const weekdays = Array.isArray(schedule?.scheduled_weekdays) && schedule.scheduled_weekdays.length ? schedule.scheduled_weekdays.map(Number) : defaultScheduleWeekdays;
-    return weekdays.includes(date.getDay());
+    return weekdays.includes(new Date(date.getTime() + 8 * 3600000).getUTCDay());
 };
 
 // Native select popups differ wildly between browsers and operating systems.
@@ -1748,7 +1748,7 @@ function workspaceHelpEntries(isAdmin) {
         ['Why does my entry show an administrator remark?', 'An administrator added feedback to that time entry. Open Work → Remarks to read it and check the related entry details.'],
         ['Where are administrator remarks?', 'Open Work → Remarks to read feedback connected to your time entries.'],
         ['What does my schedule mean?', 'If an administrator assigned you a schedule, Dashboard shows it. Fixed schedules show expected start and end times; flextime shows the required daily time.'],
-        ['Why am I marked late?', 'For a fixed schedule, the system compares your clock-in time with the scheduled start time. Contact an administrator if the schedule or recorded time is incorrect.'],
+        ['How do I check my clock-in against my schedule?', 'Your dashboard shows scheduled times and your recorded clock-in in Manila time. Contact an administrator if either is incorrect.'],
         ['How do I update my profile?', 'Open the sidebar account menu and choose Profile & settings. Use the Profile tab to update the available information and save changes.'],
         ['How do I change my password or security settings?', 'Open Profile & settings, select Security, make the change, and save. Use a password you do not reuse elsewhere.'],
         ['How do I change dark mode or appearance?', 'Open Profile & settings and choose Appearance. Select your preferred theme or display options, then save.'],
@@ -2848,13 +2848,8 @@ function startClock() {
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString();
-    const schedule = AppState.assignedSchedule;
-    if (schedule?.schedule_type === 'FIXED' && isScheduledToday(schedule, now) && !AppState.isClockedIn && schedule.start_time) {
-        const [hours, minutes] = String(schedule.start_time).slice(0, 5).split(':').map(Number); const start = new Date(); start.setHours(hours, minutes, 0, 0);
-        const key = `late-${now.toDateString()}`;
-        if (now > start && !AppState.scheduleAlertKeys.has(key)) { AppState.scheduleAlertKeys.add(key); showToast(`You are late for ${schedule.name}. Your scheduled start was ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`, 'warning'); }
-    }
-    
+    updateEmployeeScheduleNotice(now);
+
     const clockTimeElements = document.querySelectorAll('#clockTime');
     clockTimeElements.forEach(el => {
         if (el) el.textContent = timeString;
@@ -3012,30 +3007,57 @@ function loadAdminTimeEntryDetails() {
     });
 }
 
-function loadUserDashboard() {
-    const schedule = AppState.assignedSchedule;
-    const existingNotice = document.getElementById('employeeScheduleNotice');
-    if (schedule && !existingNotice) {
-        const notice = document.createElement('section'); notice.id = 'employeeScheduleNotice'; notice.className = 'employee-schedule-notice';
-        const now = new Date(); const active = AppState.currentSession;
-        let message = ''; let isLate = false;
-        if (schedule.schedule_type === 'AS_NEEDED') {
-            message = active
-                ? `${schedule.name}: as-needed shift in progress. Target: ${Number(schedule.daily_elapsed_minutes) / 60} hours for this shift.`
-                : `${schedule.name}: clock in when assigned work, any day. Days without work are not absences.`;
-        } else if (!isScheduledToday(schedule, now)) {
-            message = `${schedule.name}: no work is scheduled today.`;
-        } else if (schedule.schedule_type === 'FLEX' && active) {
-            const finish = new Date(new Date(active.ClockInAt).getTime() + Number(schedule.daily_elapsed_minutes || 540) * 60000);
-            message = `Flextime: expected finish ${finish.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`;
-        } else if (schedule.schedule_type === 'FIXED') {
-            const [hours, minutes] = String(schedule.start_time).slice(0, 5).split(':').map(Number); const start = new Date(); start.setHours(hours, minutes, 0, 0);
-            isLate = !active && now > start;
-            message = isLate ? `You are late for ${schedule.name}. Scheduled start: ${start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : `${schedule.name}: ${String(schedule.start_time).slice(0, 5)}–${String(schedule.end_time).slice(0, 5)}.`;
-        } else if (schedule.schedule_type === 'FLEX') message = `${schedule.name}: clock in for ${Math.floor(Number(schedule.daily_elapsed_minutes || 540) / 60)} hours total.`;
-        notice.classList.toggle('is-late', isLate);
-        notice.textContent = message; document.querySelector('.user-dashboard .employee-dashboard-intro')?.insertAdjacentElement('afterend', notice);
+function employeeScheduleMessage(schedule, entries, active, now = new Date()) {
+    if (!schedule) return '';
+    const time = value => new Date(value).toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' });
+    if (schedule.schedule_type === 'AS_NEEDED') return active
+        ? schedule.name + ': as-needed shift in progress. Target: ' + Number(schedule.daily_elapsed_minutes) / 60 + ' hours for this shift.'
+        : schedule.name + ': clock in when assigned work, any day. Days without work are not absences.';
+    if (schedule.schedule_type === 'FIXED' && schedule.start_time && schedule.end_time) {
+        const local = new Date(now.getTime() + 8 * 3600000);
+        let day = local.toISOString().slice(0, 10);
+        const startTime = String(schedule.start_time).slice(0,5);
+        const endTime = String(schedule.end_time).slice(0,5);
+        const overnight = endTime <= startTime;
+        if (overnight && local.toISOString().slice(11,16) < endTime) day = new Date(Date.parse(day + 'T00:00:00Z') - 86400000).toISOString().slice(0,10);
+        const start = new Date(day + 'T' + startTime + ':00+08:00');
+        const end = new Date(day + 'T' + endTime + ':00+08:00');
+        if (overnight) end.setTime(end.getTime() + 86400000);
+        const dayStart = Date.parse(day + 'T00:00:00+08:00');
+        const shiftEntries = entries.filter(entry => {
+            const clockIn = Date.parse(entry.ClockInAt);
+            return clockIn >= dayStart && clockIn <= Math.min(now.getTime(), end.getTime()) && (!overnight || clockIn >= dayStart + Number(endTime.slice(0,2)) * 3600000 + Number(endTime.slice(3)) * 60000);
+        }).sort((a,b) => Date.parse(a.ClockInAt) - Date.parse(b.ClockInAt));
+        const recorded = shiftEntries[0] || active;
+        const scheduled = schedule.name + ': ' + time(start) + '–' + time(end) + ' (Manila time).';
+        // Show facts rather than labeling someone late from the current clock.
+        // Existing entries may follow a different historical schedule snapshot.
+        if (recorded) return scheduled + ' Recorded clock-in: ' + time(recorded.ClockInAt) + '.';
+        if (!isScheduledToday(schedule, start)) return schedule.name + ': no work is scheduled today.';
+        return scheduled + (now > start ? ' No clock-in recorded for this shift yet.' : '');
     }
+    if (active) return 'Flextime: expected finish ' + time(Date.parse(active.ClockInAt) + Number(schedule.daily_elapsed_minutes || 540) * 60000) + ' (Manila time).';
+    if (!isScheduledToday(schedule, now)) return schedule.name + ': no work is scheduled today.';
+    return schedule.name + ': clock in for ' + Math.floor(Number(schedule.daily_elapsed_minutes || 540) / 60) + ' hours total.';
+}
+
+function updateEmployeeScheduleNotice(now = new Date()) {
+    const intro = document.querySelector('.user-dashboard .employee-dashboard-intro');
+    if (!intro) return;
+    let notice = document.getElementById('employeeScheduleNotice');
+    if (!AppState.assignedSchedule) { notice?.remove(); return; }
+    if (!notice) {
+        notice = document.createElement('section'); notice.id = 'employeeScheduleNotice'; notice.className = 'employee-schedule-notice';
+        intro.insertAdjacentElement('afterend', notice);
+    }
+    const entries = AppState.timeEntries.filter(entry => entry.UserId === AppState.currentUser?.UserId);
+    const message = employeeScheduleMessage(AppState.assignedSchedule, entries, AppState.currentSession, now);
+    notice.classList.remove('is-late');
+    if (notice.textContent !== message) notice.textContent = message;
+}
+
+function loadUserDashboard() {
+    updateEmployeeScheduleNotice();
     const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.DurationSeconds);
     const now = new Date();
     const startOfWeek = new Date(now);

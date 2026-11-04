@@ -28,15 +28,29 @@
       catch (error) { button.disabled = false; button.textContent = 'Remove assignment'; toast(error.message || 'Could not remove the assignment.', 'error'); }
     }));
   };
+  const loadAssignmentSchedules = async () => {
+    const choices = [];
+    for (let page = 1; ; page++) {
+      const response = await request('/v1/schedules?page=' + page + '&pageSize=100');
+      const items = response.items || response;
+      if (!items.length) {
+        if (response.total > choices.length) throw new Error('Could not load all schedule choices. Please retry.');
+        break;
+      }
+      choices.push(...items);
+      if (response.total !== undefined ? choices.length >= response.total : items.length < 100) break;
+    }
+    return choices;
+  };
   const load = async (preferredSchedule = null) => {
-    const [scheduleResponse, users] = await Promise.all([request('/v1/schedules?page=' + schedulePage + '&pageSize=' + schedulePageSize), request('/v1/users')]); schedules = scheduleResponse.items || scheduleResponse; scheduleTotal = scheduleResponse.total ?? schedules.length; allUsers = users;
+    const [scheduleResponse, users, assignmentSchedules] = await Promise.all([request('/v1/schedules?page=' + schedulePage + '&pageSize=' + schedulePageSize), request('/v1/users'), loadAssignmentSchedules()]); schedules = scheduleResponse.items || scheduleResponse; scheduleTotal = scheduleResponse.total ?? schedules.length; allUsers = users;
     const employees = allUsers.filter(user => user.role === 'USER' && user.status === 'ACTIVE');
     const employeeInput = document.getElementById('scheduleEmployee'); const employeeList = document.getElementById('scheduleEmployeeOptions'); const assignmentSelect = document.getElementById('scheduleAssignment'); const assignButton = document.querySelector('#assignmentForm button[type="submit"]');
     employeeOptions = new Map(employees.map(user => [`${user.full_name || user.email} — ${user.email}`, user.id]));
     if (!employeeOptions.has(employeeInput.value)) employeeInput.value = '';
     const previousSchedule = assignmentSelect.value;
     employeeList.innerHTML = employees.map(user => `<option value="${escapeHtml(user.full_name || user.email)} — ${escapeHtml(user.email)}"></option>`).join('');
-    const activeSchedules = schedules.filter(item => item.is_active);
+    const activeSchedules = assignmentSchedules.filter(item => item.is_active);
     assignmentSelect.innerHTML = activeSchedules.length ? `<option value="" selected disabled>Select schedule</option>${activeSchedules.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}` : '<option value="">Create a schedule first</option>';
     if (preferredSchedule && !activeSchedules.some(item => item.id === preferredSchedule.id)) {
       assignmentSelect.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(preferredSchedule.id) + '">' + escapeHtml(preferredSchedule.name) + '</option>');
@@ -64,7 +78,34 @@
     pager.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => { schedulePage = Number(button.dataset.page); load(); })); pager.querySelector('select')?.addEventListener('change', event => { schedulePageSize = Number(event.target.value); schedulePage = 1; load(); });
     renderAssignments();
   };
-  const mount = async () => { try { const me = await request('/v1/me'); if (me.profile.role !== 'ADMIN') return location.replace('/user-dashboard'); await load(); } catch { location.replace('/login'); }
+  const showLoadError = error => {
+    let panel = document.getElementById('scheduleLoadError');
+    if (!panel) {
+      panel = document.createElement('section'); panel.id = 'scheduleLoadError'; panel.className = 'settings-section'; panel.setAttribute('role', 'alert');
+      document.querySelector('.admin-section-wrap').prepend(panel);
+    }
+    panel.innerHTML = '<h2>Schedules could not load</h2><p>The service may be waking up or your connection may be interrupted. Your sign-in has been kept. Try loading this page again.</p><button class="btn btn-primary" type="button">Try again</button>';
+    const retry = panel.querySelector('button');
+    retry.addEventListener('click', async () => {
+      retry.disabled = true;
+      try { await window.mountScheduleFlex(); }
+      finally { retry.disabled = false; }
+    });
+  };
+  const mount = async () => {
+    const forms = ['scheduleForm', 'assignmentForm'].map(id => document.getElementById(id));
+    forms.forEach(form => { form.inert = true; });
+    try {
+      const me = await request('/v1/me');
+      if (me.profile.role !== 'ADMIN') return location.replace('/user-dashboard');
+      await load();
+      document.getElementById('scheduleLoadError')?.remove();
+      forms.forEach(form => { form.inert = false; });
+    } catch (error) {
+      if (error.status === 401) location.replace('/login');
+      else showLoadError(error);
+      return;
+    }
     const type = document.getElementById('scheduleType'); const typeHelp = document.getElementById('scheduleTypeHelp'); const scheduleForm = document.getElementById('scheduleForm'); const workdayInputs = [...document.querySelectorAll('input[name="scheduleWorkday"]')]; const workdayError = document.getElementById('scheduleWorkdayError'); const createButton = scheduleForm.querySelector('button[type="submit"]');
     const toggle = () => { const flexible = type.value !== 'FIXED'; document.getElementById('scheduleWorkdays').hidden = type.value === 'AS_NEEDED'; document.querySelectorAll('.fixed-time').forEach(node => node.hidden = flexible); typeHelp.textContent = type.value === 'AS_NEEDED' ? 'Work any weekday or weekend. No recurring required days or absence for days without a clock-in. The daily target applies only when worked.' : flexible ? 'No late clock-in warning. Only selected workdays are tracked.' : 'Employees clock in at set times on selected workdays.'; };
     const validateWorkdays = () => { const valid = type.value === 'AS_NEEDED' || workdayInputs.some(input => input.checked); workdayError.hidden = valid; createButton.disabled = !valid; return valid; };
