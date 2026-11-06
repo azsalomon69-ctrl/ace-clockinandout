@@ -103,13 +103,25 @@ test('a response whose body never finishes cannot leave startup hanging', async(
  const {request,effects}=requestHarness(async()=>({status:200,ok:true,json:()=>new Promise(()=>{})}),undefined,{setTimeout:fn=>setTimeout(fn,0),clearTimeout});
  await assert.rejects(request('/v1/me'),error=>error.code==='ETIMEDOUT');assert.equal(effects.signedOut,0);
 });
-test('health readiness rejects 503 and HTML responses, then recovers without creating an auth client', async()=>{
+test('configuration readiness rejects 503 and HTML responses, then recovers without creating an auth client', async()=>{
  let calls=0;
- const context=vm.createContext({AbortController,window:{setTimeout,clearTimeout,supabase:{createClient(){assert.fail('Health must not initialize auth');}}},fetch:async()=>{
-  calls++;return calls===1?{ok:false,status:503,json:async()=>({ok:false})}:calls===2?{ok:true,status:200,json:async()=>{throw new SyntaxError();}}:{ok:true,status:200,json:async()=>({ok:true})};
+ const context=vm.createContext({AbortController,window:{setTimeout,clearTimeout,supabase:{createClient(){assert.fail('Readiness must not initialize auth');}}},fetch:async()=>{
+  calls++;return calls===1?{ok:false,status:503,json:async()=>({ok:false})}:calls===2?{ok:true,status:200,json:async()=>{throw new SyntaxError();}}:{ok:true,status:200,json:async()=>({supabaseUrl:"https://example.test",supabasePublishableKey:"public-test-key"})};
  }});
  vm.runInContext(source,context);
  await assert.rejects(context.window.ACEAuth.checkService(),{status:503});
  await assert.rejects(context.window.ACEAuth.checkService(),{status:503});
  await context.window.ACEAuth.checkService();assert.equal(calls,3);
+});
+
+test('browser startup succeeds even when a client filter blocks /health', async()=>{
+ const calls=[];
+ const context=vm.createContext({AbortController,window:{setTimeout,clearTimeout},fetch:async url=>{
+  calls.push(url);
+  if(url.endsWith('/health'))throw new TypeError('net::ERR_BLOCKED_BY_CLIENT');
+  assert.ok(url.endsWith('/v1/auth/config'));
+  return {ok:true,status:200,json:async()=>({supabaseUrl:'https://example.test',supabasePublishableKey:'public-test-key'})};
+ }});
+ vm.runInContext(source,context);await context.window.ACEAuth.checkService();
+ assert.deepEqual(calls,['/v1/auth/config']);
 });

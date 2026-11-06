@@ -115,12 +115,14 @@ window.ACEAuth = (() => {
         return body;
     }
     async function checkService() {
-        const response = await fetchWithTimeout(`${apiUrl()}/health`, { timeoutMs: 10000, cache: 'no-store' });
-        const body = await withTimeout(response.json(), 'The ACE health response took too long.').catch(error => {
+        // /health is for infrastructure monitoring. Some browser filters block
+        // that path, so gate startup on the configuration the app actually uses.
+        const response = await fetchWithTimeout(`${apiUrl()}/v1/auth/config`, { timeoutMs: 10000, cache: 'no-store' });
+        const body = await withTimeout(response.json(), 'The ACE configuration response took too long.').catch(error => {
             if (error.code === 'ETIMEDOUT') throw error;
             return null;
         });
-        if (!response.ok || body?.ok !== true) {
+        if (!response.ok || typeof body?.supabaseUrl !== 'string' || !body.supabaseUrl || typeof body?.supabasePublishableKey !== 'string' || !body.supabasePublishableKey) {
             const error = new Error('The ACE server is not ready yet.');
             error.status = response.ok ? 503 : response.status;
             throw error;
