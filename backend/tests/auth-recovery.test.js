@@ -27,7 +27,7 @@ test('login retries configuration after a temporary service failure and shares s
   assert.equal(created, 1);
 });
 
-function requestHarness(send, refresh = async () => ({ data: { session: { access_token: 'new-token' } }, error: null })) {
+function requestHarness(send, refresh = async () => ({ data: { session: { access_token: 'new-token' } }, error: null }), timers = { setTimeout, clearTimeout }) {
   const effects = { refreshes: 0, signedOut: 0, removed: [], notices: [], redirects: [] };
   const auth = { auth: {
     getSession: async () => ({ data: { session: { access_token: 'old-token' } } }),
@@ -36,7 +36,7 @@ function requestHarness(send, refresh = async () => ({ data: { session: { access
   } };
   const context = vm.createContext({
     AbortController,
-    window: { ACE_API_URL: 'https://api.example.test/', setTimeout, clearTimeout, supabase: { createClient: () => auth }, location: { replace: url => effects.redirects.push(url) } },
+    window: { ACE_API_URL: 'https://api.example.test/', ...timers, supabase: { createClient: () => auth }, location: { replace: url => effects.redirects.push(url) } },
     localStorage: { removeItem: key => effects.removed.push(key) },
     sessionStorage: { setItem: (key, value) => effects.notices.push({ key, value }) },
     fetch: async (url, options) => url.endsWith('/v1/auth/config')
@@ -87,4 +87,29 @@ test('permission denial is preserved without refreshing or signing out', async (
 test('successful empty responses are accepted', async () => {
   const { request } = requestHarness(async () => ({ status: 204, ok: true, json: async () => { throw new SyntaxError('No JSON'); } }));
   assert.equal(Object.keys(await request('/v1/test', { method: 'DELETE' })).length, 0);
+});
+
+test('a stalled session refresh times out without signing the employee out', async()=>{
+ const {request,effects}=requestHarness(async()=>({status:401}),()=>new Promise(()=>{}),{setTimeout:fn=>setTimeout(fn,0),clearTimeout});
+ await assert.rejects(request('/v1/me'),error=>error.code==='ETIMEDOUT');
+ assert.equal(effects.signedOut,0);assert.deepEqual(effects.removed,[]);
+});
+test('a 503 during token refresh preserves the existing session', async()=>{
+ const {request,effects}=requestHarness(async()=>({status:401}),async()=>({data:{session:null},error:{name:'AuthRetryableFetchError',status:503}}));
+ await assert.rejects(request('/v1/me'),error=>error.status===503);
+ assert.equal(effects.signedOut,0);assert.deepEqual(effects.redirects,[]);
+});
+test('a response whose body never finishes cannot leave startup hanging', async()=>{
+ const {request,effects}=requestHarness(async()=>({status:200,ok:true,json:()=>new Promise(()=>{})}),undefined,{setTimeout:fn=>setTimeout(fn,0),clearTimeout});
+ await assert.rejects(request('/v1/me'),error=>error.code==='ETIMEDOUT');assert.equal(effects.signedOut,0);
+});
+test('health readiness rejects 503 and HTML responses, then recovers without creating an auth client', async()=>{
+ let calls=0;
+ const context=vm.createContext({AbortController,window:{setTimeout,clearTimeout,supabase:{createClient(){assert.fail('Health must not initialize auth');}}},fetch:async()=>{
+  calls++;return calls===1?{ok:false,status:503,json:async()=>({ok:false})}:calls===2?{ok:true,status:200,json:async()=>{throw new SyntaxError();}}:{ok:true,status:200,json:async()=>({ok:true})};
+ }});
+ vm.runInContext(source,context);
+ await assert.rejects(context.window.ACEAuth.checkService(),{status:503});
+ await assert.rejects(context.window.ACEAuth.checkService(),{status:503});
+ await context.window.ACEAuth.checkService();assert.equal(calls,3);
 });

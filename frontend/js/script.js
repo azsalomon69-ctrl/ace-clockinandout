@@ -436,10 +436,10 @@ async function withStartupWarmup(operation) {
 async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
     // Free Render services can sleep. Keep the page skeleton visible while the
     // service wakes, and only reveal the application after a complete live load.
-    const retryDelays = [1500, 2500, 4000, 6000, 8000, 10000, 10000, 10000, 10000];
-    const startupDeadline = Date.now() + 120000;
+    const retryDelays = [1500, 2500, 4000, 6000, 8000];
+    const startupDeadline = Date.now() + 300000;
     let lastError;
-    for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    for (let attempt = 0; ; attempt += 1) {
         const remaining = startupDeadline - Date.now();
         if (remaining <= 0) {
             const timeoutError = new Error('ACE could not finish loading the workspace before the startup deadline.');
@@ -457,16 +457,24 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
                     reject(timeoutError);
                 }, remaining);
             });
-            const loaded = await Promise.race([operation(), deadline]);
+            const connect = async () => {
+                await window.ACEAuth?.checkService?.();
+                const status = document.querySelector('.startup-warmup-status');
+                if (status) status.textContent = 'Server connected. Loading your account and workspace…';
+                return operation();
+            };
+            const loaded = await Promise.race([connect(), deadline]);
             clearStartupWarmupNotice();
             return loaded;
         } catch (error) {
             lastError = error;
             const retryable = !error.status || error.status >= 500 || error.status === 429;
-            if (!retryable || attempt === retryDelays.length || Date.now() >= startupDeadline) throw error;
+            if (!retryable || Date.now() >= startupDeadline) throw error;
             showStartupWarmupNotice();
             console.info(`Waiting for ACE services to wake up (attempt ${attempt + 1}).`);
-            await pause(Math.min(retryDelays[attempt], Math.max(0, startupDeadline - Date.now())));
+            const status = document.querySelector('.startup-warmup-status');
+            if (status) status.textContent = 'Still trying to connect. Keep this page open; no refresh is needed.';
+            await pause(Math.min(retryDelays[attempt] || 10000, Math.max(0, startupDeadline - Date.now())));
         } finally {
             window.clearTimeout(deadlineTimer);
         }
