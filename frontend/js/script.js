@@ -2032,6 +2032,46 @@ function matchWorkspaceHelp(question, entries, withAlternatives = false) {
     return answer(null, alternatives);
 }
 
+function createRickHoverVoice() {
+    const clips = ['hello', 'need-help', 'genius', 'dont-mess', 'got-a-question', 'looking-at',
+        'over-there', 'welcome-back', 'judging', 'make-it-easy', 'come-on', 'fast-help'];
+    const storageKey = 'ace-rick-hover-voice-v1';
+    const cooldown = 45_000;
+    let nextClip = 0;
+    let lastPlayed = 0;
+    let audio;
+    let starting = false;
+    try {
+        const saved = JSON.parse(sessionStorage.getItem(storageKey));
+        if (Number.isInteger(saved?.nextClip) && saved.nextClip >= 0 && saved.nextClip < clips.length) nextClip = saved.nextClip;
+        if (Number.isFinite(saved?.lastPlayed)) lastPlayed = saved.lastPlayed;
+    } catch { /* Audio still works when storage is unavailable. */ }
+
+    function recordPlayback() {
+        lastPlayed = Date.now();
+        try { sessionStorage.setItem(storageKey, JSON.stringify({ nextClip, lastPlayed })); }
+        catch { /* Keep the in-memory cooldown. */ }
+    }
+
+    return async function playHoverVoice() {
+        if (starting || (audio && !audio.paused && !audio.ended) || Date.now() - lastPlayed < cooldown) return;
+        if (navigator.userActivation?.hasBeenActive === false) return;
+        starting = true;
+        try {
+            if (!audio) {
+                audio = new Audio();
+                audio.volume = 0.45;
+                audio.addEventListener('ended', recordPlayback);
+            }
+            audio.src = `/assets/audio/rick/${clips[nextClip]}.mp3`;
+            await audio.play();
+            nextClip = (nextClip + 1) % clips.length;
+            recordPlayback();
+        } catch { /* Playback can be blocked by browser settings. */ }
+        finally { starting = false; }
+    };
+}
+
 function mountWorkspaceHelp(isAdmin) {
     const entries = workspaceHelpEntries(isAdmin);
     const mascot = `<span class="help-bot-mascot" aria-hidden="true"><span class="rick-sprite"></span></span>`;
@@ -2055,6 +2095,8 @@ function mountWorkspaceHelp(isAdmin) {
     attentionArt.onload = () => { if (bot.isConnected) bot.classList.add('has-attention-art'); };
     attentionArt.src = 'assets/images/ace-help-rick-attention-v1.png';
     let pointerOverRick = false;
+    let hoverVoiceTimer;
+    const playHoverVoice = createRickHoverVoice();
     const updateAttention = () => {
         const attentive = pointerOverRick || launcher.matches(':focus-visible');
         bot.classList.toggle('is-attentive', attentive);
@@ -2064,8 +2106,18 @@ function mountWorkspaceHelp(isAdmin) {
         if (event.pointerType === 'touch') return;
         pointerOverRick = true;
         updateAttention();
+        clearTimeout(hoverVoiceTimer);
+        hoverVoiceTimer = setTimeout(() => {
+            if (pointerOverRick && bot.isConnected && panel.hidden && !bot.classList.contains('is-picked-up') && !document.hidden) {
+                void playHoverVoice();
+            }
+        }, 300);
     });
-    launcher.addEventListener('pointerleave', () => { pointerOverRick = false; updateAttention(); });
+    launcher.addEventListener('pointerleave', () => {
+        pointerOverRick = false;
+        clearTimeout(hoverVoiceTimer);
+        updateAttention();
+    });
     launcher.addEventListener('focus', updateAttention);
     launcher.addEventListener('blur', updateAttention);
 
