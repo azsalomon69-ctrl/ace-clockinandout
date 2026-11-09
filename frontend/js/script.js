@@ -1675,32 +1675,42 @@ function workspaceHelpEntryMatches(entry, query) {
 function mountWorkspaceHelp(isAdmin) {
     const entries = workspaceHelpEntries(isAdmin);
     const popular = isAdmin ? [1, 10, 14, 16] : [1, 2, 8, 11];
-    const mascot = id => `<svg class="help-bot-mascot" viewBox="12 6 83 127" aria-hidden="true" focusable="false">
-        <defs>
-            <clipPath id="help-rick-body-${id}">
-                <path d="M33 9 38 8 46 13 55 20 58 12 63 7 67 11 73 28 82 21 85 21 87 26 82 41 92 42 94 45 88 51 84 54 86 59 90 60 90 64 83 69 82 77 80 83 72 88 71 97 74 105 73 114 70 119 74 126 73 130 62 130 59 120 56 120 53 130 42 131 41 127 45 117 38 116 36 113 38 109 34 108 34 103 37 95 41 88 35 86 33 83 24 86 23 82 28 74 19 72 16 68 19 63 25 59 14 55 14 51 27 42 21 38 19 32 23 29 35 30Z"/>
-            </clipPath>
-            <clipPath id="help-rick-arm-${id}">
-                <path d="M70 88 74 89 77 94 77 98 80 100 80 106 77 109 72 106 71 101 68 95Z"/>
-            </clipPath>
-        </defs>
-        <g class="help-bot-mascot-body">
-            <image href="assets/images/ace-help-rick.png" width="111" height="137" clip-path="url(#help-rick-body-${id})"/>
-            <g class="help-bot-mascot-wave">
-                <image href="assets/images/ace-help-rick.png" width="111" height="137" clip-path="url(#help-rick-arm-${id})"/>
+    const mascot = `<svg class="help-bot-mascot" viewBox="12 6 83 127" shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+        <image class="help-bot-mascot-idle" href="assets/images/ace-help-rick-idle.svg" x="12" y="6" width="83" height="127"/>
+        <g class="help-bot-mascot-front">
+            <g stroke="#394a43" stroke-width="2">
+                <path fill="#755438" d="M43 109h23v11h4v9H59v-8h-9v8H39v-6h4z"/>
+                <path fill="#fff9e9" d="M44 85h20l5 6 4 13-5 4-4-6v12H43v-11l-3 6-6-3 4-14z"/>
+                <path fill="#a4cbd0" d="M49 88h10v25H49z"/>
+                <path fill="#e8c39a" d="M35 106l6 2-1 6h-5l-2-3z"/>
+                <g class="help-bot-mascot-wave">
+                    <path fill="#fff9e9" d="M65 90l6 7 6-7 5 4-7 11h-6l-7-9z"/>
+                    <path fill="#e8c39a" d="M76 91v-6h-3v-4h3l3 3v-9h3v6h2v-4h3v6h2v5l-4 5h-6z"/>
+                    <path fill="none" stroke-width="1" d="M78 86l4 3m1-5v3"/>
+                </g>
+                <path fill="#a4cbd0" d="M27 42l-7-9 5-3 11 2-3-20 4-2 17 12 8-15 4 2 8 22 11-9 3 2-7 18 11 2-2 5-8 6 8 7-3 4-8 2 5 9-4 4-9-2-4 8H41l-4-8-12 5-2-4 5-8-12-2v-4l10-8-12-5 2-5z"/>
+                <path fill="#e8c39a" d="M34 53l3-11 7-6 11-2 11 2 7 6 3 11 4 5v11l-6 10-10 7H46l-10-7-6-10V58z"/>
+                <path fill="#9bc4c8" d="M38 48l5-5h24l5 5-4 4-7-2H49l-7 2z"/>
+                <path fill="#fffbee" d="M38 56l5-5h8l5 5 5-5h8l5 5v8l-5 5h-8l-5-5-5 5h-8l-5-5z"/>
+                <path fill="none" stroke-width="1.5" d="M55 61l-2 10 4 2 3-3"/>
             </g>
-            <path class="help-bot-mascot-mouth" fill="#483833" d="M62 77h8v2h-2v3h-4v-2h-2z"/>
+            <path fill="#303933" d="M46 57h3v4h-3zM64 57h3v4h-3z"/>
+            <path fill="none" stroke="#795c49" stroke-width="1.5" d="M48 76l4 3h9l4-3"/>
+            <g class="help-bot-mascot-mouth">
+                <path fill="#633e35" d="M48 75h17l-2 6-4 2h-6l-4-3z"/>
+                <path fill="#fff4dc" d="M50 75h13v2H50z"/>
+            </g>
         </g>
     </svg>`;
     const bot = document.createElement('div');
     bot.className = 'help-bot';
     bot.innerHTML = `
         <button class="help-bot-launcher" type="button" aria-label="Open ACE help" aria-expanded="false" aria-controls="workspaceHelpPanel">
-            ${mascot("launcher")}<span class="help-bot-greeting" aria-hidden="true">Do you need help?</span>
+            ${mascot}<span class="help-bot-greeting" aria-hidden="true">Do you need help?</span>
         </button>
         <section class="help-bot-panel" id="workspaceHelpPanel" role="dialog" aria-labelledby="workspaceHelpTitle" hidden>
             <header class="help-bot-header">
-                ${mascot("panel")}
+                ${mascot}
                 <div><h2 id="workspaceHelpTitle">ACE Help</h2><p>${isAdmin ? 'Administrator guide' : 'Employee guide'}</p></div>
                 <button class="help-bot-close" type="button" aria-label="Close ACE help">${suppliedIconMarkup('x')}</button>
             </header>
