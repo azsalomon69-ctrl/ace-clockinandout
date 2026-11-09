@@ -2125,14 +2125,32 @@ function mountWorkspaceHelp(isAdmin) {
     let drag = null;
     let suppressClick = false;
     function viewport() {
-        const v = window.visualViewport;
-        return { left: v?.offsetLeft || 0, top: v?.offsetTop || 0,
-            width: v?.width || innerWidth, height: v?.height || innerHeight };
+        const visual = window.visualViewport;
+        const left = visual?.offsetLeft || 0, top = visual?.offsetTop || 0;
+        const right = left + (visual?.width || document.documentElement.clientWidth);
+        const bottom = top + (visual?.height || document.documentElement.clientHeight);
+        const bounds = { left, top, right, bottom };
+        const visibleRect = selector => {
+            const element = document.querySelector(selector);
+            if (!element || element.getAttribute('aria-hidden') === 'true') return null;
+            const style = getComputedStyle(element), rect = element.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0
+                && rect.right > left && rect.left < right && rect.bottom > top && rect.top < bottom ? rect : null;
+        };
+        const header = visibleRect('.shell-topbar');
+        const sidebar = visibleRect('.app-sidebar');
+        const bottomNav = visibleRect('.employee-bottom-nav');
+        if (header && header.top <= top + 1) bounds.top = Math.min(bottom, header.bottom);
+        if (sidebar && sidebar.left <= left + 1) bounds.left = Math.min(right, sidebar.right);
+        if (bottomNav && bottomNav.bottom >= bottom - 1) bounds.bottom = Math.max(bounds.top, bottomNav.top);
+        return { ...bounds, width: Math.max(0, bounds.right - bounds.left), height: Math.max(0, bounds.bottom - bounds.top) };
     }
     function moveRick(x, y) {
-        const v = viewport();
-        position = { x: Math.round(Math.max(v.left + 8, Math.min(x, v.left + v.width - 80))),
-            y: Math.round(Math.max(v.top + 8, Math.min(y, v.top + v.height - 112))) };
+        const v = viewport(), rect = launcher.getBoundingClientRect();
+        position = {
+            x: Math.round(Math.max(v.left + 12, Math.min(x, v.right - rect.width - 12))),
+            y: Math.round(Math.max(v.top + 12, Math.min(y, v.bottom - rect.height - 12)))
+        };
         bot.style.left = position.x + 'px';
         bot.style.top = position.y + 'px';
         bot.style.right = 'auto';
@@ -2146,9 +2164,9 @@ function mountWorkspaceHelp(isAdmin) {
         if (panel.hidden) return;
         const v = viewport();
         const r = launcher.getBoundingClientRect();
-        const width = Math.min(378, v.width - 24);
+        const width = Math.max(0, Math.min(378, v.width - 24));
         panel.style.width = width + 'px';
-        panel.style.maxHeight = Math.min(420, Math.max(100, v.height - 24)) + 'px';
+        panel.style.maxHeight = Math.max(0, Math.min(420, v.height - 24)) + 'px';
         const height = panel.getBoundingClientRect().height;
         const left = Math.max(v.left + 12, Math.min(r.right - width, v.left + v.width - width - 12));
         const above = r.top - height - 10;
@@ -2201,14 +2219,22 @@ function mountWorkspaceHelp(isAdmin) {
         savePosition();
     });
     const onViewportChange = () => {
-        if (!bot.isConnected) return;
-        if (position) moveRick(position.x, position.y);
-        else placePanel();
+        if (!bot.isConnected || document.body.classList.contains('shell-mobile-open')) return;
+        const current = launcher.getBoundingClientRect();
+        moveRick(position?.x ?? current.left, position?.y ?? current.top);
     };
     window.addEventListener('resize', onViewportChange);
     window.visualViewport?.addEventListener('resize', onViewportChange);
     window.visualViewport?.addEventListener('scroll', onViewportChange);
     new ResizeObserver(() => { if (!panel.hidden) placePanel(); }).observe(panel);
+    const shellObserver = new ResizeObserver(onViewportChange);
+    document.querySelectorAll('.shell-topbar, .app-sidebar, .employee-bottom-nav').forEach(element => {
+        shellObserver.observe(element);
+        element.addEventListener('transitionend', onViewportChange);
+    });
+    window.addEventListener('ace:sidebar-state-change', onViewportChange);
+    window.addEventListener('ace:route-ready', onViewportChange);
+    onViewportChange();
 
     closeButton.addEventListener('click',close);
     input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,100)+'px';});

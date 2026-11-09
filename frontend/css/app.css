@@ -17203,3 +17203,6 @@ body[data-admin-view="inquiries"] .table td:nth-child(4) { min-width: 220px; max
 .help-bot-skip { margin-left: auto; padding: 4px 6px; border: 0; background: transparent; color: var(--ace-text-secondary); font: inherit; text-decoration: underline; cursor: pointer; }
 @keyframes rick-typing-pulse { to { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .help-bot-typing-dots { animation: none; } }
+
+/* Mobile navigation owns the workspace while its drawer is open. */
+.shell-mobile-open .help-bot { visibility: hidden; pointer-events: none; }
