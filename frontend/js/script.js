@@ -1676,29 +1676,25 @@ function mountWorkspaceHelp(isAdmin) {
     const entries = workspaceHelpEntries(isAdmin);
     const popular = isAdmin ? [1, 10, 14, 16] : [1, 2, 8, 11];
     const mascot = `<svg class="help-bot-mascot" viewBox="12 6 83 127" shape-rendering="crispEdges" aria-hidden="true" focusable="false">
-        <image class="help-bot-mascot-idle" href="assets/images/ace-help-rick-idle.svg" x="12" y="6" width="83" height="127"/>
-        <g class="help-bot-mascot-front">
-            <g stroke="#394a43" stroke-width="2">
-                <path fill="#755438" d="M43 109h23v11h4v9H59v-8h-9v8H39v-6h4z"/>
-                <path fill="#fff9e9" d="M44 85h20l5 6 4 13-5 4-4-6v12H43v-11l-3 6-6-3 4-14z"/>
-                <path fill="#a4cbd0" d="M49 88h10v25H49z"/>
-                <path fill="#e8c39a" d="M35 106l6 2-1 6h-5l-2-3z"/>
-                <g class="help-bot-mascot-wave">
-                    <path fill="#fff9e9" d="M65 90l6 7 6-7 5 4-7 11h-6l-7-9z"/>
-                    <path fill="#e8c39a" d="M76 91v-6h-3v-4h3l3 3v-9h3v6h2v-4h3v6h2v5l-4 5h-6z"/>
-                    <path fill="none" stroke-width="1" d="M78 86l4 3m1-5v3"/>
-                </g>
-                <path fill="#a4cbd0" d="M27 42l-7-9 5-3 11 2-3-20 4-2 17 12 8-15 4 2 8 22 11-9 3 2-7 18 11 2-2 5-8 6 8 7-3 4-8 2 5 9-4 4-9-2-4 8H41l-4-8-12 5-2-4 5-8-12-2v-4l10-8-12-5 2-5z"/>
-                <path fill="#e8c39a" d="M34 53l3-11 7-6 11-2 11 2 7 6 3 11 4 5v11l-6 10-10 7H46l-10-7-6-10V58z"/>
-                <path fill="#9bc4c8" d="M38 48l5-5h24l5 5-4 4-7-2H49l-7 2z"/>
-                <path fill="#fffbee" d="M38 56l5-5h8l5 5 5-5h8l5 5v8l-5 5h-8l-5-5-5 5h-8l-5-5z"/>
-                <path fill="none" stroke-width="1.5" d="M55 61l-2 10 4 2 3-3"/>
+        <g class="help-bot-mascot-body">
+            <image class="help-bot-mascot-sprite" href="assets/images/ace-help-rick-idle.svg" x="12" y="6" width="83" height="127"/>
+            <g class="help-bot-mascot-gaze">
+                <path fill="#fffbee" d="M52 57h7v6h-7zM72 56h7v6h-7z"/>
+                <path fill="#394139" d="M53 58h3v4h-3zM73 57h3v4h-3z"/>
             </g>
-            <path fill="#303933" d="M46 57h3v4h-3zM64 57h3v4h-3z"/>
-            <path fill="none" stroke="#795c49" stroke-width="1.5" d="M48 76l4 3h9l4-3"/>
+            <g class="help-bot-mascot-blink">
+                <path fill="#e7c49f" d="M48 55h2v-2h6v1h2v2h2v7h-2v2h-8v-2h-2zM68 54h2v-2h7v2h2v2h2v6h-2v2h-8v-2h-3z"/>
+                <path fill="#4b5143" d="M49 59h2v1h6v-1h2v2h-8v-1h-2zM69 58h2v1h7v-1h2v2h-9v-1h-2z"/>
+            </g>
+            <g class="help-bot-mascot-wave" stroke="#4b5043" stroke-width="1.4">
+                <path fill="#fbf5e5" d="M68 90l4 5 5-5 4 3-6 8h-4l-5-6z"/>
+                <path fill="#e7c49f" d="M77 91v-4l-3-2 1-2 3 2v-6h2v4h2v-4h2v5h2v4l-4 4z"/>
+                <path fill="none" stroke-width="1" d="M79 86l2 2"/>
+            </g>
             <g class="help-bot-mascot-mouth">
-                <path fill="#633e35" d="M48 75h17l-2 6-4 2h-6l-4-3z"/>
-                <path fill="#fff4dc" d="M50 75h13v2H50z"/>
+                <path fill="#e7c49f" d="M54 75h20v3h-3v4H55v-3h-2z"/>
+                <path fill="#614c3e" d="M57 76h14v3h-2v2H59v-2h-2z"/>
+                <path fill="#fff4dc" d="M59 76h10v1H59z"/>
             </g>
         </g>
     </svg>`;
