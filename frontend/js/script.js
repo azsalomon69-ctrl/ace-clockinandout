@@ -1675,33 +1675,12 @@ function workspaceHelpEntryMatches(entry, query) {
 function mountWorkspaceHelp(isAdmin) {
     const entries = workspaceHelpEntries(isAdmin);
     const popular = isAdmin ? [1, 10, 14, 16] : [1, 2, 8, 11];
-    const mascot = `<svg class="help-bot-mascot" viewBox="12 6 83 127" shape-rendering="crispEdges" aria-hidden="true" focusable="false">
-        <g class="help-bot-mascot-body">
-            <image class="help-bot-mascot-sprite" href="assets/images/ace-help-rick-idle.svg" x="12" y="6" width="83" height="127"/>
-            <g class="help-bot-mascot-gaze">
-                <path fill="#fffbee" d="M52 57h7v6h-7zM72 56h7v6h-7z"/>
-                <path fill="#394139" d="M53 58h3v4h-3zM73 57h3v4h-3z"/>
-            </g>
-            <g class="help-bot-mascot-blink">
-                <path fill="#e7c49f" d="M48 55h2v-2h6v1h2v2h2v7h-2v2h-8v-2h-2zM68 54h2v-2h7v2h2v2h2v6h-2v2h-8v-2h-3z"/>
-                <path fill="#4b5143" d="M49 59h2v1h6v-1h2v2h-8v-1h-2zM69 58h2v1h7v-1h2v2h-9v-1h-2z"/>
-            </g>
-            <g class="help-bot-mascot-wave" stroke="#4b5043" stroke-width="1.4">
-                <path fill="#fbf5e5" d="M68 90l4 5 5-5 4 3-6 8h-4l-5-6z"/>
-                <path fill="#e7c49f" d="M77 91v-4l-3-2 1-2 3 2v-6h2v4h2v-4h2v5h2v4l-4 4z"/>
-                <path fill="none" stroke-width="1" d="M79 86l2 2"/>
-            </g>
-            <g class="help-bot-mascot-mouth">
-                <path fill="#e7c49f" d="M54 75h20v3h-3v4H55v-3h-2z"/>
-                <path fill="#614c3e" d="M57 76h14v3h-2v2H59v-2h-2z"/>
-                <path fill="#fff4dc" d="M59 76h10v1H59z"/>
-            </g>
-        </g>
-    </svg>`;
+    // Four aligned poses from the same character sheet: idle, blink, talk, pickup.
+    const mascot = `<span class="help-bot-mascot" aria-hidden="true"><span class="rick-sprite"></span></span>`;
     const bot = document.createElement('div');
     bot.className = 'help-bot';
     bot.innerHTML = `
-        <button class="help-bot-launcher" type="button" aria-label="Open ACE help" aria-expanded="false" aria-controls="workspaceHelpPanel">
+        <button class="help-bot-launcher" type="button" aria-label="Open ACE help. Drag Rick or use arrow keys to move him." title="Drag to move · Click to chat · Arrow keys to reposition" aria-expanded="false" aria-controls="workspaceHelpPanel">
             ${mascot}<span class="help-bot-greeting" aria-hidden="true">Do you need help?</span>
         </button>
         <section class="help-bot-panel" id="workspaceHelpPanel" role="dialog" aria-labelledby="workspaceHelpTitle" hidden>
@@ -1784,14 +1763,7 @@ function mountWorkspaceHelp(isAdmin) {
         answer.hidden = false;
         questionHeading.textContent = question;
         answer.querySelector('.help-bot-reply').textContent = response;
-        const mouth = panel.querySelector('.help-bot-mascot-mouth');
-        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            mouth.animate([
-                { opacity: 0, transform: 'scaleY(.65)' },
-                { opacity: 1, transform: 'scaleY(1)' },
-                { opacity: 0, transform: 'scaleY(.65)' }
-            ], { duration: 290, iterations: 4, easing: 'steps(2)' });
-        }
+        react('talking', 2200);
         scrollArea.scrollTop = 0;
         questionHeading.focus();
     }
@@ -1800,6 +1772,7 @@ function mountWorkspaceHelp(isAdmin) {
         if (panel.hidden) returnFocus = document.activeElement;
         launcher.setAttribute('aria-expanded', 'true');
         panel.hidden = false;
+        placePanel();
         scrollArea.scrollTop = 0;
         if (sending) {
             closeButton.focus();
@@ -1819,6 +1792,7 @@ function mountWorkspaceHelp(isAdmin) {
             topics.hidden = false;
             (query ? input : closeButton).focus();
         }
+        placePanel();
     }
 
     function close() {
@@ -1827,7 +1801,101 @@ function mountWorkspaceHelp(isAdmin) {
         (returnFocus?.isConnected && returnFocus !== document.body ? returnFocus : launcher).focus();
     }
 
-    launcher.addEventListener('click', () => panel.hidden ? open() : close());
+    let reactionTimer;
+    function react(state, duration = 1200) {
+        clearTimeout(reactionTimer);
+        bot.dataset.reaction = state;
+        reactionTimer = setTimeout(() => { delete bot.dataset.reaction; }, duration);
+    }
+    const positionKey = 'ace-help-rick-position-v1';
+    let position = null;
+    let drag = null;
+    let suppressClick = false;
+    function viewport() {
+        const v = window.visualViewport;
+        return { left: v?.offsetLeft || 0, top: v?.offsetTop || 0,
+            width: v?.width || innerWidth, height: v?.height || innerHeight };
+    }
+    function moveRick(x, y) {
+        const v = viewport();
+        position = { x: Math.round(Math.max(v.left + 8, Math.min(x, v.left + v.width - 80))),
+            y: Math.round(Math.max(v.top + 8, Math.min(y, v.top + v.height - 112))) };
+        bot.style.left = position.x + 'px';
+        bot.style.top = position.y + 'px';
+        bot.style.right = 'auto';
+        bot.style.bottom = 'auto';
+        placePanel();
+    }
+    function savePosition() {
+        try { localStorage.setItem(positionKey, JSON.stringify(position)); } catch { /* Storage is optional. */ }
+    }
+    function placePanel() {
+        if (panel.hidden) return;
+        const v = viewport();
+        const r = launcher.getBoundingClientRect();
+        const width = Math.min(378, v.width - 24);
+        panel.style.width = width + 'px';
+        panel.style.maxHeight = Math.max(100, v.height - 24) + 'px';
+        const height = panel.getBoundingClientRect().height;
+        const left = Math.max(v.left + 12, Math.min(r.right - width, v.left + v.width - width - 12));
+        const above = r.top - height - 10;
+        const top = above >= v.top + 12 ? above : Math.min(r.bottom + 10, v.top + v.height - height - 12);
+        panel.style.left = left + 'px';
+        panel.style.top = Math.max(v.top + 12, top) + 'px';
+    }
+    try {
+        const saved = JSON.parse(localStorage.getItem(positionKey));
+        if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) moveRick(saved.x, saved.y);
+    } catch { /* Invalid saved positions use the default corner. */ }
+    launcher.addEventListener('pointerdown', event => {
+        if (!event.isPrimary || event.button !== 0) return;
+        const rect = launcher.getBoundingClientRect();
+        suppressClick = false;
+        drag = { id: event.pointerId, x: event.clientX, y: event.clientY,
+            left: rect.left, top: rect.top, active: false };
+        launcher.setPointerCapture(event.pointerId);
+    });
+    launcher.addEventListener('pointermove', event => {
+        if (!drag || drag.id !== event.pointerId) return;
+        const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+        if (!drag.active && Math.hypot(dx, dy) < 6) return;
+        drag.active = true;
+        bot.classList.add('is-picked-up');
+        moveRick(drag.left + dx, drag.top + dy);
+    });
+    function releaseRick(event) {
+        if (!drag || drag.id !== event.pointerId) return;
+        const moved = drag.active;
+        drag = null;
+        bot.classList.remove('is-picked-up');
+        if (launcher.hasPointerCapture(event.pointerId)) launcher.releasePointerCapture(event.pointerId);
+        if (moved) { suppressClick = true; savePosition(); react('landing', 450); }
+    }
+    launcher.addEventListener('pointerup', releaseRick);
+    launcher.addEventListener('pointercancel', releaseRick);
+    launcher.addEventListener('lostpointercapture', releaseRick);
+    launcher.addEventListener('click', event => {
+        if (suppressClick && event.detail !== 0) { suppressClick = false; return; }
+        panel.hidden ? open() : close();
+    });
+    launcher.addEventListener('keydown', event => {
+        const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+        if (!directions[event.key]) return;
+        event.preventDefault();
+        const r = launcher.getBoundingClientRect(), step = event.shiftKey ? 32 : 8;
+        const [x, y] = directions[event.key];
+        moveRick(r.left + x * step, r.top + y * step);
+        savePosition();
+    });
+    const onViewportChange = () => {
+        if (!bot.isConnected) return;
+        if (position) moveRick(position.x, position.y);
+        else placePanel();
+    };
+    window.addEventListener('resize', onViewportChange);
+    window.visualViewport?.addEventListener('resize', onViewportChange);
+    window.visualViewport?.addEventListener('scroll', onViewportChange);
+    new ResizeObserver(() => { if (!panel.hidden) placePanel(); }).observe(panel);
     closeButton.addEventListener('click', close);
     input.addEventListener('input', () => {
         forward.hidden = true;
@@ -1854,11 +1922,13 @@ function mountWorkspaceHelp(isAdmin) {
             ? 'Can you say it another way? Tell me what you’re trying to do in ACE Clock. If I still don’t have an answer, you can send your question to an administrator.'
             : 'I don’t have a saved answer for this. Send your question to an administrator so they can review it and reply by email. Leave out passwords and other private details.';
         needsRephrase = true;
+        react('talking', 1800);
         input.focus();
     });
     forward.addEventListener('click', async () => {
         if (sending || forward.hidden) return;
         sending = true;
+        react('thinking', 30000);
         forward.disabled = true;
         input.disabled = true;
         form.querySelector('button').disabled = true;
@@ -1879,6 +1949,7 @@ function mountWorkspaceHelp(isAdmin) {
                 : 'Your question couldn’t be sent. Try again or contact your administrator directly.';
         } finally {
             sending = false;
+            react('talking', 1800);
             forward.disabled = false;
             input.disabled = false;
             form.querySelector('button').disabled = false;

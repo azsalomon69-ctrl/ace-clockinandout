@@ -3198,48 +3198,44 @@ body {
   appearance: none;
   cursor: pointer;
 }
-.help-bot-mascot {
+.help-bot-launcher { width: 72px; height: 104px; touch-action: none; user-select: none; cursor: grab; }
+.help-bot-launcher:active { cursor: grabbing; }
+.help-bot-mascot { display: block; flex: 0 0 auto; width: 72px; height: 96px; overflow: visible; }
+.help-bot-header .help-bot-mascot { width: 48px; height: 64px; }
+.rick-sprite {
   display: block;
-  flex: 0 0 auto;
-  width: 60px;
-  height: 92px;
-  overflow: visible;
+  width: 100%;
+  height: 100%;
+  background-image: url('../assets/images/ace-help-rick-sprites-v2.png');
+  background-size: 400% 100%;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  image-rendering: pixelated;
+  transform-origin: 50% 18%;
+  animation: rick-blink 6.7s steps(1, end) infinite, rick-idle 3.8s steps(1, end) infinite;
 }
-.help-bot-header .help-bot-mascot { width: 30px; height: 46px; }
-.help-bot-mascot-body {
-  transform-box: fill-box;
-  transform-origin: center bottom;
-  animation: help-bot-idle 2.6s ease-in-out infinite;
-}
-.help-bot-mascot-gaze, .help-bot-mascot-wave, .help-bot-mascot-blink { visibility: hidden; }
-.help-bot-mascot-blink { animation: help-bot-blink 7.1s step-end infinite; }
-.help-bot-launcher:is(:hover, :focus-visible) .help-bot-mascot-gaze,
-.help-bot-launcher:is(:hover, :focus-visible) .help-bot-mascot-wave { visibility: visible; }
-.help-bot-launcher:is(:hover, :focus-visible) .help-bot-mascot-sprite {
-  clip-path: polygon(0 0, 100% 0, 100% 64%, 73% 64%, 70% 70%, 70% 83%, 100% 83%, 100% 100%, 0 100%);
-}
-.help-bot-mascot-mouth {
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-.help-bot-mascot-wave {
-  transform-origin: 68px 92px;
-}
-.help-bot-launcher:is(:hover, :focus-visible) .help-bot-mascot-wave {
-  animation: help-bot-wave 1.35s steps(2, end);
-}
-@keyframes help-bot-idle {
-  50% { transform: scale(1.025, 1.055); }
-}
-@keyframes help-bot-blink {
-  38%, 86%, 90% { visibility: visible; }
-  40%, 88%, 92% { visibility: hidden; }
-}
-@keyframes help-bot-wave {
-  18%, 48%, 78% { transform: rotate(-15deg); }
-  32%, 62% { transform: rotate(12deg); }
-}
+.help-bot[data-reaction="talking"] .rick-sprite { animation: rick-talk .75s steps(1, end) infinite; }
+.help-bot[data-reaction="thinking"] .rick-sprite { animation: rick-blink 3.2s steps(1, end) infinite, rick-think 1.6s steps(1, end) infinite; }
+.help-bot.is-picked-up .help-bot-launcher { cursor: grabbing; }
+.help-bot.is-picked-up .help-bot-launcher .rick-sprite { background-position: 100% 0; animation: rick-dangle .8s ease-in-out infinite; }
+.help-bot.is-picked-up .help-bot-greeting { display: none; }
+.help-bot[data-reaction="landing"] .help-bot-launcher .rick-sprite { animation: rick-land .4s steps(1, end); }
+@keyframes rick-idle { 45%, 65% { transform: translateY(-1px); } 75% { transform: none; } }
+@keyframes rick-blink { 0%, 43%, 86%, 100% { background-position: 0 0; } 41%, 84% { background-position: 33.333333% 0; } }
+@keyframes rick-talk { 0%, 45%, 80% { background-position: 66.666667% 0; } 25%, 65%, 95% { background-position: 0 0; } }
+@keyframes rick-think { 50% { transform: translateY(-1px); } }
+@keyframes rick-dangle { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes rick-land { 0% { transform: translateY(2px); } 35% { transform: translateY(-2px); } 70% { transform: translateY(1px); } }
+.help-bot-greeting { display: none; }
+.help-bot[data-reaction="landing"] .help-bot-launcher .rick-body { animation: rick-land .4s steps(1, end); }
+@keyframes rick-breathe { 45%, 65% { transform: translateY(-1px); } 75% { transform: none; } }
+@keyframes rick-eyes { 41%, 84% { visibility: hidden; } 43%, 86% { visibility: visible; } }
+@keyframes rick-blink { 41%, 84% { visibility: visible; } 43%, 86% { visibility: hidden; } }
+@keyframes rick-wave { 20%, 60% { transform: rotate(-120deg); } 40%, 80% { transform: rotate(-100deg); } }
+@keyframes rick-talk { 0%, 50%, 85% { visibility: visible; } 30%, 70% { visibility: hidden; } }
+@keyframes rick-think { 50% { transform: translateX(-1px); } }
+@keyframes rick-dangle { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes rick-land { 0% { transform: translateY(2px); } 35% { transform: translateY(-2px); } 70% { transform: translateY(1px); } }
 .help-bot-greeting {
   position: absolute;
   inset-inline-end: calc(100% + 12px);
@@ -3261,18 +3257,10 @@ body {
   opacity: 1;
   transform: translateY(0);
 }
-.help-bot-launcher[aria-expanded="false"]:is(:hover, :focus-visible) .help-bot-mascot-mouth { animation: help-bot-talk 1.45s steps(1, end); }
-@keyframes help-bot-talk {
-  10%, 58% { opacity: 1; transform: scaleY(.58); }
-  24%, 69% { opacity: 1; transform: scaleY(1); }
-  37%, 81% { opacity: 1; transform: scaleY(.75); }
-  47%, 92% { opacity: 0; }
-}
-
 .help-bot-panel {
-  position: absolute;
+  position: fixed;
   inset-inline-end: 0;
-  bottom: 102px;
+  bottom: auto;
   display: flex;
   flex-direction: column;
   width: min(378px, calc(100vw - 40px));
@@ -3404,6 +3392,7 @@ body {
   .help-bot-panel { width: min(378px, calc(100vw - 28px - env(safe-area-inset-right))); }
 }
 @media (prefers-reduced-motion: reduce) {
+  .help-bot .help-bot-mascot * { animation: none !important; }
   .help-bot-greeting { transition: none; }
   .help-bot .help-bot-mascot-body, .help-bot .help-bot-mascot-blink,
   .help-bot-launcher:is(:hover, :focus-visible) .help-bot-mascot-wave,
