@@ -2032,7 +2032,7 @@ function matchWorkspaceHelp(question, entries, withAlternatives = false) {
     return answer(null, alternatives);
 }
 
-function createRickHoverVoice() {
+function createRickHoverVoice(setSpeaking) {
     const clips = ['hello', 'need-help', 'genius', 'dont-mess', 'got-a-question', 'looking-at',
         'over-there', 'welcome-back', 'judging', 'make-it-easy', 'come-on', 'fast-help'];
     const storageKey = 'ace-rick-hover-voice-v1';
@@ -2061,6 +2061,10 @@ function createRickHoverVoice() {
             if (!audio) {
                 audio = new Audio();
                 audio.volume = 0.45;
+                audio.addEventListener('playing', () => setSpeaking(true));
+                for (const event of ['pause', 'waiting', 'ended', 'error', 'emptied']) {
+                    audio.addEventListener(event, () => setSpeaking(false));
+                }
                 audio.addEventListener('ended', recordPlayback);
             }
             audio.src = `/assets/audio/rick/${clips[nextClip]}.mp3`;
@@ -2096,7 +2100,7 @@ function mountWorkspaceHelp(isAdmin) {
     attentionArt.src = 'assets/images/ace-help-rick-attention-v1.png';
     let pointerOverRick = false;
     let hoverVoiceTimer;
-    const playHoverVoice = createRickHoverVoice();
+    const playHoverVoice = createRickHoverVoice(speaking => bot.classList.toggle('is-voice-speaking', speaking));
     const updateAttention = () => {
         const attentive = pointerOverRick || launcher.matches(':focus-visible');
         bot.classList.toggle('is-attentive', attentive);
