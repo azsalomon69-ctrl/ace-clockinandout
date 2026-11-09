@@ -19,9 +19,48 @@ for (const [question, admin, expected] of [
   ['project', true, undefined],
   ['approve overtime', false, undefined],
   ['why is my salary unpaid', true, undefined]
-  , ['why can’t I approve overtime', true, undefined]
+  , ['why can’t I approve overtime', true, 'Why is approved overtime blank?']
+, ["Hello can you tell me how to add a new staff member please",true,"How do I invite someone?"]
+, ["I want to start my shift",false,"How do I clock in?"]
+, ["How do I finish work",false,"How do I clock out?"]
+, ["clocking in is not working",false,"Why can I not clock in?"]
+, ["my clock out button is disabled",false,"Why can I not clock out?"]
+, ["my project is not showing",false,"Why is a project missing?"]
+, ["where can i download my timesheet",true,"How do I create a report?"]
+, ["Can you help me assign a project to an employee",true,"How do I assign a person to a project?"]
+, ["how can I change my profile picture",false,"How do I update my profile?"]
+, ["I need to reset my password",false,"How do I change my password or security settings?"]
+, ["can I take a lunch break",false,"Does ACE track breaks?"]
+, ["I left my timer running",false,"I forgot to clock out"]
+, ["where can I see my hours worked",false,"Where are my previous shifts?"]
+, ["how to use dark mode",false,"How do I change dark mode or appearance?"]
+, ["how can I add a new department",true,"How do I create or edit a department?"]
+, ["how can I change employee schedule",true,"How do I create and assign a schedule?"]
+, ["why is overtime not showing",true,"Why is approved overtime blank?"]
+, ["I need to recover a time entry",true,"Where are deleted time entries?"]
+, ["how do I fix a wrong clock in time",false,"Can I edit or delete my own time entry?"]
+, ["how do I fix a wrong clock in time",true,"How do I view or correct time entries?"]
+, ["how do I add a remark",true,"How do I add a remark to a time entry?"]
+, ["how do I delete my password",false, undefined]
+, ["how do I export a recipe",true, undefined]
+, ["how do I invite someone to my wedding",true, undefined]
+, ["how do I delete a project",false, undefined]
+, ["what is the weather forecast tomorrow",true, undefined]
 ]) test(`Help matching: ${question} (${admin ? 'admin' : 'employee'})`, () => {
   assert.equal(context.matchWorkspaceHelp(question, context.workspaceHelpEntries(admin))?.[0], expected);
+});
+
+test('Ambiguous project questions clarify and accept a short follow-up', () => {
+  const result = context.matchWorkspaceHelp('project', context.workspaceHelpEntries(true), true);
+  assert.equal(result.match, null);
+  assert.equal(result.alternatives.length, 2);
+  assert.equal(context.matchWorkspaceHelp('assign', result.alternatives)?.[0], 'How do I assign a person to a project?');
+});
+
+test('Administrators can ask about their own clock and password', () => {
+  const entries = context.workspaceHelpEntries(true);
+  assert.equal(context.matchWorkspaceHelp('start shift', entries)?.[0], 'How do I clock in?');
+  assert.equal(context.matchWorkspaceHelp('change password', entries)?.[0], 'How do I change my password or security settings?');
 });
 
 const backend = fs.readFileSync(new URL('../server/index.js', import.meta.url), 'utf8');

@@ -3203,16 +3203,36 @@ body {
 .help-bot-mascot { display: block; flex: 0 0 auto; width: 72px; height: 96px; overflow: visible; }
 .help-bot-header .help-bot-mascot { width: 48px; height: 64px; }
 .rick-sprite {
+  --rick-base-sheet: url('../assets/images/ace-help-rick-sprites-v2.png');
+  --rick-attention-sheet: url('../assets/images/ace-help-rick-attention-v1.png');
   display: block;
   width: 100%;
   height: 100%;
-  background-image: url('../assets/images/ace-help-rick-sprites-v2.png');
+  background-image: var(--rick-base-sheet);
   background-size: 400% 100%;
   background-repeat: no-repeat;
   background-position: 0 0;
   image-rendering: pixelated;
   transform-origin: 50% 18%;
   animation: rick-blink 6.7s steps(1, end) infinite, rick-idle 3.8s steps(1, end) infinite;
+}
+/* Attention only runs while idle; replies, pickup and landing keep priority. */
+.help-bot.has-attention-art:not([data-reaction]):not(.is-picked-up) .rick-sprite {
+  animation: rick-look-around 16s steps(1, end) infinite, rick-idle 3.8s steps(1, end) infinite;
+}
+.help-bot.has-attention-art.is-attentive:not([data-reaction]):not(.is-picked-up) .help-bot-launcher .rick-sprite {
+  animation: rick-greet 1.6s steps(1, end) 1 forwards;
+}
+@keyframes rick-look-around {
+  0%, 28%, 42%, 66%, 82%, 100% { background-image: var(--rick-base-sheet); background-position: 0 0; }
+  20% { background-image: var(--rick-attention-sheet); background-position: 0 0; }
+  40%, 80% { background-image: var(--rick-base-sheet); background-position: 33.333333% 0; }
+  58% { background-image: var(--rick-attention-sheet); background-position: 33.333333% 0; }
+}
+@keyframes rick-greet {
+  0%, 25%, 50%, 75% { background-image: var(--rick-attention-sheet); background-position: 66.666667% 0; }
+  12.5%, 37.5%, 62.5%, 87.5% { background-image: var(--rick-attention-sheet); background-position: 100% 0; }
+  100% { background-image: var(--rick-base-sheet); background-position: 0 0; }
 }
 .help-bot[data-reaction="talking"] .rick-sprite { animation: rick-talk .75s steps(1, end) infinite; }
 .help-bot[data-reaction="thinking"] .rick-sprite { animation: rick-blink 3.2s steps(1, end) infinite, rick-think 1.6s steps(1, end) infinite; }
@@ -17154,3 +17174,32 @@ body:has(> .startup-warmup-fullpage) > :not(.startup-warmup-fullpage):not(script
 .help-bot-conversation .help-bot-asked { margin-top: 14px; }
 
 body[data-admin-view="inquiries"] .table td:nth-child(4) { min-width: 220px; max-width: 560px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Rick conversation: a quieter header, readable bubbles and a single composer. */
+.help-bot-panel { border-radius: 22px; box-shadow: 0 18px 60px #082d4933; }
+.help-bot-header { padding: 10px 16px; gap: 8px; }
+.help-bot-header .help-bot-mascot { width: 36px; height: 48px; }
+.help-bot-header h2 { font-size: .95rem; }
+.help-bot-header p { font-size: .73rem; }
+.help-bot-close { width: 32px; height: 32px; border-color: #ffffff30; border-radius: 50%; }
+.help-bot-body { padding: 18px 16px; scrollbar-width: thin; scrollbar-color: #91b4bd transparent; }
+.help-bot-welcome { padding: 12px 4px 18px; }
+.help-bot-welcome > span { color: var(--ace-text-secondary); font-size: .65rem; font-weight: 800; letter-spacing: .12em; }
+.help-bot-welcome h3 { margin: 8px 0; color: var(--ace-text-primary); font-size: 1.3rem; }
+.help-bot-welcome p { margin: 0; color: var(--ace-text-secondary); font-size: .85rem; line-height: 1.6; }
+.help-bot-conversation { display: flex; flex-direction: column; gap: 12px; }
+.help-bot-conversation .help-bot-reply { margin: 0; padding: 13px 15px; border-radius: 16px 16px 16px 5px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
+.help-bot-conversation .help-bot-asked { margin: 4px 0 0 auto; border-radius: 16px 16px 5px 16px; padding: 11px 14px; line-height: 1.5; white-space: pre-wrap; }
+.help-bot [data-help-forward] { margin-top: 12px; min-height: 36px; background: transparent; color: var(--ace-text-secondary); font-size: .75rem; border-style: dashed; }
+.help-bot-composer { padding: 12px; gap: 8px; align-items: end; background: var(--ace-surface-modal); }
+.help-bot-composer .help-bot-search { padding: 0; border-radius: 14px; }
+.help-bot-composer .help-bot-search:focus-within { outline: none; border-color: #199aaf; box-shadow: 0 0 0 2px #199aaf1a; }
+.help-bot-search textarea { box-sizing: border-box; display: block; width: 100%; min-width: 0; min-height: 44px; max-height: 100px; padding: 11px 12px; resize: none; border: 0; outline: none !important; background: transparent; color: var(--ace-text-primary); font: inherit; font-size: .85rem; line-height: 22px; }
+.help-bot-search textarea::placeholder { color: var(--ace-text-secondary); }
+.help-bot-send { min-height: 44px; padding: 0 14px; border-radius: 13px; }
+.help-bot-send:hover { background: #087086; }
+.help-bot-typing { display: flex; flex-shrink: 0; align-items: center; gap: 8px; padding: 8px 16px; color: var(--ace-text-secondary); font-size: .72rem; }
+.help-bot-typing-dots { color: #148a9d; letter-spacing: 2px; animation: rick-typing-pulse .9s ease-in-out infinite alternate; }
+.help-bot-skip { margin-left: auto; padding: 4px 6px; border: 0; background: transparent; color: var(--ace-text-secondary); font: inherit; text-decoration: underline; cursor: pointer; }
+@keyframes rick-typing-pulse { to { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .help-bot-typing-dots { animation: none; } }

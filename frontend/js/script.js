@@ -1568,7 +1568,7 @@ function suppliedIconMarkup(name, className = 'ui-icon') {
 }
 
 function workspaceHelpEntries(isAdmin) {
-    return isAdmin ? [
+    const entries = isAdmin ? [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. Open People or Work to reveal their page links.'],
         ['How do I invite someone?', 'Use Invite user on the dashboard, enter the work email, choose the role, and send the invitation. The person can be granted access even if their invitation email has a delivery issue.'],
         ['Where do I see or cancel an invitation?', 'Open People → Users, select the Invitations tab, find the email, select View, then choose Cancel invitation. The current workspace does not provide a resend button; create a new invitation if the old one is cancelled or expires.'],
@@ -1597,15 +1597,15 @@ function workspaceHelpEntries(isAdmin) {
         ['Where can I review exports?', 'Open Insights → Reports to reopen or download saved reports. Open Administration → Audit log and search for export activity when you need the administrator, time, format, and selected date range.'],
         ['How do I update my own account or appearance?', 'Open Administration → Settings, then use Profile, Security, or Appearance. You can also select Settings from the Account section of the sidebar.'],
         ['How do I restart the tutorial?', 'Open your account menu and choose Restart tutorial. It starts from the dashboard and adapts to whether the sidebar is open or closed.'],
-        ['How do I get help without restarting the tutorial?', 'Use ACE Help. Search a task such as invite, project, report, clock out, archive, or schedule, then open the matching answer.']
+        ['How do I get help without restarting the tutorial?', 'Type what you want to do in ACE Help—for example, “add a new employee” or “download a report.” I can explain the steps. If an answer does not cover your issue, describe what happens or send the question to the administrator.']
     ] : [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. The Work section contains My time entries and Remarks.'],
-        ['How do I clock in?', 'Open Dashboard and choose Clock in. Select one of your assigned projects when one is available, then confirm.'],
+        ['How do I clock in?', 'Open Dashboard → Clock in. Choose an assigned project, or No project if your work does not need one, then confirm. You do not need to enter a note at clock-in. If the button is unavailable, check whether you already have a running session.'],
         ['How do I clock out?', 'Open Dashboard and choose Clock out. Review the session details, add the required clock-out note, and confirm the action.'],
         ['What should I write in the clock-out note?', 'Enter a short, accurate note about the completed shift. The note is required at clock-out and is visible in your time-entry details and company reports. Do not add a new note at clock-in.'],
         ['Does ACE track breaks?', 'No. ACE records the full elapsed time from clock-in to clock-out. There are no Start Break or End Break controls.'],
         ['Why can I not clock in?', 'Check whether you already have an active session and whether your account has access. A project is optional, so you can choose No project when appropriate. If the problem continues, contact an administrator.'],
-        ['Why can I not clock out?', 'Make sure you have an active work session, then use Clock out on the dashboard.'],
+        ['Why can I not clock out?', 'Open Dashboard and check that your work session is running. Select Clock out, enter the required shift note, and confirm. If the action fails, keep the error message and contact an administrator with your actual finish time so they can check the record.'],
         ['How do I choose a project when clocking in?', 'In the Clock in form, select one of your assigned projects, or leave it as No project if your work does not need one. If a needed project is missing, ask an administrator to assign it through your user record.'],
         ['Where are my previous shifts?', 'Open Work → My time entries. Use the date, project, and status filters, then select View to inspect a record.'],
         ['How do I filter my time entries?', 'Open Work → My time entries, set a date range, project, or status, then choose Apply filters. Choose Clear filters to start again.'],
@@ -1627,6 +1627,322 @@ function workspaceHelpEntries(isAdmin) {
         ['Do I need to restart the tutorial?', 'No. Search ACE Help for one task at a time. Restart the tutorial only when you want the full walkthrough again.'],
         ['I forgot to clock out', 'Tell an administrator when you actually finished work so they can correct the time entry. If your session is still active, let them know that too.']
     ];
+    if (isAdmin) {
+        const sharedTitles = new Set(['How do I clock in?', 'How do I clock out?', 'What should I write in the clock-out note?', 'Does ACE track breaks?', 'Why can I not clock in?', 'Why can I not clock out?']);
+        entries.push(...workspaceHelpEntries(false).filter(([title]) => sharedTitles.has(title)).map(([title, response]) => [title, response]));
+        entries.push(['How do I change my password or security settings?', 'Open Administration → Settings, choose Security, update your password, and save. Never send your password through chat.']);
+    }
+    const aliases = {
+    "How do I use the sidebar?": [
+        "sidebar menu navigation collapse expand menu on phone"
+    ],
+    "How do I invite someone?": [
+        "add new employee",
+        "add staff member",
+        "invite user",
+        "send invitation",
+        "create employee account"
+    ],
+    "Where do I see or cancel an invitation?": [
+        "cancel invitation",
+        "delete invite",
+        "view pending invitations",
+        "resend invite",
+        "invitation expired"
+    ],
+    "Why is someone pending or denied?": [
+        "pending account",
+        "denied user",
+        "employee cannot log in",
+        "activate employee account"
+    ],
+    "How do I manage users?": [
+        "manage user",
+        "change employee role",
+        "edit employee account",
+        "update user department"
+    ],
+    "How do I find an employee?": [
+        "find employee",
+        "search staff",
+        "find unassigned employees"
+    ],
+    "How do I archive or restore a user?": [
+        "archive employee",
+        "restore user",
+        "deactivate employee",
+        "remove user",
+        "deleted employee"
+    ],
+    "How do I create or edit a department?": [
+        "add department",
+        "edit department",
+        "create new department"
+    ],
+    "How do I create or manage a project?": [
+        "add new project",
+        "create project",
+        "edit project",
+        "delete project"
+    ],
+    "How do I assign a person to a project?": [
+        "assign employee project",
+        "assign project to staff",
+        "add employee to project",
+        "give user project access"
+    ],
+    "How do I create and assign a schedule?": [
+        "create schedule",
+        "assign schedule",
+        "assign employee schedule",
+        "set working hours",
+        "change employee schedule",
+        "set workdays"
+    ],
+    "What is the difference between fixed and flextime?": [
+        "fixed vs flexible schedule",
+        "what is flextime",
+        "what is a fixed schedule"
+    ],
+    "How do I view or correct time entries?": [
+        "edit time entry",
+        "fix wrong clock in time",
+        "correct attendance",
+        "change clock out time",
+        "view time entries"
+    ],
+    "How do I manage employees who are clocked in?": [
+        "stop employee clock",
+        "who is clocked in",
+        "active employee sessions"
+    ],
+    "How do I handle an employee who forgot to clock out?": [
+        "employee forgot clock out",
+        "forgot to clock out",
+        "missed clock out"
+    ],
+    "What are Time-entry alerts?": [
+        "time entry alerts",
+        "long running shift warning",
+        "open session warning"
+    ],
+    "How do I approve overtime?": [
+        "approve overtime",
+        "overtime approval"
+    ],
+    "Why is approved overtime blank?": [
+        "overtime not showing",
+        "overtime blank",
+        "cannot approve overtime",
+        "overtime approval unavailable",
+        "why no overtime"
+    ],
+    "How do I use page controls in admin lists?": [
+        "next page",
+        "more rows",
+        "change page size",
+        "pagination"
+    ],
+    "Where are deleted time entries?": [
+        "deleted time entries",
+        "restore deleted shift",
+        "recover time entry"
+    ],
+    "How do I add a remark to a time entry?": [
+        "add feedback",
+        "write employee remark",
+        "comment on time entry"
+    ],
+    "How do I filter the dashboard analytics?": [
+        "filter dashboard",
+        "dashboard charts",
+        "change chart date range"
+    ],
+    "How do I create a report?": [
+        "export report",
+        "download report",
+        "export timesheet",
+        "export attendance excel",
+        "generate report",
+        "save report pdf"
+    ],
+    "Where do I find one employee’s report?": [
+        "individual report",
+        "report for one employee",
+        "employee report"
+    ],
+    "Where is the audit history?": [
+        "audit log",
+        "who changed a record",
+        "activity history"
+    ],
+    "Where can I review exports?": [
+        "previous exports",
+        "saved reports",
+        "download existing report"
+    ],
+    "How do I update my own account or appearance?": [
+        "edit my profile",
+        "change profile picture",
+        "dark mode",
+        "change theme",
+        "settings"
+    ],
+    "How do I restart the tutorial?": [
+        "restart tutorial",
+        "start walkthrough",
+        "show tutorial again"
+    ],
+    "How do I get help without restarting the tutorial?": [
+        "help",
+        "what can you do",
+        "how to use this app"
+    ],
+    "How do I clock in?": [
+        "clock in",
+        "start shift",
+        "start work",
+        "begin work",
+        "time in",
+        "punch in"
+    ],
+    "How do I clock out?": [
+        "clock out",
+        "end shift",
+        "finish work",
+        "time out",
+        "punch out"
+    ],
+    "What should I write in the clock-out note?": [
+        "clock out note",
+        "what to write in notes",
+        "shift summary",
+        "note required"
+    ],
+    "Does ACE track breaks?": [
+        "take a break",
+        "lunch break",
+        "pause timer",
+        "break tracking"
+    ],
+    "Why can I not clock in?": [
+        "cannot clock in",
+        "clock in not working",
+        "clock in button disabled",
+        "error starting shift"
+    ],
+    "Why can I not clock out?": [
+        "cannot clock out",
+        "clock out not working",
+        "clock out button disabled",
+        "error ending shift"
+    ],
+    "How do I choose a project when clocking in?": [
+        "choose project",
+        "select project clock in",
+        "clock in without project",
+        "no project option"
+    ],
+    "Where are my previous shifts?": [
+        "my attendance history",
+        "past shifts",
+        "previous time entries",
+        "hours worked",
+        "my timesheet"
+    ],
+    "How do I filter my time entries?": [
+        "filter timesheet",
+        "filter time entries",
+        "search shifts by date"
+    ],
+    "How do I move through my time entries?": [
+        "next page of shifts",
+        "older time entries",
+        "pagination"
+    ],
+    "Can I edit or delete my own time entry?": [
+        "edit time entry",
+        "fix wrong clock in time",
+        "correct attendance",
+        "delete shift",
+        "change clock out time"
+    ],
+    "Why does my entry show an administrator remark?": [
+        "remark on my entry",
+        "admin feedback on shift"
+    ],
+    "Where are administrator remarks?": [
+        "read remarks",
+        "view feedback",
+        "admin messages",
+        "where is feedback"
+    ],
+    "What does my schedule mean?": [
+        "my schedule",
+        "working hours",
+        "fixed vs flextime",
+        "workdays"
+    ],
+    "How do I check my clock-in against my schedule?": [
+        "late clock in",
+        "compare schedule attendance",
+        "scheduled time incorrect"
+    ],
+    "How do I update my profile?": [
+        "edit profile",
+        "change profile picture",
+        "change name"
+    ],
+    "How do I change my password or security settings?": [
+        "change password",
+        "reset password",
+        "security settings"
+    ],
+    "How do I change dark mode or appearance?": [
+        "dark mode",
+        "change theme",
+        "light mode",
+        "appearance"
+    ],
+    "Where are notifications?": [
+        "notifications",
+        "notification bell",
+        "new alerts"
+    ],
+    "How do I search for a project?": [
+        "find project",
+        "search project"
+    ],
+    "Why is a project missing?": [
+        "project missing",
+        "cannot see my project",
+        "project not showing",
+        "no assigned projects"
+    ],
+    "How do I get access or fix an inactive account?": [
+        "cannot login",
+        "inactive account",
+        "denied access",
+        "pending account"
+    ],
+    "How do I sign out?": [
+        "sign out",
+        "log out",
+        "logout"
+    ],
+    "Do I need to restart the tutorial?": [
+        "help",
+        "what can you do",
+        "how to use this app"
+    ],
+    "I forgot to clock out": [
+        "forgot clock out",
+        "missed clock out",
+        "left timer running",
+        "forgot to end shift"
+    ]
+};
+    return entries.map(entry => [...entry, aliases[entry[0]] || []]);
 }
 
 function findSearchSuggestions(query, candidates, limit = 2) {
@@ -1672,30 +1988,48 @@ function workspaceHelpEntryMatches(entry, query) {
     return words.length > 0 && words.every(word => haystack.includes(word));
 }
 
-function matchWorkspaceHelp(question, entries) {
-    const normalize = value => String(value).toLowerCase()
-        .replace(/clock[ -]?in/g, ' clockin ').replace(/clock[ -]?out/g, ' clockout ')
-        .replace(/sign[ -]?in|log[ -]?in/g, ' login ').replace(/can't|cannot|can not|can i not|unable to/g, ' cannot ')
+function matchWorkspaceHelp(question, entries, withAlternatives = false) {
+    const stopWords = new Set('how do does did i can could would should to the a an my me please you your where is are was were what it its of for in on with get have has when why want need help tell about or and our this that these those trying try know show use using someone new member company ace app hello hi hey thanks thank just really currently today see take'.split(' '));
+    const synonyms = { employees:'employee',staff:'employee',person:'employee',people:'employee',user:'employee',users:'employee',someone:'employee',inviting:'invite',invitation:'invite',invitations:'invite',invte:'invite',creating:'add',create:'add',adding:'add',remove:'delete',cancel:'delete',forgotten:'forgot',forget:'forgot',reset:'change',update:'change',changing:'change',edit:'change',passwords:'password',schedules:'schedule',projects:'project',reports:'report',remarks:'remark',exporting:'export',download:'export',generate:'export',approve:'approval',approving:'approval',shifts:'shift',entries:'entry',timesheets:'timesheet',notes:'note',picture:'photo',photo:'photo',image:'photo' };
+    const normalize = value => [...new Set(String(value).toLowerCase().replace(/[’‘]/g, "'")
+        .replace(/clock(?:ing)?[ -]?in|time[ -]?in|punch[ -]?in/g, ' clockin ')
+        .replace(/clock(?:ing)?[ -]?out|time[ -]?out|punch[ -]?out/g, ' clockout ')
+        .replace(/sign[ -]?in|log[ -]?in/g, ' login ')
+        .replace(/sign[ -]?out|log[ -]?out/g, ' logout ')
+        .replace(/can't|cannot|can not|can i not|unable to|doesn't work|does not work|not working/g, ' cannot ')
+        .replace(/not showing|not visible|not listed/g, ' missing ')
         .replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
-        .map(word => ({inviting:'invite',invitation:'invite',invitations:'invite',invte:'invite',employees:'employee',staff:'employee',someone:'employee',person:'employee',users:'user',adding:'add',create:'add',creating:'add',remove:'delete',cancel:'delete',forgotten:'forgot',forget:'forgot',reset:'change',update:'change',changing:'change',passwords:'password',schedules:'schedule',projects:'project',reports:'report',remarks:'remark',exporting:'export',download:'export',approve:'approval',approving:'approval'}[word] || word))
-        .filter(word => !new Set('how do i can to the a an my me please could would you where is are what it of for in on with get have has when why does someone want need help please tell about or and'.split(' ')).has(word));
+        .map(word => synonyms[word] || word).filter(word => !stopWords.has(word)))];
+    const answer = (match, alternatives = []) => withAlternatives ? { match, alternatives } : match;
     const exact = entries.find(([title]) => title.toLowerCase().replace(/[^a-z0-9]/g, '') === String(question).toLowerCase().replace(/[^a-z0-9]/g, ''));
-    if (exact) return exact;
-    const words = [...new Set(normalize(question))];
-    if (!words.length) return null;
-    const tokens = entries.map(([title]) => [...new Set(normalize(title === 'How do I create a report?' ? 'create export report pdf excel' : title))]);
-    const distance = (a,b) => { const row=Array.from({length:b.length+1},(_,i)=>i); for(let i=1;i<=a.length;i++){let prev=row[0];row[0]=i;for(let j=1;j<=b.length;j++){const next=row[j];row[j]=Math.min(row[j]+1,row[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=next;}}return row[b.length]; };
-    const scores = tokens.map((terms,index) => {
-        if (words.some(word => ['cannot', 'not'].includes(word) && !terms.includes(word))) return {index, coverage: 0, score: 0};
-        const matched = words.filter(word => terms.some(term => term===word || (Math.min(term.length,word.length)>=5 && distance(term,word)<=1)));
-        const coverage=matched.length/words.length;
-        const weight=word => Math.log(1+entries.length/(1+tokens.filter(list=>list.includes(word)).length));
-        const precision=matched.reduce((sum,w)=>sum+weight(w),0)/Math.max(1,terms.reduce((sum,w)=>sum+weight(w),0));
-        return {index,coverage,score:coverage*.75+Math.min(1,precision)*.25};
+    if (exact) return answer(exact);
+    const words = normalize(question);
+    if (!words.length) return answer(null);
+    const distance = (left, right) => {
+        const row = Array.from({length:right.length+1},(_,i)=>i);
+        for(let i=1;i<=left.length;i++){let prev=row[0];row[0]=i;for(let j=1;j<=right.length;j++){const next=row[j];row[j]=Math.min(row[j]+1,row[j-1]+1,prev+(left[i-1]===right[j-1]?0:1));prev=next;}}
+        return row[right.length];
+    };
+    const similar = (a,b) => a===b || (Math.min(a.length,b.length)>=5 && distance(a,b)<=1);
+    const negative = words.some(word => ['cannot','not','missing','error','unavailable','disabled'].includes(word));
+    const scores = entries.map((entry,index) => {
+        const variants = [entry[0], ...(entry[2] || [])].map(normalize);
+        let best = { index, score: 0, coverage: 0 };
+        for (const terms of variants) {
+            // Trouble reports need troubleshooting, rather than happy-path instructions.
+            if (negative && !terms.some(term => ['cannot','not','missing','error','unavailable','disabled','blank','inactive'].includes(term))) continue;
+            const matched = words.filter(word => terms.some(term => similar(word,term)));
+            const coverage = matched.length / words.length;
+            const precision = matched.length / Math.max(words.length, terms.length);
+            const score = coverage * .7 + precision * .3;
+            if (score > best.score) best = {index,score,coverage};
+        }
+        return best;
     }).sort((a,b)=>b.score-a.score);
     const best=scores[0], next=scores[1];
-    if (!best || best.coverage<.72 || best.score<.77 || (next && best.score-next.score<.08)) return null;
-    return entries[best.index];
+    if (best && best.coverage>=.65 && best.score>=.72 && (!next || best.score-next.score>=.075)) return answer(entries[best.index]);
+    const alternatives=scores.filter(item=>item.coverage>=.5 && item.score>=.6).slice(0,2).map(item=>entries[item.index]);
+    return answer(null, alternatives);
 }
 
 function mountWorkspaceHelp(isAdmin) {
@@ -1704,34 +2038,82 @@ function mountWorkspaceHelp(isAdmin) {
     const bot = document.createElement('div'); bot.className = 'help-bot';
     bot.innerHTML = `<button class="help-bot-launcher" type="button" aria-label="Open ACE help. Drag Rick or use arrow keys to move him." title="Drag to move · Click to chat" aria-expanded="false" aria-controls="workspaceHelpPanel">${mascot}</button>
       <section class="help-bot-panel" id="workspaceHelpPanel" role="dialog" aria-labelledby="workspaceHelpTitle" hidden>
-        <header class="help-bot-header">${mascot}<div><h2 id="workspaceHelpTitle">ACE Help</h2><p>Ask Rick about ACE Clock</p></div><button class="help-bot-close" type="button" aria-label="Close help">${suppliedIconMarkup('x')}</button></header>
-        <div class="help-bot-body"><p class="help-bot-reply">What do you need help with?</p><div class="help-bot-conversation" role="log" aria-live="polite"></div>
-        <button type="button" class="help-bot-back" data-help-forward hidden>Send to administrator</button></div>
-        <form class="help-bot-form help-bot-composer"><label class="help-bot-search"><input aria-label="Your question" placeholder="Type your question…" maxlength="1000" autocomplete="off" required></label><button class="help-bot-send" type="submit">Ask</button></form>
+        <header class="help-bot-header">${mascot}<div><h2 id="workspaceHelpTitle">ACE Help</h2><p>Your ACE Clock guide</p></div><button class="help-bot-close" type="button" aria-label="Close help">${suppliedIconMarkup('x')}</button></header>
+        <div class="help-bot-body"><div class="help-bot-welcome"><span>ASK RICK</span><h3>How can I help?</h3><p>Tell me what you’re trying to do in ACE Clock.</p></div><div class="help-bot-conversation" role="log" aria-live="polite"></div>
+        <button type="button" class="help-bot-back" data-help-forward hidden>Still need help? Send to administrator</button></div><div class="help-bot-typing" hidden><span class="help-bot-typing-dots" aria-hidden="true">● ● ●</span><span>Rick is typing…</span><button type="button" class="help-bot-skip">Show reply</button></div>
+        <form class="help-bot-form help-bot-composer"><label class="help-bot-search"><textarea aria-label="Your question" placeholder="Ask Rick a question…" maxlength="1000" rows="1" required></textarea></label><button class="help-bot-send" type="submit" aria-label="Send question">Send</button></form>
       </section>`;
     document.body.append(bot);
     const launcher=bot.querySelector('.help-bot-launcher'), panel=bot.querySelector('.help-bot-panel');
     const closeButton=bot.querySelector('.help-bot-close'), scrollArea=bot.querySelector('.help-bot-body');
-    const input=bot.querySelector('input'),form=bot.querySelector('form'),forward=bot.querySelector('[data-help-forward]');
+    const input=bot.querySelector('textarea'),form=bot.querySelector('form'),forward=bot.querySelector('[data-help-forward]');
     const conversation=bot.querySelector('.help-bot-conversation');
-    let returnFocus=launcher, sending=false, pendingQuestion='';
+    let returnFocus=launcher, sending=false, pendingQuestion='', pendingAlternatives=[];
+    // Keep the approved base sprite visible until every attention frame is loaded.
+    const attentionArt = new Image();
+    attentionArt.onload = () => { if (bot.isConnected) bot.classList.add('has-attention-art'); };
+    attentionArt.src = 'assets/images/ace-help-rick-attention-v1.png';
+    let pointerOverRick = false;
+    const updateAttention = () => bot.classList.toggle('is-attentive', pointerOverRick || launcher.matches(':focus-visible'));
+    launcher.addEventListener('pointerenter', event => {
+        if (event.pointerType === 'touch') return;
+        pointerOverRick = true;
+        updateAttention();
+    });
+    launcher.addEventListener('pointerleave', () => { pointerOverRick = false; updateAttention(); });
+    launcher.addEventListener('focus', updateAttention);
+    launcher.addEventListener('blur', updateAttention);
+
+    let finishTyping = null;
+    const typing = bot.querySelector('.help-bot-typing');
+    bot.querySelector('.help-bot-skip').addEventListener('click', () => finishTyping?.());
     function appendMessage(text, asked=false) {
-        const message=document.createElement('p');message.className=asked?'help-bot-asked':'help-bot-reply';message.textContent=text;
+        finishTyping?.();
+        bot.querySelector('.help-bot-welcome').hidden=true;
+        const message=document.createElement('p');message.className=asked?'help-bot-asked':'help-bot-reply';
         conversation.append(message);while(conversation.children.length>12)conversation.firstElementChild.remove();
-        placePanel();scrollArea.scrollTop=scrollArea.scrollHeight;
+        const scrollToReply=()=>{placePanel();scrollArea.scrollTop=scrollArea.scrollHeight;};
+        if (asked || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            message.textContent=text;scrollToReply();return;
+        }
+        conversation.setAttribute('aria-busy','true');typing.hidden=false;
+        let offset=0, timer;
+        const step=Math.max(2,Math.ceil(text.length/90));
+        const finish=()=>{
+            clearTimeout(timer);message.textContent=text;typing.hidden=true;
+            conversation.setAttribute('aria-busy','false');finishTyping=null;scrollToReply();
+        };
+        finishTyping=finish;
+        const tick=()=>{
+            if(!bot.isConnected){finish();return;}
+            offset=Math.min(text.length,offset+step);message.textContent=text.slice(0,offset);
+            scrollToReply();
+            if(offset===text.length)finish();else timer=setTimeout(tick,24);
+        };
+        timer=setTimeout(tick,280);scrollToReply();
     }
     function ask(question) {
         forward.hidden=true;pendingQuestion=question;appendMessage(question,true);
-        const match=matchWorkspaceHelp(question,entries);
-        appendMessage(match ? match[1] : 'I couldn’t find a confident answer. Try adding more detail, or send this question to the administrator. Please leave out passwords and private details.');
-        forward.hidden=Boolean(match);react('talking',1800);placePanel();scrollArea.scrollTop=scrollArea.scrollHeight;
+        let { match, alternatives }=matchWorkspaceHelp(question,entries,true);
+        if (!match && pendingAlternatives.length && question.trim().split(/\s+/).length <= 5) {
+            const followup=matchWorkspaceHelp(question,pendingAlternatives,true);
+            if (followup.match) { match=followup.match; alternatives=[]; }
+        }
+        pendingAlternatives=match ? [] : alternatives;
+        const clarification = alternatives.length > 1
+            ? 'Do you mean “' + alternatives[0][0] + '” or “' + alternatives[1][0] + '”? Tell me which task you’re trying to do.'
+            : alternatives.length === 1
+                ? 'Is your question about “' + alternatives[0][0] + '”? Add the action you want to take or the error you see.'
+                : 'I can help with ACE Clock tasks such as clocking in, projects, schedules, and account settings. Tell me what you’re trying to do and what happens. You can also send your question to the administrator.';
+        appendMessage(match ? match[1] : clarification);
+        forward.hidden=Boolean(match);react('talking',2600);placePanel();scrollArea.scrollTop=scrollArea.scrollHeight;
     }
     function open(query='',question='') {
         if(panel.hidden)returnFocus=document.activeElement;
         panel.hidden=false;launcher.setAttribute('aria-expanded','true');input.value=query;
         if(question)ask(question);placePanel();input.focus();
     }
-    function close(){panel.hidden=true;launcher.setAttribute('aria-expanded','false');(returnFocus?.isConnected?returnFocus:launcher).focus();}
+    function close(){finishTyping?.();panel.hidden=true;launcher.setAttribute('aria-expanded','false');(returnFocus?.isConnected?returnFocus:launcher).focus();}
     let reactionTimer;
     function react(state, duration = 1200) {
         clearTimeout(reactionTimer);
@@ -1829,7 +2211,9 @@ function mountWorkspaceHelp(isAdmin) {
     new ResizeObserver(() => { if (!panel.hidden) placePanel(); }).observe(panel);
 
     closeButton.addEventListener('click',close);
-    form.addEventListener('submit',event=>{event.preventDefault();const question=input.value.trim();if(!question||sending)return;input.value='';ask(question);input.focus();});
+    input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,100)+'px';});
+    input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();form.requestSubmit();}});
+    form.addEventListener('submit',event=>{event.preventDefault();const question=input.value.trim();if(!question||sending)return;input.value='';input.style.height='auto';ask(question);input.focus();});
     forward.addEventListener('click',async()=>{
         if(sending||!pendingQuestion)return;sending=true;forward.disabled=true;form.querySelector('button').disabled=true;react('thinking',30000);
         try{await window.ACEAuth.request('/v1/help-requests',{method:'POST',body:JSON.stringify({question:pendingQuestion})});forward.hidden=true;appendMessage('Your question was sent to the administrator. They can contact you at your work email.');}
