@@ -15,6 +15,7 @@ const AppState = {
     projects: [],
     departments: [],
     timeEntries: [],
+    employeeHistoryStatus: 'ready',
     reports: [],
     users: [],
     invitations: [],
@@ -59,14 +60,6 @@ const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_e
 const employeeTimeEntries = () => AppState.timeEntries.filter(entry => AppState.users.find(user => String(user.UserId) === String(entry.UserId))?.Role === 'USER');
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
-const avatarInitials = value => {
-    const words = String(value || '?').trim().split(/[\s@._-]+/).filter(Boolean);
-    return (words.length > 1 ? words.slice(0, 2).map(word => word[0]) : String(words[0] || '?').slice(0, 2)).join('').toUpperCase();
-};
-const avatarTone = value => [...String(value || '?')].reduce((total, character) => total + character.charCodeAt(0), 0) % 5;
-const avatarContent = (name, picture) => picture
-    ? `<img src="${escapeHtml(picture)}" alt="">`
-    : `<span class="avatar-fallback avatar-tone-${avatarTone(name)}" aria-hidden="true">${escapeHtml(avatarInitials(name))}</span>`;
 const formatAppDate = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '—';
 const formatAppDateTime = value => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
 const formatAppTime = value => value ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)) : '—';
@@ -310,7 +303,7 @@ function initializeAutocompleteControls(root = document) {
 }
 
 // Live data is supplied exclusively by the Render API and Supabase.
-async function loadAllTimeEntries({ mine = false } = {}) {
+async function loadAllTimeEntries({ mine = false, retryPage = false } = {}) {
     const pageSize = 100;
     const entries = [];
     let page = 1;
@@ -319,7 +312,19 @@ async function loadAllTimeEntries({ mine = false } = {}) {
     do {
         const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
         if (mine) params.set('mine', 'true');
-        const response = await window.ACEAuth.request(`/v1/time-entries?${params}`);
+        const path = `/v1/time-entries?${params}`;
+        let response;
+        for (let attempt = 0; ; attempt++) {
+            try {
+                response = await window.ACEAuth.request(path);
+                if (retryPage && !Array.isArray(response?.items)) throw new Error('Invalid time-entry history response');
+                break;
+            }
+            catch (error) {
+                if (!retryPage || attempt >= 2 || (error.status && error.status < 500 && error.status !== 429)) throw error;
+                await pause(1000 * (attempt + 1));
+            }
+        }
         const items = Array.isArray(response) ? response : (response.items || []);
         entries.push(...items);
         total = Array.isArray(response) ? null : Number(response.total);
@@ -340,10 +345,11 @@ async function loadDatabase() {
     // appear while the remaining page data is fetched, instead of making the
     // workspace look like a full-page reload on every navigation.
     window.dispatchEvent(new CustomEvent('ace:verified-profile-ready'));
+    const deferEmployeeHistory = profile.role === 'USER' && /\/user-dashboard(?:\.html)?\/?$/i.test(window.location.pathname);
     const [departments, projects, entries, userProjects, remarks, assignedSchedule] = await Promise.all([
         window.ACEAuth.request('/v1/departments'),
         window.ACEAuth.request('/v1/projects'),
-        loadAllTimeEntries({ mine: AppState.currentUser.Role !== 'ADMIN' }),
+        deferEmployeeHistory ? loadCurrentEmployeeEntries(profile.id) : loadAllTimeEntries({ mine: AppState.currentUser.Role !== 'ADMIN' }),
         window.ACEAuth.request('/v1/user-projects'),
         window.ACEAuth.request('/v1/admin-remarks'),
         window.ACEAuth.request('/v1/my-schedule')
@@ -351,6 +357,7 @@ async function loadDatabase() {
     AppState.departments = departments.map(departmentRecord);
     AppState.projects = projects.map(projectRecord);
     AppState.timeEntries = entries.map(timeEntryRecord);
+    AppState.employeeHistoryStatus = deferEmployeeHistory ? 'pending' : 'ready';
     AppState.adminRemarks = remarks.map(adminRemarkRecord);
     AppState.assignedSchedule = assignedSchedule;
     AppState.userProjects = userProjects.map(item => ({ UserId: item.user_id, ProjectId: item.project_id, AssignedAt: item.assigned_at, IsActive: true }));
@@ -376,6 +383,44 @@ async function loadDatabase() {
     AppState.clockInTime = active ? new Date(active.ClockInAt) : null;
     if (active) startTimer();
     return true;
+}
+
+async function loadCurrentEmployeeEntries(userId) {
+    const response = await window.ACEAuth.request('/v1/time-entries?mine=true&status=ACTIVE&page=1&pageSize=1');
+    const entries = response?.items;
+    if (!Array.isArray(entries) || entries.length > 1 ||
+        entries.some(entry => !entry?.id || entry.user_id !== userId || !entry.clock_in_at || entry.clock_out_at !== null)) {
+        throw new Error('Could not verify your current clock-in.');
+    }
+    return entries;
+}
+
+async function loadEmployeeHistory() {
+    if (!['pending', 'error'].includes(AppState.employeeHistoryStatus)) return;
+    const userId = AppState.currentUser?.UserId;
+    const initialEntries = new Map(AppState.timeEntries.map(entry => [entry.TimeEntryId, entry]));
+    AppState.employeeHistoryStatus = 'loading';
+    const render = () => { if (document.querySelector('.user-dashboard')) loadUserDashboard(); };
+    render();
+    try {
+        const records = await loadAllTimeEntries({ mine: true, retryPage: true });
+        if (AppState.currentUser?.UserId !== userId) return;
+        const history = new Map(records.map(raw => {
+            const entry = timeEntryRecord(raw);
+            return [entry.TimeEntryId, entry];
+        }));
+        // Keep clock-ins and clock-outs saved locally while history was in flight.
+        for (const entry of AppState.timeEntries) {
+            if (!history.has(entry.TimeEntryId) || initialEntries.get(entry.TimeEntryId) !== entry) history.set(entry.TimeEntryId, entry);
+        }
+        AppState.timeEntries = [...history.values()].sort((a, b) => Date.parse(b.ClockInAt) - Date.parse(a.ClockInAt));
+        AppState.employeeHistoryStatus = 'ready';
+    } catch (error) {
+        if (AppState.currentUser?.UserId !== userId) return;
+        console.warn('Could not load time-entry history.', error);
+        AppState.employeeHistoryStatus = 'error';
+    }
+    render();
 }
 
 async function refreshUserProjectAssignments() {
@@ -566,7 +611,6 @@ async function initApp() {
         initializeAutocompleteControls();
         initializeResponsiveTables();
         initializeUXEnhancements();
-        initializeEmployeeChat();
         startRemarkNotifications();
     }
     clearInitialSkeletons();
@@ -574,6 +618,7 @@ async function initApp() {
         document.body.classList.remove('app-shell-pending');
         document.querySelector('.app-shell-skeleton')?.remove();
         if (loaded) window.dispatchEvent(new CustomEvent('ace:app-ready'));
+        if (AppState.employeeHistoryStatus === 'pending') void loadEmployeeHistory();
     });
 }
 
@@ -795,7 +840,7 @@ function initializeUXEnhancements() {
 }
 
 // Authenticated pages share one long-lived shell. Internal navigation swaps
-// only <main>; sidebar, top bar, chat, and their event handlers stay mounted.
+// only <main>; sidebar, top bar, and their event handlers stay mounted.
 function installPageFadeNavigation() {
     if (document.body.dataset.pageFadeReady === 'true') return;
     document.body.dataset.pageFadeReady = 'true';
@@ -805,7 +850,6 @@ function installPageFadeNavigation() {
         'schedule-flex.js': 'mountScheduleFlex',
         'deleted-time-entries.js': 'mountDeletedTimeEntries',
         'individual-reports.js': 'mountIndividualReports',
-        'chat-log.js': 'mountChatLog',
         'employee-profile.js': 'mountEmployeeProfile'
     };
 
@@ -904,7 +948,9 @@ function installPageFadeNavigation() {
 
     const navigateDashboardRoute = async (href, push = true) => {
         const destination = new URL(href, window.location.href);
-        if (navigating || destination.origin !== window.location.origin || !document.body.classList.contains('has-app-shell')) {
+        const requiresHistory = /\/(?:time-entries|remarks)(?:\.html)?\/?$/i.test(destination.pathname);
+        if (navigating || (requiresHistory && AppState.employeeHistoryStatus !== 'ready') ||
+            destination.origin !== window.location.origin || !document.body.classList.contains('has-app-shell')) {
             window.location.assign(destination.href);
             return;
         }
@@ -971,159 +1017,6 @@ function installPageFadeNavigation() {
     });
 }
 
-function initializeEmployeeChat() {
-    if (AppState.currentUser?.Status !== 'ACTIVE' || document.getElementById('employeeChat')) return;
-    const chat = document.createElement('section');
-    chat.id = 'employeeChat';
-    chat.className = 'employee-chat';
-    const employeeChat = AppState.currentUser.Role !== 'ADMIN';
-    chat.innerHTML = `<button class="employee-chat-launcher" type="button" aria-expanded="false" aria-controls="employeeChatPanel"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Chat</span><b class="employee-chat-badge" hidden>0</b></button><div class="employee-chat-panel" id="employeeChatPanel" hidden><header><strong>Team chat</strong><small>Refresh the page for new messages</small><button type="button" class="employee-chat-close" aria-label="Close chat">×</button></header><div class="employee-chat-layout"><aside><p>${employeeChat ? 'Administrators' : 'All messages'}</p><label class="employee-chat-search"><span class="sr-only">Search teammates</span><input type="search" placeholder="Search teammates" autocomplete="off"></label><div class="employee-chat-contacts"></div></aside><section class="employee-chat-thread"><div class="employee-chat-empty">Choose a teammate to start a private chat.</div></section></div></div>`;
-    document.body.appendChild(chat);
-    const launcher = chat.querySelector('.employee-chat-launcher');
-    const panel = chat.querySelector('.employee-chat-panel');
-    const contacts = chat.querySelector('.employee-chat-contacts');
-    const contactSearch = chat.querySelector('.employee-chat-search input');
-    const thread = chat.querySelector('.employee-chat-thread');
-    const badge = chat.querySelector('.employee-chat-badge');
-    let selectedId = null;
-    let selectedName = '';
-    let selectedPictureUrl = '';
-    let contactsLoaded = false;
-    let allContacts = [];
-    let contactsRequest = null;
-    const unreadByContact = new Map();
-    const messagesByContact = new Map();
-    const formatTime = value => new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    const loadMessages = async (reload = false) => {
-        if (!selectedId) return;
-        const previousComposer = thread.querySelector('.employee-chat-compose input');
-        const draft = previousComposer?.value || '';
-        const restoreComposerFocus = document.activeElement === previousComposer;
-        try {
-            const contactId = selectedId;
-            const messages = !reload && messagesByContact.has(contactId)
-                ? messagesByContact.get(contactId)
-                : await window.ACEAuth.request(`/v1/employee-chat/messages/${contactId}`);
-            messagesByContact.set(contactId, messages);
-            if (selectedId !== contactId) return;
-            // The request can finish while the user is typing. Capture the
-            // live value immediately before replacing the message list.
-            const liveComposer = thread.querySelector('.employee-chat-compose input');
-            const liveDraft = liveComposer?.value ?? draft;
-            const keepComposerFocus = document.activeElement === liveComposer || restoreComposerFocus;
-            thread.innerHTML = `<div class="employee-chat-thread-head"><button class="employee-chat-back" type="button" aria-label="Back to chats">‹</button><span class="employee-chat-avatar">${avatarContent(selectedName, selectedPictureUrl)}</span><div><strong>${escapeHtml(selectedName)}</strong></div></div><div class="employee-chat-messages">${messages.map(message => { const mine = message.sender_id === AppState.currentUser.UserId; const deleted = Boolean(message.deleted_at); const time = `<time class="employee-chat-message-time">${formatTime(message.created_at)}</time>`; return `<div class="employee-chat-message-row${mine ? ' mine' : ''}"><div class="employee-chat-message${mine ? ' mine' : ''}${deleted ? ' deleted' : ''}"><span>${deleted ? 'This message was deleted.' : escapeHtml(message.body)}</span>${!deleted && message.edited_at ? '<em>edited</em>' : ''}</div>${mine && !deleted ? `<div class="employee-chat-actions">${time}<button type="button" data-chat-edit="${message.id}" data-chat-body="${escapeHtml(message.body)}">Edit</button><button type="button" data-chat-delete="${message.id}">Delete</button></div>` : `<div class="employee-chat-message-meta">${time}</div>`}</div>`; }).join('')}</div><form class="employee-chat-compose"><input maxlength="2000" aria-label="Message ${escapeHtml(selectedName)}" placeholder="Write a message…" required><button type="submit">Send</button></form>`;
-            const messagesBox = thread.querySelector('.employee-chat-messages');
-            if (messagesBox) messagesBox.scrollTop = messagesBox.scrollHeight;
-            const composer = thread.querySelector('.employee-chat-compose input');
-            if (composer && liveDraft) composer.value = liveDraft;
-            if (composer && keepComposerFocus) composer.focus({ preventScroll: true });
-            thread.querySelector('.employee-chat-back')?.addEventListener('click', () => chat.classList.remove('employee-chat-chatting'));
-            thread.querySelector('form').addEventListener('submit', async event => {
-                event.preventDefault();
-                const input = event.currentTarget.querySelector('input');
-                const sendButton = event.currentTarget.querySelector('button[type="submit"]');
-                const body = input.value.trim();
-                if (!body || sendButton.disabled) return;
-                const pending = document.createElement('div');
-                pending.className = 'employee-chat-message-row mine employee-chat-message-pending';
-                pending.innerHTML = `<div class="employee-chat-message mine"><span>${escapeHtml(body)}</span><em>Sending…</em></div>`;
-                messagesBox?.append(pending);
-                messagesBox.scrollTop = messagesBox.scrollHeight;
-                input.value = '';
-                sendButton.disabled = true;
-                input.focus({ preventScroll: true });
-                try {
-                    await window.ACEAuth.request('/v1/employee-chat/messages', { method: 'POST', body: JSON.stringify({ recipientId: selectedId, body }) });
-                    pending.remove();
-                    await loadMessages(true);
-                }
-                catch (error) {
-                    pending.remove();
-                    if (!input.value) input.value = body;
-                    showToast(error.message || 'Unable to send chat message.', 'error');
-                }
-                finally { sendButton.disabled = false; }
-            });
-            thread.querySelectorAll('[data-chat-edit]').forEach(button => button.addEventListener('click', async () => {
-                const body = (await window.ACEUI.prompt({ title: 'Edit message', label: 'Message', value: button.dataset.chatBody, confirmLabel: 'Save changes' }))?.trim();
-                if (!body) return;
-                try { await window.ACEAuth.request(`/v1/employee-chat/messages/${button.dataset.chatEdit}`, { method: 'PATCH', body: JSON.stringify({ body }) }); await loadMessages(true); }
-                catch (error) { showToast(error.message || 'Unable to edit chat message.', 'error'); }
-            }));
-            thread.querySelectorAll('[data-chat-delete]').forEach(button => button.addEventListener('click', async () => {
-                if (!await window.ACEUI.confirm({ title: 'Delete message?', message: 'This removes the message from the conversation for everyone.', confirmLabel: 'Delete message', danger: true })) return;
-                try { await window.ACEAuth.request(`/v1/employee-chat/messages/${button.dataset.chatDelete}`, { method: 'DELETE' }); await loadMessages(true); }
-                catch (error) { showToast(error.message || 'Unable to delete chat message.', 'error'); }
-            }));
-        } catch (error) { thread.innerHTML = `<div class="employee-chat-empty">${escapeHtml(error.message || 'Unable to load this conversation.')}</div>`; }
-    };
-    const renderContacts = () => {
-        const query = contactSearch.value.trim().toLowerCase();
-        const people = allContacts.filter(person => `${person.full_name || ''} ${person.email || ''}`.toLowerCase().includes(query));
-        contacts.innerHTML = people.length ? people.map(person => { const name = person.full_name || person.email; return `<button class="employee-chat-contact${person.id === selectedId ? ' active' : ''}" data-id="${person.id}" data-name="${escapeHtml(name)}" data-picture="${escapeHtml(person.profile_picture_url || '')}" type="button"><span class="employee-chat-avatar">${avatarContent(name, person.profile_picture_url)}</span><div><strong>${escapeHtml(name)}</strong></div>${person.unread_count ? `<b class="employee-chat-contact-badge" aria-label="New message from ${escapeHtml(name)}"></b>` : ''}</button>`; }).join('') : `<div class="employee-chat-empty">${allContacts.length ? 'No teammates match that search.' : 'No other active teammates yet.'}</div>`;
-        contacts.querySelectorAll('.employee-chat-contact').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.id; selectedName = button.dataset.name; selectedPictureUrl = button.dataset.picture; chat.classList.add('employee-chat-chatting'); renderContacts(); loadMessages(); }));
-    };
-    const loadContacts = () => {
-        if (contactsLoaded) return Promise.resolve();
-        if (contactsRequest) return contactsRequest;
-        contactsRequest = (async () => {
-          try {
-            const response = await window.ACEAuth.request('/v1/employee-chat/contacts');
-            const people = Array.isArray(response) ? response : response.contacts || [];
-            const totalUnread = people.reduce((total, person) => total + (person.unread_count || 0), 0);
-            if (contactsLoaded) {
-                people.forEach(person => {
-                    const unread = person.unread_count || 0;
-                    if (unread > (unreadByContact.get(person.id) || 0)) {
-                        showToast(`${person.full_name || person.email} sent you a message.`, 'info');
-                    }
-                });
-            }
-            unreadByContact.clear();
-            people.forEach(person => unreadByContact.set(person.id, person.unread_count || 0));
-            contactsLoaded = true;
-            badge.hidden = !totalUnread; badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
-            allContacts = people.filter(person => !employeeChat || person.role === 'ADMIN');
-            window.dispatchEvent(new CustomEvent('ace:chat-unread', { detail: {
-                totalUnread,
-                conversations: allContacts.filter(person => person.unread_count).map(person => ({
-                    id: person.id,
-                    name: person.full_name || person.email,
-                    picture: person.profile_picture_url || '',
-                    unreadCount: person.unread_count,
-                    preview: person.last_unread_message || 'New message',
-                    createdAt: person.last_unread_at || ''
-                }))
-            } }));
-            const selectedContact = people.find(person => person.id === selectedId);
-            if (selectedContact) { selectedPictureUrl = selectedContact.profile_picture_url || ''; }
-            renderContacts();
-          } catch { contacts.innerHTML = '<div class="employee-chat-empty">Chat is unavailable right now.</div>'; }
-        })().finally(() => { contactsRequest = null; });
-        return contactsRequest;
-    };
-    contactSearch.addEventListener('input', renderContacts);
-    const openChat = open => { panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open)); if (open) chat.classList.remove('employee-chat-chatting'); };
-    window.ACEEmployeeChat = {
-        openConversation(contactId) {
-            const person = allContacts.find(contact => String(contact.id) === String(contactId));
-            if (!person) { openChat(true); return; }
-            selectedId = person.id;
-            selectedName = person.full_name || person.email;
-            selectedPictureUrl = person.profile_picture_url || '';
-            panel.hidden = false;
-            launcher.setAttribute('aria-expanded', 'true');
-            chat.classList.add('employee-chat-chatting');
-            renderContacts();
-            loadMessages();
-        }
-    };
-    launcher.addEventListener('click', () => openChat(panel.hidden));
-    chat.querySelector('.employee-chat-close').addEventListener('click', () => openChat(false));
-    // One contact snapshot per page load; new messages appear after refresh.
-    void loadContacts();
-}
-
 // Shared application shell for every authenticated page.
 function initializeAppShell() {
     if (document.body.classList.contains('has-app-shell')) return true;
@@ -1131,7 +1024,7 @@ function initializeAppShell() {
     // Render rewrites clean URLs to the deployed .html files. Normalize both
     // forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chat-log.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -1148,13 +1041,12 @@ function initializeAppShell() {
 
     const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', building: 'building', folder: 'folder', clock: 'timer', calendar: 'calendar-days', chart: 'chart-column-big', audit: 'brick-wall-shield', download: 'download', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
     const icon = name => suppliedIconMarkup(icons[name], 'shell-icon');
-    const isSpecialAdmin = isAdmin && AppState.currentUser?.IsHeadAdmin;
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
         ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['departments.html', 'building', 'Departments']]],
         ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries']]],
         ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'chart', 'Individual reports']]],
-        ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ...(isSpecialAdmin ? [['chat-log.html', 'mail', 'Employee chat log']] : []), ['settings.html', 'settings', 'Settings']]]
+        ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],
@@ -1182,7 +1074,7 @@ function initializeAppShell() {
     const sidebar = document.createElement('aside');
     sidebar.className = 'app-sidebar';
     sidebar.id = 'appSidebar';
-    sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-sidebar-help" type="button" aria-label="Open Need Help" title="Need Help?">${suppliedIconMarkup('info', 'shell-icon')}<span>Need Help?</span></button><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-account-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div>`;
+    sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-account-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div>`;
     const overlay = document.createElement('button');
     overlay.className = 'shell-overlay'; overlay.type = 'button'; overlay.setAttribute('aria-label', 'Close navigation');
     const mobileToggle = document.createElement('button');
@@ -1315,8 +1207,6 @@ function initializeAppShell() {
     const notificationButton = topbar.querySelector('.shell-topbar-notification-wrap .shell-topbar-icon-button');
     const notificationMenu = topbar.querySelector('.shell-notification-menu');
     const notificationBadge = topbar.querySelector('.shell-topbar-badge');
-    let unreadMessages = 0;
-    let unreadConversations = [];
     const setTopbarMenu = (button, menu, open) => {
         button.setAttribute('aria-expanded', String(open));
         menu.hidden = !open;
@@ -1341,18 +1231,10 @@ function initializeAppShell() {
         const reviewedRemarks = getReviewedAdminRemarkIds();
         const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt && (!isAdmin || !reviewedRemarks.has(String(remark.RemarkId))));
         const unreadRemarksCount = unreadRemarks.length;
-        const total = unreadMessages + unreadRemarksCount;
+        const total = unreadRemarksCount;
         notificationBadge.hidden = !total;
         notificationBadge.textContent = total > 99 ? '99+' : total;
         const notices = [];
-        if (unreadMessages) {
-            notices.push(...unreadConversations.map(conversation => {
-                const preview = String(conversation.preview || 'New message').replace(/\s+/g, ' ').trim();
-                const shortPreview = preview.length > 90 ? `${preview.slice(0, 89)}…` : preview;
-                const count = conversation.unreadCount > 1 ? `<b>${conversation.unreadCount}</b>` : '';
-                return `<button class="shell-message-notice shell-notification-item" type="button" role="menuitem" data-open-chat="${escapeHtml(conversation.id)}"><span class="shell-message-notice-avatar">${avatarContent(conversation.name, conversation.picture)}</span><span class="shell-message-notice-copy"><strong>${escapeHtml(conversation.name || 'Teammate')}</strong><small>${escapeHtml(shortPreview)}</small></span>${count}</button>`;
-            }));
-        }
         if (unreadRemarksCount) {
             const entryById = new Map(AppState.timeEntries.map(entry => [String(entry.TimeEntryId), entry]));
             notices.push(...unreadRemarks.slice(0, 3).map(remark => {
@@ -1369,23 +1251,12 @@ function initializeAppShell() {
             if (unreadRemarksCount > 3) notices.push(`<a class="shell-notification-item shell-notification-more" href="${isAdmin ? 'admin-time-entries.html?remarks=with' : 'remarks.html'}" role="menuitem"><span class="shell-notification-item-icon">${suppliedIconMarkup('bell', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${unreadRemarksCount - 3} more unread remark${unreadRemarksCount === 4 ? '' : 's'}</strong><small>Open the feedback list to review them.</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`);
         }
         const countLabel = total ? `<span class="shell-notification-count">${total > 99 ? '99+' : total} new</span>` : '';
-        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>Refresh the page to check for new messages and administrator feedback.</span></div>`;
+        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>Refresh the page to check for administrator feedback.</span></div>`;
         notificationMenu.innerHTML = `<div class="shell-notification-header"><div><p class="shell-topbar-menu-title">Notifications</p><strong>Stay up to date</strong></div>${countLabel}</div><div class="shell-notification-list">${notices.length ? notices.join('') : emptyState}</div>`;
-        notificationMenu.querySelectorAll('[data-open-chat]').forEach(button => button.addEventListener('click', () => {
-            setTopbarMenu(notificationButton, notificationMenu, false);
-            const contactId = button.dataset.openChat;
-            if (contactId) window.ACEEmployeeChat?.openConversation(contactId);
-            else document.querySelector('.employee-chat-launcher')?.click();
-        }));
     };
     // Render the notification snapshot loaded with this page.
     window.ACERenderNotifications = renderNotifications;
     renderNotifications();
-    window.addEventListener('ace:chat-unread', event => {
-        unreadMessages = Number(event.detail?.totalUnread) || 0;
-        unreadConversations = Array.isArray(event.detail?.conversations) ? event.detail.conversations : [];
-        renderNotifications();
-    });
     topbarAccountButton.addEventListener('click', () => {
         setTopbarMenu(notificationButton, notificationMenu, false);
         setTopbarMenu(topbarAccountButton, topbarAccountMenu, topbarAccountMenu.hidden);
@@ -1394,7 +1265,7 @@ function initializeAppShell() {
         setTopbarMenu(topbarAccountButton, topbarAccountMenu, false);
         setTopbarMenu(notificationButton, notificationMenu, notificationMenu.hidden);
     });
-    sidebar.querySelector('.shell-sidebar-help').addEventListener('click', () => openWorkspaceHelp(isAdmin));
+    const openWorkspaceHelp = mountWorkspaceHelp(isAdmin);
 
     const searchInput = topbar.querySelector('#shellGlobalSearch');
     const searchResults = topbar.querySelector('.shell-global-results');
@@ -1480,7 +1351,7 @@ function initializeAppShell() {
         rememberQuery(searchInput.value);
         if (result.action === 'help') {
             closeSearchResults();
-            openWorkspaceHelp(isAdmin, result.helpQuery || searchInput.value.trim(), result.helpQuestion || '');
+            openWorkspaceHelp(result.helpQuery || searchInput.value.trim(), result.helpQuestion || '');
             return;
         }
         if (result.quickAction) sessionStorage.setItem('ace_workspace_quick_action', result.quickAction);
@@ -1698,7 +1569,7 @@ function suppliedIconMarkup(name, className = 'ui-icon') {
 
 function workspaceHelpEntries(isAdmin) {
     return isAdmin ? [
-        ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. In the collapsed desktop rail, Need Help is the information icon above your account. On a phone, use the menu button in the top bar. Open People or Work to reveal their page links.'],
+        ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. Open People or Work to reveal their page links.'],
         ['How do I invite someone?', 'Use Invite user on the dashboard, enter the work email, choose the role, and send the invitation. The person can be granted access even if their invitation email has a delivery issue.'],
         ['Where do I see or cancel an invitation?', 'Open People → Users, select the Invitations tab, find the email, select View, then choose Cancel invitation. The current workspace does not provide a resend button; create a new invitation if the old one is cancelled or expires.'],
         ['Why is someone pending or denied?', 'Open People → Users to review their status. Pending users need an invitation; denied users cannot sign in until their status is changed by an administrator.'],
@@ -1724,12 +1595,11 @@ function workspaceHelpEntries(isAdmin) {
         ['Where do I find one employee’s report?', 'Open Insights → Individual reports. Choose This month for the current month through today, or Custom date range for specific dates. Optionally choose an active employee, then select Prepare reports. Use Preview, Save as PDF, or Save Excel on the prepared row. Leave the employee blank to prepare reports for every active employee.'],
         ['Where is the audit history?', 'Open Administration → Audit log. It records important administrative actions so you can review what changed and when.'],
         ['Where can I review exports?', 'Open Insights → Reports to reopen or download saved reports. Open Administration → Audit log and search for export activity when you need the administrator, time, format, and selected date range.'],
-        ['Where is the employee chat log?', 'Head administrators can open Administration → Employee chat log. This page is intentionally unavailable to regular administrators.'],
         ['How do I update my own account or appearance?', 'Open Administration → Settings, then use Profile, Security, or Appearance. You can also select Settings from the Account section of the sidebar.'],
         ['How do I restart the tutorial?', 'Open your account menu and choose Restart tutorial. It starts from the dashboard and adapts to whether the sidebar is open or closed.'],
-        ['How do I get help without restarting the tutorial?', 'Use this Need help panel. Search a task such as invite, project, report, clock out, archive, or schedule, then open the matching answer.']
+        ['How do I get help without restarting the tutorial?', 'Use ACE Help. Search a task such as invite, project, report, clock out, archive, or schedule, then open the matching answer.']
     ] : [
-        ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. In the collapsed desktop rail, Need Help is the information icon above your account. On a phone, use the menu button in the top bar. The Work section contains My time entries and Remarks.'],
+        ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. The Work section contains My time entries and Remarks.'],
         ['How do I clock in?', 'Open Dashboard and choose Clock in. Select one of your assigned projects when one is available, then confirm.'],
         ['How do I clock out?', 'Open Dashboard and choose Clock out. Review the session details, add the required clock-out note, and confirm the action.'],
         ['What should I write in the clock-out note?', 'Enter a short, accurate note about the completed shift. The note is required at clock-out and is visible in your time-entry details and company reports. Do not add a new note at clock-in.'],
@@ -1754,7 +1624,7 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I get access or fix an inactive account?', 'Contact your administrator or HR representative. They can send an invitation or review your user record.'],
         ['How do I sign out?', 'Open your account menu and choose Sign out. Always clock out of your work session first if you have finished for the day.'],
         ['How do I restart the tutorial?', 'Open your account menu and choose Restart tutorial. It starts from the dashboard and guides you through the main employee workflow.'],
-        ['Do I need to restart the tutorial?', 'No. Search this Need help panel for one task at a time. Restart the tutorial only when you want the full walkthrough again.']
+        ['Do I need to restart the tutorial?', 'No. Search ACE Help for one task at a time. Restart the tutorial only when you want the full walkthrough again.']
     ];
 }
 
@@ -1801,46 +1671,125 @@ function workspaceHelpEntryMatches(entry, query) {
     return words.length > 0 && words.every(word => haystack.includes(word));
 }
 
-function openWorkspaceHelp(isAdmin, initialQuery = '', openQuestion = '') {
+function mountWorkspaceHelp(isAdmin) {
     const entries = workspaceHelpEntries(isAdmin);
-    let requestedQuestion = openQuestion;
-    let modal = document.getElementById('workspaceHelpModal');
-    if (!modal) { modal = document.createElement('div'); modal.id = 'workspaceHelpModal'; modal.className = 'modal workspace-help-modal'; document.body.append(modal); }
-    modal.innerHTML = `<div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="workspaceHelpTitle"><div class="modal-header"><div><p class="eyebrow">NEED HELP?</p><h3 class="modal-title" id="workspaceHelpTitle">${isAdmin ? 'Administrator help' : 'Employee help'}</h3></div><button class="modal-close" type="button" aria-label="Close">${suppliedIconMarkup('x')}</button></div><div class="modal-body"><label class="workspace-help-search">${suppliedIconMarkup('search')}<input type="search" placeholder="Search help, e.g. clock out or invite"></label><p class="workspace-help-count"></p><div class="workspace-help-list"></div></div></div>`;
-    const input = modal.querySelector('input');
-    const count = modal.querySelector('.workspace-help-count');
-    const list = modal.querySelector('.workspace-help-list');
-    const renderResults = query => {
-        const matches = entries.filter(item => workspaceHelpEntryMatches(item, query));
-        const suggestions = query.trim() && !matches.length ? findSearchSuggestions(query, entries.map(([question, answer]) => ({ label: question, keywords: answer, query: question }))) : [];
-        count.textContent = matches.length ? `${matches.length} answer${matches.length === 1 ? '' : 's'}` : suggestions.length ? 'No exact answer · suggestions below' : 'No matching answers';
-        const suggestionMarkup = suggestions.length ? `<aside class="workspace-help-suggestions" aria-label="Suggested help topics"><span>Did you mean…</span>${suggestions.map((suggestion, index) => `<button type="button" data-help-suggestion="${index}">${suppliedIconMarkup('search')}<span>${escapeHtml(suggestion.label)}</span></button>`).join('')}</aside>` : '';
-        const answersMarkup = matches.map(([q, a]) => {
-            const open = requestedQuestion === q;
-            return `<article class="faq-item"><button class="faq-question${open ? ' active' : ''}" type="button" aria-expanded="${open}">${escapeHtml(q)}</button><div class="faq-answer"><p>${escapeHtml(a)}</p></div></article>`;
-        }).join('') || (!suggestions.length ? '<p class="workspace-help-empty">Try another word.</p>' : '');
-        list.innerHTML = suggestionMarkup + answersMarkup;
-        list.querySelectorAll('[data-help-suggestion]').forEach(button => button.addEventListener('click', () => {
-            const suggestion = suggestions[Number(button.dataset.helpSuggestion)];
-            if (!suggestion) return;
-            input.value = suggestion.query;
-            requestedQuestion = suggestion.label;
-            renderResults(suggestion.query);
-        }));
-        list.querySelectorAll('.faq-question').forEach(button => button.addEventListener('click', () => {
-            const open = button.getAttribute('aria-expanded') === 'true';
-            button.setAttribute('aria-expanded', String(!open));
-            button.classList.toggle('active', !open);
-        }));
-        requestedQuestion = '';
-    };
-    modal.querySelector('.modal-close').onclick = () => closeModal(modal.id);
-    modal.onclick = event => { if (event.target === modal) closeModal(modal.id); };
-    input.addEventListener('input', () => renderResults(input.value));
-    input.value = initialQuery;
-    renderResults(initialQuery);
-    openModal(modal.id);
-    requestAnimationFrame(() => input.focus());
+    const popular = isAdmin ? [1, 10, 14, 16] : [1, 2, 8, 11];
+    const face = '<span class="help-bot-face" aria-hidden="true"><i></i><i></i><b></b></span>';
+    const bot = document.createElement('div');
+    bot.className = 'help-bot';
+    bot.innerHTML = `
+        <button class="help-bot-launcher" type="button" aria-label="Open ACE help" aria-expanded="false" aria-controls="workspaceHelpPanel">
+            ${face}<span class="help-bot-greeting" aria-hidden="true">Do you need help?</span>
+        </button>
+        <section class="help-bot-panel" id="workspaceHelpPanel" role="dialog" aria-labelledby="workspaceHelpTitle" hidden>
+            <header class="help-bot-header">
+                ${face}
+                <div><h2 id="workspaceHelpTitle">ACE Help</h2><p>${isAdmin ? 'Administrator guide' : 'Employee guide'}</p></div>
+                <button class="help-bot-close" type="button" aria-label="Close ACE help">${suppliedIconMarkup('x')}</button>
+            </header>
+            <div class="help-bot-body">
+                <div class="help-bot-topics">
+                    <p class="help-bot-reply">Hi! Pick a question below or search for a topic.</p>
+                    <label class="help-bot-search">${suppliedIconMarkup('search')}<input type="search" aria-label="Search help topics" placeholder="Search help topics" autocomplete="off"></label>
+                    <p class="help-bot-label" aria-live="polite"></p>
+                    <div class="help-bot-questions"></div>
+                </div>
+                <div class="help-bot-answer" hidden>
+                    <h3 tabindex="-1"></h3>
+                    <p class="help-bot-reply"></p>
+                    <button type="button" class="help-bot-back">Choose another question</button>
+                </div>
+            </div>
+        </section>`;
+    document.body.append(bot);
+
+    const launcher = bot.querySelector('.help-bot-launcher');
+    const panel = bot.querySelector('.help-bot-panel');
+    const closeButton = bot.querySelector('.help-bot-close');
+    const topics = bot.querySelector('.help-bot-topics');
+    const scrollArea = bot.querySelector('.help-bot-body');
+    const input = bot.querySelector('input');
+    const label = bot.querySelector('.help-bot-label');
+    const questions = bot.querySelector('.help-bot-questions');
+    const answer = bot.querySelector('.help-bot-answer');
+    const questionHeading = answer.querySelector('h3');
+    let returnFocus = launcher;
+    let lastQuestion = null;
+
+    function renderTopics() {
+        const query = input.value.trim();
+        const matches = entries.filter(entry => workspaceHelpEntryMatches(entry, query));
+        const suggestions = query && !matches.length
+            ? findSearchSuggestions(query, entries.map(([question, response], index) => ({ label: question, keywords: response, query: question, index })))
+            : [];
+        const featured = popular.map(index => entries[index]);
+        const ordered = query
+            ? (matches.length ? matches : suggestions.map(suggestion => entries[suggestion.index]))
+            : [...featured, ...entries.filter(entry => !featured.includes(entry))];
+        label.textContent = !query ? 'Common questions' : matches.length
+            ? `${matches.length} matching question${matches.length === 1 ? '' : 's'}`
+            : suggestions.length ? 'Related questions' : 'No matching questions. Try another word.';
+        questions.innerHTML = ordered.map(entry => {
+            const [question] = entry;
+            const index = entries.indexOf(entry);
+            return `<button type="button" data-help-topic="${index}">${escapeHtml(question)}${suppliedIconMarkup('chevron-right')}</button>`;
+        }).join('');
+    }
+
+    function showAnswer([question, response]) {
+        topics.hidden = true;
+        answer.hidden = false;
+        questionHeading.textContent = question;
+        answer.querySelector('.help-bot-reply').textContent = response;
+        scrollArea.scrollTop = 0;
+        questionHeading.focus();
+    }
+
+    function open(query = '', question = '') {
+        if (panel.hidden) returnFocus = document.activeElement;
+        launcher.setAttribute('aria-expanded', 'true');
+        panel.hidden = false;
+        scrollArea.scrollTop = 0;
+        input.value = query;
+        renderTopics();
+        lastQuestion = null;
+        const entry = entries.find(([title]) => title === question);
+        if (entry) {
+            showAnswer(entry);
+        } else {
+            answer.hidden = true;
+            topics.hidden = false;
+            (query ? input : closeButton).focus();
+        }
+    }
+
+    function close() {
+        panel.hidden = true;
+        launcher.setAttribute('aria-expanded', 'false');
+        (returnFocus?.isConnected && returnFocus !== document.body ? returnFocus : launcher).focus();
+    }
+
+    launcher.addEventListener('click', () => panel.hidden ? open() : close());
+    closeButton.addEventListener('click', close);
+    input.addEventListener('input', renderTopics);
+    questions.addEventListener('click', event => {
+        const button = event.target.closest('[data-help-topic]');
+        if (!button) return;
+        lastQuestion = button;
+        showAnswer(entries[Number(button.dataset.helpTopic)]);
+    });
+    answer.querySelector('.help-bot-back').addEventListener('click', () => {
+        answer.hidden = true;
+        topics.hidden = false;
+        (lastQuestion || input).focus();
+    });
+    bot.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || panel.hidden) return;
+        event.stopPropagation();
+        close();
+    });
+
+    return open;
 }
 
 function applySuppliedIcons() {
@@ -3003,7 +2952,7 @@ function loadAdminTimeEntryDetails() {
     });
 }
 
-function employeeScheduleMessage(schedule, entries, active, now = new Date()) {
+function employeeScheduleMessage(schedule, entries, active, now = new Date(), historyKnown = true) {
     if (!schedule) return '';
     const time = value => new Date(value).toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' });
     if (schedule.schedule_type === 'AS_NEEDED') return active
@@ -3030,7 +2979,7 @@ function employeeScheduleMessage(schedule, entries, active, now = new Date()) {
         // Existing entries may follow a different historical schedule snapshot.
         if (recorded) return scheduled + ' Recorded clock-in: ' + time(recorded.ClockInAt) + '.';
         if (!isScheduledToday(schedule, start)) return schedule.name + ': no work is scheduled today.';
-        return scheduled + (now > start ? ' No clock-in recorded for this shift yet.' : '');
+        return scheduled + (historyKnown && now > start ? ' No clock-in recorded for this shift yet.' : '');
     }
     if (active) return 'Flextime: expected finish ' + time(Date.parse(active.ClockInAt) + Number(schedule.daily_elapsed_minutes || 540) * 60000) + ' (Manila time).';
     if (!isScheduledToday(schedule, now)) return schedule.name + ': no work is scheduled today.';
@@ -3047,13 +2996,15 @@ function updateEmployeeScheduleNotice(now = new Date()) {
         intro.insertAdjacentElement('afterend', notice);
     }
     const entries = AppState.timeEntries.filter(entry => entry.UserId === AppState.currentUser?.UserId);
-    const message = employeeScheduleMessage(AppState.assignedSchedule, entries, AppState.currentSession, now);
+    const historyKnown = !['pending', 'loading', 'error'].includes(AppState.employeeHistoryStatus);
+    const message = employeeScheduleMessage(AppState.assignedSchedule, entries, AppState.currentSession, now, historyKnown);
     notice.classList.remove('is-late');
     if (notice.textContent !== message) notice.textContent = message;
 }
 
 function loadUserDashboard() {
     updateEmployeeScheduleNotice();
+    const historyUnavailable = ['pending', 'loading', 'error'].includes(AppState.employeeHistoryStatus);
     const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.DurationSeconds);
     const now = new Date();
     const startOfWeek = new Date(now);
@@ -3069,10 +3020,11 @@ function loadUserDashboard() {
     };
     Object.entries(dashboardStats).forEach(([id, value]) => {
         const node = document.getElementById(id);
-        if (node) node.textContent = value;
+        if (node) node.textContent = historyUnavailable ? '—' : value;
     });
     const weekChart = document.getElementById('employeeWeekChart');
-    if (weekChart) {
+    if (weekChart) weekChart.hidden = historyUnavailable;
+    if (weekChart && !historyUnavailable) {
         const dailySeconds = Array.from({ length: 7 }, (_, index) => {
             const day = new Date(startOfWeek);
             day.setDate(startOfWeek.getDate() + index);
@@ -3109,7 +3061,12 @@ function loadUserDashboard() {
     
     // Populate recent activity
     const recentActivity = document.getElementById('recentActivity');
-    if (recentActivity) {
+    if (recentActivity && historyUnavailable) {
+        recentActivity.innerHTML = AppState.employeeHistoryStatus === 'error'
+            ? '<p role="status">Could not load time-entry history. You can still clock in or out.</p><button class="btn btn-outline" type="button" data-retry-employee-history>Retry history</button>'
+            : '<p role="status">Loading time-entry history…</p>';
+        recentActivity.querySelector('[data-retry-employee-history]')?.addEventListener('click', () => void loadEmployeeHistory());
+    } else if (recentActivity) {
         const userEntries = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId).slice(0, 5);
         
         recentActivity.innerHTML = userEntries.length ? `<ol class="employee-activity-list">${userEntries.map(entry => {

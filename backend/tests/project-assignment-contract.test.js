@@ -40,7 +40,7 @@ test('project actions offer view and delete, and view includes assigned employee
 });
 
 test('user projects are visible and filterable, with unassigned limited to employees', () => {
-  const usersRoute = server.slice(server.indexOf("app.get('/v1/users'"), server.indexOf("app.get('/v1/employee-chat/contacts'"));
+  const usersRoute = server.slice(server.indexOf("app.get('/v1/users'"), server.indexOf("app.patch('/v1/users/:id/approval'"));
   assert.match(usersRoute, /req\.query\.projectId/);
   assert.match(usersRoute, /projectId === '__UNASSIGNED__'/);
   assert.match(usersRoute, /request = request\.eq\('role', 'USER'\)/);

@@ -1,5 +1,6 @@
 // Akio <3: Project source maintained by Akio Zaki Salomon.
 window.ACEAuth = (() => {
+    let configPromise;
     let clientPromise;
     let refreshPromise;
     let sessionPromise;
@@ -42,15 +43,16 @@ window.ACEAuth = (() => {
         });
         return Promise.race([promise, deadline]).finally(() => window.clearTimeout(timeoutId));
     }
+    function getConfig() {
+        configPromise ||= fetchConfig().catch(error => {
+            configPromise = null;
+            throw error;
+        });
+        return configPromise;
+    }
     async function client() {
         if (!clientPromise) {
-            clientPromise = fetchWithTimeout(`${apiUrl()}/v1/auth/config`).then(async response => {
-                if (!response.ok) {
-                    const error = new Error('The ACE authentication service is unavailable.');
-                    error.status = response.status;
-                    throw error;
-                }
-                const config = await withTimeout(response.json(), 'Authentication configuration took too long.');
+            clientPromise = getConfig().then(config => {
                 const created = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, {
                     auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
                 });
@@ -114,7 +116,7 @@ window.ACEAuth = (() => {
         }
         return body;
     }
-    async function checkService() {
+    async function fetchConfig() {
         // /health is for infrastructure monitoring. Some browser filters block
         // that path, so gate startup on the configuration the app actually uses.
         const response = await fetchWithTimeout(`${apiUrl()}/v1/auth/config`, { timeoutMs: 10000, cache: 'no-store' });
@@ -127,6 +129,8 @@ window.ACEAuth = (() => {
             error.status = response.ok ? 503 : response.status;
             throw error;
         }
+        return body;
     }
+    async function checkService() { await getConfig(); }
     return { client, session: async () => session(await client()), request, authorizedFetch, checkService };
 })();

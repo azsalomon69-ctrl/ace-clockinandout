@@ -15,7 +15,6 @@ window.ACETutorialConfig = {
             { page: 'user-dashboard.html', target: '#employeeQuickActions', title: 'Use quick actions', body: 'These shortcuts take you straight to your time entries, administrator remarks, and profile settings.' },
             { page: 'settings.html', target: '#profileSettings', title: 'Keep your profile current', body: 'Update your name, photo, and notification preferences here.', navigation: { group: 'Account', label: 'Profile & settings' } },
             { page: 'user-dashboard.html', target: '#employeeScheduleNotice', alternateTargets: ['#currentShiftTitle'], title: 'Check your assigned schedule', body: 'Your assigned schedule notice appears above your work status. It explains today’s fixed hours or flextime requirement. If no notice appears, ask your administrator about your schedule assignment.', navigation: { group: 'Workspace', label: 'Dashboard' } },
-            { page: 'user-dashboard.html', target: '.employee-chat-launcher', title: 'Talk with an administrator', body: 'Open Chat to choose an administrator, read replies, or send a private message about your work. Administrator remarks on time entries remain available on the Remarks page.' }
         ]
     },
     ADMIN: {

@@ -19,7 +19,7 @@ window.ACERenderInitialSkeletons = function renderAceInitialSkeleton() {
   const regions = {
     hoursChart: 'chart', projectAllocationChart: 'chart', employeeWeekChart: 'chart',
     adminLeaderboard: 'list', recentActivity: 'list', myProjects: 'list',
-    dashboardRemarks: 'list', remarksPageList: 'list', chatLogList: 'list'
+    dashboardRemarks: 'list', remarksPageList: 'list'
   };
   Object.entries(regions).forEach(([id, kind]) => {
     const node = document.getElementById(id);

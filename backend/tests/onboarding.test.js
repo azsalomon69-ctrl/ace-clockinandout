@@ -79,7 +79,7 @@ test('every employee tutorial target exists on its configured page', () => {
   for (const step of context.window.ACETutorialConfig.USER.steps) {
     assert.match(step.target, /^[#.][A-Za-z][A-Za-z0-9_-]*$/, 'Employee steps should use durable selectors');
     const markup = readFileSync(new URL(`../../frontend/${step.page}`, import.meta.url), 'utf8');
-    const dynamic = ['#employeeScheduleNotice', '.employee-chat-launcher'].includes(step.target);
+    const dynamic = ['#employeeScheduleNotice'].includes(step.target);
     assert.ok(markup.includes(`id="${step.target.slice(1)}"`) || (dynamic && shellSource.includes(step.target.slice(1))), `${step.target} should exist in ${step.page} or its dynamic renderer`);
   }
 });
@@ -167,7 +167,7 @@ test('the bell notification button owns its menu handler and the theme toggle st
 test('every application page references the same shell-script version', () => {
   const pages = [
     'admin-dashboard.html', 'admin-time-entries.html', 'audit-logs.html',
-    'chat-log.html', 'deleted-time-entries.html', 'deleted-users.html', 'departments.html',
+    'deleted-time-entries.html', 'deleted-users.html', 'departments.html',
     'employee-profile.html', 'index.html', 'individual-reports.html', 'invitations.html', 'login.html',
     'projects.html', 'remarks.html', 'reports.html', 'schedule-flex.html', 'settings.html',
     'time-entries.html', 'time-entry-details.html', 'user-dashboard.html', 'users.html'
@@ -198,11 +198,8 @@ test('employee time-entry navigation matches the visible sidebar label', () => {
     assert.match(shellSource, /aria-label="\$\{groupLabel\}" data-group-label="\$\{groupLabel\}"/, 'Every employee sidebar group must expose its label so tutorial navigation can target the requested destination');
 });
 
-test('a collapsed desktop rail keeps Help icon-only without hiding mobile admin dropdowns', () => {
+test('a collapsed desktop rail does not hide mobile admin dropdowns', () => {
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
-  assert.match(shellSource, /class="shell-sidebar-help" type="button" aria-label="Open Need Help" title="Need Help\?"/, 'The icon-only Help control needs an accessible name and tooltip');
-  assert.match(styles, /\.shell-sidebar-help \{[\s\S]*?width: calc\(100% - 20px\);[\s\S]*?box-sizing: border-box;/, 'Help must include its padding in its sidebar width to avoid opening-time overflow');
-  assert.match(styles, /@media \(min-width: 1181px\) \{[\s\S]*?\.shell-collapsed \.shell-sidebar-help > span \{ display: none; \}/, 'Collapsed desktop Help should hide only its visible label');
   assert.match(styles, /@media \(max-width: 1180px\) \{[\s\S]*?\.shell-collapsed \.shell-nav-label \{ display: block; \}[\s\S]*?\.shell-collapsed \.shell-nav-group-toggle \{ display: flex; \}/, 'A saved desktop collapse preference must not hide mobile admin dropdown triggers');
 });
 

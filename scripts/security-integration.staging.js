@@ -154,9 +154,9 @@ if (process.env.ACE_TEST_RUN_MUTATIONS === 'true') {
 
 if (process.env.ACE_TEST_HEAD_ADMIN_EMAIL && process.env.ACE_TEST_HEAD_ADMIN_PASSWORD) {
   const headAdmin = await signIn(process.env.ACE_TEST_HEAD_ADMIN_EMAIL, process.env.ACE_TEST_HEAD_ADMIN_PASSWORD);
-  await expectStatus('head admin chat log allowed', '/v1/admin/chat-log', 200, { token: headAdmin.token });
+  await expectStatus('retired chat log unavailable to head admin', '/v1/admin/chat-log', 404, { token: headAdmin.token });
 } else {
-  await expectStatus('ordinary admin chat log denied', '/v1/admin/chat-log', 403, { token: admin.token });
+  await expectStatus('retired chat log unavailable to ordinary admin', '/v1/admin/chat-log', 404, { token: admin.token });
 }
 
 await Promise.allSettled([admin.client.auth.signOut(), user.client.auth.signOut()]);

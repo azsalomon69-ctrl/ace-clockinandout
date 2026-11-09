@@ -36,7 +36,7 @@ The system gives employees a simple way to clock in and out, view their time rec
 - Export data
 - Review audit logs
 - Manage employee remarks
-- Use administrator chat and management tools
+- Use administrator management tools
 - Access administrator onboarding and help
 
 ## Technology
@@ -101,7 +101,6 @@ ACE-clockinandout/
 │   │   ├── employee-profile.js
 │   │   ├── deleted-users.js
 │   │   ├── deleted-time-entries.js
-│   │   ├── chat-log.js
 │   │   └── sidebar.js
 │   └── ...
 │
@@ -132,7 +131,7 @@ ACE-clockinandout/
 
 The frontend is built with HTML, CSS, and JavaScript.
 
-Shared application behavior is primarily handled through JavaScript modules. The main application logic is in `frontend/js/script.js`, with additional modules for administration, authentication, onboarding, schedules, reports, employee profiles, chat, and other application areas.
+Shared application behavior is primarily handled through JavaScript modules. The main application logic is in `frontend/js/script.js`, with additional modules for administration, authentication, onboarding, schedules, reports, employee profiles, and other application areas.
 
 Authentication-related browser functionality is handled by:
 
@@ -172,7 +171,6 @@ The API handles the application's server-side functionality, including:
 - Time entries
 - Reports
 - Remarks
-- Chat
 - Notifications
 - Audit logs
 - Employee account management
@@ -194,7 +192,6 @@ The database stores the application's workforce data, including:
 - Project assignments
 - Invitations
 - Remarks
-- Chat messages
 - Notifications
 - Audit records
 - Tutorial progress

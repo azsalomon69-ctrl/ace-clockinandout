@@ -24,7 +24,6 @@ const sessionSecurity = createSessionSecurity(db);
 const cloudinaryConfigured = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].every(key => Boolean(process.env[key]));
 if (cloudinaryConfigured) cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET, secure: true });
 const app = express();
-const chatSubscribers = new Map();
 const authUserCache = new Map();
 const profileCache = new Map();
 const avatarPersistenceCache = new Map();
@@ -54,20 +53,6 @@ const clearReferenceData = prefix => {
   for (const key of referenceDataCache.keys()) if (key.startsWith(prefix)) referenceDataCache.delete(key);
 };
 const isTokenRevoked = tokenKey => revokedTokenCache.get(tokenKey) > Date.now();
-const publishChatEvent = (userId, detail) => {
-  const subscribers = chatSubscribers.get(userId);
-  if (!subscribers) return;
-  const payload = `event: chat\ndata: ${JSON.stringify(detail)}\n\n`;
-  subscribers.forEach(response => response.write(payload));
-};
-const publishAdminChatEvent = async detail => {
-  // Notification delivery is an enhancement, never a reason to fail the
-  // completed action that caused it. Each open administrator stream is private.
-  try {
-    const admins = await query(db.from('profiles').select('id').eq('role', 'ADMIN').eq('status', 'ACTIVE').is('permanently_deleted_at', null));
-    admins.forEach(admin => publishChatEvent(admin.id, detail));
-  } catch (error) { console.warn('Could not publish administrator notification.', error.message); }
-};
 const frontendOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(value => value.trim()).filter(Boolean);
 if (process.env.NODE_ENV === 'production' && !frontendOrigins.length) {
   throw new Error('FRONTEND_ORIGIN is required in production');
@@ -411,15 +396,26 @@ const verifySupabaseJwt = async token => {
     issuer: supabaseJwtIssuer
   }));
 };
-const getUserFromGoTrue = (token, tokenKey) => cached(authUserCache, tokenKey, 30_000, async () => {
-  const { data, error } = await db.auth.getUser(token);
-  if (error || !data.user) throw new Error('Invalid or expired session');
-  return data.user;
-});
+class InvalidSessionError extends Error {}
+const invalidSessionCodes = new Set(['bad_jwt', 'invalid_jwt', 'session_not_found', 'session_expired', 'user_not_found', 'user_banned']);
 const getFreshUserFromGoTrue = async token => {
   const { data, error } = await db.auth.getUser(token);
-  if (error || !data.user) throw new Error('Invalid or expired session');
+  if (error) {
+    if (invalidSessionCodes.has(error.code) || error.name === 'AuthSessionMissingError' ||
+        (!error.code && (error.status === 401 || error.status === 403))) {
+      throw new InvalidSessionError('Invalid or expired session');
+    }
+    throw error;
+  }
+  if (!data?.user) throw new Error('Authentication response did not include a user');
   return data.user;
+};
+const getUserFromGoTrue = (token, tokenKey) =>
+  cached(authUserCache, tokenKey, 30_000, () => getFreshUserFromGoTrue(token));
+const respondToAuthFailure = (req, res, error) => {
+  if (error instanceof InvalidSessionError) return fail(res, 401, error.message);
+  console.warn('Authentication dependency unavailable', { requestId: req.requestId });
+  return fail(res, 503, 'ACE could not verify your account right now. Please try again.');
 };
 async function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
@@ -437,14 +433,15 @@ async function authenticate(req, res, next) {
       // remains the authoritative fallback and rejects invalid/revoked tokens.
       user = await getUserFromGoTrue(token, tokenKey);
     }
-    req.profile = await cached(profileCache, user.id, 5_000, () => query(db.from('profiles').select('*').eq('id', user.id).is('permanently_deleted_at', null).single()));
+    req.profile = await cached(profileCache, user.id, 5_000, () => query(db.from('profiles').select('*').eq('id', user.id).is('permanently_deleted_at', null).maybeSingle()));
+    if (!req.profile) return fail(res, 403, 'User profile is not available');
     req.profile = await persistGoogleAvatar(req.profile, user);
     req.authUser = user;
     req.authToken = token;
     req.authTokenCacheKey = tokenKey;
     req.authSessionId = jwt.decode(token)?.session_id;
-    next();
-  } catch (error) { return fail(res, error.message === 'Invalid or expired session' ? 401 : 403, error.message === 'Invalid or expired session' ? error.message : 'User profile is not available'); }
+  } catch (error) { return respondToAuthFailure(req, res, error); }
+  return next();
 }
 const adminOnly = async (req, res, next) => {
   if (req.profile.role !== 'ADMIN' || req.profile.status !== 'ACTIVE') return fail(res, 403, 'Active administrator access required');
@@ -452,8 +449,8 @@ const adminOnly = async (req, res, next) => {
     // Administrator requests deliberately obtain fresh GoTrue metadata. Normal
     // employee requests use local verification and avoid this Auth log line.
     req.authUser = await getFreshUserFromGoTrue(req.authToken);
-    return next();
-  } catch { return fail(res, 401, 'Invalid or expired session'); }
+  } catch (error) { return respondToAuthFailure(req, res, error); }
+  return next();
 };
 const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() : fail(res, 403, req.profile.status === 'DENIED'
   ? 'Your account is inactive. Contact an administrator if you believe this is a mistake.'
@@ -461,16 +458,8 @@ const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() 
 const employeeOnly = (req, res, next) => req.profile.role === 'USER' && req.profile.status === 'ACTIVE'
   ? next()
   : fail(res, 403, 'Employee access is required');
-const canChatWith = (profile, contact) => profile.role === 'ADMIN' || contact.role === 'ADMIN';
 const headAdminEmail = process.env.HEAD_ADMIN_EMAIL?.trim().toLowerCase();
 if (!headAdminEmail) throw new Error('HEAD_ADMIN_EMAIL is required');
-const specialAdminOnly = async (req, res, next) => {
-  if (req.profile.role !== 'ADMIN' || req.profile.status !== 'ACTIVE' || req.profile.email?.toLowerCase() !== headAdminEmail) return fail(res, 403, 'This administrator feature is restricted');
-  try {
-    req.authUser = await getFreshUserFromGoTrue(req.authToken);
-    return next();
-  } catch { return fail(res, 401, 'Invalid or expired session'); }
-};
 const isHeadAdmin = req => req.profile.email?.toLowerCase() === headAdminEmail;
 const protectHeadAdmin = (req, res, target) => {
   if (target.email?.toLowerCase() !== headAdminEmail || isHeadAdmin(req)) return true;
@@ -514,8 +503,12 @@ async function audit(req, action, entityType, entityId, description) {
 // serve requests.  A process-only check hides broken Supabase credentials or
 // a paused/unreachable database, then the UI fails later with opaque errors.
 app.get('/health', async (_, res) => {
+  res.set('Cache-Control', 'no-store');
   try {
-    const { error } = await db.from('profiles').select('id', { head: true, count: 'exact' }).limit(1);
+    // Check database access without counting rows. Leave headroom for Render's
+    // five-second deadline, including time to send the HTTP response.
+    const { error } = await db.from('profiles').select('id', { head: true }).limit(1)
+      .abortSignal(AbortSignal.timeout(3500));
     if (error) throw error;
     res.json({ ok: true, service: 'ace-clock-api', database: 'connected' });
   } catch (error) {
@@ -700,118 +693,8 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   }));
   res.json(paged ? { items, total: profileResponse.count || 0, page, pageSize } : items);
 } catch (error) { next(error); } });
-app.get('/v1/employee-chat/contacts', authenticate, activeOnly, async (req, res, next) => { try {
-  let contactRequest = db.from('profiles').select('id,full_name,email,role,profile_picture_url').eq('status', 'ACTIVE').is('permanently_deleted_at', null).neq('id', req.profile.id).order('full_name');
-  if (req.profile.role !== 'ADMIN') contactRequest = contactRequest.eq('role', 'ADMIN');
-  const [contacts, unread] = await Promise.all([
-    query(contactRequest),
-    query(db.from('employee_messages').select('sender_id,body,created_at').eq('recipient_id', req.profile.id).is('read_at', null).is('deleted_at', null).order('created_at', { ascending: false }))
-  ]);
-  const allowedContactIds = new Set(contacts.map(contact => contact.id));
-  const unreadByContact = unread.reduce((summary, message) => {
-    if (!allowedContactIds.has(message.sender_id)) return summary;
-    const item = summary[message.sender_id] || { count: 0, latest: null };
-    item.count += 1;
-    // Results are newest-first, so retain only the first message as a preview.
-    if (!item.latest) item.latest = message;
-    summary[message.sender_id] = item;
-    return summary;
-  }, {});
-  res.json({
-    contacts: contacts.map(contact => {
-      return {
-      ...contact,
-      unread_count: unreadByContact[contact.id]?.count || 0,
-      last_unread_message: unreadByContact[contact.id]?.latest?.body || null,
-      last_unread_at: unreadByContact[contact.id]?.latest?.created_at || null
-      };
-    })
-  });
-} catch (error) { next(error); } });
 app.get('/v1/admin-dashboard/active-clock-in-count', authenticate, adminOnly, async (req, res, next) => { try {
   res.json({ count: await countActiveEmployeeClockIns(db) });
-} catch (error) { next(error); } });
-app.get('/v1/employee-chat/stream', authenticate, activeOnly, (req, res) => {
-  const userId = req.profile.id;
-  const subscribers = chatSubscribers.get(userId) || new Set();
-  subscribers.add(res);
-  chatSubscribers.set(userId, subscribers);
-  res.status(200).set({
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache, no-transform',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no'
-  });
-  res.flushHeaders?.();
-  res.write('event: ready\ndata: {}\n\n');
-  const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 20_000);
-  req.on('close', () => {
-    clearInterval(heartbeat);
-    subscribers.delete(res);
-    if (!subscribers.size) chatSubscribers.delete(userId);
-  });
-});
-app.post('/v1/employee-chat/typing', authenticate, activeOnly, async (req, res, next) => { try {
-  const recipientId = optionalUuid(req.body.recipientId);
-  const active = Boolean(req.body.active);
-  if (!recipientId || recipientId === req.profile.id) return fail(res, 400, 'A valid chat recipient is required');
-  const recipient = await query(db.from('profiles').select('id,role').eq('id', recipientId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
-  if (!recipient) return fail(res, 404, 'Contact is not available for chat');
-  if (!canChatWith(req.profile, recipient)) return fail(res, 403, 'Employees can only chat with administrators');
-  publishChatEvent(recipientId, { type: 'typing', contactId: req.profile.id, active });
-  res.status(204).end();
-} catch (error) { next(error); } });
-app.get('/v1/employee-chat/messages/:userId', authenticate, activeOnly, async (req, res, next) => { try {
-  const otherUserId = optionalUuid(req.params.userId);
-  if (!otherUserId) return fail(res, 400, 'A valid contact ID is required');
-  const contact = await query(db.from('profiles').select('id,role').eq('id', otherUserId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
-  if (!contact) return fail(res, 404, 'Contact is not available for chat');
-  if (!canChatWith(req.profile, contact)) return fail(res, 403, 'Employees can only chat with administrators');
-  const messages = await query(db.from('employee_messages').select('*').or(`and(sender_id.eq.${req.profile.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${req.profile.id})`).order('created_at').limit(200));
-  await query(db.from('employee_messages').update({ read_at: new Date().toISOString() }).eq('sender_id', otherUserId).eq('recipient_id', req.profile.id).is('read_at', null));
-  res.json(messages);
-} catch (error) { next(error); } });
-app.post('/v1/employee-chat/messages', authenticate, activeOnly, async (req, res, next) => { try {
-  const recipientId = optionalUuid(req.body.recipientId);
-  const body = optionalText(req.body.body, 2000);
-  if (!recipientId || !body) return fail(res, 400, 'A recipient and message are required');
-  if (recipientId === req.profile.id) return fail(res, 400, 'You cannot message yourself');
-  const recipient = await query(db.from('profiles').select('id,role').eq('id', recipientId).eq('status', 'ACTIVE').is('permanently_deleted_at', null).maybeSingle());
-  if (!recipient) return fail(res, 404, 'Contact is not available for chat');
-  if (!canChatWith(req.profile, recipient)) return fail(res, 403, 'Employees can only chat with administrators');
-  const message = await query(db.from('employee_messages').insert({ sender_id: req.profile.id, recipient_id: recipientId, body, original_body: body }).select().single());
-  publishChatEvent(recipientId, { type: 'message', contactId: req.profile.id, messageId: message.id });
-  res.status(201).json(message);
-} catch (error) { next(error); } });
-app.patch('/v1/employee-chat/messages/:messageId', authenticate, activeOnly, async (req, res, next) => { try {
-  const messageId = optionalUuid(req.params.messageId);
-  const body = optionalText(req.body.body, 2000);
-  if (!messageId || !body) return fail(res, 400, 'A valid message is required');
-  const existing = await query(db.from('employee_messages').select('id,body,original_body').eq('id', messageId).eq('sender_id', req.profile.id).is('deleted_at', null).maybeSingle());
-  if (!existing) return fail(res, 404, 'Message is not available to edit');
-  const message = await query(db.from('employee_messages').update({ body, original_body: existing.original_body || existing.body, edited_at: new Date().toISOString() }).eq('id', messageId).select().single());
-  res.json(message);
-} catch (error) { next(error); } });
-app.delete('/v1/employee-chat/messages/:messageId', authenticate, activeOnly, async (req, res, next) => { try {
-  const messageId = optionalUuid(req.params.messageId);
-  if (!messageId) return fail(res, 400, 'A valid message ID is required');
-  // Keep the original body for the restricted administrator log. The employee
-  // chat renders the deleted marker instead, so deletion hides it only there.
-  const message = await query(db.from('employee_messages').update({ deleted_at: new Date().toISOString() }).eq('id', messageId).eq('sender_id', req.profile.id).is('deleted_at', null).select().maybeSingle());
-  if (!message) return fail(res, 404, 'Message is not available to delete');
-  res.json(message);
-} catch (error) { next(error); } });
-app.get('/v1/admin/chat-log', authenticate, specialAdminOnly, async (req, res, next) => { try {
-  const paging = pageParams(req);
-  const messageRequest = db.from('employee_messages').select('id,sender_id,recipient_id,body,original_body,created_at,edited_at,deleted_at,read_at', paging.paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false });
-  const [messageResult, profiles] = await Promise.all([
-    paging.paged ? pagedResult(messageRequest, paging) : query(messageRequest.limit(500)),
-    query(db.from('profiles').select('id,full_name,email,role'))
-  ]);
-  const messages = paging.paged ? messageResult.items : messageResult;
-  const people = new Map(profiles.map(profile => [profile.id, profile]));
-  const items = messages.map(message => ({ ...message, sender: people.get(message.sender_id) || null, recipient: people.get(message.recipient_id) || null }));
-  res.json(paging.paged ? { ...messageResult, items } : items);
 } catch (error) { next(error); } });
 app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try {
   if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED');
@@ -1107,8 +990,6 @@ app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, re
   if (!entry) return fail(res, 404, 'Time entry is unavailable');
   const remark = await query(db.from('admin_remarks').insert({ time_entry_id: req.params.id, admin_user_id: req.profile.id, remark: remarkText }).select().single());
   await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark');
-  publishChatEvent(entry.user_id, { type: 'notification', kind: 'remarks' });
-  void publishAdminChatEvent({ type: 'notification', kind: 'remarks' });
   res.status(201).json(remark);
 } catch (error) { next(error); } });
 app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try {

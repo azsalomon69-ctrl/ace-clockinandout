@@ -40,7 +40,7 @@ function requestHarness(send, refresh = async () => ({ data: { session: { access
     localStorage: { removeItem: key => effects.removed.push(key) },
     sessionStorage: { setItem: (key, value) => effects.notices.push({ key, value }) },
     fetch: async (url, options) => url.endsWith('/v1/auth/config')
-      ? { ok: true, json: async () => ({}) }
+      ? { ok: true, json: async () => ({ supabaseUrl: 'https://example.test', supabasePublishableKey: 'public-test-key' }) }
       : send(url, options)
   });
   vm.runInContext(source, context);
@@ -124,4 +124,26 @@ test('browser startup succeeds even when a client filter blocks /health', async(
  }});
  vm.runInContext(source,context);await context.window.ACEAuth.checkService();
  assert.deepEqual(calls,['/v1/auth/config']);
+});
+
+test('startup and sign-in share an in-flight configuration request and reuse its result', async () => {
+  let calls = 0;
+  let release;
+  const config = new Promise(resolve => { release = resolve; });
+  const auth = {};
+  const context = vm.createContext({
+    AbortController,
+    window: { setTimeout, clearTimeout, supabase: { createClient: () => auth } },
+    fetch: async () => { calls++; return config; }
+  });
+  vm.runInContext(source, context);
+  const api = context.window.ACEAuth;
+  const readiness = api.checkService();
+  const client = api.client();
+  assert.equal(calls, 1);
+  release({ ok: true, json: async () => ({ supabaseUrl: 'https://example.test', supabasePublishableKey: 'public-test-key' }) });
+  await readiness;
+  assert.equal(await client, auth);
+  await api.checkService();
+  assert.equal(calls, 1);
 });

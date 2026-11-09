@@ -31,7 +31,7 @@ const profile = () => fetch('/v1/me').then(r => r.json()).then(r => r.profile);
 async function tour(role) {
   await click('[data-tutorial-start]');
   const allowed = role === 'USER'
-    ? ['Start and finish your shift', 'Review your shifts', 'Find a past shift', 'Read administrator remarks', 'Check your status', 'Review time this week', 'Use quick actions', 'Keep your profile current', 'Check your assigned schedule', 'Talk with an administrator']
+    ? ['Start and finish your shift', 'Review your shifts', 'Find a past shift', 'Read administrator remarks', 'Check your status', 'Review time this week', 'Use quick actions', 'Keep your profile current', 'Check your assigned schedule']
     : ['Your admin dashboard', 'Use quick actions', 'Read workspace status', 'Invite a team member', 'Read the live analytics', 'Review time-entry alerts', 'Manage user accounts', 'Track and cancel invitations', 'Set up departments', 'Set up projects', 'Create schedules and flextime', 'Assign a schedule', 'Review and export time entries', 'Review active employee shifts', 'Correct, approve overtime, or remove safely', 'Restore deleted time entries', 'Restore archived users', 'Open saved reports', 'Prepare individual reports', 'Review the audit log', 'Update your administrator profile', 'Review account security', 'Choose display preferences'];
   let count = 0;
   while (count++ < 40) {
@@ -151,7 +151,7 @@ const tests = {
     await sleep(250);
     if (!doc().querySelector('#mainClockOutBtn.ace-tutorial-target')) failures.push('Clocked-in lesson does not highlight visible Clock Out');
     const steps = win().ACETutorialConfig.USER.steps;
-    for (const expected of ['Check your assigned schedule', 'Talk with an administrator']) {
+    for (const expected of ['Check your assigned schedule']) {
       if (!steps.some(step => step.title === expected)) failures.push(`Missing employee lesson: ${expected}`);
     }
     assert(!failures.length, failures.join('; '));
@@ -162,11 +162,6 @@ const tests = {
       assert(!doc().querySelector('.ace-tutorial-missing'), 'Schedule lesson unresolved');
       assert(doc().querySelector('[data-tutorial-next]'), 'Schedule lesson cannot continue');
     }
-    const chatIndex = steps.findIndex(step => step.title === 'Talk with an administrator');
-    await setup({ role: 'USER', cache: false, status: 'IN_PROGRESS', step: chatIndex }, 'user-dashboard.html');
-    const launcher = doc().querySelector('.employee-chat-launcher');
-    assert(launcher?.getBoundingClientRect().width > 0, 'Chat launcher invisible');
-    assert(launcher.classList.contains('ace-tutorial-target'), 'Chat lesson does not target actual launcher');
   },
   async B10() {
     const failures = [];
