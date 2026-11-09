@@ -3200,35 +3200,31 @@ body {
   transition: transform .2s ease;
 }
 .help-bot-launcher:hover, .help-bot-launcher:focus-visible { transform: translateY(-3px); }
-.help-bot-face {
-  position: relative;
+.help-bot-mascot {
   display: block;
   flex: 0 0 auto;
-  width: 33px;
-  height: 24px;
-  border: 2px solid #a9f0ef;
-  border-radius: 10px;
-  background: #092e43;
-  box-shadow: 0 0 12px #69f1fa55;
+  width: 49px;
+  height: 51px;
+  overflow: visible;
 }
-.help-bot-face::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 100%;
-  width: 4px;
-  height: 7px;
-  background: #a9f0ef;
-  border-radius: 5px 5px 0 0;
-  transform: translateX(-50%);
+.help-bot-header .help-bot-mascot { width: 40px; height: 42px; }
+.help-bot-mascot-eyes, .help-bot-mascot-mouth {
+  transform-box: fill-box;
+  transform-origin: center;
 }
-.help-bot-face i, .help-bot-face b {
-  position: absolute;
-  background: #a9f0ef;
+.help-bot-mascot-wave {
+  visibility: hidden;
+  transform-origin: 28px 34px;
 }
-.help-bot-face i { top: 6px; left: 6px; width: 4px; height: 6px; border-radius: 5px; }
-.help-bot-face i + i { left: auto; right: 6px; }
-.help-bot-face b { bottom: 3px; left: 50%; width: 8px; height: 3px; border-radius: 2px 2px 6px 6px; transform: translateX(-50%); }
+.help-bot-mascot-body { animation: help-bot-idle 3.6s steps(2, end) infinite; }
+.help-bot-mascot-eyes { animation: help-bot-blink 4.3s steps(1, end) infinite; }
+.help-bot-launcher:is(:hover, :focus-visible) .help-bot-mascot-wave {
+  visibility: visible;
+  animation: help-bot-wave .35s steps(2, end) 6 alternate;
+}
+@keyframes help-bot-idle { 50% { transform: translateY(-1px); } }
+@keyframes help-bot-blink { 94%, 98% { transform: scaleY(.2); } 96% { transform: scaleY(1); } }
+@keyframes help-bot-wave { to { transform: rotate(19deg); } }
 .help-bot-greeting {
   position: absolute;
   inset-inline-end: calc(100% + 12px);
@@ -3250,8 +3246,8 @@ body {
   opacity: 1;
   transform: translateY(0);
 }
-.help-bot-launcher[aria-expanded="false"]:is(:hover, :focus-visible) .help-bot-face b { animation: help-bot-talk .34s alternate 6 ease-in-out; }
-@keyframes help-bot-talk { to { transform: translateX(-50%) scale(.72, 1.8); } }
+.help-bot-launcher[aria-expanded="false"]:is(:hover, :focus-visible) .help-bot-mascot-mouth { animation: help-bot-talk .25s steps(2, end) 8 alternate; }
+@keyframes help-bot-talk { to { transform: scaleY(1.8); } }
 
 .help-bot-panel {
   position: absolute;
@@ -3311,6 +3307,33 @@ body {
   border-radius: 10px;
   background: var(--ace-surface-input);
 }
+.help-bot-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.help-bot-send {
+  padding: 0 15px;
+  border: 0;
+  border-radius: 10px;
+  background: #0a5669;
+  color: #f6ffff;
+  font: 700 .85rem 'Open Sans', sans-serif;
+  cursor: pointer;
+}
+.help-bot-send:disabled, .help-bot-back:disabled { opacity: .65; cursor: wait; }
+.help-bot-followup { margin-top: 14px; }
+.help-bot-asked {
+  width: fit-content;
+  max-width: 90%;
+  margin: 0 0 10px auto;
+  padding: 10px 13px;
+  border-radius: 14px 4px 14px 14px;
+  background: #0a5669;
+  color: #f6ffff;
+  font-size: .87rem;
+  overflow-wrap: anywhere;
+}
 .help-bot-search input {
   min-width: 0;
   width: 100%;
@@ -3351,6 +3374,7 @@ body {
   border-radius: 14px 4px 14px 14px;
   font-size: .87rem;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .help-bot :focus-visible, .help-bot-search:focus-within { outline: 2px solid #28a5b6; outline-offset: 2px; }
 .help-bot-search input:focus-visible { outline: none; }
@@ -3361,7 +3385,10 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .help-bot-launcher, .help-bot-greeting { transition: none; }
-  .help-bot-launcher[aria-expanded="false"]:is(:hover, :focus-visible) .help-bot-face b { animation: none; }
+  .help-bot-launcher:hover, .help-bot-launcher:focus-visible { transform: none; }
+  .help-bot .help-bot-mascot-body, .help-bot .help-bot-mascot-eyes,
+  .help-bot-launcher:is(:hover, :focus-visible) .help-bot-mascot-wave,
+  .help-bot-launcher[aria-expanded="false"]:is(:hover, :focus-visible) .help-bot-mascot-mouth { animation: none; }
 }
 .shell-topbar-badge {
   position: absolute;

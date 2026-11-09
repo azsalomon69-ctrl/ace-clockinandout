@@ -176,28 +176,36 @@ const getGmailAccessToken = async () => {
   }
   return payload.access_token;
 };
-const sendWithGmailApi = async ({ from, to, subject, text, html }) => {
+const sendWithGmailApi = async ({ from, to, replyTo, subject, text, html }) => {
   const accessToken = await getGmailAccessToken();
   // RFC 2822 message encoded as base64url, as required by Gmail's send API.
   // Values originate from validated email addresses and fixed application text.
   const raw = [
     `From: ${emailHeader(from)}`,
     `To: ${emailHeader(to)}`,
+    ...(replyTo ? [`Reply-To: ${emailHeader(replyTo)}`] : []),
     `Subject: ${emailHeader(subject)}`,
     'MIME-Version: 1.0',
-    'Content-Type: multipart/alternative; boundary="ace-clock-invitation"',
-    '',
-    '--ace-clock-invitation',
-    'Content-Type: text/plain; charset="UTF-8"',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    text,
-    '--ace-clock-invitation',
-    'Content-Type: text/html; charset="UTF-8"',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    html,
-    '--ace-clock-invitation--',
+    ...(html ? [
+      'Content-Type: multipart/alternative; boundary="ace-clock-invitation"',
+      '',
+      '--ace-clock-invitation',
+      'Content-Type: text/plain; charset="UTF-8"',
+      'Content-Transfer-Encoding: 8bit',
+      '',
+      text,
+      '--ace-clock-invitation',
+      'Content-Type: text/html; charset="UTF-8"',
+      'Content-Transfer-Encoding: 8bit',
+      '',
+      html,
+      '--ace-clock-invitation--'
+    ] : [
+      'Content-Type: text/plain; charset="UTF-8"',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(text, 'utf8').toString('base64').match(/.{1,76}/g).join('\r\n')
+    ]),
     ''
   ].join('\r\n');
   const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
@@ -461,6 +469,39 @@ const employeeOnly = (req, res, next) => req.profile.role === 'USER' && req.prof
 const headAdminEmail = process.env.HEAD_ADMIN_EMAIL?.trim().toLowerCase();
 if (!headAdminEmail) throw new Error('HEAD_ADMIN_EMAIL is required');
 const isHeadAdmin = req => req.profile.email?.toLowerCase() === headAdminEmail;
+
+const helpRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  keyGenerator: req => req.profile.id,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'You have sent several help questions. Wait a few minutes before sending another.' }
+});
+
+app.post('/v1/help-requests', authenticate, activeOnly, helpRequestLimiter, async (req, res) => {
+  const question = optionalText(req.body?.question, 1000);
+  if (!question) return fail(res, 400, 'Enter a question up to 1,000 characters.');
+  const replyTo = req.profile.email;
+  if (!emailPattern.test(replyTo || '') || !emailPattern.test(headAdminEmail) || (!gmailConfigured && !mailTransport)) {
+    return fail(res, 503, 'Email delivery is unavailable. Contact your administrator directly.');
+  }
+  const message = {
+    from: process.env.GMAIL_FROM?.trim() || process.env.SMTP_FROM || smtpUser,
+    to: headAdminEmail,
+    replyTo,
+    subject: 'ACE Help question',
+    text: `Question from ${req.profile.full_name || replyTo} (${replyTo}):\n\n${question}\n\nReply to this email to answer the sender.`
+  };
+  try {
+    if (gmailConfigured) await sendWithGmailApi(message);
+    else await mailTransport.sendMail(message);
+    return res.status(204).end();
+  } catch (error) {
+    console.warn('ACE Help email delivery failed', { requestId: req.requestId, code: error.code });
+    return fail(res, 503, 'Could not send your question. Try again or contact your administrator directly.');
+  }
+});
 const protectHeadAdmin = (req, res, target) => {
   if (target.email?.toLowerCase() !== headAdminEmail || isHeadAdmin(req)) return true;
   fail(res, 403, 'Only the head administrator can change this administrator account.');

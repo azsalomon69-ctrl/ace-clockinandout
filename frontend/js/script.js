@@ -1624,7 +1624,8 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I get access or fix an inactive account?', 'Contact your administrator or HR representative. They can send an invitation or review your user record.'],
         ['How do I sign out?', 'Open your account menu and choose Sign out. Always clock out of your work session first if you have finished for the day.'],
         ['How do I restart the tutorial?', 'Open your account menu and choose Restart tutorial. It starts from the dashboard and guides you through the main employee workflow.'],
-        ['Do I need to restart the tutorial?', 'No. Search ACE Help for one task at a time. Restart the tutorial only when you want the full walkthrough again.']
+        ['Do I need to restart the tutorial?', 'No. Search ACE Help for one task at a time. Restart the tutorial only when you want the full walkthrough again.'],
+        ['I forgot to clock out', 'Tell an administrator when you actually finished work so they can correct the time entry. If your session is still active, let them know that too.']
     ];
 }
 
@@ -1674,23 +1675,55 @@ function workspaceHelpEntryMatches(entry, query) {
 function mountWorkspaceHelp(isAdmin) {
     const entries = workspaceHelpEntries(isAdmin);
     const popular = isAdmin ? [1, 10, 14, 16] : [1, 2, 8, 11];
-    const face = '<span class="help-bot-face" aria-hidden="true"><i></i><i></i><b></b></span>';
+    const mascot = `<svg class="help-bot-mascot" viewBox="0 0 40 42" shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+        <path fill="#082d40" d="M7 38h26v2H7zM11 36h18v2H11z" opacity=".55"/>
+        <g class="help-bot-mascot-body">
+            <path fill="#26393e" d="M14 26h12v2h3v3h2v4h-3v4H12v-3H9v-5h3v-3h2z"/>
+            <path fill="#f4f3e6" d="M13 29h5v5h-2v2h-5v-4h2zM22 29h5v3h2v4h-5v-2h-2z"/>
+            <path fill="#68c1be" d="M18 29h4v6h-4z"/>
+            <path fill="#88634a" d="M14 34h5v3h2v-3h5v3h2v2h-7v-2h-2v2h-7v-2h2z"/>
+            <path fill="#26393e" d="M4 10h5V4h4v2h3V1h4v3h3v3h3V3h4v7h5v4h-3v3h3v4h-4v3h-4v3H11v-3H7v-3H4v-4h3v-3H4z"/>
+            <path fill="#a9d7dc" d="M6 11h5V6h2v2h5V3h2v3h3v3h5V5h1v7h4v2h-3v5h3v1h-4v3h-3v2H12v-3H9v-3H6v-1h3v-5H6z"/>
+            <path fill="#26393e" d="M13 13h3v-2h8v2h4v3h2v8h-2v3h-4v2h-8v-2h-4v-3h-2v-7h3z"/>
+            <path fill="#e8bb92" d="M15 14h3v-1h6v2h3v3h1v5h-2v3h-3v1h-6v-1h-3v-3h-2v-5h3z"/>
+            <path fill="#729c9f" d="M13 16h14v2H13z"/>
+            <g class="help-bot-mascot-eyes">
+                <path fill="#fffae6" d="M13 18h6v5h-6zM21 18h6v5h-6z"/>
+                <path fill="#283738" d="M16 19h1v2h-1zM24 19h1v2h-1z"/>
+            </g>
+            <path fill="#966748" d="M19 21h2v3h-2z"/>
+            <path class="help-bot-mascot-mouth" fill="#493331" d="M20 24h5v2h-5z"/>
+            <g class="help-bot-mascot-wave">
+                <path fill="#26393e" d="M27 32h3v-4h2v-5h5v2h2v5h-3v3h-2v3h-7z"/>
+                <path fill="#f4f3e6" d="M28 33h3v-4h4v3h-2v3h-5z"/>
+                <path fill="#e8bb92" d="M33 24h3v2h2v3h-5z"/>
+            </g>
+        </g>
+    </svg>`;
     const bot = document.createElement('div');
     bot.className = 'help-bot';
     bot.innerHTML = `
         <button class="help-bot-launcher" type="button" aria-label="Open ACE help" aria-expanded="false" aria-controls="workspaceHelpPanel">
-            ${face}<span class="help-bot-greeting" aria-hidden="true">Do you need help?</span>
+            ${mascot}<span class="help-bot-greeting" aria-hidden="true">Do you need help?</span>
         </button>
         <section class="help-bot-panel" id="workspaceHelpPanel" role="dialog" aria-labelledby="workspaceHelpTitle" hidden>
             <header class="help-bot-header">
-                ${face}
+                ${mascot}
                 <div><h2 id="workspaceHelpTitle">ACE Help</h2><p>${isAdmin ? 'Administrator guide' : 'Employee guide'}</p></div>
                 <button class="help-bot-close" type="button" aria-label="Close ACE help">${suppliedIconMarkup('x')}</button>
             </header>
             <div class="help-bot-body">
                 <div class="help-bot-topics">
-                    <p class="help-bot-reply">Hi! Pick a question below or search for a topic.</p>
-                    <label class="help-bot-search">${suppliedIconMarkup('search')}<input type="search" aria-label="Search help topics" placeholder="Search help topics" autocomplete="off"></label>
+                    <p class="help-bot-reply">Hi! Ask me how to use ACE Clock, or pick a question below.</p>
+                    <form class="help-bot-form">
+                        <label class="help-bot-search"><input type="text" aria-label="Ask about using ACE Clock" placeholder="Type your question…" maxlength="1000" autocomplete="off" required></label>
+                        <button class="help-bot-send" type="submit">Ask</button>
+                    </form>
+                    <div class="help-bot-followup" hidden>
+                        <p class="help-bot-asked"></p>
+                        <p class="help-bot-reply" role="status"></p>
+                        <button class="help-bot-back" type="button" data-help-forward hidden>Send to administrator</button>
+                    </div>
                     <p class="help-bot-label" aria-live="polite"></p>
                     <div class="help-bot-questions"></div>
                 </div>
@@ -1709,12 +1742,21 @@ function mountWorkspaceHelp(isAdmin) {
     const topics = bot.querySelector('.help-bot-topics');
     const scrollArea = bot.querySelector('.help-bot-body');
     const input = bot.querySelector('input');
+    const form = bot.querySelector('.help-bot-form');
+    const followup = bot.querySelector('.help-bot-followup');
+    const followupQuestion = followup.querySelector('.help-bot-asked');
+    const followupReply = followup.querySelector('.help-bot-reply');
+    const forward = followup.querySelector('[data-help-forward]');
     const label = bot.querySelector('.help-bot-label');
     const questions = bot.querySelector('.help-bot-questions');
     const answer = bot.querySelector('.help-bot-answer');
     const questionHeading = answer.querySelector('h3');
     let returnFocus = launcher;
     let lastQuestion = null;
+    let needsRephrase = false;
+    let sending = false;
+    const normalizeQuestion = value => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+        .replace(/^how (?:do i |can i |to )/, '');
 
     function renderTopics() {
         const query = input.value.trim();
@@ -1728,7 +1770,7 @@ function mountWorkspaceHelp(isAdmin) {
             : [...featured, ...entries.filter(entry => !featured.includes(entry))];
         label.textContent = !query ? 'Common questions' : matches.length
             ? `${matches.length} matching question${matches.length === 1 ? '' : 's'}`
-            : suggestions.length ? 'Related questions' : 'No matching questions. Try another word.';
+            : suggestions.length ? 'Related questions' : '';
         questions.innerHTML = ordered.map(entry => {
             const [question] = entry;
             const index = entries.indexOf(entry);
@@ -1737,10 +1779,21 @@ function mountWorkspaceHelp(isAdmin) {
     }
 
     function showAnswer([question, response]) {
+        needsRephrase = false;
+        followup.hidden = true;
+        forward.hidden = true;
         topics.hidden = true;
         answer.hidden = false;
         questionHeading.textContent = question;
         answer.querySelector('.help-bot-reply').textContent = response;
+        const mouth = panel.querySelector('.help-bot-mascot-mouth');
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            mouth.animate([
+                { transform: 'scaleY(1)' },
+                { transform: 'scaleY(1.8)' },
+                { transform: 'scaleY(1)' }
+            ], { duration: 290, iterations: 4, easing: 'steps(2)' });
+        }
         scrollArea.scrollTop = 0;
         questionHeading.focus();
     }
@@ -1750,7 +1803,14 @@ function mountWorkspaceHelp(isAdmin) {
         launcher.setAttribute('aria-expanded', 'true');
         panel.hidden = false;
         scrollArea.scrollTop = 0;
+        if (sending) {
+            closeButton.focus();
+            return;
+        }
         input.value = query;
+        followup.hidden = true;
+        forward.hidden = true;
+        needsRephrase = false;
         renderTopics();
         lastQuestion = null;
         const entry = entries.find(([title]) => title === question);
@@ -1771,10 +1831,65 @@ function mountWorkspaceHelp(isAdmin) {
 
     launcher.addEventListener('click', () => panel.hidden ? open() : close());
     closeButton.addEventListener('click', close);
-    input.addEventListener('input', renderTopics);
+    input.addEventListener('input', () => {
+        forward.hidden = true;
+        renderTopics();
+    });
+    form.addEventListener('submit', event => {
+        event.preventDefault();
+        const question = input.value.trim();
+        if (!question || sending) return;
+        const normalized = normalizeQuestion(question);
+        const entry = entries.find(([title]) => normalizeQuestion(title) === normalized);
+        const shortMatches = normalized.length >= 4 && normalized.split(' ').length <= 3
+            ? entries.filter(([title]) => ` ${normalizeQuestion(title)} `.includes(` ${normalized} `))
+            : [];
+        if (entry || shortMatches.length === 1) {
+            showAnswer([question, (entry || shortMatches[0])[1]]);
+            return;
+        }
+        const appTopic = /\b(ace|app|clock(?:ing)?|timesheets?|time entr(?:y|ies)|shifts?|overtime|schedules?|flextime|workdays?|projects?|dashboard|reports?|exports?|remarks?|notifications?|profiles?|accounts?|passwords?|sign[ -]?in|login|tutorial|departments?|invitations?|employees?|settings|sidebar|audit)\b/i;
+        followup.hidden = false;
+        followupQuestion.textContent = question;
+        forward.hidden = !needsRephrase || !appTopic.test(question);
+        followupReply.textContent = forward.hidden
+            ? 'Can you say it another way? Tell me what you’re trying to do in ACE Clock. If I still don’t have an answer, you can send your question to an administrator.'
+            : 'I don’t have a saved answer for this. Send your question to an administrator so they can review it and reply by email. Leave out passwords and other private details.';
+        needsRephrase = true;
+        input.focus();
+    });
+    forward.addEventListener('click', async () => {
+        if (sending || forward.hidden) return;
+        sending = true;
+        forward.disabled = true;
+        input.disabled = true;
+        form.querySelector('button').disabled = true;
+        followupReply.textContent = 'Sending your question…';
+        try {
+            await window.ACEAuth.request('/v1/help-requests', {
+                method: 'POST',
+                body: JSON.stringify({ question: followupQuestion.textContent })
+            });
+            forward.hidden = true;
+            input.value = '';
+            needsRephrase = false;
+            renderTopics();
+            followupReply.textContent = 'Your question was sent. Check your work email for the administrator’s reply.';
+        } catch (error) {
+            followupReply.textContent = error.status === 429
+                ? 'You’ve sent several questions. Wait a few minutes before trying again.'
+                : 'Your question couldn’t be sent. Try again or contact your administrator directly.';
+        } finally {
+            sending = false;
+            forward.disabled = false;
+            input.disabled = false;
+            form.querySelector('button').disabled = false;
+            if (!panel.hidden && document.activeElement === document.body) input.focus();
+        }
+    });
     questions.addEventListener('click', event => {
         const button = event.target.closest('[data-help-topic]');
-        if (!button) return;
+        if (!button || sending) return;
         lastQuestion = button;
         showAnswer(entries[Number(button.dataset.helpTopic)]);
     });
@@ -1834,7 +1949,7 @@ function applySuppliedIcons() {
         if (value.includes('dashboard') || value.includes('overview')) return 'layout-panel-top';
         return 'info';
     };
-    document.querySelectorAll('svg').forEach(svg => {
+    document.querySelectorAll('svg:not(.help-bot-mascot)').forEach(svg => {
         const owner = svg.closest('button, a, .stat-card, .summary-card, .feature-card, .step-card, .info-feature, .modal-header, .input-group, .settings-tab, .profile-avatar') || svg.parentElement;
         const button = svg.closest('button');
         const inputGroup = svg.closest('.input-group');
