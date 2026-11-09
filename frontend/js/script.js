@@ -2012,11 +2012,11 @@ function matchWorkspaceHelp(question, entries, withAlternatives = false) {
     const stopWords = new Set('how do does did i can could would should to the a an my me please you your where is are was were what it its of for in on with get have has when why want need help tell about or and our this that these those trying try know show use using someone new member company ace app hello hi hey thanks thank just really currently today see take'.split(' '));
     const synonyms = { employees:'employee',staff:'employee',person:'employee',people:'employee',user:'employee',users:'employee',someone:'employee',inviting:'invite',invitation:'invite',invitations:'invite',invte:'invite',creating:'add',create:'add',adding:'add',remove:'delete',cancel:'delete',forgotten:'forgot',forget:'forgot',reset:'change',update:'change',changing:'change',edit:'change',passwords:'password',schedules:'schedule',projects:'project',reports:'report',remarks:'remark',exporting:'export',download:'export',generate:'export',approve:'approval',approving:'approval',shifts:'shift',entries:'entry',timesheets:'timesheet',notes:'note',picture:'photo',photo:'photo',image:'photo' };
     const normalize = value => [...new Set(String(value).toLowerCase().replace(/[’‘]/g, "'")
-        .replace(/clock(?:ing)?[ -]?in|time[ -]?in|punch[ -]?in/g, ' clockin ')
-        .replace(/clock(?:ing)?[ -]?out|time[ -]?out|punch[ -]?out/g, ' clockout ')
+        .replace(/\b(?:clock(?:ing)?|clok|clcok|cloc)[ -]?in\b|\b(?:time|punch)[ -]?in\b/g, ' clockin ')
+        .replace(/\b(?:clock(?:ing)?|clok|clcok|cloc)[ -]?out\b|\b(?:time|punch)[ -]?out\b/g, ' clockout ')
         .replace(/sign[ -]?in|log[ -]?in/g, ' login ')
         .replace(/sign[ -]?out|log[ -]?out/g, ' logout ')
-        .replace(/can't|cannot|can not|can i not|unable to|doesn't work|does not work|not working/g, ' cannot ')
+        .replace(/\b(?:can'?t|cannot|can not|can i not|unable to|doesn'?t work|does not work|not working)\b/g, ' cannot ')
         .replace(/not showing|not visible|not listed/g, ' missing ')
         .replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
         .map(word => synonyms[word] || word).filter(word => !stopWords.has(word)))];
@@ -2024,7 +2024,21 @@ function matchWorkspaceHelp(question, entries, withAlternatives = false) {
     const exact = entries.find(([title]) => title.toLowerCase().replace(/[^a-z0-9]/g, '') === String(question).toLowerCase().replace(/[^a-z0-9]/g, ''));
     if (exact) return answer(exact);
     const words = normalize(question);
-    if (!words.length) return answer(null);
+    if (!words.length || workspaceHelpNeedsPunchDirection(question)) return answer(null);
+    const generic = words.length === 1 && /^(?:record|project|time|no|yes|employee|report|entry|timer)$/.test(words[0]);
+    const action = value => {
+        const text = String(value).toLowerCase();
+        if (/\b(?:export|download|generate)\b/.test(text)) return 'export';
+        if (/\b(?:correct|fix)\b/.test(text)) return 'correct';
+        if (/\b(?:assign|reassign)\b/.test(text)) return 'assign';
+        if (/\b(?:create|add)\b/.test(text)) return 'create';
+        if (/\b(?:edit|change|update)\b/.test(text)) return 'edit';
+        if (/\b(?:delete|remove|cancel|archive)\b/.test(text)) return 'delete';
+        if (/\b(?:where|view|find|show|see|review)\b/.test(text)) return 'view';
+        return '';
+    };
+    const requestedAction = action(question);
+    const findingDeletedEntries = requestedAction === 'view' && /\bdeleted\s+(?:time\s+)?entr(?:y|ies)\b/i.test(question);
     const distance = (left, right) => {
         const row = Array.from({length:right.length+1},(_,i)=>i);
         for(let i=1;i<=left.length;i++){let prev=row[0];row[0]=i;for(let j=1;j<=right.length;j++){const next=row[j];row[j]=Math.min(row[j]+1,row[j-1]+1,prev+(left[i-1]===right[j-1]?0:1));prev=next;}}
@@ -2033,9 +2047,14 @@ function matchWorkspaceHelp(question, entries, withAlternatives = false) {
     const similar = (a,b) => a===b || (Math.min(a.length,b.length)>=5 && distance(a,b)<=1);
     const negative = words.some(word => ['cannot','not','missing','error','unavailable','disabled'].includes(word));
     const scores = entries.map((entry,index) => {
-        const variants = [entry[0], ...(entry[2] || [])].map(normalize);
+        const variants = [entry[0], ...(entry[2] || [])];
+        if (findingDeletedEntries && !/^where (?:are|is) deleted\b/i.test(entry[0])) return { index, score: 0, coverage: 0 };
         let best = { index, score: 0, coverage: 0 };
-        for (const terms of variants) {
+        for (const variant of variants) {
+            const terms = normalize(variant);
+            const variantAction = action(variant);
+            if (requestedAction && variantAction && requestedAction !== variantAction
+                && !(requestedAction === 'view' && variantAction === 'export' && /\b(?:report|export)s?\b/i.test(question))) continue;
             // Trouble reports need troubleshooting, rather than happy-path instructions.
             if (negative && !terms.some(term => ['cannot','not','missing','error','unavailable','disabled','blank','inactive'].includes(term))) continue;
             const matched = words.filter(word => terms.some(term => similar(word,term)));
@@ -2047,9 +2066,97 @@ function matchWorkspaceHelp(question, entries, withAlternatives = false) {
         return best;
     }).sort((a,b)=>b.score-a.score);
     const best=scores[0], next=scores[1];
-    if (best && best.coverage>=.65 && best.score>=.72 && (!next || best.score-next.score>=.075)) return answer(entries[best.index]);
+    if (!generic && best && best.coverage>=.65 && best.score>=.72 && (!next || best.score-next.score>=.075)) return answer(entries[best.index]);
+    if (generic && /^(?:no|yes|record|time)$/.test(words[0])) return answer(null);
     const alternatives=scores.filter(item=>item.coverage>=.5 && item.score>=.6).slice(0,2).map(item=>entries[item.index]);
     return answer(null, alternatives);
+}
+
+function workspaceHelpNeedsPunchDirection(question) {
+    return /\b(?:miss(?:ed|ing)?|forgot(?:ten)?)\b/i.test(question)
+        && /\bpunch\b/i.test(question)
+        && !/\b(?:(?:clock|punch)[ -]?(?:in|out)|start|end|finish)\b/i.test(question);
+}
+
+function createWorkspaceHelpConversation(entries) {
+    const missedClockOut = entries.find(([title]) => title === 'I forgot to clock out');
+    const correctOwnEntry = entries.find(([title]) => title === 'Can I edit or delete my own time entry?');
+    const fallback = 'I can help with ACE Clock tasks such as clocking in, projects, schedules, and account settings. Tell me what you’re trying to do and what happens. You can also send your question to the administrator.';
+    const punchPrompt = 'Did you miss clock-in or clock-out? Tell me which one.';
+    let previous = null;
+
+    return function askHelp(question) {
+        const text = question.trim();
+        if (!text) return null;
+
+        function finish({ match = null, choices = [], punch = false, related = false, canForward = !match, reply = fallback } = {}) {
+            const original = related ? previous.original : text;
+            const prior = related && previous.question !== original ? previous.question : '';
+            const topic = related ? previous.match?.[0] : '';
+            const context = [original !== text && `Original question: ${original}`,
+                prior && prior !== text && `Previous reply: ${prior}`, topic && `Earlier help topic: ${topic}`].filter(Boolean);
+            const contextPrefix = '\n\nContext\n';
+            const room = 1000 - text.length - contextPrefix.length;
+            let inquiry = canForward ? text : '';
+            if (inquiry && context.length && room > 0) inquiry += contextPrefix + context.join('\n').slice(0, room);
+            previous = { question: text, original, match: match || (related ? previous.match : null), choices, punch };
+            return { match, reply, inquiry };
+        }
+
+        const words = text.toLowerCase().replace(/[’‘]/g, "'").replace(/[^a-z0-9' ]/g, '').trim();
+        const hasChoices = Boolean(previous?.choices.length || previous?.punch);
+        if (/^(?:no|nope|neither|none(?: of (?:those|them))?|not (?:that|those)|something else|forget it)(?: thanks)?$/.test(words)) {
+            return finish({ canForward: false, reply: 'What else can I help you with in ACE Clock?' });
+        }
+
+        if (missedClockOut && workspaceHelpNeedsPunchDirection(text)) {
+            return finish({ punch: true, reply: punchPrompt });
+        }
+        if (previous?.punch) {
+            if (/^(?:the )?(?:(?:i )?(?:missed|forgot)(?: to)? )?(?:(?:clock|punch) ?)?(?:in|start)(?: of (?:my|the) shift)?$/.test(words)) {
+                return finish({ match: correctOwnEntry, related: true,
+                    reply: 'Tell an administrator when you actually started work so they can verify and correct the record.' });
+            }
+            if (/^(?:the )?(?:(?:i )?(?:missed|forgot)(?: to)? )?(?:(?:clock|punch) ?)?(?:out|end)(?: of (?:my|the) shift)?$/.test(words)) {
+                return finish({ match: missedClockOut, related: true, reply: missedClockOut[1] });
+            }
+            if (/^(?:yes|both|not sure|i don'?t know)$/.test(words)) return finish({ punch: true, related: true, reply: punchPrompt });
+        }
+
+        const ordinal = words.match(/^(?:the )?(first|second|1|2|1st|2nd)(?: one| option)?$/);
+        const selection = /^(?:create|add|assign|edit|change|delete|remove|find|view|export|download|search|cancel)(?: it| one)?$/.test(words);
+        const reference = /^(?:what if|how about|and what if)\b|\b(?:it says|it still|(?:assign|create|edit|delete|find|export|change|download) (?:it|that one))\b/.test(words);
+        const fullResult = ordinal || (selection && hasChoices) ? null : matchWorkspaceHelp(text, entries, true);
+        if (hasChoices && previous.choices.length && (ordinal || selection || (reference && !fullResult?.match))) {
+            const index = ordinal && /^(?:first|1|1st)$/.test(ordinal[1]) ? 0 : 1;
+            const actionWord = words.split(' ')[0];
+            const matchingTitles = selection ? previous.choices.filter(([title]) => title.toLowerCase().split(/\W+/).includes(actionWord)) : [];
+            const choice = ordinal ? previous.choices[index]
+                : matchingTitles.length === 1 ? matchingTitles[0] : matchWorkspaceHelp(text, previous.choices);
+            if (choice) return finish({ match: choice, related: true, reply: choice[1] });
+            if (ordinal || selection) {
+                return finish({ choices: previous.choices, related: true,
+                    reply: `Which option did you mean? ${previous.choices.map(([title]) => title).join(' ')}` });
+            }
+        }
+        if (ordinal) return finish({ reply: 'There is no current list to choose from. Tell me the ACE Clock task you mean.' });
+
+        const { match, alternatives } = fullResult || matchWorkspaceHelp(text, entries, true);
+        if (match) return finish({ match, reply: match[1] });
+        if (previous?.match?.[0] === 'How do I clock in?' && /^what if i (?:don'?t|do not) have (?:one|a project)$/.test(words)) {
+            return finish({ match: previous.match, related: true, reply: 'If you mean a project, choose No project in the Clock in form when your work does not need one.' });
+        }
+        const related = Boolean(previous && reference && !alternatives.length);
+        if (related && previous.match) {
+            return finish({ related, reply: `Is this still about “${previous.match[0]}”? Tell me what happens or send your question to the administrator.` });
+        }
+        const reply = alternatives.length > 1
+            ? `Do you mean “${alternatives[0][0]}” or “${alternatives[1][0]}”? Tell me which task you’re trying to do.`
+            : alternatives.length === 1
+                ? `Is your question about “${alternatives[0][0]}”? Add the action you want to take or the error you see.`
+                : fallback;
+        return finish({ choices: alternatives, related, reply });
+    };
 }
 
 function createRickHoverVoice(setSpeaking) {
@@ -2059,7 +2166,6 @@ function createRickHoverVoice(setSpeaking) {
     const cooldown = 45_000;
     let nextClip = 0;
     let lastPlayed = 0;
-    let audio;
     let starting = false;
     try {
         const saved = JSON.parse(sessionStorage.getItem(storageKey));
@@ -2073,21 +2179,26 @@ function createRickHoverVoice(setSpeaking) {
         catch { /* Keep the in-memory cooldown. */ }
     }
 
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.volume = 0.45;
+    const prepareClip = () => { audio.src = `/assets/audio/rick/${clips[nextClip]}.mp3`; };
+    audio.addEventListener('playing', () => setSpeaking(true));
+    for (const event of ['pause', 'waiting', 'ended', 'error', 'emptied']) {
+        audio.addEventListener(event, () => setSpeaking(false));
+    }
+    audio.addEventListener('ended', () => {
+        recordPlayback();
+        prepareClip();
+    });
+    prepareClip();
+
     return async function playHoverVoice() {
-        if (starting || (audio && !audio.paused && !audio.ended) || Date.now() - lastPlayed < cooldown) return;
+        if (starting || (!audio.paused && !audio.ended) || Date.now() - lastPlayed < cooldown) return;
         if (navigator.userActivation?.hasBeenActive === false) return;
         starting = true;
         try {
-            if (!audio) {
-                audio = new Audio();
-                audio.volume = 0.45;
-                audio.addEventListener('playing', () => setSpeaking(true));
-                for (const event of ['pause', 'waiting', 'ended', 'error', 'emptied']) {
-                    audio.addEventListener(event, () => setSpeaking(false));
-                }
-                audio.addEventListener('ended', recordPlayback);
-            }
-            audio.src = `/assets/audio/rick/${clips[nextClip]}.mp3`;
+            if (audio.error) prepareClip();
             await audio.play();
             nextClip = (nextClip + 1) % clips.length;
             recordPlayback();
@@ -2113,7 +2224,8 @@ function mountWorkspaceHelp(isAdmin) {
     const closeButton=bot.querySelector('.help-bot-close'), scrollArea=bot.querySelector('.help-bot-body');
     const input=bot.querySelector('textarea'),form=bot.querySelector('form'),forward=bot.querySelector('[data-help-forward]');
     const conversation=bot.querySelector('.help-bot-conversation');
-    let returnFocus=launcher, sending=false, pendingQuestion='', pendingAlternatives=[];
+    let returnFocus=launcher, sending=false, pendingQuestion='', reviewedQuestion='';
+    const askHelp = createWorkspaceHelpConversation(entries);
     // Keep the approved base sprite visible until every attention frame is loaded.
     const attentionArt = new Image();
     attentionArt.onload = () => { if (bot.isConnected) bot.classList.add('has-attention-art'); };
@@ -2135,7 +2247,7 @@ function mountWorkspaceHelp(isAdmin) {
             if (pointerOverRick && bot.isConnected && panel.hidden && !bot.classList.contains('is-picked-up') && !document.hidden) {
                 void playHoverVoice();
             }
-        }, 300);
+        }, 90);
     });
     launcher.addEventListener('pointerleave', () => {
         pointerOverRick = false;
@@ -2174,20 +2286,14 @@ function mountWorkspaceHelp(isAdmin) {
         timer=setTimeout(tick,280);scrollToReply();
     }
     function ask(question) {
-        forward.hidden=true;pendingQuestion=question;appendMessage(question,true);
-        let { match, alternatives }=matchWorkspaceHelp(question,entries,true);
-        if (!match && pendingAlternatives.length && question.trim().split(/\s+/).length <= 5) {
-            const followup=matchWorkspaceHelp(question,pendingAlternatives,true);
-            if (followup.match) { match=followup.match; alternatives=[]; }
-        }
-        pendingAlternatives=match ? [] : alternatives;
-        const clarification = alternatives.length > 1
-            ? 'Do you mean “' + alternatives[0][0] + '” or “' + alternatives[1][0] + '”? Tell me which task you’re trying to do.'
-            : alternatives.length === 1
-                ? 'Is your question about “' + alternatives[0][0] + '”? Add the action you want to take or the error you see.'
-                : 'I can help with ACE Clock tasks such as clocking in, projects, schedules, and account settings. Tell me what you’re trying to do and what happens. You can also send your question to the administrator.';
-        appendMessage(match ? match[1] : clarification);
-        forward.hidden=Boolean(match);react('talking',2600);placePanel();scrollArea.scrollTop=scrollArea.scrollHeight;
+        if (sending) return;
+        const result = askHelp(question);
+        if (!result) return;
+        pendingQuestion = result.inquiry;
+        reviewedQuestion = '';
+        appendMessage(question,true);
+        appendMessage(result.reply);
+        forward.hidden=!pendingQuestion;react('talking',2600);placePanel();scrollArea.scrollTop=scrollArea.scrollHeight;
     }
     function open(query='',question='') {
         if(panel.hidden)returnFocus=document.activeElement;
@@ -2335,8 +2441,15 @@ function mountWorkspaceHelp(isAdmin) {
     input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();form.requestSubmit();}});
     form.addEventListener('submit',event=>{event.preventDefault();const question=input.value.trim();if(!question||sending)return;input.value='';input.style.height='auto';ask(question);input.focus();});
     forward.addEventListener('click',async()=>{
-        if(sending||!pendingQuestion)return;sending=true;forward.disabled=true;form.querySelector('button').disabled=true;react('thinking',30000);
-        try{await window.ACEAuth.request('/v1/help-requests',{method:'POST',body:JSON.stringify({question:pendingQuestion})});forward.hidden=true;appendMessage('Your question was sent to the administrator. They can contact you at your work email.');}
+        if (sending || !pendingQuestion) return;
+        if (reviewedQuestion !== pendingQuestion) {
+            reviewedQuestion = pendingQuestion;
+            appendMessage('Review this question before sending. Choose Send to administrator again to confirm, or type a revised question.');
+            appendMessage(reviewedQuestion, true);
+            return;
+        }
+        sending=true;forward.disabled=true;form.querySelector('button').disabled=true;react('thinking',30000);
+        try{await window.ACEAuth.request('/v1/help-requests',{method:'POST',body:JSON.stringify({question:reviewedQuestion})});pendingQuestion='';reviewedQuestion='';forward.hidden=true;appendMessage('Your question was sent to the administrator. They can contact you at your work email.');}
         catch(error){appendMessage(error.message||'Could not send your question. Please try again.');}
         finally{sending=false;forward.disabled=false;form.querySelector('button').disabled=false;react('talking',1500);}
     });
