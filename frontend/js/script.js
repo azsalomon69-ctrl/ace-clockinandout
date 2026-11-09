@@ -1571,7 +1571,7 @@ function workspaceHelpEntries(isAdmin) {
     const entries = isAdmin ? [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. Open People or Work to reveal their page links.'],
         ['How do I invite someone?', 'Use Invite user on the dashboard, enter the work email, choose the role, and send the invitation. The person can be granted access even if their invitation email has a delivery issue.'],
-        ['Where do I see or cancel an invitation?', 'Open People → Users, select the Invitations tab, find the email, select View, then choose Cancel invitation. The current workspace does not provide a resend button; create a new invitation if the old one is cancelled or expires.'],
+        ['Where do I see or cancel an invitation?', 'Open People → Users and select the Invitations tab. Find the invitation and choose View to inspect it or Cancel invitation to revoke it. There is no resend option. If an invitation expires or is cancelled, create a new invitation using the same work email.'],
         ['Why is someone pending or denied?', 'Open People → Users to review their status. Pending users need an invitation; denied users cannot sign in until their status is changed by an administrator.'],
         ['How do I manage users?', 'Open People → Users and choose Manage on the person’s row. The Manage form lets you update their role, department, project, and schedule. The Projects filter can show a specific project or Unassigned employees; administrators are excluded from Unassigned. Employee profiles also link directly to that person’s department, project, and schedule controls.'],
         ['How do I find an employee?', 'Use the top search box to find an employee or project quickly, or open People → Users and use the department, account-type, and Projects filters. Choose Unassigned to find employees without a project; administrators are excluded from that result.'],
@@ -1582,7 +1582,7 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I create and assign a schedule?', 'Open Work → Schedule & flextime. First complete the Create schedule form: name, type, workdays, and daily hours. Then use the separate Assign employee section: choose an active employee from its search results, choose the schedule, and select Assign schedule.'],
         ['What is the difference between fixed and flextime?', 'A fixed schedule has expected start and end times. Flextime tracks the required daily elapsed time without a fixed start time.'],
         ['How do I view or correct time entries?', 'Open Work → Time entries and use the Search time entries box to locate a person, project, or record. On the row, select Correct time, enter the correct clock-in and clock-out values, then choose Save corrected time.'],
-        ['How do I manage employees who are clocked in?', 'Open Work → Time entries. The Active entries panel at the top lists currently clocked-in employees with their profile photo, project, clock-in time, and elapsed time. Select Open remarks to add or review administrator feedback. Select Stop clock only after confirming the employee has finished their shift.'],
+        ['How do I manage employees who are clocked in?', 'Open Work → Time entries. The Active entries panel shows employees with running sessions, including their profile photo, project, clock-in time, and elapsed time. Select Open remarks to review or add administrator feedback. Use Stop clock only after verifying that the employee has finished working. For an incorrect clock-out time, use Correct time instead.'],
         ['How do I handle an employee who forgot to clock out?', 'Open Work → Time entries, search for the employee or active entry, select Correct time, enter the verified clock-out time, then choose Save corrected time. Use this only after confirming the time with the employee.'],
         ['What are Time-entry alerts?', 'The administrator dashboard shows Time-entry alerts only when action may be needed: an entry has been open for more than 16 hours, or an administrator stopped a shift. Open the linked entry, verify the facts with the employee, and correct the time only if it is inaccurate.'],
         ['How do I approve overtime?', 'Open Work → Time entries. For a completed employee entry on a fixed schedule, choose Approve overtime. ACE calculates only the time after the scheduled shift end and records the approving administrator and timestamp. The Approved overtime column shows the approved duration.'],
@@ -1604,8 +1604,8 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I clock out?', 'Open Dashboard and choose Clock out. Review the session details, add the required clock-out note, and confirm the action.'],
         ['What should I write in the clock-out note?', 'Enter a short, accurate note about the completed shift. The note is required at clock-out and is visible in your time-entry details and company reports. Do not add a new note at clock-in.'],
         ['Does ACE track breaks?', 'No. ACE records the full elapsed time from clock-in to clock-out. There are no Start Break or End Break controls.'],
-        ['Why can I not clock in?', 'Check whether you already have an active session and whether your account has access. A project is optional, so you can choose No project when appropriate. If the problem continues, contact an administrator.'],
-        ['Why can I not clock out?', 'Open Dashboard and check that your work session is running. Select Clock out, enter the required shift note, and confirm. If the action fails, keep the error message and contact an administrator with your actual finish time so they can check the record.'],
+        ['Why can I not clock in?', 'Check whether you already have an active work session. If you do, clock out before starting another one. Otherwise, verify that your account is active and you can open the dashboard. You can clock in without a project by selecting No project. If the button remains unavailable, contact an administrator and include any error message.'],
+        ['Why can I not clock out?', 'Check that your work session is still active. If Clock out is unavailable or the action fails, avoid submitting it again. Keep the error message and tell an administrator when you actually finished work so they can verify and correct the record if needed.'],
         ['How do I choose a project when clocking in?', 'In the Clock in form, select one of your assigned projects, or leave it as No project if your work does not need one. If a needed project is missing, ask an administrator to assign it through your user record.'],
         ['Where are my previous shifts?', 'Open Work → My time entries. Use the date, project, and status filters, then select View to inspect a record.'],
         ['How do I filter my time entries?', 'Open Work → My time entries, set a date range, project, or status, then choose Apply filters. Choose Clear filters to start again.'],
@@ -1615,8 +1615,8 @@ function workspaceHelpEntries(isAdmin) {
         ['Where are administrator remarks?', 'Open Work → Remarks to read feedback connected to your time entries.'],
         ['What does my schedule mean?', 'If an administrator assigned you a schedule, Dashboard shows it. Fixed schedules show expected start and end times; flextime shows the required daily time.'],
         ['How do I check my clock-in against my schedule?', 'Your dashboard shows scheduled times and your recorded clock-in in Manila time. Contact an administrator if either is incorrect.'],
-        ['How do I update my profile?', 'Open the sidebar account menu and choose Profile & settings. Use the Profile tab to update the available information and save changes.'],
-        ['How do I change my password or security settings?', 'Open Profile & settings, select Security, make the change, and save. Use a password you do not reuse elsewhere.'],
+        ['How do I update my profile?', 'Open the sidebar account menu and choose Profile & settings. Use the Profile tab to update the available information, then save your changes. If a field cannot be edited, contact an administrator for assistance.'],
+        ['How do I change my password or security settings?', 'Open Profile & settings, select Security, make the change, and save. Use a unique password and keep it out of chat. If you think someone else has access to your account, contact an administrator.'],
         ['How do I change dark mode or appearance?', 'Open Profile & settings and choose Appearance. Select your preferred theme or display options, then save.'],
         ['Where are notifications?', 'Use the bell icon in the top bar. It shows relevant updates and messages; open it again to close the notification panel.'],
         ['How do I search for a project?', 'Use the search box in the top bar to find an assigned project. Choose a result to open the appropriate workspace.'],
@@ -1624,13 +1624,13 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I get access or fix an inactive account?', 'Contact your administrator or HR representative. They can send an invitation or review your user record.'],
         ['How do I sign out?', 'Open your account menu and choose Sign out. Always clock out of your work session first if you have finished for the day.'],
         ['How do I restart the tutorial?', 'Open your account menu and choose Restart tutorial. It starts from the dashboard and guides you through the main employee workflow.'],
-        ['Do I need to restart the tutorial?', 'No. Search ACE Help for one task at a time. Restart the tutorial only when you want the full walkthrough again.'],
+        ['Do I need to restart the tutorial?', 'You can ask Rick for step-by-step help with one task at a time. Restart the tutorial from your account menu when you want the full walkthrough again.'],
         ['I forgot to clock out', 'Tell an administrator when you actually finished work so they can correct the time entry. If your session is still active, let them know that too.']
     ];
     if (isAdmin) {
         const sharedTitles = new Set(['How do I clock in?', 'How do I clock out?', 'What should I write in the clock-out note?', 'Does ACE track breaks?', 'Why can I not clock in?', 'Why can I not clock out?']);
         entries.push(...workspaceHelpEntries(false).filter(([title]) => sharedTitles.has(title)).map(([title, response]) => [title, response]));
-        entries.push(['How do I change my password or security settings?', 'Open Administration → Settings, choose Security, update your password, and save. Never send your password through chat.']);
+        entries.push(['How do I change my password or security settings?', 'Open Administration → Settings, choose Security, update your password, and save. Use a unique password and keep it out of chat. If you think someone else has access to your account, notify the head administrator.']);
     }
     const aliases = {
     "How do I use the sidebar?": [
@@ -1641,7 +1641,10 @@ function workspaceHelpEntries(isAdmin) {
         "add staff member",
         "invite user",
         "send invitation",
-        "create employee account"
+        "create employee account",
+        "onboard employee",
+        "create account",
+        "add coworker"
     ],
     "Where do I see or cancel an invitation?": [
         "cancel invitation",
@@ -1660,7 +1663,10 @@ function workspaceHelpEntries(isAdmin) {
         "manage user",
         "change employee role",
         "edit employee account",
-        "update user department"
+        "update user department",
+        "employee management",
+        "change permissions",
+        "update employee details"
     ],
     "How do I find an employee?": [
         "find employee",
@@ -1764,7 +1770,9 @@ function workspaceHelpEntries(isAdmin) {
         "export timesheet",
         "export attendance excel",
         "generate report",
-        "save report pdf"
+        "save report pdf",
+        "attendance sheet",
+        "download employee hours"
     ],
     "Where do I find one employee’s report?": [
         "individual report",
@@ -1829,13 +1837,19 @@ function workspaceHelpEntries(isAdmin) {
         "cannot clock in",
         "clock in not working",
         "clock in button disabled",
-        "error starting shift"
+        "error starting shift",
+        "clock in unavailable",
+        "cannot start timer",
+        "start session failed"
     ],
     "Why can I not clock out?": [
         "cannot clock out",
         "clock out not working",
         "clock out button disabled",
-        "error ending shift"
+        "error ending shift",
+        "timer won't stop",
+        "end session failed",
+        "stuck clock in"
     ],
     "How do I choose a project when clocking in?": [
         "choose project",
@@ -1848,7 +1862,10 @@ function workspaceHelpEntries(isAdmin) {
         "past shifts",
         "previous time entries",
         "hours worked",
-        "my timesheet"
+        "my timesheet",
+        "attendance records",
+        "work history",
+        "logged hours"
     ],
     "How do I filter my time entries?": [
         "filter timesheet",
@@ -1939,7 +1956,10 @@ function workspaceHelpEntries(isAdmin) {
         "forgot clock out",
         "missed clock out",
         "left timer running",
-        "forgot to end shift"
+        "forgot to end shift",
+        "left work without clocking out",
+        "timer still running",
+        "missed punch"
     ]
 };
     return entries.map(entry => [...entry, aliases[entry[0]] || []]);
