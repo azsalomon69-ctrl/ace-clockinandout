@@ -479,28 +479,37 @@ const helpRequestLimiter = rateLimit({
   message: { error: 'You have sent several help questions. Wait a few minutes before sending another.' }
 });
 
-app.post('/v1/help-requests', authenticate, activeOnly, helpRequestLimiter, async (req, res) => {
+app.post('/v1/help-requests', authenticate, activeOnly, helpRequestLimiter, async (req, res, next) => {
   const question = optionalText(req.body?.question, 1000);
   if (!question) return fail(res, 400, 'Enter a question up to 1,000 characters.');
-  const replyTo = req.profile.email;
-  if (!emailPattern.test(replyTo || '') || !emailPattern.test(headAdminEmail) || (!gmailConfigured && !mailTransport)) {
-    return fail(res, 503, 'Email delivery is unavailable. Contact your administrator directly.');
-  }
-  const message = {
-    from: process.env.GMAIL_FROM?.trim() || process.env.SMTP_FROM || smtpUser,
-    to: headAdminEmail,
-    replyTo,
-    subject: 'ACE Help question',
-    text: `Question from ${req.profile.full_name || replyTo} (${replyTo}):\n\n${question}\n\nReply to this email to answer the sender.`
-  };
   try {
-    if (gmailConfigured) await sendWithGmailApi(message);
-    else await mailTransport.sendMail(message);
-    return res.status(204).end();
-  } catch (error) {
-    console.warn('ACE Help email delivery failed', { requestId: req.requestId, code: error.code });
-    return fail(res, 503, 'Could not send your question. Try again or contact your administrator directly.');
-  }
+    // Saving is the delivery guarantee. Mail is an optional notification.
+    const inquiry = await query(db.from('help_inquiries').insert({
+      user_id: req.profile.id, sender_name: req.profile.full_name || '',
+      sender_email: req.profile.email, question
+    }).select('id').single());
+    if (gmailConfigured || mailTransport) {
+      const message = { from: process.env.GMAIL_FROM?.trim() || process.env.SMTP_FROM || smtpUser,
+        to: headAdminEmail, replyTo: req.profile.email, subject: 'ACE Help question',
+        text: 'Question from ' + (req.profile.full_name || req.profile.email) + ' (' + req.profile.email + '):\n\n' + question + '\n\nReview it in Administration → Chatbot Inquiry.' };
+      try { if (gmailConfigured) await sendWithGmailApi(message); else await mailTransport.sendMail(message); }
+      catch (error) { console.warn('ACE Help notification failed; inquiry saved', { requestId: req.requestId, code: error.code }); }
+    }
+    res.status(201).json({ id: inquiry.id });
+  } catch (error) { next(error); }
+});
+app.get('/v1/help-requests', authenticate, adminOnly, async (req, res, next) => {
+  if (!isHeadAdmin(req)) return fail(res, 403, 'Head administrator access required.');
+  try {
+    const paging = pageParams(req);
+    let request = db.from('help_inquiries').select('*', paging.paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false });
+    if (req.query.q) {
+      const search = String(req.query.q).slice(0, 200).replace(/[%_,().\"\\]/g, ' ');
+      request = request.or('question.ilike.%' + search + '%,sender_email.ilike.%' + search + '%,sender_name.ilike.%' + search + '%');
+    }
+    if (!paging.paged) request = request.limit(100);
+    res.json(await pagedResult(request, paging));
+  } catch (error) { next(error); }
 });
 const protectHeadAdmin = (req, res, target) => {
   if (target.email?.toLowerCase() !== headAdminEmail || isHeadAdmin(req)) return true;

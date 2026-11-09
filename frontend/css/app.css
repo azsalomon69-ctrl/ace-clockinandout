@@ -3226,16 +3226,6 @@ body {
 @keyframes rick-think { 50% { transform: translateY(-1px); } }
 @keyframes rick-dangle { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
 @keyframes rick-land { 0% { transform: translateY(2px); } 35% { transform: translateY(-2px); } 70% { transform: translateY(1px); } }
-.help-bot-greeting { display: none; }
-.help-bot[data-reaction="landing"] .help-bot-launcher .rick-body { animation: rick-land .4s steps(1, end); }
-@keyframes rick-breathe { 45%, 65% { transform: translateY(-1px); } 75% { transform: none; } }
-@keyframes rick-eyes { 41%, 84% { visibility: hidden; } 43%, 86% { visibility: visible; } }
-@keyframes rick-blink { 41%, 84% { visibility: visible; } 43%, 86% { visibility: hidden; } }
-@keyframes rick-wave { 20%, 60% { transform: rotate(-120deg); } 40%, 80% { transform: rotate(-100deg); } }
-@keyframes rick-talk { 0%, 50%, 85% { visibility: visible; } 30%, 70% { visibility: hidden; } }
-@keyframes rick-think { 50% { transform: translateX(-1px); } }
-@keyframes rick-dangle { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
-@keyframes rick-land { 0% { transform: translateY(2px); } 35% { transform: translateY(-2px); } 70% { transform: translateY(1px); } }
 .help-bot-greeting {
   position: absolute;
   inset-inline-end: calc(100% + 12px);
@@ -17155,3 +17145,12 @@ body:has(> .startup-warmup-fullpage) > :not(.startup-warmup-fullpage):not(script
 .startup-scene-spark { font-weight:400; opacity:.65; }
 .startup-float { border-color:color-mix(in srgb,var(--ace-border) 80%,transparent); }
 @media(max-width:820px) { .startup-message .startup-loading-track { margin:24px auto 16px; }.startup-scene::before { width:290px; height:290px; }.startup-scene-caption { bottom:-4px; font-size:.5rem; }.startup-detail-line { width:25px; }.detail-line-one { left:36px; bottom:37px; }.detail-line-two { right:30px; top:40px; } }
+
+/* Compact question-first help; only the conversation scrolls. */
+.help-bot-panel { max-height: min(420px, calc(100dvh - 24px)); }
+.help-bot-header, .help-bot-composer { flex-shrink: 0; }
+.help-bot-composer { margin: 0; padding: 12px 16px; border-top: 1px solid var(--ace-border); }
+.help-bot-body { min-height: 0; }
+.help-bot-conversation .help-bot-asked { margin-top: 14px; }
+
+body[data-admin-view="inquiries"] .table td:nth-child(4) { min-width: 220px; max-width: 560px; white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -1024,7 +1024,7 @@ function initializeAppShell() {
     // Render rewrites clean URLs to the deployed .html files. Normalize both
     // forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chatbot-inquiry.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
@@ -1046,7 +1046,7 @@ function initializeAppShell() {
         ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['departments.html', 'building', 'Departments']]],
         ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries']]],
         ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'chart', 'Individual reports']]],
-        ['Administration', [['audit-logs.html', 'audit', 'Audit log'], ['settings.html', 'settings', 'Settings']]]
+        ['Administration', [...(AppState.currentUser?.IsHeadAdmin ? [['chatbot-inquiry.html', 'remarks', 'Chatbot Inquiry']] : []), ['audit-logs.html', 'audit', 'Audit log'], ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],
@@ -1672,135 +1672,66 @@ function workspaceHelpEntryMatches(entry, query) {
     return words.length > 0 && words.every(word => haystack.includes(word));
 }
 
+function matchWorkspaceHelp(question, entries) {
+    const normalize = value => String(value).toLowerCase()
+        .replace(/clock[ -]?in/g, ' clockin ').replace(/clock[ -]?out/g, ' clockout ')
+        .replace(/sign[ -]?in|log[ -]?in/g, ' login ').replace(/can't|cannot|can not|can i not|unable to/g, ' cannot ')
+        .replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
+        .map(word => ({inviting:'invite',invitation:'invite',invitations:'invite',invte:'invite',employees:'employee',staff:'employee',someone:'employee',person:'employee',users:'user',adding:'add',create:'add',creating:'add',remove:'delete',cancel:'delete',forgotten:'forgot',forget:'forgot',reset:'change',update:'change',changing:'change',passwords:'password',schedules:'schedule',projects:'project',reports:'report',remarks:'remark',exporting:'export',download:'export',approve:'approval',approving:'approval'}[word] || word))
+        .filter(word => !new Set('how do i can to the a an my me please could would you where is are what it of for in on with get have has when why does someone want need help please tell about or and'.split(' ')).has(word));
+    const exact = entries.find(([title]) => title.toLowerCase().replace(/[^a-z0-9]/g, '') === String(question).toLowerCase().replace(/[^a-z0-9]/g, ''));
+    if (exact) return exact;
+    const words = [...new Set(normalize(question))];
+    if (!words.length) return null;
+    const tokens = entries.map(([title]) => [...new Set(normalize(title === 'How do I create a report?' ? 'create export report pdf excel' : title))]);
+    const distance = (a,b) => { const row=Array.from({length:b.length+1},(_,i)=>i); for(let i=1;i<=a.length;i++){let prev=row[0];row[0]=i;for(let j=1;j<=b.length;j++){const next=row[j];row[j]=Math.min(row[j]+1,row[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=next;}}return row[b.length]; };
+    const scores = tokens.map((terms,index) => {
+        if (words.some(word => ['cannot', 'not'].includes(word) && !terms.includes(word))) return {index, coverage: 0, score: 0};
+        const matched = words.filter(word => terms.some(term => term===word || (Math.min(term.length,word.length)>=5 && distance(term,word)<=1)));
+        const coverage=matched.length/words.length;
+        const weight=word => Math.log(1+entries.length/(1+tokens.filter(list=>list.includes(word)).length));
+        const precision=matched.reduce((sum,w)=>sum+weight(w),0)/Math.max(1,terms.reduce((sum,w)=>sum+weight(w),0));
+        return {index,coverage,score:coverage*.75+Math.min(1,precision)*.25};
+    }).sort((a,b)=>b.score-a.score);
+    const best=scores[0], next=scores[1];
+    if (!best || best.coverage<.72 || best.score<.77 || (next && best.score-next.score<.08)) return null;
+    return entries[best.index];
+}
+
 function mountWorkspaceHelp(isAdmin) {
     const entries = workspaceHelpEntries(isAdmin);
-    const popular = isAdmin ? [1, 10, 14, 16] : [1, 2, 8, 11];
-    // Four aligned poses from the same character sheet: idle, blink, talk, pickup.
     const mascot = `<span class="help-bot-mascot" aria-hidden="true"><span class="rick-sprite"></span></span>`;
-    const bot = document.createElement('div');
-    bot.className = 'help-bot';
-    bot.innerHTML = `
-        <button class="help-bot-launcher" type="button" aria-label="Open ACE help. Drag Rick or use arrow keys to move him." title="Drag to move · Click to chat · Arrow keys to reposition" aria-expanded="false" aria-controls="workspaceHelpPanel">
-            ${mascot}<span class="help-bot-greeting" aria-hidden="true">Do you need help?</span>
-        </button>
-        <section class="help-bot-panel" id="workspaceHelpPanel" role="dialog" aria-labelledby="workspaceHelpTitle" hidden>
-            <header class="help-bot-header">
-                ${mascot}
-                <div><h2 id="workspaceHelpTitle">ACE Help</h2><p>${isAdmin ? 'Administrator guide' : 'Employee guide'}</p></div>
-                <button class="help-bot-close" type="button" aria-label="Close ACE help">${suppliedIconMarkup('x')}</button>
-            </header>
-            <div class="help-bot-body">
-                <div class="help-bot-topics">
-                    <p class="help-bot-reply">Hi! Ask me how to use ACE Clock, or pick a question below.</p>
-                    <form class="help-bot-form">
-                        <label class="help-bot-search"><input type="text" aria-label="Ask about using ACE Clock" placeholder="Type your question…" maxlength="1000" autocomplete="off" required></label>
-                        <button class="help-bot-send" type="submit">Ask</button>
-                    </form>
-                    <div class="help-bot-followup" hidden>
-                        <p class="help-bot-asked"></p>
-                        <p class="help-bot-reply" role="status"></p>
-                        <button class="help-bot-back" type="button" data-help-forward hidden>Send to administrator</button>
-                    </div>
-                    <p class="help-bot-label" aria-live="polite"></p>
-                    <div class="help-bot-questions"></div>
-                </div>
-                <div class="help-bot-answer" hidden>
-                    <h3 tabindex="-1"></h3>
-                    <p class="help-bot-reply"></p>
-                    <button type="button" class="help-bot-back">Choose another question</button>
-                </div>
-            </div>
-        </section>`;
+    const bot = document.createElement('div'); bot.className = 'help-bot';
+    bot.innerHTML = `<button class="help-bot-launcher" type="button" aria-label="Open ACE help. Drag Rick or use arrow keys to move him." title="Drag to move · Click to chat" aria-expanded="false" aria-controls="workspaceHelpPanel">${mascot}</button>
+      <section class="help-bot-panel" id="workspaceHelpPanel" role="dialog" aria-labelledby="workspaceHelpTitle" hidden>
+        <header class="help-bot-header">${mascot}<div><h2 id="workspaceHelpTitle">ACE Help</h2><p>Ask Rick about ACE Clock</p></div><button class="help-bot-close" type="button" aria-label="Close help">${suppliedIconMarkup('x')}</button></header>
+        <div class="help-bot-body"><p class="help-bot-reply">What do you need help with?</p><div class="help-bot-conversation" role="log" aria-live="polite"></div>
+        <button type="button" class="help-bot-back" data-help-forward hidden>Send to administrator</button></div>
+        <form class="help-bot-form help-bot-composer"><label class="help-bot-search"><input aria-label="Your question" placeholder="Type your question…" maxlength="1000" autocomplete="off" required></label><button class="help-bot-send" type="submit">Ask</button></form>
+      </section>`;
     document.body.append(bot);
-
-    const launcher = bot.querySelector('.help-bot-launcher');
-    const panel = bot.querySelector('.help-bot-panel');
-    const closeButton = bot.querySelector('.help-bot-close');
-    const topics = bot.querySelector('.help-bot-topics');
-    const scrollArea = bot.querySelector('.help-bot-body');
-    const input = bot.querySelector('input');
-    const form = bot.querySelector('.help-bot-form');
-    const followup = bot.querySelector('.help-bot-followup');
-    const followupQuestion = followup.querySelector('.help-bot-asked');
-    const followupReply = followup.querySelector('.help-bot-reply');
-    const forward = followup.querySelector('[data-help-forward]');
-    const label = bot.querySelector('.help-bot-label');
-    const questions = bot.querySelector('.help-bot-questions');
-    const answer = bot.querySelector('.help-bot-answer');
-    const questionHeading = answer.querySelector('h3');
-    let returnFocus = launcher;
-    let lastQuestion = null;
-    let needsRephrase = false;
-    let sending = false;
-    const normalizeQuestion = value => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
-        .replace(/^how (?:do i |can i |to )/, '');
-
-    function renderTopics() {
-        const query = input.value.trim();
-        const matches = entries.filter(entry => workspaceHelpEntryMatches(entry, query));
-        const suggestions = query && !matches.length
-            ? findSearchSuggestions(query, entries.map(([question, response], index) => ({ label: question, keywords: response, query: question, index })))
-            : [];
-        const featured = popular.map(index => entries[index]);
-        const ordered = query
-            ? (matches.length ? matches : suggestions.map(suggestion => entries[suggestion.index]))
-            : [...featured, ...entries.filter(entry => !featured.includes(entry))];
-        label.textContent = !query ? 'Common questions' : matches.length
-            ? `${matches.length} matching question${matches.length === 1 ? '' : 's'}`
-            : suggestions.length ? 'Related questions' : '';
-        questions.innerHTML = ordered.map(entry => {
-            const [question] = entry;
-            const index = entries.indexOf(entry);
-            return `<button type="button" data-help-topic="${index}">${escapeHtml(question)}${suppliedIconMarkup('chevron-right')}</button>`;
-        }).join('');
+    const launcher=bot.querySelector('.help-bot-launcher'), panel=bot.querySelector('.help-bot-panel');
+    const closeButton=bot.querySelector('.help-bot-close'), scrollArea=bot.querySelector('.help-bot-body');
+    const input=bot.querySelector('input'),form=bot.querySelector('form'),forward=bot.querySelector('[data-help-forward]');
+    const conversation=bot.querySelector('.help-bot-conversation');
+    let returnFocus=launcher, sending=false, pendingQuestion='';
+    function appendMessage(text, asked=false) {
+        const message=document.createElement('p');message.className=asked?'help-bot-asked':'help-bot-reply';message.textContent=text;
+        conversation.append(message);while(conversation.children.length>12)conversation.firstElementChild.remove();
+        placePanel();scrollArea.scrollTop=scrollArea.scrollHeight;
     }
-
-    function showAnswer([question, response]) {
-        needsRephrase = false;
-        followup.hidden = true;
-        forward.hidden = true;
-        topics.hidden = true;
-        answer.hidden = false;
-        questionHeading.textContent = question;
-        answer.querySelector('.help-bot-reply').textContent = response;
-        react('talking', 2200);
-        scrollArea.scrollTop = 0;
-        questionHeading.focus();
+    function ask(question) {
+        forward.hidden=true;pendingQuestion=question;appendMessage(question,true);
+        const match=matchWorkspaceHelp(question,entries);
+        appendMessage(match ? match[1] : 'I couldn’t find a confident answer. Try adding more detail, or send this question to the administrator. Please leave out passwords and private details.');
+        forward.hidden=Boolean(match);react('talking',1800);placePanel();scrollArea.scrollTop=scrollArea.scrollHeight;
     }
-
-    function open(query = '', question = '') {
-        if (panel.hidden) returnFocus = document.activeElement;
-        launcher.setAttribute('aria-expanded', 'true');
-        panel.hidden = false;
-        placePanel();
-        scrollArea.scrollTop = 0;
-        if (sending) {
-            closeButton.focus();
-            return;
-        }
-        input.value = query;
-        followup.hidden = true;
-        forward.hidden = true;
-        needsRephrase = false;
-        renderTopics();
-        lastQuestion = null;
-        const entry = entries.find(([title]) => title === question);
-        if (entry) {
-            showAnswer(entry);
-        } else {
-            answer.hidden = true;
-            topics.hidden = false;
-            (query ? input : closeButton).focus();
-        }
-        placePanel();
+    function open(query='',question='') {
+        if(panel.hidden)returnFocus=document.activeElement;
+        panel.hidden=false;launcher.setAttribute('aria-expanded','true');input.value=query;
+        if(question)ask(question);placePanel();input.focus();
     }
-
-    function close() {
-        panel.hidden = true;
-        launcher.setAttribute('aria-expanded', 'false');
-        (returnFocus?.isConnected && returnFocus !== document.body ? returnFocus : launcher).focus();
-    }
-
+    function close(){panel.hidden=true;launcher.setAttribute('aria-expanded','false');(returnFocus?.isConnected?returnFocus:launcher).focus();}
     let reactionTimer;
     function react(state, duration = 1200) {
         clearTimeout(reactionTimer);
@@ -1835,7 +1766,7 @@ function mountWorkspaceHelp(isAdmin) {
         const r = launcher.getBoundingClientRect();
         const width = Math.min(378, v.width - 24);
         panel.style.width = width + 'px';
-        panel.style.maxHeight = Math.max(100, v.height - 24) + 'px';
+        panel.style.maxHeight = Math.min(420, Math.max(100, v.height - 24)) + 'px';
         const height = panel.getBoundingClientRect().height;
         const left = Math.max(v.left + 12, Math.min(r.right - width, v.left + v.width - width - 12));
         const above = r.top - height - 10;
@@ -1896,83 +1827,16 @@ function mountWorkspaceHelp(isAdmin) {
     window.visualViewport?.addEventListener('resize', onViewportChange);
     window.visualViewport?.addEventListener('scroll', onViewportChange);
     new ResizeObserver(() => { if (!panel.hidden) placePanel(); }).observe(panel);
-    closeButton.addEventListener('click', close);
-    input.addEventListener('input', () => {
-        forward.hidden = true;
-        renderTopics();
-    });
-    form.addEventListener('submit', event => {
-        event.preventDefault();
-        const question = input.value.trim();
-        if (!question || sending) return;
-        const normalized = normalizeQuestion(question);
-        const entry = entries.find(([title]) => normalizeQuestion(title) === normalized);
-        const shortMatches = normalized.length >= 4 && normalized.split(' ').length <= 3
-            ? entries.filter(([title]) => ` ${normalizeQuestion(title)} `.includes(` ${normalized} `))
-            : [];
-        if (entry || shortMatches.length === 1) {
-            showAnswer([question, (entry || shortMatches[0])[1]]);
-            return;
-        }
-        const appTopic = /\b(ace|app|clock(?:ing)?|timesheets?|time entr(?:y|ies)|shifts?|overtime|schedules?|flextime|workdays?|projects?|dashboard|reports?|exports?|remarks?|notifications?|profiles?|accounts?|passwords?|sign[ -]?in|login|tutorial|departments?|invitations?|employees?|settings|sidebar|audit)\b/i;
-        followup.hidden = false;
-        followupQuestion.textContent = question;
-        forward.hidden = !needsRephrase || !appTopic.test(question);
-        followupReply.textContent = forward.hidden
-            ? 'Can you say it another way? Tell me what you’re trying to do in ACE Clock. If I still don’t have an answer, you can send your question to an administrator.'
-            : 'I don’t have a saved answer for this. Send your question to an administrator so they can review it and reply by email. Leave out passwords and other private details.';
-        needsRephrase = true;
-        react('talking', 1800);
-        input.focus();
-    });
-    forward.addEventListener('click', async () => {
-        if (sending || forward.hidden) return;
-        sending = true;
-        react('thinking', 30000);
-        forward.disabled = true;
-        input.disabled = true;
-        form.querySelector('button').disabled = true;
-        followupReply.textContent = 'Sending your question…';
-        try {
-            await window.ACEAuth.request('/v1/help-requests', {
-                method: 'POST',
-                body: JSON.stringify({ question: followupQuestion.textContent })
-            });
-            forward.hidden = true;
-            input.value = '';
-            needsRephrase = false;
-            renderTopics();
-            followupReply.textContent = 'Your question was sent. Check your work email for the administrator’s reply.';
-        } catch (error) {
-            followupReply.textContent = error.status === 429
-                ? 'You’ve sent several questions. Wait a few minutes before trying again.'
-                : 'Your question couldn’t be sent. Try again or contact your administrator directly.';
-        } finally {
-            sending = false;
-            react('talking', 1800);
-            forward.disabled = false;
-            input.disabled = false;
-            form.querySelector('button').disabled = false;
-            if (!panel.hidden && document.activeElement === document.body) input.focus();
-        }
-    });
-    questions.addEventListener('click', event => {
-        const button = event.target.closest('[data-help-topic]');
-        if (!button || sending) return;
-        lastQuestion = button;
-        showAnswer(entries[Number(button.dataset.helpTopic)]);
-    });
-    answer.querySelector('.help-bot-back').addEventListener('click', () => {
-        answer.hidden = true;
-        topics.hidden = false;
-        (lastQuestion || input).focus();
-    });
-    bot.addEventListener('keydown', event => {
-        if (event.key !== 'Escape' || panel.hidden) return;
-        event.stopPropagation();
-        close();
-    });
 
+    closeButton.addEventListener('click',close);
+    form.addEventListener('submit',event=>{event.preventDefault();const question=input.value.trim();if(!question||sending)return;input.value='';ask(question);input.focus();});
+    forward.addEventListener('click',async()=>{
+        if(sending||!pendingQuestion)return;sending=true;forward.disabled=true;form.querySelector('button').disabled=true;react('thinking',30000);
+        try{await window.ACEAuth.request('/v1/help-requests',{method:'POST',body:JSON.stringify({question:pendingQuestion})});forward.hidden=true;appendMessage('Your question was sent to the administrator. They can contact you at your work email.');}
+        catch(error){appendMessage(error.message||'Could not send your question. Please try again.');}
+        finally{sending=false;forward.disabled=false;form.querySelector('button').disabled=false;react('talking',1500);}
+    });
+    bot.addEventListener('keydown',event=>{if(event.key==='Escape'&&!panel.hidden){event.stopPropagation();close();}});
     return open;
 }
 

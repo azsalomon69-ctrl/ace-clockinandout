@@ -8,6 +8,7 @@ async function liveRequest(path, options = {}) {
 
 // This is interface copy only. All records and counts are live Render/Supabase data.
 const ADMIN_SECTION_CONFIG = {
+  inquiries: { title: 'Chatbot Inquiry', description: 'Questions sent to you from ACE Help. Contact the sender at their work email.', columns: ['Received', 'Sender', 'Email', 'Question', 'Reply'] },
   users: { title: 'Users', description: 'Assign roles and maintain employee records.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Name', 'Email', 'Role', 'Projects', 'Department', 'Status', 'Action'] },
   invitations: { title: 'Pre-authorized access', description: 'Invite an employee or administrator before their first sign-in.', action: 'Invite user', actionIcon: 'user-plus', columns: ['Email', 'Authorized by', 'Created', 'Expires', 'Status', 'Action'] },
   departments: { title: 'Departments', description: 'Organize employees by department. Assignments remain optional.', action: 'Add department', actionIcon: 'building', columns: ['Department', 'Description', 'Created', 'Status', 'Action'] },
@@ -58,7 +59,16 @@ function renderActiveEntriesPanel(records = []) {
 }
 
 async function applyLiveData(key, view, pageState = null, filters = {}) {
-  if (key === 'users') {
+  if (key === 'inquiries') {
+    if (!AppState.currentUser?.IsHeadAdmin) throw new Error('Head administrator access required.');
+    const params = new URLSearchParams({ page: pageState?.page || 1, pageSize: pageState?.size || 25 });
+    if (filters.q) params.set('q', filters.q);
+    const response = await liveRequest('/v1/help-requests?' + params);
+    const items = response.items || response;
+    view.total = response.total ?? items.length;
+    view.records = items.map(item => ({ id: item.id, email: item.sender_email, cells: [time(item.created_at), item.sender_name || 'Unnamed user', item.sender_email, item.question, 'Reply by email'] }));
+    view.stats = [[view.total, 'Inquiries', 'message-circle-more']];
+  } else if (key === 'users') {
     const params = new URLSearchParams();
     if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); }
     if (filters.q) params.set('q', filters.q);
@@ -149,6 +159,7 @@ function status(value) {
   return '<span class="badge badge-' + type + '">' + esc(value) + '</span>';
 }
 function action(label, index, key, record) {
+  if (key === 'inquiries') return '<a class="btn btn-sm btn-outline" href="mailto:' + esc(encodeURIComponent(record.email)) + '?subject=ACE%20Help%20inquiry">Reply by email</a>';
   if (key === 'audit') return '<button class="btn btn-sm btn-outline admin-audit-details-open"' + (index === 0 ? ' id="tutorialAuditEvent"' : '') + ' type="button" data-row="' + index + '">' + icon('eye') + 'View event</button>';
   if (key === 'entries') {
     const canApprove = record.clockOutAt && record.scheduleType === 'FIXED' && record.scheduledEndTime && !record.overtimeApprovedAt;
@@ -599,8 +610,12 @@ window.ACEPrepareAdminSection = function prepareAdminSection() {
 };
 
 async function renderAdminSection() {
+  if (document.body.dataset.adminView === 'inquiries' && !AppState.currentUser?.IsHeadAdmin) {
+    document.querySelector('.admin-section-page').innerHTML = '<div class="empty-state"><h1>Head administrator access required</h1><p>This inbox is only available to the head administrator.</p></div>';
+    return;
+  }
   const key = document.body.dataset.adminView; const config = ADMIN_SECTION_CONFIG[key]; if (!config) return;
-  const serverPaged = ['users', 'entries', 'invitations', 'departments', 'projects', 'audit'].includes(key);
+  const serverPaged = ['users', 'entries', 'invitations', 'departments', 'projects', 'audit', 'inquiries'].includes(key);
   const stateKey = 'ace_admin_page_state_' + key;
   let savedState = {};
   try { savedState = JSON.parse(sessionStorage.getItem(stateKey) || '{}'); } catch { savedState = {}; }
@@ -622,7 +637,7 @@ async function renderAdminSection() {
   if (existingSearch?.parentNode) existingSearch.parentNode.replaceChild(existingSearch.cloneNode(true), existingSearch);
   document.getElementById('deletedTimeEntriesButton')?.remove();
   const view = { ...config, records: [], stats: [], total: 0 };
-  try { await applyLiveData(key, view, serverPaged ? pageState : null, activeFilters); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); }
+  try { await applyLiveData(key, view, serverPaged ? pageState : null, activeFilters); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); if (key === 'inquiries') { document.getElementById('sectionTableBody').innerHTML = emptyTable('Could not load inquiries', 'Please refresh to try again.', view.columns.length); return; } }
   document.title = view.title + ' · ACE Outsource Solutions';
   document.getElementById('sectionTitle').textContent = view.title; document.getElementById('sectionDescription').textContent = view.description;
   window.ACEPrepareAdminSection();
@@ -655,6 +670,7 @@ async function renderAdminSection() {
     const start = serverPaged ? (pageState.page - 1) * pageState.size : (pageState.page - 1) * pageState.size;
     const pageRecords = serverPaged ? records : records.slice(start, start + pageState.size);
     const emptyCopy = {
+      inquiries: ['No inquiries yet', 'Questions sent from ACE Help will appear here.'],
       users: ['No people yet', 'Invite your first employee or administrator to get started.'],
       invitations: ['No invitations yet', 'Invite someone when you are ready to add them to the workspace.'],
       departments: ['No departments yet', 'Create a department to organize your team.'],
