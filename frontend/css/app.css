@@ -3189,13 +3189,13 @@ body {
   position: relative;
   display: grid;
   place-items: center;
-  width: 60px;
-  height: 60px;
+  width: 68px;
+  height: 92px;
   padding: 0;
-  border: 2px solid #b7f7f8;
-  border-radius: 21px;
-  background: linear-gradient(150deg, #09768b, #093f58);
-  box-shadow: 0 8px 24px #062f5040, inset 0 1px 0 #ffffff40;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  appearance: none;
   cursor: pointer;
   transition: transform .2s ease;
 }
@@ -3203,28 +3203,29 @@ body {
 .help-bot-mascot {
   display: block;
   flex: 0 0 auto;
-  width: 49px;
-  height: 51px;
+  width: 60px;
+  height: 92px;
   overflow: visible;
 }
-.help-bot-header .help-bot-mascot { width: 40px; height: 42px; }
-.help-bot-mascot-eyes, .help-bot-mascot-mouth {
+.help-bot-mascot image { image-rendering: pixelated; }
+.help-bot-header .help-bot-mascot { width: 30px; height: 46px; }
+.help-bot-mascot-mouth {
+  opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
 }
 .help-bot-mascot-wave {
-  visibility: hidden;
-  transform-origin: 28px 34px;
+  transform-origin: 71px 91px;
 }
 .help-bot-mascot-body { animation: help-bot-idle 3.6s steps(2, end) infinite; }
-.help-bot-mascot-eyes { animation: help-bot-blink 4.3s steps(1, end) infinite; }
 .help-bot-launcher:is(:hover, :focus-visible) .help-bot-mascot-wave {
-  visibility: visible;
-  animation: help-bot-wave .35s steps(2, end) 6 alternate;
+  animation: help-bot-wave 1.5s steps(3, end);
 }
 @keyframes help-bot-idle { 50% { transform: translateY(-1px); } }
-@keyframes help-bot-blink { 94%, 98% { transform: scaleY(.2); } 96% { transform: scaleY(1); } }
-@keyframes help-bot-wave { to { transform: rotate(19deg); } }
+@keyframes help-bot-wave {
+  20%, 55%, 80% { transform: rotate(-115deg); }
+  40%, 70% { transform: rotate(-86deg); }
+}
 .help-bot-greeting {
   position: absolute;
   inset-inline-end: calc(100% + 12px);
@@ -3247,16 +3248,16 @@ body {
   transform: translateY(0);
 }
 .help-bot-launcher[aria-expanded="false"]:is(:hover, :focus-visible) .help-bot-mascot-mouth { animation: help-bot-talk .25s steps(2, end) 8 alternate; }
-@keyframes help-bot-talk { to { transform: scaleY(1.8); } }
+@keyframes help-bot-talk { to { opacity: 1; transform: scaleY(1); } }
 
 .help-bot-panel {
   position: absolute;
   inset-inline-end: 0;
-  bottom: 72px;
+  bottom: 102px;
   display: flex;
   flex-direction: column;
   width: min(378px, calc(100vw - 40px));
-  max-height: min(540px, calc(100dvh - var(--help-offset) - 88px));
+  max-height: min(540px, calc(100dvh - var(--help-offset) - 118px));
   border: 1px solid var(--ace-border);
   border-radius: 20px;
   overflow: hidden;
@@ -3386,7 +3387,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .help-bot-launcher, .help-bot-greeting { transition: none; }
   .help-bot-launcher:hover, .help-bot-launcher:focus-visible { transform: none; }
-  .help-bot .help-bot-mascot-body, .help-bot .help-bot-mascot-eyes,
+  .help-bot .help-bot-mascot-body,
   .help-bot-launcher:is(:hover, :focus-visible) .help-bot-mascot-wave,
   .help-bot-launcher[aria-expanded="false"]:is(:hover, :focus-visible) .help-bot-mascot-mouth { animation: none; }
 }

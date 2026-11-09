@@ -1675,40 +1675,32 @@ function workspaceHelpEntryMatches(entry, query) {
 function mountWorkspaceHelp(isAdmin) {
     const entries = workspaceHelpEntries(isAdmin);
     const popular = isAdmin ? [1, 10, 14, 16] : [1, 2, 8, 11];
-    const mascot = `<svg class="help-bot-mascot" viewBox="0 0 40 42" shape-rendering="crispEdges" aria-hidden="true" focusable="false">
-        <path fill="#082d40" d="M7 38h26v2H7zM11 36h18v2H11z" opacity=".55"/>
+    const mascot = id => `<svg class="help-bot-mascot" viewBox="12 6 83 127" aria-hidden="true" focusable="false">
+        <defs>
+            <clipPath id="help-rick-body-${id}">
+                <path d="M33 9 38 8 46 13 55 20 58 12 63 7 67 11 73 28 82 21 85 21 87 26 82 41 92 42 94 45 88 51 84 54 86 59 90 60 90 64 83 69 82 77 80 83 72 88 71 97 74 105 73 114 70 119 74 126 73 130 62 130 59 120 56 120 53 130 42 131 41 127 45 117 38 116 36 113 38 109 34 108 34 103 37 95 41 88 35 86 33 83 24 86 23 82 28 74 19 72 16 68 19 63 25 59 14 55 14 51 27 42 21 38 19 32 23 29 35 30Z"/>
+            </clipPath>
+            <clipPath id="help-rick-arm-${id}">
+                <path d="M70 88 74 89 77 94 77 98 80 100 80 106 77 109 72 106 71 101 68 95Z"/>
+            </clipPath>
+        </defs>
         <g class="help-bot-mascot-body">
-            <path fill="#26393e" d="M14 26h12v2h3v3h2v4h-3v4H12v-3H9v-5h3v-3h2z"/>
-            <path fill="#f4f3e6" d="M13 29h5v5h-2v2h-5v-4h2zM22 29h5v3h2v4h-5v-2h-2z"/>
-            <path fill="#68c1be" d="M18 29h4v6h-4z"/>
-            <path fill="#88634a" d="M14 34h5v3h2v-3h5v3h2v2h-7v-2h-2v2h-7v-2h2z"/>
-            <path fill="#26393e" d="M4 10h5V4h4v2h3V1h4v3h3v3h3V3h4v7h5v4h-3v3h3v4h-4v3h-4v3H11v-3H7v-3H4v-4h3v-3H4z"/>
-            <path fill="#a9d7dc" d="M6 11h5V6h2v2h5V3h2v3h3v3h5V5h1v7h4v2h-3v5h3v1h-4v3h-3v2H12v-3H9v-3H6v-1h3v-5H6z"/>
-            <path fill="#26393e" d="M13 13h3v-2h8v2h4v3h2v8h-2v3h-4v2h-8v-2h-4v-3h-2v-7h3z"/>
-            <path fill="#e8bb92" d="M15 14h3v-1h6v2h3v3h1v5h-2v3h-3v1h-6v-1h-3v-3h-2v-5h3z"/>
-            <path fill="#729c9f" d="M13 16h14v2H13z"/>
-            <g class="help-bot-mascot-eyes">
-                <path fill="#fffae6" d="M13 18h6v5h-6zM21 18h6v5h-6z"/>
-                <path fill="#283738" d="M16 19h1v2h-1zM24 19h1v2h-1z"/>
-            </g>
-            <path fill="#966748" d="M19 21h2v3h-2z"/>
-            <path class="help-bot-mascot-mouth" fill="#493331" d="M20 24h5v2h-5z"/>
+            <image href="assets/images/ace-help-rick.png" width="111" height="137" clip-path="url(#help-rick-body-${id})"/>
             <g class="help-bot-mascot-wave">
-                <path fill="#26393e" d="M27 32h3v-4h2v-5h5v2h2v5h-3v3h-2v3h-7z"/>
-                <path fill="#f4f3e6" d="M28 33h3v-4h4v3h-2v3h-5z"/>
-                <path fill="#e8bb92" d="M33 24h3v2h2v3h-5z"/>
+                <image href="assets/images/ace-help-rick.png" width="111" height="137" clip-path="url(#help-rick-arm-${id})"/>
             </g>
+            <path class="help-bot-mascot-mouth" fill="#483833" d="M62 77h8v2h-2v3h-4v-2h-2z"/>
         </g>
     </svg>`;
     const bot = document.createElement('div');
     bot.className = 'help-bot';
     bot.innerHTML = `
         <button class="help-bot-launcher" type="button" aria-label="Open ACE help" aria-expanded="false" aria-controls="workspaceHelpPanel">
-            ${mascot}<span class="help-bot-greeting" aria-hidden="true">Do you need help?</span>
+            ${mascot("launcher")}<span class="help-bot-greeting" aria-hidden="true">Do you need help?</span>
         </button>
         <section class="help-bot-panel" id="workspaceHelpPanel" role="dialog" aria-labelledby="workspaceHelpTitle" hidden>
             <header class="help-bot-header">
-                ${mascot}
+                ${mascot("panel")}
                 <div><h2 id="workspaceHelpTitle">ACE Help</h2><p>${isAdmin ? 'Administrator guide' : 'Employee guide'}</p></div>
                 <button class="help-bot-close" type="button" aria-label="Close ACE help">${suppliedIconMarkup('x')}</button>
             </header>
@@ -1789,9 +1781,9 @@ function mountWorkspaceHelp(isAdmin) {
         const mouth = panel.querySelector('.help-bot-mascot-mouth');
         if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
             mouth.animate([
-                { transform: 'scaleY(1)' },
-                { transform: 'scaleY(1.8)' },
-                { transform: 'scaleY(1)' }
+                { opacity: 0, transform: 'scaleY(.65)' },
+                { opacity: 1, transform: 'scaleY(1)' },
+                { opacity: 0, transform: 'scaleY(.65)' }
             ], { duration: 290, iterations: 4, easing: 'steps(2)' });
         }
         scrollArea.scrollTop = 0;
