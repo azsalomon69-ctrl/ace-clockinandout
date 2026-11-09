@@ -2036,7 +2036,7 @@ function mountWorkspaceHelp(isAdmin) {
     const entries = workspaceHelpEntries(isAdmin);
     const mascot = `<span class="help-bot-mascot" aria-hidden="true"><span class="rick-sprite"></span></span>`;
     const bot = document.createElement('div'); bot.className = 'help-bot';
-    bot.innerHTML = `<button class="help-bot-launcher" type="button" aria-label="Open ACE help. Drag Rick or use arrow keys to move him." title="Drag to move · Click to chat" aria-expanded="false" aria-controls="workspaceHelpPanel">${mascot}</button>
+    bot.innerHTML = `<button class="help-bot-launcher" type="button" aria-label="Open ACE help. Drag Rick or use arrow keys to move him." aria-expanded="false" aria-controls="workspaceHelpPanel">${mascot}<span class="help-bot-greeting" aria-hidden="true">Hello! Do you need help?</span></button>
       <section class="help-bot-panel" id="workspaceHelpPanel" role="dialog" aria-labelledby="workspaceHelpTitle" hidden>
         <header class="help-bot-header">${mascot}<div><h2 id="workspaceHelpTitle">ACE Help</h2><p>Your ACE Clock guide</p></div><button class="help-bot-close" type="button" aria-label="Close help">${suppliedIconMarkup('x')}</button></header>
         <div class="help-bot-body"><div class="help-bot-welcome"><span>ASK RICK</span><h3>How can I help?</h3><p>Tell me what you’re trying to do in ACE Clock.</p></div><div class="help-bot-conversation" role="log" aria-live="polite"></div>
@@ -2045,6 +2045,7 @@ function mountWorkspaceHelp(isAdmin) {
       </section>`;
     document.body.append(bot);
     const launcher=bot.querySelector('.help-bot-launcher'), panel=bot.querySelector('.help-bot-panel');
+    const greeting = bot.querySelector('.help-bot-greeting');
     const closeButton=bot.querySelector('.help-bot-close'), scrollArea=bot.querySelector('.help-bot-body');
     const input=bot.querySelector('textarea'),form=bot.querySelector('form'),forward=bot.querySelector('[data-help-forward]');
     const conversation=bot.querySelector('.help-bot-conversation');
@@ -2054,7 +2055,11 @@ function mountWorkspaceHelp(isAdmin) {
     attentionArt.onload = () => { if (bot.isConnected) bot.classList.add('has-attention-art'); };
     attentionArt.src = 'assets/images/ace-help-rick-attention-v1.png';
     let pointerOverRick = false;
-    const updateAttention = () => bot.classList.toggle('is-attentive', pointerOverRick || launcher.matches(':focus-visible'));
+    const updateAttention = () => {
+        const attentive = pointerOverRick || launcher.matches(':focus-visible');
+        bot.classList.toggle('is-attentive', attentive);
+        if (attentive) placeGreeting();
+    };
     launcher.addEventListener('pointerenter', event => {
         if (event.pointerType === 'touch') return;
         pointerOverRick = true;
@@ -2155,7 +2160,19 @@ function mountWorkspaceHelp(isAdmin) {
         bot.style.top = position.y + 'px';
         bot.style.right = 'auto';
         bot.style.bottom = 'auto';
+        if (bot.classList.contains('is-attentive')) placeGreeting();
         placePanel();
+    }
+    function placeGreeting() {
+        if (!panel.hidden || bot.classList.contains('is-picked-up')) return;
+        const v = viewport();
+        const r = launcher.getBoundingClientRect();
+        greeting.style.maxWidth = Math.max(0, v.width - 24) + 'px';
+        const { offsetWidth: width, offsetHeight: height } = greeting;
+        const left = Math.max(v.left + 12, Math.min(r.left + (r.width - width) / 2, v.right - width - 12));
+        const above = r.top - height - 8;
+        greeting.style.left = left - r.left + 'px';
+        greeting.style.top = (above >= v.top + 12 ? above : r.bottom + 8) - r.top + 'px';
     }
     function savePosition() {
         try { localStorage.setItem(positionKey, JSON.stringify(position)); } catch { /* Storage is optional. */ }
@@ -2199,6 +2216,7 @@ function mountWorkspaceHelp(isAdmin) {
         const moved = drag.active;
         drag = null;
         bot.classList.remove('is-picked-up');
+        if (moved && bot.classList.contains('is-attentive')) placeGreeting();
         if (launcher.hasPointerCapture(event.pointerId)) launcher.releasePointerCapture(event.pointerId);
         if (moved) { suppressClick = true; savePosition(); react('landing', 450); }
     }

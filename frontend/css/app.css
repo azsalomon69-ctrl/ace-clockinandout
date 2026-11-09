@@ -3248,7 +3248,9 @@ body {
 @keyframes rick-land { 0% { transform: translateY(2px); } 35% { transform: translateY(-2px); } 70% { transform: translateY(1px); } }
 .help-bot-greeting {
   position: absolute;
-  inset-inline-end: calc(100% + 12px);
+  width: max-content;
+  box-sizing: border-box;
+  pointer-events: none;
   padding: 10px 14px;
   border: 1px solid var(--ace-border);
   border-radius: 14px 14px 3px 14px;
@@ -3256,13 +3258,13 @@ body {
   color: var(--ace-text-primary);
   box-shadow: 0 6px 18px #062f5026;
   font: 700 .86rem 'Open Sans', sans-serif;
-  white-space: nowrap;
+  text-align: center;
   visibility: hidden;
   opacity: 0;
   transform: translateY(4px);
   transition: opacity .18s ease, transform .18s ease;
 }
-.help-bot-launcher[aria-expanded="false"]:is(:hover, :focus-visible) .help-bot-greeting {
+.help-bot.is-attentive .help-bot-launcher[aria-expanded="false"] .help-bot-greeting {
   visibility: visible;
   opacity: 1;
   transform: translateY(0);
