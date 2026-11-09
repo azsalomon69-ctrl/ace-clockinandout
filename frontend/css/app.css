@@ -3203,50 +3203,18 @@ body {
 .help-bot-mascot { display: block; flex: 0 0 auto; width: 72px; height: 96px; overflow: visible; }
 .help-bot-header .help-bot-mascot { width: 48px; height: 64px; }
 .rick-sprite {
-  --rick-base-sheet: url('../assets/images/ace-help-rick-sprites-v2.png');
-  --rick-attention-sheet: url('../assets/images/ace-help-rick-attention-v1.png');
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
-  background-image: var(--rick-base-sheet);
-  background-size: 400% 100%;
-  background-repeat: no-repeat;
-  background-position: 0 0;
+  background: url('../assets/images/ace-help-rick-sprites-v2.png') 0 0 / 400% 100% no-repeat;
   image-rendering: pixelated;
   transform-origin: 50% 18%;
-  animation: rick-blink 6.7s steps(1, end) infinite, rick-idle 3.8s steps(1, end) infinite;
 }
-/* Attention only runs while idle; replies, pickup and landing keep priority. */
-.help-bot.has-attention-art:not([data-reaction]):not(.is-picked-up) .rick-sprite {
-  animation: rick-look-around 16s steps(1, end) infinite, rick-idle 3.8s steps(1, end) infinite;
-}
-.help-bot.has-attention-art.is-attentive:not([data-reaction]):not(.is-picked-up):not(.is-voice-speaking) .help-bot-launcher .rick-sprite {
-  animation: rick-greet 1.6s steps(1, end) 1 forwards;
-}
-@keyframes rick-look-around {
-  0%, 28%, 42%, 66%, 82%, 100% { background-image: var(--rick-base-sheet); background-position: 0 0; }
-  20% { background-image: var(--rick-attention-sheet); background-position: 0 0; }
-  40%, 80% { background-image: var(--rick-base-sheet); background-position: 33.333333% 0; }
-  58% { background-image: var(--rick-attention-sheet); background-position: 33.333333% 0; }
-}
-@keyframes rick-greet {
-  0%, 25%, 50%, 75% { background-image: var(--rick-attention-sheet); background-position: 66.666667% 0; }
-  12.5%, 37.5%, 62.5%, 87.5% { background-image: var(--rick-attention-sheet); background-position: 100% 0; }
-  100% { background-image: var(--rick-base-sheet); background-position: 0 0; }
-}
-.help-bot[data-reaction="talking"] .rick-sprite { animation: rick-talk .75s steps(1, end) infinite; }
-.help-bot[data-reaction="thinking"] .rick-sprite { animation: rick-blink 3.2s steps(1, end) infinite, rick-think 1.6s steps(1, end) infinite; }
+.rick-sprite.has-decoded-art { background-image: none; }
+.rick-art-layer { position: absolute; inset: 0; display: block; opacity: 0; background-size: 400% 100%; background-repeat: no-repeat; image-rendering: pixelated; pointer-events: none; }
 .help-bot.is-picked-up .help-bot-launcher { cursor: grabbing; }
-.help-bot.is-picked-up .help-bot-launcher .rick-sprite { background-position: 100% 0; animation: rick-dangle .8s ease-in-out infinite; }
 .help-bot.is-picked-up .help-bot-greeting { display: none; }
-.help-bot[data-reaction="landing"] .help-bot-launcher .rick-sprite { animation: rick-land .4s steps(1, end); }
-.help-bot.is-voice-speaking:not(.is-picked-up) .help-bot-launcher .rick-sprite { animation: rick-talk .75s steps(1, end) infinite; }
-@keyframes rick-idle { 45%, 65% { transform: translateY(-1px); } 75% { transform: none; } }
-@keyframes rick-blink { 0%, 43%, 86%, 100% { background-position: 0 0; } 41%, 84% { background-position: 33.333333% 0; } }
-@keyframes rick-talk { 0%, 45%, 80% { background-position: 66.666667% 0; } 25%, 65%, 95% { background-position: 0 0; } }
-@keyframes rick-think { 50% { transform: translateY(-1px); } }
-@keyframes rick-dangle { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
-@keyframes rick-land { 0% { transform: translateY(2px); } 35% { transform: translateY(-2px); } 70% { transform: translateY(1px); } }
 .help-bot-greeting {
   position: absolute;
   width: max-content;
@@ -17179,34 +17147,54 @@ body:has(> .startup-warmup-fullpage) > :not(.startup-warmup-fullpage):not(script
 
 body[data-admin-view="inquiries"] .table td:nth-child(4) { min-width: 220px; max-width: 560px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
-/* Rick conversation: a quieter header, readable bubbles and a single composer. */
-.help-bot-panel { border-radius: 22px; box-shadow: 0 18px 60px #082d4933; }
-.help-bot-header { padding: 10px 16px; gap: 8px; }
-.help-bot-header .help-bot-mascot { width: 36px; height: 48px; }
-.help-bot-header h2 { font-size: .95rem; }
-.help-bot-header p { font-size: .73rem; }
-.help-bot-close { width: 32px; height: 32px; border-color: #ffffff30; border-radius: 50%; }
-.help-bot-body { padding: 18px 16px; scrollbar-width: thin; scrollbar-color: #91b4bd transparent; }
-.help-bot-welcome { padding: 12px 4px 18px; }
-.help-bot-welcome > span { color: var(--ace-text-secondary); font-size: .65rem; font-weight: 800; letter-spacing: .12em; }
-.help-bot-welcome h3 { margin: 8px 0; color: var(--ace-text-primary); font-size: 1.3rem; }
-.help-bot-welcome p { margin: 0; color: var(--ace-text-secondary); font-size: .85rem; line-height: 1.6; }
-.help-bot-conversation { display: flex; flex-direction: column; gap: 12px; }
-.help-bot-conversation .help-bot-reply { margin: 0; padding: 13px 15px; border-radius: 16px 16px 16px 5px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
-.help-bot-conversation .help-bot-asked { margin: 4px 0 0 auto; border-radius: 16px 16px 5px 16px; padding: 11px 14px; line-height: 1.5; white-space: pre-wrap; }
-.help-bot [data-help-forward] { margin-top: 12px; min-height: 36px; background: transparent; color: var(--ace-text-secondary); font-size: .75rem; border-style: dashed; }
-.help-bot-composer { padding: 12px; gap: 8px; align-items: end; background: var(--ace-surface-modal); }
-.help-bot-composer .help-bot-search { padding: 0; border-radius: 14px; }
-.help-bot-composer .help-bot-search:focus-within { outline: none; border-color: #199aaf; box-shadow: 0 0 0 2px #199aaf1a; }
-.help-bot-search textarea { box-sizing: border-box; display: block; width: 100%; min-width: 0; min-height: 44px; max-height: 100px; padding: 11px 12px; resize: none; border: 0; outline: none !important; background: transparent; color: var(--ace-text-primary); font: inherit; font-size: .85rem; line-height: 22px; }
-.help-bot-search textarea::placeholder { color: var(--ace-text-secondary); }
-.help-bot-send { min-height: 44px; padding: 0 14px; border-radius: 13px; }
-.help-bot-send:hover { background: #087086; }
-.help-bot-typing { display: flex; flex-shrink: 0; align-items: center; gap: 8px; padding: 8px 16px; color: var(--ace-text-secondary); font-size: .72rem; }
+/* ACE Help follows the dashboard typography and restrained teal identity. */
+.help-bot-panel { width: min(392px, calc(100vw - 24px)); min-height: 290px; max-height: min(520px, calc(100dvh - 24px)); border: 1px solid #dce7eb; border-radius: 22px; background: #fff; color: #163c48; box-shadow: 0 6px 22px #163c4814; font-family: 'Open Sans', sans-serif; }
+.help-bot-header { box-sizing: border-box; min-height: 68px; padding: 6px 14px; gap: 10px; background: #0a5263; }
+.help-bot-header .help-bot-mascot { width: 42px; height: 56px; }
+.help-bot-header h2 { font: 600 15px/1.4 'Open Sans', sans-serif; }
+.help-bot-header p { font: 400 11.5px/1.5 'Open Sans', sans-serif; color: #b8d7de; }
+.help-bot-close { width: 40px; height: 40px; flex-shrink: 0; border-color: #ffffff26; border-radius: 50%; background: #ffffff0a; transition: background 180ms ease; }
+.help-bot-close:hover { background: #ffffff24; }
+.help-bot-body { flex: 1 1 auto; min-height: 0; padding: 16px 14px; background: #fff; scrollbar-width: thin; scrollbar-color: #b4cbd2 transparent; }
+.help-bot-welcome { padding: 10px 6px 14px; }
+.help-bot-welcome > span { color: #718a93; font-size: 10px; font-weight: 600; letter-spacing: .1em; }
+.help-bot-welcome h3 { margin: 8px 0; color: #123e4b; font: 600 21px/1.4 'Montserrat', sans-serif; }
+.help-bot-welcome p { margin: 0; color: #617c85; font-size: 13px; line-height: 1.65; max-width: 290px; }
+.help-bot-conversation { display: flex; flex-direction: column; gap: 10px; }
+.help-bot-conversation .help-bot-reply, .help-bot-conversation .help-bot-asked { box-sizing: border-box; width: fit-content; max-width: 94%; margin: 0; padding: 12px 14px; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.help-bot-conversation .help-bot-reply { align-self: flex-start; border: 1px solid #edf1f3; border-radius: 14px 14px 14px 4px; background: #f8fafb; color: #294853; white-space: pre-wrap; }
+.help-bot-conversation .help-bot-asked { align-self: flex-end; border-radius: 14px 14px 4px 14px; background: #e5f6f9; color: #174856; white-space: pre-wrap; }
+.help-bot-asked + .help-bot-reply, .help-bot-reply + .help-bot-asked { margin-top: 6px !important; }
+.help-bot-reply > p { margin: 0; }
+.help-bot-reply > p + p { margin-top: 8px; }
+.help-bot-reply h4 { margin: 0 0 8px; font: 600 14px/1.5 'Open Sans', sans-serif; color: #123e4b; }
+.help-bot-reply ol { margin: 8px 0; padding-left: 20px; }
+.help-bot-reply li + li { margin-top: 6px; }
+.help-bot-reply strong { font-weight: 600; color: #174856; }
+.help-bot-reply a { color: #087f96; text-decoration: underline; text-underline-offset: 2px; }
+.help-bot [data-help-forward] { margin-top: 12px; min-height: 36px; background: #fff; color: #55717b; font-size: 11.5px; border: 1px solid #dce7eb; }
+.help-bot-composer { padding: 12px; gap: 8px; align-items: end; background: #fff; border-top: 1px solid #e8eef1; }
+.help-bot-composer .help-bot-search { padding: 0; border: 1px solid #dce7eb; border-radius: 12px; background: #fff; transition: border-color 180ms ease, box-shadow 180ms ease; }
+.help-bot-composer .help-bot-search:focus-within { outline: none; border-color: #20adc0; box-shadow: 0 0 0 2px #20adc014; }
+.help-bot-search textarea { box-sizing: border-box; display: block; width: 100%; min-width: 0; min-height: 46px; max-height: 100px; padding: 11px 12px; resize: none; border: 0; outline: none !important; background: transparent; color: #294853; font: 400 14px/22px 'Open Sans', sans-serif; }
+.help-bot-search textarea::placeholder { color: #7a9098; }
+.help-bot-send { min-height: 46px; padding: 0 15px; border-radius: 12px; background: #0a5263; font: 600 13px 'Open Sans', sans-serif; transition: background 180ms ease, transform 180ms ease; }
+.help-bot-send:hover:not(:disabled) { background: #08778a; }
+.help-bot-send:active:not(:disabled) { transform: translateY(1px); background: #083e4c; }
+.help-bot-send:disabled { background: #e4edf0; color: #78919a; opacity: 1; cursor: default; }
+.help-bot-send:focus-visible, .help-bot-close:focus-visible { outline: 2px solid #36c5d6; outline-offset: 3px; }
+.help-bot-typing { display: flex; flex-shrink: 0; align-items: center; gap: 8px; padding: 7px 16px; color: #6c858e; font-size: 11px; background: #fff; }
 .help-bot-typing-dots { color: #148a9d; letter-spacing: 2px; animation: rick-typing-pulse .9s ease-in-out infinite alternate; }
-.help-bot-skip { margin-left: auto; padding: 4px 6px; border: 0; background: transparent; color: var(--ace-text-secondary); font: inherit; text-decoration: underline; cursor: pointer; }
+.help-bot-skip { margin-left: auto; padding: 4px 6px; border: 0; background: transparent; color: #55717b; font: inherit; text-decoration: underline; cursor: pointer; }
 @keyframes rick-typing-pulse { to { opacity: .35; } }
-@media (prefers-reduced-motion: reduce) { .help-bot-typing-dots { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .help-bot-typing-dots { animation: none; } .help-bot-send, .help-bot-close, .help-bot-search { transition: none; } }
 
 /* Mobile navigation owns the workspace while its drawer is open. */
 .shell-mobile-open .help-bot { visibility: hidden; pointer-events: none; }
+
+/* Walking reuses the approved art: torso stays anchored while the feet step. */
+.rick-step-foot { position: absolute; inset: 0; display: none; background-size: 400% 100%; background-position: 0 0; background-repeat: no-repeat; image-rendering: pixelated; pointer-events: none; }
+.rick-step-left { clip-path: polygon(32% 78%, 55% 78%, 55% 96%, 32% 96%); }
+.rick-step-right { clip-path: polygon(55% 78%, 80% 78%, 80% 96%, 55% 96%); }
+.rick-sprite.is-stepping .rick-art-layer { clip-path: inset(0 0 20% 0); }
+.rick-sprite.is-stepping .rick-step-foot { display: block; }

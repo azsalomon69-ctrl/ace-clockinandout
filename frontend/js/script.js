@@ -1591,7 +1591,7 @@ function workspaceHelpEntries(isAdmin) {
         ['Where are deleted time entries?', 'Open Work → Time entries and choose Deleted entries. Select Restore to return a record to active history. Delete permanently cannot be undone, so use it only when the record must be removed for good.'],
         ['How do I add a remark to a time entry?', 'Open Work → Time entries, search for the entry, then choose Add remark on its row. Write the internal administrator remark and save it. The employee can read the related feedback in Work → Remarks.'],
         ['How do I filter the dashboard analytics?', 'Each dashboard chart has its own date selector. Use Tracked time to view the time trend and Hours by project to compare project allocation. Use Work → Time entries to export company data, or Insights → Individual reports when you need employee-specific reports.'],
-        ['How do I create a report?', 'Use Work → Time entries, choose Export entries, select the date range and filters, then save a PDF or Excel workbook. Every export is saved in Insights → Reports and recorded in the Audit log. Use Insights → Individual reports to prepare separate reports for one employee or every active employee.'],
+        ['How do I create a report?', '# Export a report\n1. Open Work → Time entries.\n2. Choose **Export entries** and set the date range and filters.\n3. Save a **PDF** or **Excel** workbook.\n\nFind saved exports in Insights → Reports. For one employee, use Insights → Individual reports.'],
         ['Where do I find one employee’s report?', 'Open Insights → Individual reports. Choose This month for the current month through today, or Custom date range for specific dates. Optionally choose an active employee, then select Prepare reports. Use Preview, Save as PDF, or Save Excel on the prepared row. Leave the employee blank to prepare reports for every active employee.'],
         ['Where is the audit history?', 'Open Administration → Audit log. It records important administrative actions so you can review what changed and when.'],
         ['Where can I review exports?', 'Open Insights → Reports to reopen or download saved reports. Open Administration → Audit log and search for export activity when you need the administrator, time, format, and selected date range.'],
@@ -2207,6 +2207,41 @@ function createRickHoverVoice(setSpeaking) {
     };
 }
 
+// Frames never interpolate between sheets. Keep the last decoded art visible.
+function rickAnimationFrame(state, elapsed, reducedMotion = false) {
+    if (state === 'pickup') return { sheet: 'base', frame: 3 };
+    if (reducedMotion) return { sheet: 'base', frame: 0 };
+    if (state === 'walk') return { sheet: 'base', frame: 0, step: Math.floor(elapsed / 180) % 4 };
+    if (state === 'talk') return { sheet: 'base', frame: elapsed % 600 < 360 ? 2 : 0 };
+    if (state === 'hover') return elapsed < 1600 ? { sheet: 'attention', frame: 2 + Math.floor(elapsed / 200) % 2 } : { sheet: 'base', frame: 0 };
+    if (state === 'landing') return { sheet: 'base', frame: 0 };
+    const phase = elapsed % 8000;
+    if (phase >= 1200 && phase < 1800) return { sheet: 'attention', frame: 0 };
+    if (phase >= 2600 && phase < 3200) return { sheet: 'attention', frame: 1 };
+    return { sheet: 'base', frame: (phase >= 4000 && phase < 4160) || (phase >= 7200 && phase < 7360) ? 1 : 0 };
+}
+
+function renderRickReply(container, text) {
+    container.replaceChildren();
+    const inline = (parent, value) => {
+        const tokens = value.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/[^\s)]+\)|(?:People|Work|Administration|Insights|Dashboard|Profile & settings)(?: → [\w &-]+)+)/g);
+        tokens.forEach(token => {
+            const link=token.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+            if(link){const node=document.createElement('a');node.textContent=link[1];node.href=link[2];node.target='_blank';node.rel='noopener noreferrer';parent.append(node);}
+            else if(token.startsWith('**')&&token.endsWith('**')){const node=document.createElement('strong');node.textContent=token.slice(2,-2);parent.append(node);}
+            else if(token.includes(' → ')){const node=document.createElement('strong');node.textContent=token;parent.append(node);}
+            else parent.append(document.createTextNode(token));
+        });
+    };
+    let list=null;
+    for(const line of text.split('\n')){
+        if(!line.trim()){list=null;continue;}
+        const numbered=line.match(/^\s*\d+[.)]\s+(.+)$/);
+        if(numbered){if(!list){list=document.createElement('ol');container.append(list);}const item=document.createElement('li');inline(item,numbered[1]);list.append(item);}
+        else {list=null;const heading=line.match(/^#{1,3}\s+(.+)$/);const node=document.createElement(heading?'h4':'p');inline(node,heading?heading[1]:line);container.append(node);}
+    }
+}
+
 function mountWorkspaceHelp(isAdmin) {
     const entries = workspaceHelpEntries(isAdmin);
     const mascot = `<span class="help-bot-mascot" aria-hidden="true"><span class="rick-sprite"></span></span>`;
@@ -2214,7 +2249,7 @@ function mountWorkspaceHelp(isAdmin) {
     bot.innerHTML = `<button class="help-bot-launcher" type="button" aria-label="Open ACE help. Drag Rick or use arrow keys to move him." aria-expanded="false" aria-controls="workspaceHelpPanel">${mascot}<span class="help-bot-greeting" aria-hidden="true">Hello! Do you need help?</span></button>
       <section class="help-bot-panel" id="workspaceHelpPanel" role="dialog" aria-labelledby="workspaceHelpTitle" hidden>
         <header class="help-bot-header">${mascot}<div><h2 id="workspaceHelpTitle">ACE Help</h2><p>Your ACE Clock guide</p></div><button class="help-bot-close" type="button" aria-label="Close help">${suppliedIconMarkup('x')}</button></header>
-        <div class="help-bot-body"><div class="help-bot-welcome"><span>ASK RICK</span><h3>How can I help?</h3><p>Tell me what you’re trying to do in ACE Clock.</p></div><div class="help-bot-conversation" role="log" aria-live="polite"></div>
+        <div class="help-bot-body"><div class="help-bot-welcome"><span>ASK RICK</span><h3>How can I help?</h3><p>Ask me about clock-ins, schedules, time entries, or using ACE.</p></div><div class="help-bot-conversation" role="log" aria-live="polite"></div>
         <button type="button" class="help-bot-back" data-help-forward hidden>Still need help? Send to administrator</button></div><div class="help-bot-typing" hidden><span class="help-bot-typing-dots" aria-hidden="true">● ● ●</span><span>Rick is typing…</span><button type="button" class="help-bot-skip">Show reply</button></div>
         <form class="help-bot-form help-bot-composer"><label class="help-bot-search"><textarea aria-label="Your question" placeholder="Ask Rick a question…" maxlength="1000" rows="1" required></textarea></label><button class="help-bot-send" type="submit" aria-label="Send question">Send</button></form>
       </section>`;
@@ -2226,10 +2261,24 @@ function mountWorkspaceHelp(isAdmin) {
     const conversation=bot.querySelector('.help-bot-conversation');
     let returnFocus=launcher, sending=false, pendingQuestion='', reviewedQuestion='';
     const askHelp = createWorkspaceHelpConversation(entries);
-    // Keep the approved base sprite visible until every attention frame is loaded.
-    const attentionArt = new Image();
-    attentionArt.onload = () => { if (bot.isConnected) bot.classList.add('has-attention-art'); };
-    attentionArt.src = 'assets/images/ace-help-rick-attention-v1.png';
+    const sheetUrls = { base: 'assets/images/ace-help-rick-sprites-v2.png', attention: 'assets/images/ace-help-rick-attention-v1.png' };
+    const sheetsReady = new Set();
+    const spriteViews = [...bot.querySelectorAll('.rick-sprite')].map(sprite => {
+        const layers = Object.fromEntries(Object.entries(sheetUrls).map(([name,url]) => {
+            const layer=document.createElement('span');layer.className='rick-art-layer';layer.dataset.sheet=name;
+            layer.style.backgroundImage='url("'+url+'")';sprite.append(layer);return [name,layer];
+        }));
+        const feet=['left','right'].map(side=>{
+            const foot=document.createElement('span');foot.className='rick-step-foot rick-step-'+side;
+            foot.style.backgroundImage='url("'+sheetUrls.base+'")';sprite.append(foot);return foot;
+        });
+        return { sprite, layers, feet, state: '', started: 0, lastFrame: '' };
+    });
+    Object.entries(sheetUrls).forEach(async ([name,url]) => {
+        const image=new Image();image.src=url;
+        try { await image.decode(); if (bot.isConnected) sheetsReady.add(name); }
+        catch { /* Missing optional artwork leaves the decoded base pose visible. */ }
+    });
     let pointerOverRick = false;
     let hoverVoiceTimer;
     const playHoverVoice = createRickHoverVoice(speaking => bot.classList.toggle('is-voice-speaking', speaking));
@@ -2258,25 +2307,30 @@ function mountWorkspaceHelp(isAdmin) {
     launcher.addEventListener('blur', updateAttention);
 
     let finishTyping = null;
+    const sendButton=form.querySelector('button');
+    const updateSendButton=()=>{sendButton.disabled=sending||Boolean(finishTyping)||!input.value.trim();};
+    let followConversation=true;
+    scrollArea.addEventListener('scroll',()=>{followConversation=scrollArea.scrollHeight-scrollArea.clientHeight-scrollArea.scrollTop<40;});
+    updateSendButton();
     const typing = bot.querySelector('.help-bot-typing');
     bot.querySelector('.help-bot-skip').addEventListener('click', () => finishTyping?.());
     function appendMessage(text, asked=false) {
         finishTyping?.();
         bot.querySelector('.help-bot-welcome').hidden=true;
-        const message=document.createElement('p');message.className=asked?'help-bot-asked':'help-bot-reply';
-        conversation.append(message);while(conversation.children.length>12)conversation.firstElementChild.remove();
-        const scrollToReply=()=>{placePanel();scrollArea.scrollTop=scrollArea.scrollHeight;};
+        const message=document.createElement(asked?'p':'div');message.className=asked?'help-bot-asked':'help-bot-reply';
+        conversation.append(message);
+        const scrollToReply=()=>{placePanel();if(followConversation)scrollArea.scrollTop=scrollArea.scrollHeight;};
         if (asked || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            message.textContent=text;scrollToReply();return;
+            if(asked)message.textContent=text;else renderRickReply(message,text);scrollToReply();updateSendButton();return;
         }
         conversation.setAttribute('aria-busy','true');typing.hidden=false;
         let offset=0, timer;
         const step=Math.max(2,Math.ceil(text.length/90));
         const finish=()=>{
-            clearTimeout(timer);message.textContent=text;typing.hidden=true;
-            conversation.setAttribute('aria-busy','false');finishTyping=null;scrollToReply();
+            clearTimeout(timer);renderRickReply(message,text);typing.hidden=true;
+            conversation.setAttribute('aria-busy','false');finishTyping=null;updateSendButton();scrollToReply();
         };
-        finishTyping=finish;
+        finishTyping=finish;updateSendButton();
         const tick=()=>{
             if(!bot.isConnected){finish();return;}
             offset=Math.min(text.length,offset+step);message.textContent=text.slice(0,offset);
@@ -2363,9 +2417,11 @@ function mountWorkspaceHelp(isAdmin) {
         if (panel.hidden) return;
         const v = viewport();
         const r = launcher.getBoundingClientRect();
-        const width = Math.max(0, Math.min(378, v.width - 24));
+        const width = Math.max(0, Math.min(392, v.width - 24));
         panel.style.width = width + 'px';
-        panel.style.maxHeight = Math.max(0, Math.min(420, v.height - 24)) + 'px';
+        const availableHeight=Math.max(0, Math.min(520, v.height-24));
+        panel.style.maxHeight=availableHeight+'px';
+        panel.style.minHeight=Math.min(290,availableHeight)+'px';
         const height = panel.getBoundingClientRect().height;
         const left = Math.max(v.left + 12, Math.min(r.right - width, v.left + v.width - width - 12));
         const above = r.top - height - 10;
@@ -2435,13 +2491,79 @@ function mountWorkspaceHelp(isAdmin) {
     window.addEventListener('ace:sidebar-state-change', onViewportChange);
     window.addEventListener('ace:route-ready', onViewportChange);
     onViewportChange();
+    // User drops are persisted by savePosition; strolling never overwrites them.
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let previousTick=performance.now(), nextWalkAt=previousTick+4500, walkingUntil=0, walkDirection=-1, walkX=0;
+    function animateRick(now) {
+        if (!bot.isConnected) return;
+        const seconds=Math.min(.05,Math.max(0,(now-previousTick)/1000));previousTick=now;
+        const pickedUp=bot.classList.contains('is-picked-up');
+        const attentive=bot.classList.contains('is-attentive');
+        const speaking=bot.classList.contains('is-voice-speaking');
+        const reaction=bot.dataset.reaction;
+        const blocked=reducedMotion.matches || document.hidden || !panel.hidden || drag || attentive || speaking || reaction || document.body.classList.contains('shell-mobile-open') || !sheetsReady.has('base');
+        let walking=false;
+        if (blocked) { walkingUntil=0; nextWalkAt=now+3500; }
+        else if (now>=nextWalkAt) {
+            if (!walkingUntil) { walkingUntil=now+6000;walkX=position?.x ?? launcher.getBoundingClientRect().left; }
+            if (now>=walkingUntil) { walkingUntil=0;nextWalkAt=now+4000; }
+            else {
+                const bounds=viewport(), width=launcher.getBoundingClientRect().width;
+                const min=bounds.left+12, max=bounds.right-width-12;
+                if (max>min) {
+                    walkX=Math.max(min,Math.min(max,walkX+walkDirection*24*seconds));
+                    if (walkX<=min || walkX>=max) {
+                        walkDirection=walkX<=min?1:-1;walkingUntil=0;nextWalkAt=now+1800;
+                    } else walking=true;
+                    moveRick(walkX,position?.y ?? launcher.getBoundingClientRect().top);
+                }
+            }
+        }
+        bot.classList.toggle('is-walking',walking);
+        bot.dataset.walkDirection=walkDirection<0?'left':'right';
+        for (const view of spriteViews) {
+            const isLauncher=launcher.contains(view.sprite);
+            const state=isLauncher&&pickedUp?'pickup':reaction==='talking'||(isLauncher&&speaking)?'talk':isLauncher&&reaction==='landing'?'landing':isLauncher&&attentive?'hover':isLauncher&&walking?'walk':'idle';
+            if(view.state!==state){view.state=state;view.started=now;}
+            const elapsed=now-view.started;
+            let selected=rickAnimationFrame(state,elapsed,reducedMotion.matches);
+            if(!sheetsReady.has(selected.sheet))selected={sheet:'base',frame:0};
+            if(sheetsReady.has('base')) {
+                const key=selected.sheet+':'+selected.frame;
+                if(view.lastFrame!==key){
+                    view.layers[selected.sheet].style.backgroundPosition=(selected.frame*100/3)+'% 0';
+                    Object.entries(view.layers).forEach(([name,layer])=>{layer.style.opacity=name===selected.sheet?'1':'0';});
+                    view.sprite.classList.add('has-decoded-art');view.sprite.dataset.frame=key;view.lastFrame=key;
+                }
+            }
+            let transform='none';
+            if(!reducedMotion.matches) {
+                if(state==='pickup')transform='rotate('+Math.round(Math.sin(elapsed/180)*4)+'deg)';
+                else if(state==='walk')transform=walkDirection<0?'scaleX(-1)':'none';
+                else if(state==='landing')transform='translateY('+(elapsed<120?2:elapsed<240?-2:0)+'px)';
+                else if(state==='idle')transform=elapsed%3800>1700&&elapsed%3800<2500?'translateY(-1px)':'none';
+            }
+            const stepping=state==='walk'&&!reducedMotion.matches;
+            view.sprite.classList.toggle('is-stepping',stepping);
+            if(stepping){
+                const step=selected.step||0;
+                view.feet[0].style.transform=step===0?'translate(1px,-2px)':step===2?'translate(-1px,0)':'none';
+                view.feet[1].style.transform=step===2?'translate(1px,-2px)':step===0?'translate(-1px,0)':'none';
+                view.sprite.dataset.step=String(step);
+            }
+            view.sprite.style.transform=transform;
+        }
+        requestAnimationFrame(animateRick);
+    }
+    requestAnimationFrame(animateRick);
+
 
     closeButton.addEventListener('click',close);
-    input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,100)+'px';});
+    input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,100)+'px';updateSendButton();});
     input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();form.requestSubmit();}});
-    form.addEventListener('submit',event=>{event.preventDefault();const question=input.value.trim();if(!question||sending)return;input.value='';input.style.height='auto';ask(question);input.focus();});
+    form.addEventListener('submit',event=>{event.preventDefault();const question=input.value.trim();if(!question||sending||finishTyping)return;followConversation=true;input.value='';input.style.height='auto';ask(question);input.focus();});
     forward.addEventListener('click',async()=>{
-        if (sending || !pendingQuestion) return;
+        if (sending || finishTyping || !pendingQuestion) return;
         if (reviewedQuestion !== pendingQuestion) {
             reviewedQuestion = pendingQuestion;
             appendMessage('Review this question before sending. Choose Send to administrator again to confirm, or type a revised question.');
@@ -2451,7 +2573,7 @@ function mountWorkspaceHelp(isAdmin) {
         sending=true;forward.disabled=true;form.querySelector('button').disabled=true;react('thinking',30000);
         try{await window.ACEAuth.request('/v1/help-requests',{method:'POST',body:JSON.stringify({question:reviewedQuestion})});pendingQuestion='';reviewedQuestion='';forward.hidden=true;appendMessage('Your question was sent to the administrator. They can contact you at your work email.');}
         catch(error){appendMessage(error.message||'Could not send your question. Please try again.');}
-        finally{sending=false;forward.disabled=false;form.querySelector('button').disabled=false;react('talking',1500);}
+        finally{sending=false;forward.disabled=false;updateSendButton();react('talking',1500);}
     });
     bot.addEventListener('keydown',event=>{if(event.key==='Escape'&&!panel.hidden){event.stopPropagation();close();}});
     return open;

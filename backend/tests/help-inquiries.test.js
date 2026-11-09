@@ -193,7 +193,8 @@ function inquiryConversation({ failOnce = false } = {}) {
   const sendStart = frontend.indexOf("    forward.addEventListener('click',async", askEnd);
   const sendEnd = frontend.indexOf("    bot.addEventListener('keydown'", sendStart);
   vm.runInContext(`
-    let sending = false, pendingQuestion = '', reviewedQuestion = '';
+    let sending = false, pendingQuestion = '', reviewedQuestion = '', finishTyping = null;
+    function updateSendButton() { sendButton.disabled = sending || Boolean(finishTyping); }
     const messages = [], scrollArea = {}, sendButton = {};
     const form = { querySelector() { return sendButton; } };
     const forward = { hidden: true, addEventListener(_, handler) { this.click = handler; } };
