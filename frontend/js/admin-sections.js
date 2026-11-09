@@ -610,6 +610,9 @@ window.ACEPrepareAdminSection = function prepareAdminSection() {
 };
 
 async function renderAdminSection() {
+  // Wait for the verified profile on a direct page refresh; cached identity
+  // may not be ready when DOMContentLoaded runs. The API remains authoritative.
+  if (document.body.dataset.adminView === 'inquiries' && !AppState.isAuthenticated) return;
   if (document.body.dataset.adminView === 'inquiries' && !AppState.currentUser?.IsHeadAdmin) {
     document.querySelector('.admin-section-page').innerHTML = '<div class="empty-state"><h1>Head administrator access required</h1><p>This inbox is only available to the head administrator.</p></div>';
     return;
@@ -910,4 +913,7 @@ if (!window.adminSectionLiveRefreshBound) {
     if (document.body.dataset.adminView && !document.querySelector('.modal.active, input:focus, textarea:focus, select:focus')) void renderAdminSection();
   });
 }
+window.addEventListener('ace:verified-profile-ready', () => {
+  if (document.body.dataset.adminView === 'inquiries') void renderAdminSection();
+});
 document.addEventListener('DOMContentLoaded', renderAdminSection);
