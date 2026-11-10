@@ -17198,3 +17198,14 @@ body[data-admin-view="inquiries"] .table td:nth-child(4) { min-width: 220px; max
 .rick-step-right { clip-path: polygon(55% 78%, 80% 78%, 80% 96%, 55% 96%); }
 .rick-sprite.is-stepping .rick-art-layer { clip-path: inset(0 0 20% 0); }
 .rick-sprite.is-stepping .rick-step-foot { display: block; }
+
+/* Idle portal travel: visual effects never intercept workspace controls. */
+.rick-portal { position:fixed; width:46px; height:76px; pointer-events:none; border:3px solid #bcff6a; border-radius:50%; background:repeating-conic-gradient(from 25deg,#244f12 0deg 35deg,#78c72b 45deg 75deg,#c0f873 85deg 105deg); box-shadow:inset 0 0 12px #153d12,0 0 8px #9ce63880; z-index:-1; transform-origin:center; }
+.rick-portal::after { content:''; position:absolute; inset:7px; border:3px dashed #d5ff97; border-radius:50%; animation:rick-portal-swirl 1.4s linear infinite; }
+.rick-portal[hidden] { display:none; }
+.rick-portal-gun { display:none; position:absolute; left:58%; top:62%; width:17px; height:8px; background:#dde4d7; border:2px solid #37463b; box-shadow:3px 2px 0 #37463b; image-rendering:pixelated; }
+.rick-portal-gun::before { content:''; position:absolute; left:4px; top:-8px; width:6px; height:7px; background:#aaff40; border:1px solid #57872c; box-shadow:0 0 4px #b7ff64; }
+.rick-portal-gun::after { content:''; position:absolute; right:-4px; top:1px; width:3px; height:3px; background:#9cf439; }
+.is-portaling .help-bot-launcher .rick-portal-gun { display:block; }
+@keyframes rick-portal-swirl { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .rick-portal,.rick-portal-gun { display:none!important; } }

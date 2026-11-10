@@ -11,3 +11,7 @@ dist/
 
 # Temporary isolated checkout
 /.production-updates/
+
+# Supabase CLI machine-local state
+/supabase/.temp/
+/supabase/.branches/

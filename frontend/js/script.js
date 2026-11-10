@@ -2216,6 +2216,16 @@ function createRickHoverVoice(setSpeaking) {
 }
 
 // Frames never interpolate between sheets. Keep the last decoded art visible.
+function rickPortalPose(elapsed) {
+    const t = Math.max(0, elapsed);
+    const enter = Math.max(0, Math.min(1, (t - 800) / 500));
+    const exit = Math.max(0, Math.min(1, (t - 1400) / 500));
+    return { arrived: t >= 1400, done: t >= 2400,
+        scale: t < 1400 ? 1 - enter : exit,
+        hop: t < 1400 ? -18 * Math.sin(enter * Math.PI) : -14 * Math.sin(exit * Math.PI),
+        portalScale: Math.min(1, t / 400, Math.max(0, (2400 - t) / 400)) };
+}
+
 function rickAnimationFrame(state, elapsed, reducedMotion = false) {
     if (state === 'pickup') return { sheet: 'base', frame: 3 };
     if (reducedMotion) return { sheet: 'base', frame: 0 };
@@ -2502,6 +2512,27 @@ function mountWorkspaceHelp(isAdmin) {
     // User drops are persisted by savePosition; strolling never overwrites them.
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let previousTick=performance.now(), nextWalkAt=previousTick+4500, walkingUntil=0, walkDirection=-1, walkX=0;
+    const portals = ['departure', 'arrival'].map(name => {
+        const portal = document.createElement('span');
+        portal.className = 'rick-portal rick-portal-' + name;
+        portal.setAttribute('aria-hidden', 'true');
+        portal.hidden = true;
+        bot.appendChild(portal);
+        return portal;
+    });
+    const portalGun = document.createElement('span');
+    portalGun.className = 'rick-portal-gun';
+    portalGun.setAttribute('aria-hidden', 'true');
+    launcher.querySelector('.rick-sprite').appendChild(portalGun);
+    let portalTrip = null, nextPortalAt = previousTick + 22000;
+    function clearPortalTrip(now) {
+        portalTrip = null;
+        portals.forEach(portal => { portal.hidden = true; });
+        bot.classList.remove('is-portaling');
+        nextPortalAt = now + 28000 + Math.random() * 14000;
+        nextWalkAt = now + 4000;
+        walkingUntil = 0;
+    }
     function animateRick(now) {
         if (!bot.isConnected) return;
         const seconds=Math.min(.05,Math.max(0,(now-previousTick)/1000));previousTick=now;
@@ -2510,8 +2541,42 @@ function mountWorkspaceHelp(isAdmin) {
         const speaking=bot.classList.contains('is-voice-speaking');
         const reaction=bot.dataset.reaction;
         const blocked=reducedMotion.matches || document.hidden || !panel.hidden || drag || attentive || speaking || reaction || document.body.classList.contains('shell-mobile-open') || !sheetsReady.has('base');
+        let portalPose = null;
+        if (blocked) {
+            if (portalTrip) clearPortalTrip(now);
+            nextPortalAt = Math.max(nextPortalAt, now + 8000);
+        } else {
+            const bounds = viewport(), rect = launcher.getBoundingClientRect();
+            const safe = { left: bounds.left + 24, right: bounds.right - rect.width - 24,
+                top: bounds.top + 24, bottom: bounds.bottom - rect.height - 24 };
+            if (portalTrip && (portalTrip.target.x < safe.left || portalTrip.target.x > safe.right ||
+                portalTrip.target.y < safe.top || portalTrip.target.y > safe.bottom)) clearPortalTrip(now);
+            if (!portalTrip && now >= nextPortalAt && safe.right > safe.left && safe.bottom > safe.top) {
+                const target = { x: safe.left + Math.random() * (safe.right - safe.left),
+                    y: safe.top + Math.random() * (safe.bottom - safe.top) };
+                if (Math.hypot(target.x - rect.left, target.y - rect.top) > 130) {
+                    portalTrip = { started: now, target, arrived: false };
+                    [{ x: rect.left, y: rect.top }, target].forEach((point, index) => {
+                        portals[index].style.left = (point.x + rect.width / 2 - 23) + 'px';
+                        portals[index].style.top = (point.y + rect.height / 2 - 38) + 'px';
+                        portals[index].hidden = false;
+                    });
+                    bot.classList.add('is-portaling');
+                    walkingUntil = 0;
+                } else nextPortalAt = now + 5000;
+            }
+            if (portalTrip) {
+                portalPose = rickPortalPose(now - portalTrip.started);
+                portals.forEach(portal => { portal.style.transform = 'scale(' + portalPose.portalScale + ')'; });
+                if (portalPose.arrived && !portalTrip.arrived) {
+                    moveRick(portalTrip.target.x, portalTrip.target.y);
+                    portalTrip.arrived = true;
+                }
+                if (portalPose.done) { clearPortalTrip(now); portalPose = null; }
+            }
+        }
         let walking=false;
-        if (blocked) { walkingUntil=0; nextWalkAt=now+3500; }
+        if (blocked || portalTrip) { walkingUntil=0; nextWalkAt=now+3500; }
         else if (now>=nextWalkAt) {
             if (!walkingUntil) { walkingUntil=now+6000;walkX=position?.x ?? launcher.getBoundingClientRect().left; }
             if (now>=walkingUntil) { walkingUntil=0;nextWalkAt=now+4000; }
@@ -2531,7 +2596,7 @@ function mountWorkspaceHelp(isAdmin) {
         bot.dataset.walkDirection=walkDirection<0?'left':'right';
         for (const view of spriteViews) {
             const isLauncher=launcher.contains(view.sprite);
-            const state=isLauncher&&pickedUp?'pickup':reaction==='talking'||(isLauncher&&speaking)?'talk':isLauncher&&reaction==='landing'?'landing':isLauncher&&attentive?'hover':isLauncher&&walking?'walk':'idle';
+            const state=isLauncher&&pickedUp?'pickup':reaction==='talking'||(isLauncher&&speaking)?'talk':isLauncher&&reaction==='landing'?'landing':isLauncher&&attentive?'hover':isLauncher&&portalTrip?'portal':isLauncher&&walking?'walk':'idle';
             if(view.state!==state){view.state=state;view.started=now;}
             const elapsed=now-view.started;
             let selected=rickAnimationFrame(state,elapsed,reducedMotion.matches);
@@ -2559,6 +2624,7 @@ function mountWorkspaceHelp(isAdmin) {
                 view.feet[1].style.transform=step===2?'translate(1px,-2px)':step===0?'translate(-1px,0)':'none';
                 view.sprite.dataset.step=String(step);
             }
+            if (isLauncher && portalPose) transform = 'translateY(' + portalPose.hop + 'px) scale(' + portalPose.scale + ')';
             view.sprite.style.transform=transform;
         }
         requestAnimationFrame(animateRick);

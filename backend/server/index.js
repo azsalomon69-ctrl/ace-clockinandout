@@ -20,6 +20,7 @@ if (missing.length) throw new Error(`Missing required environment variable(s): $
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
+
 const sessionSecurity = createSessionSecurity(db);
 const cloudinaryConfigured = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].every(key => Boolean(process.env[key]));
 if (cloudinaryConfigured) cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET, secure: true });
@@ -42,6 +43,7 @@ const cached = (cache, key, ttlMs, loader) => {
   cache.set(key, { promise, expiresAt: now + ttlMs });
   return promise;
 };
+
 const tokenCacheKey = token => createHash('sha256').update(token).digest('base64url');
 const revokeToken = tokenKey => {
   const now = Date.now();
@@ -49,9 +51,11 @@ const revokeToken = tokenKey => {
   if (revokedTokenCache.size >= cacheMaxEntries) revokedTokenCache.delete(revokedTokenCache.keys().next().value);
   revokedTokenCache.set(tokenKey, now + 60 * 60 * 1000);
 };
+
 const clearReferenceData = prefix => {
   for (const key of referenceDataCache.keys()) if (key.startsWith(prefix)) referenceDataCache.delete(key);
 };
+
 const isTokenRevoked = tokenKey => revokedTokenCache.get(tokenKey) > Date.now();
 const frontendOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(value => value.trim()).filter(Boolean);
 if (process.env.NODE_ENV === 'production' && !frontendOrigins.length) {
@@ -70,6 +74,7 @@ app.use(helmet({
   },
   crossOriginResourcePolicy: false
 }));
+
 app.use(cors({
   origin(origin, callback) {
     // Browser requests must come from an explicitly configured frontend. A
@@ -82,6 +87,7 @@ app.use(cors({
   allowedHeaders: ['Authorization', 'Content-Type', 'X-Request-ID'],
   maxAge: 600
 }));
+
 app.use(express.json({ limit: '1mb' }));
 app.use((req, res, next) => {
   const supplied = req.get('x-request-id');
@@ -89,6 +95,7 @@ app.use((req, res, next) => {
   res.set('X-Request-ID', req.requestId);
   next();
 });
+
 morgan.token('request-id', req => req.requestId || '-');
 app.use(morgan(process.env.NODE_ENV === 'production' ? ':remote-addr :method :url :status :res[content-length] - :response-time ms request_id=:request-id' : 'dev request_id=:request-id', {
   skip: (_req, res) => process.env.NODE_ENV === 'production' && res.statusCode < 400
@@ -103,6 +110,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many requests. Please wait a few minutes and try again.' }
 });
+
 const sensitiveActionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 30,
@@ -110,6 +118,7 @@ const sensitiveActionLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many requests. Please wait a few minutes and try again.' }
 });
+
 app.use('/v1', apiLimiter);
 app.use('/v1/auth/config', rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -149,6 +158,7 @@ const mailTransport = smtpConfigured ? nodemailer.createTransport({
   allowInternalNetworkInterfaces: true,
   auth: { user: smtpUser, pass: smtpAppPassword }
 }) : null;
+
 const applicationUrl = (frontendOrigins[0] || 'https://aceclock.onrender.com').replace(/\/$/, '');
 const base64Url = value => Buffer.from(value, 'utf8').toString('base64url');
 const emailHeader = value => {
@@ -157,6 +167,7 @@ const emailHeader = value => {
   // header value instead of relying on a recipient to guess its charset.
   return /^[\x20-\x7e]*$/.test(clean) ? clean : `=?UTF-8?B?${Buffer.from(clean, 'utf8').toString('base64')}?=`;
 };
+
 const gmailApiError = (message, status) => Object.assign(new Error(message), { code: 'EGMAILAPI', status });
 const getGmailAccessToken = async () => {
   const body = new URLSearchParams({
@@ -176,6 +187,7 @@ const getGmailAccessToken = async () => {
   }
   return payload.access_token;
 };
+
 const sendWithGmailApi = async ({ from, to, replyTo, subject, text, html }) => {
   const accessToken = await getGmailAccessToken();
   // RFC 2822 message encoded as base64url, as required by Gmail's send API.
@@ -221,6 +233,7 @@ const sendWithGmailApi = async ({ from, to, replyTo, subject, text, html }) => {
     throw gmailApiError(payload.error?.message || 'Gmail API did not accept the message.', response.status);
   }
 };
+
 const buildInvitationEmail = ({ email, role, invitedBy }) => {
   const recipient = htmlEscape(email);
   const inviterName = invitedBy || 'an ACE administrator';
@@ -279,6 +292,7 @@ const buildInvitationEmail = ({ email, role, invitedBy }) => {
 </body></html>`
   };
 };
+
 const sendInvitationEmail = async ({ email, role, invitedBy }) => {
   if (!gmailConfigured && !mailTransport) return false;
   const message = {
@@ -290,6 +304,7 @@ const sendInvitationEmail = async ({ email, role, invitedBy }) => {
   else await mailTransport.sendMail(message);
   return true;
 };
+
 const invitationMailIssue = error => {
   if (!gmailConfigured && !smtpConfigured) return 'Email delivery is not configured on Render.';
   if (error?.code === 'EGMAILAPI') {
@@ -311,12 +326,14 @@ const pagedResult = async (request, { page, pageSize, paged }) => {
   if (error) throw error;
   return { items: data || [], total: count || 0, page, pageSize };
 };
+
 const isUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const isDate = value => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 };
+
 const isTimestamp = value => typeof value === 'string' && value.length <= 80 && !Number.isNaN(Date.parse(value));
 const isTime = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(value || '');
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -327,11 +344,13 @@ const optionalText = (value, maximum = 500) => {
   const text = value.trim();
   return text.length <= maximum ? (text || null) : undefined;
 };
+
 const requireText = (value, field, maximum = 160) => {
   const text = optionalText(value, maximum);
   if (!text) throw Object.assign(new Error(`${field} is required and must be at most ${maximum} characters`), { status: 400, expose: true });
   return text;
 };
+
 const optionalUuid = value => value === undefined || value === null || value === '' ? null : (isUuid(value) ? value : undefined);
 app.param('id', (req, res, next, id) => isUuid(id) ? next() : fail(res, 400, 'Invalid record ID'));
 app.param('projectId', (req, res, next, id) => isUuid(id) ? next() : fail(res, 400, 'Invalid project ID'));
@@ -344,6 +363,7 @@ const googleAvatarUrl = user => {
     try { return new URL(value).protocol === 'https:'; } catch { return false; }
   }) || null;
 };
+
 const persistGoogleAvatar = async (profile, user) => {
   if (profile.profile_picture_url || profile.profile_picture_public_id) return profile;
   const avatarUrl = googleAvatarUrl(user);
@@ -356,6 +376,7 @@ const persistGoogleAvatar = async (profile, user) => {
   profileCache.set(profile.id, { promise: Promise.resolve(persisted), expiresAt: Date.now() + 5_000 });
   return persisted;
 };
+
 const supabaseJwtSecret = process.env.SUPABASE_JWT_SECRET?.trim();
 const supabaseJwtIssuer = `${process.env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1`;
 const supabaseJwksUrl = `${supabaseJwtIssuer}/.well-known/jwks.json`;
@@ -378,6 +399,7 @@ const getSupabaseJwks = async forceRefresh => {
     if (supabaseJwksCache.refresh === refresh) supabaseJwksCache.refresh = null;
   }
 };
+
 const jwtUser = claims => {
   if (!claims?.sub || !isUuid(claims.sub)) throw new Error('Invalid or expired session');
   return {
@@ -386,6 +408,7 @@ const jwtUser = claims => {
     user_metadata: typeof claims.user_metadata === 'object' && claims.user_metadata ? claims.user_metadata : {}
   };
 };
+
 const verifySupabaseJwt = async token => {
   if (supabaseJwtSecret) return jwtUser(jwt.verify(token, supabaseJwtSecret, {
     algorithms: ['HS256'],
@@ -404,6 +427,7 @@ const verifySupabaseJwt = async token => {
     issuer: supabaseJwtIssuer
   }));
 };
+
 class InvalidSessionError extends Error {}
 const invalidSessionCodes = new Set(['bad_jwt', 'invalid_jwt', 'session_not_found', 'session_expired', 'user_not_found', 'user_banned']);
 const getFreshUserFromGoTrue = async token => {
@@ -418,6 +442,7 @@ const getFreshUserFromGoTrue = async token => {
   if (!data?.user) throw new Error('Authentication response did not include a user');
   return data.user;
 };
+
 const getUserFromGoTrue = (token, tokenKey) =>
   cached(authUserCache, tokenKey, 30_000, () => getFreshUserFromGoTrue(token));
 const respondToAuthFailure = (req, res, error) => {
@@ -425,6 +450,7 @@ const respondToAuthFailure = (req, res, error) => {
   console.warn('Authentication dependency unavailable', { requestId: req.requestId });
   return fail(res, 503, 'ACE could not verify your account right now. Please try again.');
 };
+
 async function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
   if (!token) return fail(res, 401, 'Missing bearer token');
@@ -451,6 +477,7 @@ async function authenticate(req, res, next) {
   } catch (error) { return respondToAuthFailure(req, res, error); }
   return next();
 }
+
 const adminOnly = async (req, res, next) => {
   if (req.profile.role !== 'ADMIN' || req.profile.status !== 'ACTIVE') return fail(res, 403, 'Active administrator access required');
   try {
@@ -460,6 +487,7 @@ const adminOnly = async (req, res, next) => {
   } catch (error) { return respondToAuthFailure(req, res, error); }
   return next();
 };
+
 const activeOnly = (req, res, next) => req.profile.status === 'ACTIVE' ? next() : fail(res, 403, req.profile.status === 'DENIED'
   ? 'Your account is inactive. Contact an administrator if you believe this is a mistake.'
   : 'Your account is not active. Contact your administrator or HR representative for an invitation.');
@@ -498,6 +526,7 @@ app.post('/v1/help-requests', authenticate, activeOnly, helpRequestLimiter, asyn
     res.status(201).json({ id: inquiry.id });
   } catch (error) { next(error); }
 });
+
 app.get('/v1/help-requests', authenticate, adminOnly, async (req, res, next) => {
   if (!isHeadAdmin(req)) return fail(res, 403, 'Head administrator access required.');
   try {
@@ -511,11 +540,13 @@ app.get('/v1/help-requests', authenticate, adminOnly, async (req, res, next) => 
     res.json(await pagedResult(request, paging));
   } catch (error) { next(error); }
 });
+
 const protectHeadAdmin = (req, res, target) => {
   if (target.email?.toLowerCase() !== headAdminEmail || isHeadAdmin(req)) return true;
   fail(res, 403, 'Only the head administrator can change this administrator account.');
   return false;
 };
+
 async function guardProfileLifecycle(req, res, target, changes, { operation }) {
   if (['archive', 'approval'].includes(operation) && changes.status === 'DENIED' && target.id === req.profile.id) {
     fail(res, 400, 'You cannot remove your own administrator account.');
@@ -546,6 +577,7 @@ async function guardProfileLifecycle(req, res, target, changes, { operation }) {
   }
   return true;
 }
+
 async function audit(req, action, entityType, entityId, description) {
   await db.from('audit_logs').insert({ user_id: req.profile?.id || null, action, entity_type: entityType, entity_id: isUuid(entityId) ? entityId : null, description, ip_address: req.ip, user_agent: req.get('user-agent'), request_id: req.requestId }).then(({ error }) => { if (error) console.error(`audit log request_id=${req.requestId}:`, error.message); });
 }
@@ -566,6 +598,7 @@ app.get('/health', async (_, res) => {
     res.status(503).json({ ok: false, service: 'ace-clock-api', database: 'unavailable' });
   }
 });
+
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
 // The browser needs to know which navigation and safeguards to show, but it
 // must never duplicate the protected account's email or make the permission
@@ -585,12 +618,14 @@ app.get('/v1/me', authenticate, async (req, res, next) => { try {
     tutorial_started_at: null, tutorial_completed_at: null, tutorial_skipped_at: null
   }), is_head_admin: isHeadAdmin(req) } });
 } catch (error) { next(error); } });
+
 app.patch('/v1/me', authenticate, activeOnly, async (req, res, next) => { try {
   const fullName = requireText(req.body.fullName, 'Full name', 160);
   const profile = await query(db.from('profiles').update({ full_name: fullName }).eq('id', req.profile.id).select().single());
   await audit(req, 'UPDATE_PROFILE', 'PROFILE', profile.id, 'Updated profile name');
   res.json({ profile });
 } catch (error) { next(error); } });
+
 app.patch('/v1/me/tutorial', authenticate, activeOnly, async (req, res, next) => { try {
   const statuses = ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED'];
   const status = req.body.status;
@@ -618,6 +653,7 @@ app.patch('/v1/me/tutorial', authenticate, activeOnly, async (req, res, next) =>
   profileCache.delete(req.profile.id);
   res.json({ profile: { ...req.profile, ...progress, is_head_admin: isHeadAdmin(req) } });
 } catch (error) { next(error); } });
+
 app.post('/v1/me/avatar-upload', authenticate, activeOnly, async (req, res, next) => { try {
   if (!cloudinaryConfigured) return fail(res, 503, 'Profile photo uploads are not configured yet');
   const contentType = String(req.body.contentType || '');
@@ -628,6 +664,7 @@ app.post('/v1/me/avatar-upload', authenticate, activeOnly, async (req, res, next
   const signature = cloudinary.utils.api_sign_request({ public_id: publicId, timestamp }, process.env.CLOUDINARY_API_SECRET);
   res.json({ uploadUrl: `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`, apiKey: process.env.CLOUDINARY_API_KEY, timestamp, signature, publicId });
 } catch (error) { next(error); } });
+
 app.post('/v1/me/avatar-complete', authenticate, activeOnly, async (req, res, next) => { try {
   if (!cloudinaryConfigured) return fail(res, 503, 'Profile photo uploads are not configured yet');
   const publicId = requireText(req.body.publicId, 'Upload ID', 300);
@@ -638,12 +675,14 @@ app.post('/v1/me/avatar-complete', authenticate, activeOnly, async (req, res, ne
   await audit(req, 'UPDATE_PROFILE_PHOTO', 'PROFILE', profile.id, 'Updated profile photo');
   res.json({ profile });
 } catch (error) { next(error); } });
+
 app.post('/v1/auth/session-start', authenticate, async (req, res, next) => { try {
   const sessionStartedAt = new Date().toISOString();
   await query(db.from('profiles').update({ last_login_at: sessionStartedAt }).eq('id', req.profile.id).select().single());
   await audit(req, 'LOGIN', 'PROFILE', req.profile.id, 'Signed in successfully');
   res.status(204).end();
 } catch (error) { next(error); } });
+
 app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
   if (!isUuid(req.authSessionId)) return fail(res, 401, 'Invalid or expired session');
   authUserCache.delete(req.authTokenCacheKey);
@@ -653,6 +692,7 @@ app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
   await sessionSecurity.end(req.profile.id, req.authSessionId, req.requestId);
   res.status(204).end();
 } catch (error) { next(error); } });
+
 app.get('/v1/departments', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); const load = () => { let request = db.from('departments').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); return pagedResult(request, paging); }; res.json(!paging.paged && !req.query.q ? await cached(referenceDataCache, 'departments', referenceDataTtlMs, load) : await load()); } catch (error) { next(error); } });
 app.post('/v1/departments', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Department name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('departments').insert({ name, description }).select().single()); clearReferenceData('departments'); await audit(req, 'CREATE', 'DEPARTMENT', item.id, `Created department ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
 app.patch('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Department name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable department fields supplied'); const item = await query(db.from('departments').update(changes).eq('id', req.params.id).select().single()); clearReferenceData('departments'); await audit(req, 'UPDATE', 'DEPARTMENT', item.id, `Updated department ${item.name}`); res.json(item); } catch (error) { next(error); } });
@@ -673,6 +713,7 @@ app.post('/v1/schedules', authenticate, adminOnly, async (req, res, next) => { t
   const item = await query(db.from('work_schedules').insert({ name, schedule_type: scheduleType, start_time: scheduleType === 'FIXED' ? startTime : null, end_time: scheduleType === 'FIXED' ? endTime : null, daily_elapsed_minutes: dailyElapsedMinutes, scheduled_weekdays: workdays, created_by_user_id: req.profile.id }).select().single());
   await audit(req, 'CREATE_SCHEDULE', 'SCHEDULE', item.id, `Created ${scheduleType.toLowerCase()} schedule ${name}`); res.status(201).json(item);
 } catch (error) { next(error); } });
+
 app.delete('/v1/schedules/:id', authenticate, adminOnly, async (req, res, next) => { try {
   const { count, error } = await db.from('user_schedule_assignments').select('user_id', { count: 'exact', head: true }).eq('schedule_id', req.params.id);
   if (error) throw error;
@@ -681,6 +722,7 @@ app.delete('/v1/schedules/:id', authenticate, adminOnly, async (req, res, next) 
   await audit(req, 'DELETE_SCHEDULE', 'SCHEDULE', schedule.id, `Deleted schedule ${schedule.name}`);
   res.json(schedule);
 } catch (error) { next(error); } });
+
 app.put('/v1/users/:id/schedule', authenticate, adminOnly, async (req, res, next) => { try {
   const scheduleId = optionalUuid(req.body.scheduleId); if (scheduleId === undefined) return fail(res, 400, 'Invalid schedule');
   const employee = await query(db.from('profiles').select('id,full_name,email,role').eq('id', req.params.id).single()); if (employee.role !== 'USER') return fail(res, 400, 'Schedules can only be assigned to employees');
@@ -689,6 +731,7 @@ app.put('/v1/users/:id/schedule', authenticate, adminOnly, async (req, res, next
   const assignment = await query(db.from('user_schedule_assignments').upsert({ user_id: employee.id, schedule_id: schedule.id, assigned_by_user_id: req.profile.id, assigned_at: new Date().toISOString() }).select().single());
   await audit(req, 'ASSIGN_SCHEDULE', 'PROFILE', employee.id, `Assigned ${schedule.name} to ${employee.full_name || employee.email}`); res.json(assignment);
 } catch (error) { next(error); } });
+
 app.get('/v1/user-projects', authenticate, activeOnly, async (req, res, next) => { try { let request = db.from('user_projects').select('*'); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
 app.put('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try {
   const target = await query(db.from('profiles').select('id,email,full_name,role,status').eq('id', req.params.id).single());
@@ -707,6 +750,7 @@ app.put('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req
   if (['42P01', '42P10'].includes(error?.code)) return fail(res, 503, 'Project assignments are not configured. Apply database migration 0022 and try again.');
   next(error);
 } });
+
 app.delete('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try { const target = await query(db.from('profiles').select('id,email').eq('id', req.params.id).single()); if (!protectHeadAdmin(req, res, target)) return; await query(db.from('user_projects').delete().eq('user_id', req.params.id).eq('project_id', req.params.projectId).select()); await audit(req, 'UNASSIGN_PROJECT', 'PROFILE', req.params.id, `Unassigned project ${req.params.projectId}`); res.status(204).end(); } catch (error) { next(error); } });
 
 app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
@@ -743,9 +787,11 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   }));
   res.json(paged ? { items, total: profileResponse.count || 0, page, pageSize } : items);
 } catch (error) { next(error); } });
+
 app.get('/v1/admin-dashboard/active-clock-in-count', authenticate, adminOnly, async (req, res, next) => { try {
   res.json({ count: await countActiveEmployeeClockIns(db) });
 } catch (error) { next(error); } });
+
 app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, next) => { try {
   if (!['ACTIVE', 'DENIED'].includes(req.body.status)) return fail(res, 400, 'Status must be ACTIVE or DENIED');
   const target = await query(db.from('profiles').select('id,email,role,status').eq('id', req.params.id).single());
@@ -756,6 +802,7 @@ app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, ne
   }));
   res.json(profile);
 } catch (error) { next(error); } });
+
 app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) => { try {
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : req.body.role === 'USER' ? 'USER' : null;
   if (!role) return fail(res, 400, 'Role must be ADMIN or USER');
@@ -767,6 +814,7 @@ app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) 
   }));
   res.json(profile);
 } catch (error) { next(error); } });
+
 app.patch('/v1/users/:id/department', authenticate, adminOnly, async (req, res, next) => { try {
   const departmentId = optionalUuid(req.body.departmentId);
   if (departmentId === undefined) return fail(res, 400, 'Invalid department ID');
@@ -778,6 +826,7 @@ app.patch('/v1/users/:id/department', authenticate, adminOnly, async (req, res, 
   }));
   res.json(profile);
 } catch (error) { next(error); } });
+
 app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next) => { try {
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
   if (!await guardProfileLifecycle(req, res, target, { status: 'DENIED' }, { operation: 'archive' })) return;
@@ -788,6 +837,7 @@ app.patch('/v1/users/:id/remove', authenticate, adminOnly, async (req, res, next
   if (error) { if (error.code === 'P0001' && error.message === 'AUTH_ACCOUNT_NOT_FOUND') return fail(res, 502, 'The account was not archived because sign-in could not be disabled.'); throw error; }
   res.json(profile);
 } catch (error) { next(error); } });
+
 app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, next) => { try {
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
   if (!await guardProfileLifecycle(req, res, target, { status: 'ACTIVE' }, { operation: 'restore' })) return;
@@ -798,6 +848,7 @@ app.patch('/v1/users/:id/restore', authenticate, adminOnly, async (req, res, nex
   if (error) { if (error.code === 'P0001' && error.message === 'AUTH_ACCOUNT_NOT_FOUND') return fail(res, 502, 'The account could not be restored because sign-in could not be enabled.'); throw error; }
   res.json(profile);
 } catch (error) { next(error); } });
+
 app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, next) => { try {
   if (req.params.id === req.profile.id) return fail(res, 400, 'You cannot permanently delete your own administrator account.');
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).is('permanently_deleted_at', null).single());
@@ -808,6 +859,7 @@ app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, 
   }));
   res.status(204).end();
 } catch (error) { next(error); } });
+
 app.post('/v1/invitations', sensitiveActionLimiter, authenticate, adminOnly, async (req, res, next) => { try {
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
@@ -848,6 +900,7 @@ app.post('/v1/invitations', sensitiveActionLimiter, authenticate, adminOnly, asy
   catch (mailError) { console.error('Invitation email delivery failed:', mailError.message); emailIssue = invitationMailIssue(mailError); }
   res.status(201).json({ ...invitation, email_sent: emailSent, email_issue: emailSent ? null : (emailIssue || invitationMailIssue()) });
 } catch (error) { next(error); } });
+
 app.delete('/v1/invitations/:id', sensitiveActionLimiter, authenticate, adminOnly, async (req, res, next) => { try {
   const invitation = await query(db.from('invitations').select('*').eq('id', req.params.id).maybeSingle());
   if (!invitation) return fail(res, 404, 'Invitation not found.');
@@ -856,6 +909,7 @@ app.delete('/v1/invitations/:id', sensitiveActionLimiter, authenticate, adminOnl
   await audit(req, 'CANCEL_INVITATION', 'INVITATION', invitation.id, `Cancelled invitation for ${invitation.email}`);
   res.status(204).end();
 } catch (error) { next(error); } });
+
 app.get('/v1/invitations', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('invitations').select('*, profiles!invitations_invited_by_user_id_fkey(full_name,email)', paging.paged ? { count: 'exact' } : undefined).order('invited_at', { ascending: false }); if (req.query.q) request = request.ilike('email', `%${String(req.query.q).replace(/[%_,()]/g, ' ')}%`); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 
 const listTimeEntries = async (req, res, next) => { try {
@@ -920,6 +974,7 @@ app.get('/v1/time-leaderboard', authenticate, adminOnly, async (req, res, next) 
   const ownIndex = ranked.findIndex(person => person.id === req.profile.id);
   res.json({ leaders: ranked.slice(0, 10), my_rank: ownIndex === -1 ? null : ownIndex + 1, total_people: ranked.length });
 } catch (error) { next(error); } });
+
 app.get('/v1/admin-remarks', authenticate, activeOnly, async (req, res, next) => { try {
   let request = db.from('admin_remarks').select('*, profiles!admin_remarks_admin_user_id_fkey(full_name,email), time_entries!inner(user_id,deleted_at)').order('created_at', { ascending: false });
   if (req.profile.role !== 'ADMIN') request = request.eq('time_entries.user_id', req.profile.id).is('time_entries.deleted_at', null);
@@ -930,6 +985,7 @@ app.get('/v1/admin-remarks', authenticate, activeOnly, async (req, res, next) =>
   }
   res.json(await query(request));
 } catch (error) { next(error); } });
+
 app.post('/v1/admin-remarks/mark-read', authenticate, activeOnly, async (req, res, next) => { try {
   if (req.profile.role === 'ADMIN') return res.json({ marked: 0 });
   const entries = await query(db.from('time_entries').select('id').eq('user_id', req.profile.id));
@@ -937,6 +993,7 @@ app.post('/v1/admin-remarks/mark-read', authenticate, activeOnly, async (req, re
   const marked = await query(db.from('admin_remarks').update({ seen_at: new Date().toISOString() }).in('time_entry_id', entries.map(entry => entry.id)).is('seen_at', null).select('id'));
   res.json({ marked: marked.length });
 } catch (error) { next(error); } });
+
 app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
   const projectId = optionalUuid(req.body.projectId);
   if (projectId === undefined) return fail(res, 400, 'Invalid project ID');
@@ -976,6 +1033,7 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
   if (error) throw error;
   res.status(201).json(entry);
 } catch (error) { next(error); } });
+
 app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try {
   const note = requireText(req.body.note, 'A clock-out note', 50);
   const { data: entry, error } = await db.rpc('clock_out_entry', {
@@ -989,6 +1047,7 @@ app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req,
   }
   res.json(entry);
 } catch (error) { next(error); } });
+
 app.post('/v1/time-entries/:id/admin-stop', authenticate, adminOnly, async (req, res, next) => { try {
   const { data: entry, error } = await db.rpc('admin_stop_entry', { p_entry_id: req.params.id, p_actor_user_id: req.profile.id });
   if (error) {
@@ -999,6 +1058,7 @@ app.post('/v1/time-entries/:id/admin-stop', authenticate, adminOnly, async (req,
   }
   res.json(entry);
 } catch (error) { next(error); } });
+
 app.patch('/v1/time-entries/:id/admin-time', authenticate, adminOnly, async (req, res, next) => { try {
   const { clockInAt, clockOutAt } = req.body;
   if (!isTimestamp(clockInAt) || !isTimestamp(clockOutAt)) return fail(res, 400, 'A valid clock-in and clock-out date and time are required');
@@ -1016,11 +1076,13 @@ app.patch('/v1/time-entries/:id/admin-time', authenticate, adminOnly, async (req
   }
   res.json(entry);
 } catch (error) { next(error); } });
+
 app.post('/v1/time-entries/:id/overtime/approve', authenticate, adminOnly, async (req, res, next) => { try {
   const { data, error } = await db.rpc('approve_entry_overtime', { p_entry_id: req.params.id, p_admin_id: req.profile.id });
   if (error) { if (error.code === 'P0001') return fail(res, 400, error.message); throw error; }
   res.json(data);
 } catch (error) { next(error); } });
+
 app.get('/v1/time-entry-review', authenticate, adminOnly, async (req, res, next) => { try {
   const overdueBefore = new Date(Date.now() - 16 * 60 * 60 * 1000).toISOString();
   const [openEntries, correctedEntries] = await Promise.all([
@@ -1042,6 +1104,7 @@ app.post('/v1/time-entries/:id/remarks', authenticate, adminOnly, async (req, re
   await audit(req, 'ADD_REMARK', 'TIME_ENTRY', req.params.id, 'Added administrator remark');
   res.status(201).json(remark);
 } catch (error) { next(error); } });
+
 app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, next) => { try {
   const { data: entry, error } = await db.rpc('archive_time_entry_with_audit', {
     p_entry_id: req.params.id, p_actor_user_id: req.profile.id, p_operation: 'DELETE', p_request_id: req.requestId
@@ -1053,6 +1116,7 @@ app.delete('/v1/time-entries/:id', authenticate, adminOnly, async (req, res, nex
   }
   res.json(entry);
 } catch (error) { next(error); } });
+
 app.patch('/v1/time-entries/:id/restore', authenticate, adminOnly, async (req, res, next) => { try {
   const { data: entry, error } = await db.rpc('archive_time_entry_with_audit', {
     p_entry_id: req.params.id, p_actor_user_id: req.profile.id, p_operation: 'RESTORE', p_request_id: req.requestId
@@ -1060,6 +1124,7 @@ app.patch('/v1/time-entries/:id/restore', authenticate, adminOnly, async (req, r
   if (error) { if (error.code === 'P0001' && error.message === 'ENTRY_NOT_FOUND') return fail(res, 404, 'Time entry is unavailable'); throw error; }
   res.json(entry);
 } catch (error) { next(error); } });
+
 app.delete('/v1/time-entries/:id/permanent', authenticate, adminOnly, async (req, res, next) => { try {
   const { data: entry, error } = await db.rpc('archive_time_entry_with_audit', {
     p_entry_id: req.params.id, p_actor_user_id: req.profile.id, p_operation: 'PERMANENT_DELETE', p_request_id: req.requestId
@@ -1091,6 +1156,7 @@ app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try
   await audit(req, 'GENERATE_REPORT', 'REPORT', report.id, `Generated ${reportType} report`);
   res.status(201).json(report);
 } catch (error) { next(error); } });
+
 app.get('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); const request = db.from('reports').select('*, profiles!reports_created_by_user_id_fkey(full_name), report_exports(*)', paging.paged ? { count: 'exact' } : undefined).order('generated_at', { ascending: false }); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 app.post('/v1/reports/:id/exports', authenticate, adminOnly, async (req, res, next) => { try { const fileName = requireText(req.body.fileName, 'File name', 255); const fileType = req.body.fileType || 'PDF'; const fileUrl = optionalText(req.body.fileUrl, 2048); if (!['CSV', 'XLSX', 'PDF'].includes(fileType) || fileUrl === undefined) return fail(res, 400, 'Invalid export details'); const item = await query(db.from('report_exports').insert({ report_id: req.params.id, exported_by_user_id: req.profile.id, file_name: fileName, file_type: fileType, file_url: fileUrl }).select().single()); await audit(req, 'EXPORT_REPORT', 'REPORT', req.params.id, `Exported ${fileType} report`); res.status(201).json(item); } catch (error) { next(error); } });
 app.post('/v1/time-entry-exports', authenticate, adminOnly, async (req, res, next) => { try {
@@ -1115,11 +1181,13 @@ app.post('/v1/time-entry-exports', authenticate, adminOnly, async (req, res, nex
   await query(db.from('audit_logs').insert({ user_id: req.profile.id, action: 'EXPORT_TIME_ENTRIES', entity_type: 'REPORT', entity_id: report.id, description: `Exported ${count || 0} time entries as ${format} for ${dateFrom} to ${dateTo}`, ip_address: req.ip, user_agent: req.get('user-agent'), request_id: req.requestId }));
   res.status(201).json(report);
 } catch (error) { next(error); } });
+
 app.delete('/v1/reports/:id', authenticate, adminOnly, async (req, res, next) => { try {
   const report = await query(db.from('reports').delete().eq('id', req.params.id).select().single());
   await audit(req, 'DELETE_REPORT', 'REPORT', report.id, `Deleted generated ${report.report_type} report`);
   res.json(report);
 } catch (error) { next(error); } });
+
 app.get('/v1/audit-logs', authenticate, adminOnly, async (req, res, next) => { try { const paging = pageParams(req); let request = db.from('audit_logs').select('*, profiles(full_name,email)', paging.paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false }); if (req.query.q) request = request.or(`action.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); if (!paging.paged) request = request.limit(250); res.json(await pagedResult(request, paging)); } catch (error) { next(error); } });
 
 app.use((error, _, res, __) => {
@@ -1134,4 +1202,5 @@ app.use((error, _, res, __) => {
   if (error?.code === '23503') return fail(res, 409, 'This record is connected to company history and must remain archived');
   fail(res, 500, 'Unexpected server error');
 });
+
 app.listen(process.env.PORT || 3000);
