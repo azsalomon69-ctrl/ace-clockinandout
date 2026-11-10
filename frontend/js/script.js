@@ -1265,7 +1265,7 @@ function initializeAppShell() {
         setTopbarMenu(topbarAccountButton, topbarAccountMenu, false);
         setTopbarMenu(notificationButton, notificationMenu, notificationMenu.hidden);
     });
-    const openWorkspaceHelp = mountWorkspaceHelp(isAdmin);
+    const openWorkspaceHelp = mountWorkspaceHelp(AppState.currentUser?.Role === 'ADMIN');
 
     const searchInput = topbar.querySelector('#shellGlobalSearch');
     const searchResults = topbar.querySelector('.shell-global-results');
@@ -1620,7 +1620,7 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I change dark mode or appearance?', 'Open Profile & settings and choose Appearance. Select your preferred theme or display options, then save.'],
         ['Where are notifications?', 'Use the bell icon in the top bar. It shows relevant updates and messages; open it again to close the notification panel.'],
         ['How do I search for a project?', 'Use the search box in the top bar to find an assigned project. Choose a result to open the appropriate workspace.'],
-        ['Why is a project missing?', 'Only projects assigned to you appear in your project list and Clock in form. Ask an administrator to assign the project through People → Users → Manage.'],
+        ['Why is a project missing?', 'Only projects assigned to you appear in your project list and Clock in form. Ask an administrator to assign the project to your account.'],
         ['How do I get access or fix an inactive account?', 'Contact your administrator or HR representative. They can send an invitation or review your user record.'],
         ['How do I sign out?', 'Open your account menu and choose Sign out. Always clock out of your work session first if you have finished for the day.'],
         ['How do I restart the tutorial?', 'Open your account menu and choose Restart tutorial. It starts from the dashboard and guides you through the main employee workflow.'],
@@ -2079,6 +2079,10 @@ function workspaceHelpNeedsPunchDirection(question) {
 }
 
 function createWorkspaceHelpConversation(entries) {
+    const employeeCatalog = entries.some(([title]) => title === 'Can I edit or delete my own time entry?');
+    const employeeTitles = new Set(entries.map(([title]) => title));
+    const restrictedEntries = employeeCatalog
+        ? workspaceHelpEntries(true).filter(([title]) => !employeeTitles.has(title)) : [];
     const missedClockOut = entries.find(([title]) => title === 'I forgot to clock out');
     const correctOwnEntry = entries.find(([title]) => title === 'Can I edit or delete my own time entry?');
     const fallback = 'I can help with ACE Clock tasks such as clocking in, projects, schedules, and account settings. Tell me what you’re trying to do and what happens. You can also send your question to the administrator.';
@@ -2104,6 +2108,10 @@ function createWorkspaceHelpConversation(entries) {
         }
 
         const words = text.toLowerCase().replace(/[’‘]/g, "'").replace(/[^a-z0-9' ]/g, '').trim();
+        // Check explicit administrator tasks before using previous conversation choices.
+        if (restrictedEntries.length && !matchWorkspaceHelp(text, entries) && matchWorkspaceHelp(text, restrictedEntries)) {
+            return finish({ reply: 'That task is available to administrators only. Please ask your administrator to help. You can send them this question below.' });
+        }
         const hasChoices = Boolean(previous?.choices.length || previous?.punch);
         if (/^(?:no|nope|neither|none(?: of (?:those|them))?|not (?:that|those)|something else|forget it)(?: thanks)?$/.test(words)) {
             return finish({ canForward: false, reply: 'What else can I help you with in ACE Clock?' });

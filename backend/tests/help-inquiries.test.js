@@ -280,3 +280,23 @@ test('Database failure is not reported as successful delivery', async () => {
 test('Empty and oversized inquiries are rejected', async () => {
   for (const question of ['', 'a'.repeat(1001)]) { const h = harness(); h.req.body.question = question; await h.handlers.post(h.req, h.res, error => { throw error; }); assert.equal(h.res.code, 400); assert.equal(h.calls.length, 0); }
 });
+
+
+test('Employees receive administrator referral for restricted tasks, including after follow-ups', () => {
+  for (const question of ['how to add user', 'invite staff', 'create department', 'approve overtime', 'assign a project to an employee', 'where is the audit history']) {
+    const ask = conversation(false);
+    ask('How do I clock in?');
+    const result = ask(question);
+    assert.equal(result.match, null, question);
+    assert.match(result.reply, /administrators only/, question);
+    assert.equal(result.inquiry, question);
+    assert.doesNotMatch(ask('first one').reply, /People →|Administration →|Assign schedule/);
+  }
+});
+
+test('Employee answers contain no administrator navigation paths', () => {
+  for (const [, reply] of context.workspaceHelpEntries(false)) {
+    assert.doesNotMatch(reply, /People →|Administration →|Insights →/);
+  }
+  assert.match(frontend, /mountWorkspaceHelp\(AppState\.currentUser\?\.Role === 'ADMIN'\)/);
+});
