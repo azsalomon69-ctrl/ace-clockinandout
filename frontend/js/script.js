@@ -2215,17 +2215,67 @@ function createRickHoverVoice(setSpeaking) {
     };
 }
 
-// Frames never interpolate between sheets. Keep the last decoded art visible.
 function rickPortalPose(elapsed) {
-    const t = Math.max(0, elapsed);
-    const enter = Math.max(0, Math.min(1, (t - 800) / 500));
-    const exit = Math.max(0, Math.min(1, (t - 1400) / 500));
-    return { arrived: t >= 1400, done: t >= 2400,
-        scale: t < 1400 ? 1 - enter : exit,
-        hop: t < 1400 ? -18 * Math.sin(enter * Math.PI) : -14 * Math.sin(exit * Math.PI),
-        portalScale: Math.min(1, t / 400, Math.max(0, (2400 - t) / 400)) };
+    const progress = (start, duration) => Math.max(0, Math.min(1, (elapsed - start) / duration));
+    const enter = progress(790, 530);
+    const exit = progress(1500, 520);
+    const arrived = elapsed >= 1500;
+    return {
+        arrived,
+        done: elapsed >= 2450,
+        offset: arrived ? exit - 1 : enter,
+        hop: -Math.sin((arrived ? exit : enter) * Math.PI) * (arrived ? 22 : 30),
+        clip: arrived ? 1 - exit : enter,
+        showGun: elapsed < 710,
+        recoil: elapsed >= 300 && elapsed < 410,
+        shot: elapsed >= 300 && elapsed < 510 ? progress(300, 210) : null,
+        departure: Math.min(progress(490, 270), 1 - progress(1320, 310)),
+        arrival: Math.min(progress(1180, 280), 1 - progress(2110, 340))
+    };
 }
 
+// A low-resolution texture keeps the uneven, liquid rim and swirl in the
+// same pixel style as Rick. Draw only while a portal is visible.
+function createRickPortalPainter(canvas) {
+    const context = canvas.getContext('2d');
+    const width = canvas.width, height = canvas.height;
+    const frame = context.createImageData(width, height);
+    const pixels = frame.data;
+    const colors = [[24, 86, 16], [48, 144, 19], [91, 199, 24], [157, 239, 45], [212, 255, 103], [243, 255, 177]];
+    let lastFrame = -1;
+    return function draw(elapsed) {
+        const tick = Math.floor(elapsed / 72);
+        if (tick === lastFrame) return;
+        lastFrame = tick;
+        const phase = tick * .18;
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const nx = (x - width / 2) / (width * .41);
+                const ny = (y - height / 2) / (height * .44);
+                const angle = Math.atan2(ny, nx);
+                const radius = Math.hypot(nx, ny);
+                const edge = 1 + .055 * Math.sin(angle * 7 + phase) + .04 * Math.cos(angle * 13 - phase * 2);
+                const index = (y * width + x) * 4;
+                const grain = ((x * 13 + y * 19 + x * y * 7) % 17) / 17;
+                if (radius > edge + .07) {
+                    pixels[index + 3] = 0;
+                    continue;
+                }
+                const swirl = Math.sin(radius * 25 - angle * 2 + phase * 3 + .8 * Math.sin(angle * 5 + radius * 8));
+                const streak = Math.sin(nx * 19 + ny * 11 - phase) * .3;
+                const color = colors[radius > edge - .07 ? (grain > .52 ? 5 : 4)
+                    : Math.max(0, Math.min(5, Math.floor(2.55 + swirl * 1.75 + streak + grain * .65)))];
+                pixels[index] = color[0];
+                pixels[index + 1] = color[1];
+                pixels[index + 2] = color[2];
+                pixels[index + 3] = radius > edge ? 105 : 255;
+            }
+        }
+        context.putImageData(frame, 0, 0);
+    };
+}
+
+// Frames never interpolate between sheets. Keep the last decoded art visible.
 function rickAnimationFrame(state, elapsed, reducedMotion = false) {
     if (state === 'pickup') return { sheet: 'base', frame: 3 };
     if (reducedMotion) return { sheet: 'base', frame: 0 };
@@ -2233,6 +2283,7 @@ function rickAnimationFrame(state, elapsed, reducedMotion = false) {
     if (state === 'talk') return { sheet: 'base', frame: elapsed % 600 < 360 ? 2 : 0 };
     if (state === 'hover') return elapsed < 1600 ? { sheet: 'attention', frame: 2 + Math.floor(elapsed / 200) % 2 } : { sheet: 'base', frame: 0 };
     if (state === 'landing') return { sheet: 'base', frame: 0 };
+    if (state === 'portal') return { sheet: 'base', frame: 0 };
     const phase = elapsed % 8000;
     if (phase >= 1200 && phase < 1800) return { sheet: 'attention', frame: 0 };
     if (phase >= 2600 && phase < 3200) return { sheet: 'attention', frame: 1 };
@@ -2512,23 +2563,32 @@ function mountWorkspaceHelp(isAdmin) {
     // User drops are persisted by savePosition; strolling never overwrites them.
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let previousTick=performance.now(), nextWalkAt=previousTick+4500, walkingUntil=0, walkDirection=-1, walkX=0;
-    const portals = ['departure', 'arrival'].map(name => {
-        const portal = document.createElement('span');
-        portal.className = 'rick-portal rick-portal-' + name;
+    const portalGap = 58;
+    const portals = Array.from({ length: 2 }, () => {
+        const portal = document.createElement('canvas');
+        portal.width = 42;
+        portal.height = 66;
+        portal.className = 'rick-portal';
         portal.setAttribute('aria-hidden', 'true');
         portal.hidden = true;
         bot.appendChild(portal);
-        return portal;
+        return { element: portal, draw: createRickPortalPainter(portal) };
     });
     const portalGun = document.createElement('span');
     portalGun.className = 'rick-portal-gun';
     portalGun.setAttribute('aria-hidden', 'true');
+    portalGun.hidden = true;
+    const portalShot = document.createElement('span');
+    portalShot.className = 'rick-portal-shot';
+    portalShot.hidden = true;
+    portalGun.appendChild(portalShot);
     launcher.querySelector('.rick-sprite').appendChild(portalGun);
     let portalTrip = null, nextPortalAt = previousTick + 22000;
     function clearPortalTrip(now) {
         portalTrip = null;
-        portals.forEach(portal => { portal.hidden = true; });
-        bot.classList.remove('is-portaling');
+        portals.forEach(({ element }) => { element.hidden = true; });
+        portalGun.hidden = true;
+        portalShot.hidden = true;
         nextPortalAt = now + 28000 + Math.random() * 14000;
         nextWalkAt = now + 4000;
         walkingUntil = 0;
@@ -2547,7 +2607,7 @@ function mountWorkspaceHelp(isAdmin) {
             nextPortalAt = Math.max(nextPortalAt, now + 8000);
         } else {
             const bounds = viewport(), rect = launcher.getBoundingClientRect();
-            const safe = { left: bounds.left + 24, right: bounds.right - rect.width - 24,
+            const safe = { left: bounds.left + portalGap + 4, right: bounds.right - rect.width - portalGap - 4,
                 top: bounds.top + 24, bottom: bounds.bottom - rect.height - 24 };
             if (portalTrip && (portalTrip.target.x < safe.left || portalTrip.target.x > safe.right ||
                 portalTrip.target.y < safe.top || portalTrip.target.y > safe.bottom)) clearPortalTrip(now);
@@ -2555,19 +2615,31 @@ function mountWorkspaceHelp(isAdmin) {
                 const target = { x: safe.left + Math.random() * (safe.right - safe.left),
                     y: safe.top + Math.random() * (safe.bottom - safe.top) };
                 if (Math.hypot(target.x - rect.left, target.y - rect.top) > 130) {
-                    portalTrip = { started: now, target, arrived: false };
+                    const direction = rect.left + rect.width / 2 < (bounds.left + bounds.right) / 2 ? 1 : -1;
+                    portalTrip = { started: now, target, direction, arrived: false };
                     [{ x: rect.left, y: rect.top }, target].forEach((point, index) => {
-                        portals[index].style.left = (point.x + rect.width / 2 - 23) + 'px';
-                        portals[index].style.top = (point.y + rect.height / 2 - 38) + 'px';
-                        portals[index].hidden = false;
+                        const { element } = portals[index];
+                        const offset = index === 0 ? portalGap : -portalGap;
+                        element.style.left = (point.x + rect.width / 2 + direction * offset) + 'px';
+                        element.style.top = (point.y + rect.height / 2) + 'px';
                     });
-                    bot.classList.add('is-portaling');
                     walkingUntil = 0;
                 } else nextPortalAt = now + 5000;
             }
             if (portalTrip) {
-                portalPose = rickPortalPose(now - portalTrip.started);
-                portals.forEach(portal => { portal.style.transform = 'scale(' + portalPose.portalScale + ')'; });
+                const elapsed = now - portalTrip.started;
+                portalPose = rickPortalPose(elapsed);
+                [portalPose.departure, portalPose.arrival].forEach((scale, index) => {
+                    const { element, draw } = portals[index];
+                    element.hidden = scale === 0;
+                    if (scale === 0) return;
+                    draw(elapsed + index * 280);
+                    element.style.transform = `translate(-50%, -50%) scale(${scale}, ${Math.sqrt(scale)})`;
+                });
+                portalGun.hidden = !portalPose.showGun;
+                portalGun.classList.toggle('is-recoiling', portalPose.recoil);
+                portalShot.hidden = portalPose.shot === null;
+                if (!portalShot.hidden) portalShot.style.transform = `translateX(${portalPose.shot * 35}px)`;
                 if (portalPose.arrived && !portalTrip.arrived) {
                     moveRick(portalTrip.target.x, portalTrip.target.y);
                     portalTrip.arrived = true;
@@ -2624,7 +2696,14 @@ function mountWorkspaceHelp(isAdmin) {
                 view.feet[1].style.transform=step===2?'translate(1px,-2px)':step===0?'translate(-1px,0)':'none';
                 view.sprite.dataset.step=String(step);
             }
-            if (isLauncher && portalPose) transform = 'translateY(' + portalPose.hop + 'px) scale(' + portalPose.scale + ')';
+            if (isLauncher) {
+                view.sprite.style.clipPath = portalPose?.clip
+                    ? `inset(0 ${portalPose.arrived ? 0 : portalPose.clip * 100}% 0 ${portalPose.arrived ? portalPose.clip * 100 : 0}%)` : '';
+                if (portalPose) {
+                    const { direction } = portalTrip;
+                    transform = `translate(${direction * portalPose.offset * portalGap}px, ${portalPose.hop}px) scaleX(${direction})`;
+                }
+            }
             view.sprite.style.transform=transform;
         }
         requestAnimationFrame(animateRick);

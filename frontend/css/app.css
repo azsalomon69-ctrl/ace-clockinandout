@@ -17302,13 +17302,48 @@ body[data-admin-view="inquiries"] .table td:nth-child(4) { min-width: 220px; max
 .rick-sprite.is-stepping .rick-art-layer { clip-path: inset(0 0 20% 0); }
 .rick-sprite.is-stepping .rick-step-foot { display: block; }
 
-/* Idle portal travel: visual effects never intercept workspace controls. */
-.rick-portal { position:fixed; width:46px; height:76px; pointer-events:none; border:3px solid #bcff6a; border-radius:50%; background:repeating-conic-gradient(from 25deg,#244f12 0deg 35deg,#78c72b 45deg 75deg,#c0f873 85deg 105deg); box-shadow:inset 0 0 12px #153d12,0 0 8px #9ce63880; z-index:-1; transform-origin:center; }
-.rick-portal::after { content:''; position:absolute; inset:7px; border:3px dashed #d5ff97; border-radius:50%; animation:rick-portal-swirl 1.4s linear infinite; }
-.rick-portal[hidden] { display:none; }
-.rick-portal-gun { display:none; position:absolute; left:58%; top:62%; width:17px; height:8px; background:#dde4d7; border:2px solid #37463b; box-shadow:3px 2px 0 #37463b; image-rendering:pixelated; }
-.rick-portal-gun::before { content:''; position:absolute; left:4px; top:-8px; width:6px; height:7px; background:#aaff40; border:1px solid #57872c; box-shadow:0 0 4px #b7ff64; }
-.rick-portal-gun::after { content:''; position:absolute; right:-4px; top:1px; width:3px; height:3px; background:#9cf439; }
-.is-portaling .help-bot-launcher .rick-portal-gun { display:block; }
-@keyframes rick-portal-swirl { to { transform:rotate(360deg); } }
+/* Portal art is painted into a pixel canvas while the launcher is idle. */
+.rick-portal {
+  position: fixed;
+  z-index: -1;
+  width: 58px;
+  height: 90px;
+  pointer-events: none;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 5px #81d733a6);
+}
+.rick-portal-gun {
+  position: absolute;
+  z-index: 2;
+  left: 59%;
+  top: 65%;
+  width: 19px;
+  height: 8px;
+  border: 2px solid #28392b;
+  background: linear-gradient(#e9efe2 50%, #a5b29d 50%);
+  box-shadow: -5px 3px 0 -1px #dfb893, 1px 3px 0 -1px #28392b;
+  transform-origin: left center;
+  pointer-events: none;
+}
+.rick-portal-gun.is-recoiling { transform: translate(-2px,-1px) rotate(-12deg); }
+.rick-portal-gun::before {
+  position: absolute;
+  inset: -8px auto auto 4px;
+  width: 6px;
+  height: 7px;
+  border: 1px solid #344b27;
+  background: #baff58;
+  box-shadow: inset -2px 0 #79b535;
+  content: '';
+}
+.rick-portal-shot {
+  position: absolute;
+  top: -1px;
+  left: 100%;
+  width: 13px;
+  height: 7px;
+  background: #eaff9d;
+  box-shadow: 0 0 7px 2px #a6ff43;
+  clip-path: polygon(0 35%, 27% 35%, 27% 12%, 76% 12%, 76% 0, 100% 50%, 76% 100%, 76% 82%, 27% 82%, 27% 63%, 0 63%);
+}
 @media(prefers-reduced-motion:reduce) { .rick-portal,.rick-portal-gun { display:none!important; } }
