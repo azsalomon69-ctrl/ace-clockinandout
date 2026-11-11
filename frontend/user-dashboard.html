@@ -17,7 +17,6 @@
                 <div>
                     <p class="employee-eyebrow">EMPLOYEE WORKSPACE</p>
                     <h1>Good to see you, <span id="userName">there</span>.</h1>
-                    <p>Everything here reflects your time records and current work session.</p>
                 </div>
                 <time class="employee-dashboard-date" id="currentDate" aria-live="polite">Monday, January 1, 2024</time>
             </header>
@@ -25,15 +24,13 @@
             <div class="employee-dashboard-hero-grid">
             <section class="employee-status-panel" id="employeeStatusPanel" aria-labelledby="currentShiftTitle">
                 <div class="employee-status-copy" id="clockStatus">
-                    <p class="clock-kicker">CURRENT WORK STATUS</p>
-                    <div class="status-indicator"><span class="status-dot"></span><span class="status-text">Clocked out</span></div>
-                    <h2 id="currentShiftTitle">Ready when you are.</h2>
-                    <p id="currentShiftDescription">Start a work session when you are ready to begin tracking time.</p>
+                    <div class="status-indicator" role="status"><span class="status-dot" aria-hidden="true"></span><span class="status-text">Clocked out</span></div>
+                    <h2 id="currentShiftTitle">Start your shift</h2>
+                    <p id="currentShiftDescription">Clock in to start tracking your work time.</p>
                 </div>
-                <div class="employee-session-detail" aria-live="polite">
-                    <span id="employeeSessionLabel">Current local time</span>
-                    <strong id="sessionStateTime">--:--:--</strong>
-                    <small id="clockedInAt">No active session</small>
+                <div class="employee-session-detail" id="employeeSessionTimer" hidden>
+                    <span>Elapsed time</span>
+                    <strong id="sessionStateTime" role="timer">00:00:00</strong>
                 </div>
                 <div class="clock-actions">
                     <button class="btn btn-primary btn-lg" id="mainClockInBtn" type="button">
@@ -53,15 +50,15 @@
                 </div>
                 <dl class="employee-session-facts" id="employeeSessionFacts" hidden>
                     <div><dt>Started</dt><dd id="sessionStartedAt">—</dd></div>
-                    <div><dt id="workDurationLabel">Worked</dt><dd id="currentDuration">00:00:00</dd></div>
                     <div><dt>Project</dt><dd id="sessionProjectName">No project</dd></div>
                 </dl>
             </section>
 
             <section class="employee-week-card" aria-labelledby="timeAtGlanceTitle">
                 <div class="employee-card-title"><span class="employee-card-icon"><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"></span><h2 id="timeAtGlanceTitle">Time this week</h2></div>
-                <div class="employee-week-metrics" aria-live="polite"><div><strong id="weekHours">0h 0m</strong><span>Total hours</span></div><div><strong id="weekEntries">0</strong><span>Entries</span></div><div><strong id="weekAverage">0.0</strong><span>Avg. per day</span></div></div>
-                <div class="employee-week-chart" id="employeeWeekChart" role="img" aria-label="Completed time by day this week"></div>
+                <div class="employee-week-metrics"><div><strong id="weekHours">—</strong><span>Completed hours</span></div><div><strong id="weekEntries">—</strong><span>Completed sessions</span></div></div>
+                <p id="employeeWeekState" class="employee-week-state" role="status">Loading time-entry history…</p>
+                <div class="employee-week-chart" id="employeeWeekChart" role="list" aria-label="Completed time by day this week" hidden></div>
             </section>
             </div>
 

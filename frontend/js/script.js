@@ -3328,7 +3328,7 @@ function updateTimerDisplay() {
     
     const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     
-    const timerElements = document.querySelectorAll('#sessionTimer, #currentDuration');
+    const timerElements = document.querySelectorAll('#sessionTimer, #currentDuration, #sessionStateTime');
     timerElements.forEach(el => {
         if (el) el.textContent = timeString;
     });
@@ -3567,29 +3567,27 @@ function updateUI() {
         
         if (AppState.isClockedIn) {
             statusDot?.classList.add('active');
-            if (statusText) statusText.textContent = 'Working now';
+            if (statusText && statusText.textContent !== 'Clocked in') statusText.textContent = 'Clocked in';
         } else {
             statusDot?.classList.remove('active');
-            if (statusText) statusText.textContent = 'Clocked out';
+            if (statusText && statusText.textContent !== 'Clocked out') statusText.textContent = 'Clocked out';
         }
     }
 
     const statusPanel = document.getElementById('employeeStatusPanel');
     const shiftTitle = document.getElementById('currentShiftTitle');
     const shiftDescription = document.getElementById('currentShiftDescription');
-    const sessionLabel = document.getElementById('employeeSessionLabel');
-    const sessionTime = document.getElementById('sessionStateTime');
-    const sessionDetailTime = document.getElementById('clockedInAt');
+    const sessionTimer = document.getElementById('employeeSessionTimer');
     const sessionFacts = document.getElementById('employeeSessionFacts');
     const sessionStarted = document.getElementById('sessionStartedAt');
     const sessionProject = document.getElementById('sessionProjectName');
     if (statusPanel) statusPanel.dataset.state = AppState.isClockedIn ? 'active' : 'idle';
-    if (AppState.isClockedIn && AppState.clockInTime) {
-        if (shiftTitle) shiftTitle.textContent = 'Your shift is in progress.';
-        if (shiftDescription) shiftDescription.textContent = 'Your live session is running. Clock out when you have finished your work.';
-        if (sessionLabel) sessionLabel.textContent = 'Clocked in at';
-        if (sessionTime) sessionTime.textContent = AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        if (sessionDetailTime) sessionDetailTime.textContent = 'Active work session';
+    const hasActiveShift = Boolean(AppState.isClockedIn && AppState.clockInTime);
+    if (sessionTimer) sessionTimer.hidden = !hasActiveShift;
+    if (hasActiveShift) {
+        if (shiftTitle) shiftTitle.textContent = 'Shift in progress';
+        if (shiftDescription) shiftDescription.textContent = 'Clock out when you finish work.';
+        updateTimerDisplay();
         if (sessionFacts) sessionFacts.hidden = false;
         if (sessionStarted) sessionStarted.textContent = AppState.clockInTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         if (sessionProject) {
@@ -3597,11 +3595,8 @@ function updateUI() {
             sessionProject.textContent = project?.ProjectName || 'No project';
         }
     } else {
-        if (shiftTitle) shiftTitle.textContent = 'Ready when you are.';
-        if (shiftDescription) shiftDescription.textContent = 'Start a work session when you are ready to begin tracking time.';
-        if (sessionLabel) sessionLabel.textContent = 'Current local time';
-        if (sessionTime) sessionTime.textContent = 'No active session';
-        if (sessionDetailTime) sessionDetailTime.textContent = 'No active session';
+        if (shiftTitle) shiftTitle.textContent = 'Start your shift';
+        if (shiftDescription) shiftDescription.textContent = 'Clock in to start tracking your work time.';
         if (sessionFacts) sessionFacts.hidden = true;
     }
     
@@ -3866,7 +3861,7 @@ function updateEmployeeScheduleNotice(now = new Date()) {
 function loadUserDashboard() {
     updateEmployeeScheduleNotice();
     const historyUnavailable = ['pending', 'loading', 'error'].includes(AppState.employeeHistoryStatus);
-    const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.DurationSeconds);
+    const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.ClockOutAt);
     const now = new Date();
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
@@ -3876,16 +3871,22 @@ function loadUserDashboard() {
     const completedWeekEntries = userEntriesForStats.filter(entry => new Date(entry.ClockInAt) >= startOfWeek);
     const dashboardStats = {
         weekHours: formatDuration(weekSeconds),
-        weekEntries: completedWeekEntries.length,
-        weekAverage: (weekSeconds / 3600 / 7).toFixed(1)
+        weekEntries: completedWeekEntries.length
     };
     Object.entries(dashboardStats).forEach(([id, value]) => {
         const node = document.getElementById(id);
         if (node) node.textContent = historyUnavailable ? '—' : value;
     });
     const weekChart = document.getElementById('employeeWeekChart');
-    if (weekChart) weekChart.hidden = historyUnavailable;
-    if (weekChart && !historyUnavailable) {
+    const weekState = document.getElementById('employeeWeekState');
+    const showChart = !historyUnavailable && completedWeekEntries.length > 0;
+    if (weekState) {
+        weekState.hidden = showChart;
+        weekState.textContent = AppState.employeeHistoryStatus === 'error' ? 'Could not load weekly activity.'
+            : historyUnavailable ? 'Loading time-entry history…' : 'Completed sessions will appear here.';
+    }
+    if (weekChart) weekChart.hidden = !showChart;
+    if (weekChart && showChart) {
         const dailySeconds = Array.from({ length: 7 }, (_, index) => {
             const day = new Date(startOfWeek);
             day.setDate(startOfWeek.getDate() + index);
@@ -3899,7 +3900,8 @@ function loadUserDashboard() {
         weekChart.innerHTML = dailySeconds.map(({ day, seconds }) => {
             const height = seconds ? Math.max(8, Math.round(seconds / largestDay * 100)) : 4;
             const label = day.toLocaleDateString([], { weekday: 'short' });
-            return `<div class="employee-week-day"><span class="employee-week-bar" style="height:${height}%" title="${escapeHtml(`${label}: ${formatDuration(seconds)}`)}"></span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(formatDuration(seconds))}</small></div>`;
+            const today = day.toDateString() === now.toDateString();
+            return `<div class="employee-week-day"${today ? ' data-today' : ''} role="listitem"${today ? ' aria-current="date"' : ''}><span class="employee-week-bar" style="height:${height}%" aria-hidden="true"></span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(formatDuration(seconds))}</small></div>`;
         }).join('');
     }
 
