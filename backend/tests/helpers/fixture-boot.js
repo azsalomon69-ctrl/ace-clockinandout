@@ -10,7 +10,7 @@ window.ACEAuth = { async request(url, init = {}) {
   return body;
 } };
 const { profile } = await window.ACEAuth.request('/v1/me');
-window.AppState = { currentUser: window.fixtureProfileRecord(profile), isClockedIn: Boolean(options.clockedIn), assignedSchedule: options.schedule ? { name: 'Fixture flex', schedule_type: 'FLEX', daily_elapsed_minutes: 480 } : null };
+window.AppState = { currentUser: window.fixtureProfileRecord(profile), isClockedIn: Boolean(options.clockedIn), timeEntries: [], assignedSchedule: options.schedule ? { name: 'Fixture flex', schedule_type: 'FLEX', daily_elapsed_minutes: 480 } : null };
 document.body.classList.remove('app-shell-pending');
 document.querySelector('.app-shell-skeleton')?.remove();
 const role = profile.role;

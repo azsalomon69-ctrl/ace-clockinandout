@@ -54,7 +54,7 @@
                 </dl>
             </section>
 
-            <section class="employee-week-card" aria-labelledby="timeAtGlanceTitle">
+            <section class="employee-week-card" id="employeeWeekSummary" aria-labelledby="timeAtGlanceTitle">
                 <div class="employee-card-title"><span class="employee-card-icon"><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"></span><h2 id="timeAtGlanceTitle">Time this week</h2></div>
                 <div class="employee-week-metrics"><div><strong id="weekHours">—</strong><span>Completed hours</span></div><div><strong id="weekEntries">—</strong><span>Completed sessions</span></div></div>
                 <p id="employeeWeekState" class="employee-week-state" role="status">Loading time-entry history…</p>
@@ -64,7 +64,7 @@
 
             <div class="employee-work-grid">
             <!-- Recent Activity -->
-            <section class="recent-activity-section">
+            <section class="recent-activity-section" id="employeeRecentActivity">
                 <div class="employee-section-heading"><div><p class="employee-section-kicker">TIME RECORDS</p><h2 class="section-title">Recent activity</h2></div><p>Your latest clock sessions.</p></div>
                 <div class="activity-list" id="recentActivity">
                     <!-- Recent time entries will be populated here -->
