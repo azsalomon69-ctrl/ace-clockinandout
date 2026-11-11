@@ -33,7 +33,15 @@ function renderActiveEntriesPanel(records = []) {
     panel = document.createElement('section');
     panel.id = 'activeEntriesPanel';
     panel.className = 'active-entries-panel';
+    panel.tabIndex = -1;
+    panel.setAttribute('aria-labelledby', 'activeEntriesTitle');
     table.insertAdjacentElement('beforebegin', panel);
+    if (window.location.hash === '#activeEntriesPanel') {
+      requestAnimationFrame(() => {
+        panel.focus({ preventScroll: true });
+        panel.scrollIntoView({ block: 'start' });
+      });
+    }
   }
   const employeeEntries = records.filter(record => record.userRole === 'USER');
   const adminEntries = records.length - employeeEntries.length;

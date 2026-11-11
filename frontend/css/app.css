@@ -16085,6 +16085,16 @@ html[data-theme="dark"] .employee-quick-action-list a:hover { background: #23414
 .admin-dashboard .dashboard-header-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin: 0; padding: 0; border: 0; }
 .admin-dashboard .dashboard-header-stats .stat-card { min-height: 78px; display: grid; grid-template-columns: 34px minmax(0,1fr); align-items: center; gap: 10px; padding: 13px; border: 1px solid #dcecef; border-radius: 7px; background: #fff; box-shadow: 0 2px 7px rgba(9,64,79,.045); }
 .admin-dashboard .dashboard-header-stats .stat-card + .stat-card { border-left: 1px solid #dcecef; }
+.admin-dashboard .dashboard-active-entries-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.dashboard-active-entries-link img { flex: none; }
+#activeEntriesPanel { scroll-margin-block-start: 88px; }
 .admin-dashboard .dashboard-header-stats .stat-icon { width: 34px; height: 34px; margin: 0; border-radius: 50%; background: #e7f8fa; }
 .admin-dashboard .dashboard-header-stats .stat-icon svg { width: 18px; height: 18px; }
 .admin-dashboard .dashboard-header-stats .stat-number { color: #0d667e; font-size: 1.25rem; letter-spacing: -.04em; }
