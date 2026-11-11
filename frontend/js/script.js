@@ -4409,7 +4409,7 @@ function loadAdminDashboard() {
             const project = entry.ProjectId ? AppState.projects.find(p => p.ProjectId === entry.ProjectId) : null;
             const clockIn = new Date(entry.ClockInAt);
             const clockOut = entry.ClockOutAt ? new Date(entry.ClockOutAt) : null;
-            const duration = entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active';
+            const duration = clockOut ? formatDuration(entry.DurationSeconds ?? 0) : '—';
             const remarks = AppState.adminRemarks.filter(remark => remark.TimeEntryId === entry.TimeEntryId);
             const userName = escapeHtml(user?.FullName || 'Unknown');
             const userLabel = user?.Role === 'USER' ? `<a class="admin-employee-profile-link" href="employee-profile.html?user=${encodeURIComponent(entry.UserId)}">${userName}</a>` : `<strong>${userName}</strong>`;
@@ -4418,10 +4418,10 @@ function loadAdminDashboard() {
                 <tr class="admin-recent-entry-row">
                     <td><span class="admin-entry-user"><span class="admin-entry-avatar">${user?.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml((user?.FullName || 'Unknown').trim().slice(0, 1).toUpperCase())}</span>${userLabel}</span></td>
                     <td>${escapeHtml(project?.ProjectName || 'None')}</td>
-                    <td>${clockIn.toLocaleTimeString()}</td>
-                    <td>${clockOut ? clockOut.toLocaleTimeString() : 'Active'}</td>
-                    <td>${duration}</td>
-                    <td>${escapeHtml(entry.FinalNote || '—')}</td>
+                    <td>${renderRecentEntryTime(clockIn, true)}</td>
+                    <td>${clockOut ? renderRecentEntryTime(clockOut, clockOut.toDateString() !== clockIn.toDateString()) : '—'}</td>
+                    <td class="admin-recent-duration">${duration}</td>
+                    <td>${renderRecentEntryNote(entry.FinalNote)}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span>${entry.StoppedByName ? `<small class="entry-admin-stop">Stopped by ${escapeHtml(entry.StoppedByName)} · ${new Date(entry.StoppedByAt || entry.ClockOutAt).toLocaleString()}</small>` : ''}</td>
                     <td>${remarks.length ? `<strong>${remarks.length} remark${remarks.length === 1 ? '' : 's'}</strong><small class="entry-remark-author">Latest by ${escapeHtml(remarks[0].AdminName || 'Administrator')}</small>` : '—'}</td>
                     <td>
@@ -4430,7 +4430,7 @@ function loadAdminDashboard() {
                     </td>
                 </tr>
             `;
-        }).join('') : `<tr class="table-empty-row"><td colspan="10">${emptyState('No time entries yet', 'Completed and active sessions will appear here.')}</td></tr>`;
+        }).join('') : `<tr class="table-empty-row"><td colspan="9">${emptyState('No time entries yet', 'Completed and active sessions will appear here.')}</td></tr>`;
             if (controls) controls.hidden = filteredEntries.length <= 3;
             if (pageSize) pageSize.value = String(size);
             if (pagination) {
@@ -4452,6 +4452,25 @@ function loadAdminDashboard() {
         recentRange?.addEventListener('change', () => { AppState.recentEntriesPage = 1; renderRecentEntries(); });
         renderRecentEntries();
     }
+}
+
+function renderRecentEntryTime(time, showDate) {
+    if (!Number.isFinite(time.getTime())) return '—';
+    const clock = time.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const label = showDate
+        ? `${time.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} · ${clock}`
+        : clock;
+    return `<time datetime="${time.toISOString()}">${escapeHtml(label)}</time>`;
+}
+
+function renderRecentEntryNote(value) {
+    const note = String(value ?? '').trim();
+    if (!note) return '—';
+    const preview = note.replace(/\s+/g, ' ');
+    const characters = Array.from(preview);
+    if (characters.length <= 48 && note === preview) return escapeHtml(note);
+    const summary = characters.length > 48 ? `${characters.slice(0, 48).join('').trimEnd()}…` : preview;
+    return `<details class="admin-recent-note"><summary>${escapeHtml(summary)}</summary><p>${escapeHtml(note)}</p></details>`;
 }
 
 function loadTimeEntries() {

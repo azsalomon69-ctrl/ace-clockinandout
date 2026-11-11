@@ -11301,6 +11301,22 @@ html[data-theme="dark"] .employee-profile-projects i {
 .admin-recent-entry-toggle {
   display: none
 }
+#recentTimeEntries .admin-recent-duration,
+.admin-dashboard .table th.admin-recent-duration {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.admin-recent-note {
+  max-inline-size: 24ch;
+  overflow-wrap: anywhere;
+}
+.admin-recent-note summary { cursor: pointer; }
+.admin-recent-note[open] summary { font-weight: 600; }
+.admin-recent-note p {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+}
 .admin-user-identity {
   display: inline-flex;
   align-items: center;
@@ -11370,6 +11386,10 @@ html[data-theme="dark"] .employee-profile-projects i {
     display: flex;
     justify-content: flex-end;
     padding: 10px 14px 12px
+  }
+  .admin-dashboard .admin-recent-entry-row.is-expanded .admin-recent-entry-view {
+    display: inline-flex;
+    margin-inline-end: 8px;
   }
   body[data-admin-view=entries] .admin-section-page .table,
   body[data-admin-view=users] .admin-section-page .table {
