@@ -3929,27 +3929,9 @@ function loadUserDashboard() {
         recentActivity.querySelector('[data-retry-employee-history]')?.addEventListener('click', () => void loadEmployeeHistory());
     } else if (recentActivity) {
         const userEntries = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId).slice(0, 5);
-        
-        recentActivity.innerHTML = userEntries.length ? `<ol class="employee-activity-list">${userEntries.map(entry => {
-            const clockIn = new Date(entry.ClockInAt);
-            const clockOut = entry.ClockOutAt ? new Date(entry.ClockOutAt) : null;
-            const duration = entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active';
-            
-            return `
-                <li class="activity-item">
-                    <div class="activity-date">
-                        <strong>${clockIn.toLocaleDateString()}</strong>
-                    </div>
-                    <div class="activity-time">
-                        ${clockIn.toLocaleTimeString()} - ${clockOut ? clockOut.toLocaleTimeString() : 'Now'}
-                    </div>
-                    <div class="activity-duration">
-                        ${duration}
-                        ${entry.StoppedByName ? `<small>Stopped by ${escapeHtml(entry.StoppedByName)}</small>` : ''}
-                    </div>
-                </li>
-            `;
-        }).join('')}</ol>` : emptyState('No sessions yet', 'Clock in when you are ready to begin your first tracked work session.', 'Clock in', '#');
+        recentActivity.innerHTML = userEntries.length
+            ? `<ol class="employee-activity-list">${userEntries.map(renderEmployeeActivityRow).join('')}</ol>`
+            : emptyState('No sessions yet', 'Clock in when you are ready to begin your first tracked work session.', 'Clock in', '#');
     }
 
     const dashboardRemarks = document.getElementById('dashboardRemarks');
@@ -4452,6 +4434,27 @@ function loadAdminDashboard() {
         recentRange?.addEventListener('change', () => { AppState.recentEntriesPage = 1; renderRecentEntries(); });
         renderRecentEntries();
     }
+}
+
+function renderEmployeeActivityRow(entry) {
+    const clockIn = new Date(entry.ClockInAt);
+    const clockOut = entry.ClockOutAt ? new Date(entry.ClockOutAt) : null;
+    const date = Number.isFinite(clockIn.getTime())
+        ? clockIn.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Date unavailable';
+    const range = clockOut
+        ? `${renderRecentEntryTime(clockIn, false)} – ${renderRecentEntryTime(clockOut, clockOut.toDateString() !== clockIn.toDateString())}`
+        : `Since ${renderRecentEntryTime(clockIn, false)}`;
+    return `<li class="activity-item">
+        <div class="activity-date">
+            <strong>${escapeHtml(date)}</strong>
+            <div class="activity-time">${range}</div>
+            ${entry.StoppedByName ? `<small class="activity-time">Stopped by ${escapeHtml(entry.StoppedByName)}</small>` : ''}
+        </div>
+        <div class="activity-duration">${clockOut
+            ? formatDuration(entry.DurationSeconds ?? 0)
+            : '<span class="employee-activity-active">In progress</span>'}</div>
+    </li>`;
 }
 
 function renderRecentEntryTime(time, showDate) {

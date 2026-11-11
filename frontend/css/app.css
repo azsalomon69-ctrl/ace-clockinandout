@@ -4978,6 +4978,34 @@ body:not(.has-app-shell) .nav-link:hover {
   padding: 0;
   list-style: none
 }
+.user-dashboard .employee-activity-list .activity-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+}
+.user-dashboard .employee-activity-list .activity-date {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.user-dashboard .employee-activity-list .activity-duration {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.employee-activity-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.employee-activity-active::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ace-cyan);
+}
 .user-dashboard .clock-card {
   position: relative;
   overflow: hidden
