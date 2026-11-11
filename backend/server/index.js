@@ -994,6 +994,65 @@ app.post('/v1/admin-remarks/mark-read', authenticate, activeOnly, async (req, re
   res.json({ marked: marked.length });
 } catch (error) { next(error); } });
 
+// Enable only after the employee outbox and administrator review workflow ship.
+function queuedClockEnabled(req, res, next) {
+  if (process.env.ACE_QUEUED_CLOCK_ENABLED !== 'true') return fail(res, 404, 'Queued clock actions are unavailable');
+  return next();
+}
+
+function queuedClockPayload(body) {
+  if (!isUuid(body?.actionId) || !['clock_in', 'clock_out'].includes(body.type)) return null;
+  const { actionId, type, tappedAt, anchorElapsedMs } = body;
+  if (typeof tappedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(tappedAt)
+      || tappedAt.startsWith('0000') || !Number.isFinite(Date.parse(tappedAt))
+      || new Date(tappedAt).toISOString() !== tappedAt) return null;
+  const projectId = optionalUuid(body.projectId);
+  const entryId = optionalUuid(body.entryId);
+  const clockInActionId = optionalUuid(body.clockInActionId);
+  const anchorId = optionalUuid(body.anchorId);
+  if ([projectId, entryId, clockInActionId, anchorId].includes(undefined)) return null;
+  if (anchorId ? (!Number.isInteger(anchorElapsedMs) || anchorElapsedMs < 0 || anchorElapsedMs > 900_000)
+    : anchorElapsedMs != null) return null;
+  const note = optionalText(body.note, 50);
+  if (type === 'clock_out' && (!note || note.includes('\0') || projectId || Boolean(entryId) === Boolean(clockInActionId))) return null;
+  if (type === 'clock_in' && (entryId || clockInActionId || body.note != null)) return null;
+  if (clockInActionId?.toLowerCase() === actionId.toLowerCase()) return null;
+  return { actionId: actionId.toLowerCase(), payload: { type, tappedAt,
+    projectId: projectId?.toLowerCase() ?? null, entryId: entryId?.toLowerCase() ?? null,
+    clockInActionId: clockInActionId?.toLowerCase() ?? null, note,
+    anchorId: anchorId?.toLowerCase() ?? null, anchorElapsedMs: anchorElapsedMs ?? null } };
+}
+
+app.post('/v1/time-entries/clock-sync/anchor', queuedClockEnabled, authenticate, employeeOnly, async (req, res, next) => {
+  try {
+    if (!isUuid(req.authSessionId)) return fail(res, 401, 'Invalid or expired session');
+    try {
+      await sessionSecurity.authorizeVerifiedToken(req.authToken, req.profile.id);
+    } catch (error) {
+      if (error.status === 503) throw error;
+      return fail(res, 401, 'Invalid or expired session');
+    }
+    const anchor = await query(db.from('clock_sync_anchors')
+      .insert({ user_id: req.profile.id, session_id: req.authSessionId }).select('id,server_at').single());
+    res.status(201).json({ anchorId: anchor.id, serverAt: anchor.server_at });
+  } catch (error) { next(error); }
+});
+
+app.post('/v1/time-entries/clock-sync', queuedClockEnabled, authenticate, employeeOnly, async (req, res, next) => {
+  try {
+    const receivedAt = new Date().toISOString();
+    if (!isUuid(req.authSessionId)) return fail(res, 401, 'Invalid or expired session');
+    const action = queuedClockPayload(req.body);
+    if (!action) return fail(res, 400, 'Invalid queued clock action');
+    const result = await query(db.rpc('sync_queued_clock_action', {
+      p_user_id: req.profile.id, p_session_id: req.authSessionId, p_action_id: action.actionId,
+      p_payload: action.payload, p_received_at: receivedAt, p_ip_address: req.ip,
+      p_user_agent: req.get('user-agent'), p_request_id: req.requestId
+    }));
+    res.status(result.status).json(result.body);
+  } catch (error) { next(error); }
+});
+
 app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
   const projectId = optionalUuid(req.body.projectId);
   if (projectId === undefined) return fail(res, 400, 'Invalid project ID');
