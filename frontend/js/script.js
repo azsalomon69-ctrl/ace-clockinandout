@@ -2224,14 +2224,22 @@ function rickPortalPose(elapsed) {
         arrived,
         done: elapsed >= 2450,
         offset: arrived ? exit - 1 : enter,
-        hop: -Math.sin((arrived ? exit : enter) * Math.PI) * (arrived ? 22 : 30),
-        clip: arrived ? 1 - exit : enter,
+        hop: -Math.sin((arrived ? exit : enter) * Math.PI) * (arrived ? 17 : 22),
         showGun: elapsed < 710,
         recoil: elapsed >= 300 && elapsed < 410,
         shot: elapsed >= 300 && elapsed < 510 ? progress(300, 210) : null,
         departure: Math.min(progress(490, 270), 1 - progress(1320, 310)),
         arrival: Math.min(progress(1180, 280), 1 - progress(2110, 340))
     };
+}
+
+function rickPortalCrossing(pose, gap, spriteWidth) {
+    // The portal stays fixed while Rick moves. Only hide pixels that have
+    // crossed its center plane, including when Rick is mirrored.
+    const width = Math.max(1, spriteWidth);
+    const offset = pose.offset * (gap + width / 2);
+    const crossed = (pose.arrived ? -offset : offset) - gap + width / 2;
+    return { offset, clip: Math.max(0, Math.min(100, crossed / width * 100)) };
 }
 
 // A low-resolution texture keeps the uneven, liquid rim and swirl in the
@@ -2621,7 +2629,7 @@ function mountWorkspaceHelp(isAdmin) {
                         const { element } = portals[index];
                         const offset = index === 0 ? portalGap : -portalGap;
                         element.style.left = (point.x + rect.width / 2 + direction * offset) + 'px';
-                        element.style.top = (point.y + rect.height / 2) + 'px';
+                        element.style.top = (point.y + rect.height / 2 - 8) + 'px';
                     });
                     walkingUntil = 0;
                 } else nextPortalAt = now + 5000;
@@ -2697,12 +2705,13 @@ function mountWorkspaceHelp(isAdmin) {
                 view.sprite.dataset.step=String(step);
             }
             if (isLauncher) {
-                view.sprite.style.clipPath = portalPose?.clip
-                    ? `inset(0 ${portalPose.arrived ? 0 : portalPose.clip * 100}% 0 ${portalPose.arrived ? portalPose.clip * 100 : 0}%)` : '';
                 if (portalPose) {
                     const { direction } = portalTrip;
-                    transform = `translate(${direction * portalPose.offset * portalGap}px, ${portalPose.hop}px) scaleX(${direction})`;
-                }
+                    const crossing = rickPortalCrossing(portalPose, portalGap, view.sprite.clientWidth);
+                    view.sprite.style.clipPath = crossing.clip
+                        ? `inset(0 ${portalPose.arrived ? 0 : crossing.clip}% 0 ${portalPose.arrived ? crossing.clip : 0}%)` : '';
+                    transform = `translate(${direction * crossing.offset}px, ${portalPose.hop}px) scaleX(${direction})`;
+                } else view.sprite.style.clipPath = '';
             }
             view.sprite.style.transform=transform;
         }

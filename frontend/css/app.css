@@ -17307,7 +17307,7 @@ body[data-admin-view="inquiries"] .table td:nth-child(4) { min-width: 220px; max
   position: fixed;
   z-index: -1;
   width: 58px;
-  height: 90px;
+  height: 108px;
   pointer-events: none;
   image-rendering: pixelated;
   filter: drop-shadow(0 0 5px #81d733a6);
