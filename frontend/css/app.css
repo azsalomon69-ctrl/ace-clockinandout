@@ -17445,3 +17445,32 @@ body.employee-boot-preview .app-shell-skeleton:has(.shell-startup-warmup) {
 @media (max-width: 700px) {
   .clock-review-comparison, .clock-review-workspace .clock-review-list button[data-review] { grid-template-columns: 1fr; }
 }
+
+.employee-clock-confirmation {
+  box-sizing: border-box;
+  width: min(25rem, calc(100% - 2rem));
+  max-width: none;
+  margin: auto;
+  padding: clamp(1.25rem, 5vw, 2rem);
+  border: 1px solid var(--ace-border, #c5dce2);
+  border-radius: 14px;
+  background: var(--ace-surface-raised, #fff);
+  color: var(--ace-text, #143740);
+  text-align: center;
+}
+.employee-clock-confirmation::backdrop { background: rgb(6 27 36 / 65%); }
+.employee-clock-confirmation-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: .75rem;
+  border-radius: 50%;
+  background: #d7f4ec;
+  color: #175a4b;
+  font-weight: 800;
+}
+.employee-clock-confirmation h2 { margin: 0 0 .4rem; }
+.employee-clock-confirmation time { display: block; font-weight: 700; }
+.employee-clock-confirmation p { margin: .65rem 0 1rem; }
+.employee-clock-confirmation .btn { width: 100%; }

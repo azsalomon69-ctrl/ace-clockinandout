@@ -370,3 +370,38 @@ test('an offline clock-in form uses saved project choices without a network warn
     assert.deepEqual(options.map(option => option.value), ['', 'support']);
     assert.equal(projectSelect.disabled, false);
 });
+
+test('the confirmation dialog opens only when the same saved tap is confirmed', () => {
+    const dashboard = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
+    const helper = dashboard.slice(dashboard.indexOf('function showEmployeeClockConfirmation('), dashboard.indexOf('function renderEmployeeClockQueue('));
+    const title = {};
+    const time = {};
+    let opened = 0;
+    const dialog = {
+        querySelector: selector => selector === 'h2' ? title : time,
+        showModal() { opened++; }
+    };
+    const context = vm.createContext({ document: { getElementById: () => dialog } });
+    vm.runInContext(helper, context);
+    const entry = { clock_in_at: '2026-11-12T21:52:56.000Z', clock_out_at: '2026-11-12T21:53:28.000Z' };
+    for (const [type, timestamp, label] of [
+        ['clock_in', entry.clock_in_at, 'Clock-in confirmed'],
+        ['clock_out', entry.clock_out_at, 'Clock-out confirmed']
+    ]) {
+        const pending = { state: 'pending', payload: { actionId: type, type } };
+        const confirmed = { ...pending, state: 'confirmed', entry };
+        const priorCount = opened;
+        context.showEmployeeClockConfirmation(pending, pending);
+        context.showEmployeeClockConfirmation(confirmed);
+        context.showEmployeeClockConfirmation(confirmed, confirmed);
+        context.showEmployeeClockConfirmation(confirmed, { ...pending, payload: { actionId: 'another-tap' } });
+        assert.equal(opened, priorCount);
+        context.showEmployeeClockConfirmation(confirmed, pending);
+        assert.equal(opened, priorCount + 1);
+        assert.equal(title.textContent, label);
+        assert.equal(time.dateTime, timestamp);
+        assert.match(time.textContent, /Manila time/);
+        assert.equal(context.showRecordedEmployeeClockTime(type, entry), true);
+        assert.equal(opened, priorCount + 2);
+    }
+});

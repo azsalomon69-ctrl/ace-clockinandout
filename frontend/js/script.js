@@ -551,6 +551,29 @@ function initializeClockControls() {
     document.getElementById('clockOutForm')?.addEventListener('submit', handleClockOut);
 }
 
+function showEmployeeClockConfirmation(receipt, previousReceipt) {
+    if (receipt?.state !== 'confirmed' || !receipt.entry ||
+        !['pending', 'needs_review'].includes(previousReceipt?.state) ||
+        previousReceipt.payload.actionId !== receipt.payload.actionId) return;
+    showRecordedEmployeeClockTime(receipt.payload.type, receipt.entry);
+}
+
+function showRecordedEmployeeClockTime(type, entry) {
+    const dialog = document.getElementById('employeeClockConfirmation');
+    if (!dialog) return false;
+    const clockIn = type === 'clock_in';
+    const recordedAt = clockIn ? entry.clock_in_at : entry.clock_out_at;
+    if (!recordedAt || !Number.isFinite(Date.parse(recordedAt))) return false;
+    const time = new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'medium'
+    }).format(new Date(recordedAt));
+    dialog.querySelector('h2').textContent = clockIn ? 'Clock-in confirmed' : 'Clock-out confirmed';
+    dialog.querySelector('time').dateTime = recordedAt;
+    dialog.querySelector('time').textContent = time + ' Manila time';
+    if (!dialog.open) dialog.showModal();
+    return true;
+}
+
 function renderEmployeeClockQueue(state) {
     const previous = employeeClockState;
     employeeClockState = state;
@@ -589,6 +612,8 @@ function renderEmployeeClockQueue(state) {
     updateUI();
     const status = document.getElementById('employeeClockQueueStatus');
     if (!status) return;
+    if (!state) document.getElementById('employeeClockConfirmation')?.close();
+    showEmployeeClockConfirmation(receipt, previous?.receipt);
     const tap = state?.clockOut?.payload || receipt?.payload;
     const action = tap?.type === 'clock_out' ? 'Clock-out' : 'Clock-in';
     const reconnect = document.getElementById('employeeClockReconnect');
@@ -3625,7 +3650,7 @@ async function handleClockIn(e) {
             id: entry.id, startedAt: entry.clock_in_at, projectId: entry.project_id
         }).catch(() => {});
         if (AppState.currentUser?.Role === 'USER') saveEmployeeBootSnapshot(AppState.currentUser.UserId, AppState.currentSession);
-        showToast('Clocked in successfully', 'success');
+        if (!showRecordedEmployeeClockTime('clock_in', entry)) showToast('Clocked in successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
     finally { setActionBusy(submitButton, false); }
 }
@@ -3646,7 +3671,7 @@ async function handleClockOut(e) {
         stopTimer(); closeModal('clockOutModal'); updateUI(); loadPageSpecificData();
         if (employeeClockState) void window.ACEClockQueue.refreshShift(null).catch(() => {});
         if (AppState.currentUser?.Role === 'USER') saveEmployeeBootSnapshot(AppState.currentUser.UserId, null);
-        showToast('Clocked out successfully', 'success');
+        if (!showRecordedEmployeeClockTime('clock_out', entry)) showToast('Clocked out successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
     finally { setActionBusy(submitButton, false); }
 }

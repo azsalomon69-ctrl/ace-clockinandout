@@ -202,6 +202,16 @@
         <button class="employee-bottom-nav-item" type="button" data-bottom-nav-more aria-label="Open navigation" aria-expanded="false"><img class="shell-icon" src="assets/icons/menu.svg" alt="" aria-hidden="true"><span>More</span></button>
     </nav>
 
+    <dialog class="employee-clock-confirmation" id="employeeClockConfirmation" aria-labelledby="employeeClockConfirmationTitle">
+        <form method="dialog">
+            <span class="employee-clock-confirmation-mark" aria-hidden="true">✓</span>
+            <h2 id="employeeClockConfirmationTitle"></h2>
+            <time></time>
+            <p>Your time is recorded. You can close this tab.</p>
+            <button class="btn btn-primary" autofocus>Done</button>
+        </form>
+    </dialog>
+
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
