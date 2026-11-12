@@ -17423,3 +17423,25 @@ body.employee-boot-preview .app-shell-skeleton:has(.shell-startup-warmup) {
 #employeeStatusPanel .employee-clock-receipt p { margin: .25rem 0 0; color: #d3e9ee; font-size: .85rem; }
 #employeeStatusPanel .employee-clock-receipt :is(button, a) { margin-top: .55rem; }
 #employeeClockSignIn { color: #fff; text-decoration: underline; }
+
+.clock-review-workspace .clock-review-panel { padding: clamp(1.1rem, 3vw, 1.75rem); }
+.clock-review-workspace .clock-review-list button[data-review] {
+  display: grid;
+  grid-template-columns: minmax(9rem, .65fr) minmax(0, 1.35fr) auto;
+  text-align: start;
+  white-space: normal;
+  gap: .65rem 1rem;
+  padding: .85rem 1rem;
+}
+.clock-review-workspace .clock-review-list button[data-review] > .ui-icon { display: none; }
+.clock-review-case-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: .65rem; }
+.clock-review-case-heading h2 { margin-bottom: .25rem; }
+.clock-review-outcome { padding: .3rem .65rem; border: 1px solid var(--ace-border); border-radius: 6px; font-weight: 700; }
+.clock-review-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-block: 1rem; }
+.clock-review-comparison > section { padding: 1rem; border: 1px solid var(--ace-border); border-radius: 8px; background: var(--ace-surface-raised); }
+.clock-review-comparison .clock-review-evidence { grid-template-columns: 1fr; }
+.clock-review-technical { border-block: 1px solid var(--ace-border); padding-block: .75rem; margin-bottom: 1rem; }
+.clock-review-decision textarea { min-height: 5rem; max-width: 46rem; }
+@media (max-width: 700px) {
+  .clock-review-comparison, .clock-review-workspace .clock-review-list button[data-review] { grid-template-columns: 1fr; }
+}

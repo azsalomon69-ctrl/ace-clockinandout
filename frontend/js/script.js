@@ -629,14 +629,16 @@ function renderEmployeeClockQueue(state) {
         message = 'Saved clock-out dismissed';
     } else if (receipt?.state === 'rejected') {
         message = action + ' was declined';
-        hint = 'Ask an administrator if you need help.';
+        hint = receipt.code === 'SHIFT_NOT_OPEN'
+            ? 'Your shift is already closed. Check Recent activity for the recorded time.'
+            : 'Ask an administrator if you need help.';
         tone = 'attention';
     } else if (receipt?.state === 'confirmed') {
         message = action + ' confirmed';
         if (receipt.acceptedLate) hint = 'ACE received it later and kept your original time.';
         tone = 'confirmed';
     }
-    if (receipt?.reason) hint += (hint ? ' ' : '') + receipt.reason;
+    if (receipt?.reason) hint += (hint ? ' ' : '') + 'Admin note: ' + receipt.reason;
     const panel = document.getElementById('employeeClockReceipt');
     panel.hidden = !message;
     panel.dataset.tone = tone;
@@ -646,7 +648,9 @@ function renderEmployeeClockQueue(state) {
     if (guidance.textContent !== hint) guidance.textContent = hint;
     if (state?.clockOut) {
         document.getElementById('currentShiftTitle').textContent = 'Shift ended on this device';
-        document.getElementById('currentShiftDescription').textContent = 'Clock In will return after ACE confirms this clock-out.';
+        document.getElementById('currentShiftDescription').textContent = receipt?.state === 'needs_review'
+            ? 'Clock In will return after an administrator resolves the review.'
+            : 'Clock In will return after ACE confirms this clock-out.';
     }
     document.getElementById('dismissEmployeeClockOut').hidden = !rejectedDependency;
     document.getElementById('refreshEmployeeClockReceipt').hidden = receipt?.state !== 'needs_review';

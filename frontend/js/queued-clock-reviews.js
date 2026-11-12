@@ -5,7 +5,7 @@
     const request = (path = '', options) => window.ACEAuth.request('/v1/queued-clock-reviews' + path, options);
     const esc = escapeHtml;
     const when = value => value ? new Date(value).toLocaleString('en-PH', {
-        timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short'
+        timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'medium'
     }) : 'Unavailable';
     const labels = {
         CLOCK_EVIDENCE_UNAVAILABLE: 'Clock evidence was unavailable for this delayed tap',
@@ -80,34 +80,41 @@
                 (payload.type !== 'clock_out' || (shift && !shift.clock_out_at && !shift.deleted_at &&
                     Date.parse(shift.clock_in_at) <= Date.parse(receipt.tapped_at))) &&
                 (payload.type !== 'clock_in' || !shift);
-            const heading = review.decision ? 'Resolved review' : 'Review details';
-            panel.innerHTML = '<h2 id="clockReviewDetailTitle" tabindex="-1">' + heading + '</h2>' + evidenceRows([
-                ['Employee', review.employee?.full_name || review.user_id],
+            const employee = review.employee?.full_name || review.employee?.email || review.user_id;
+            const outcome = review.decision === 'accepted' ? 'Accepted' : review.decision === 'rejected' ? 'Declined' : 'Needs a decision';
+            const reason = shift?.stopped_by_at && review.code === 'SHIFT_NOT_OPEN'
+                ? 'An administrator already closed this shift.' : labels[review.code] || review.code;
+            panel.innerHTML = `<header class="clock-review-case-heading">
+                <div><h2 id="clockReviewDetailTitle" tabindex="-1">${esc(employee)}</h2>
+                <p>${esc(reason)}</p></div><span class="clock-review-outcome">${outcome}</span>
+            </header>
+            <div class="clock-review-comparison">
+                <section><h3>Employee’s request</h3>${evidenceRows([
+                    [actionLabel(payload.type) + ' time (Manila)', when(receipt?.tapped_at || payload.reportedAt)],
+                    ...(payload.note || payload.detail ? [['Note', payload.note || payload.detail]] : [])
+                ])}</section>
+                <section><h3>Recorded shift</h3>${shift ? evidenceRows([
+                    ['Clock-in (Manila)', when(shift.clock_in_at)],
+                    ['Clock-out (Manila)', shift.clock_out_at ? when(shift.clock_out_at) : 'Still open'],
+                    ...(shift.deleted_at ? [['Status', 'Removed']] : []),
+                    ...(shift.final_note ? [['Recorded note', shift.final_note]] : [])
+                ]) + '<a href="/time-entry-details?entry=' + encodeURIComponent(shift.id) + '">Open recorded shift</a>'
+                    : '<p>No matching shift found.</p>'}</section>
+            </div>
+            <details class="clock-review-technical"><summary>Technical details</summary>${evidenceRows([
                 ['Account', review.employee?.email || review.user_id],
-                ['Reason flagged', labels[review.code] || review.code],
-                ['Requested action', actionLabel(payload.type)],
-                ['Action ID', review.action_id || payload.reportedActionId],
-                ['Tap time (Manila)', receipt ? when(receipt.tapped_at) : 'No tap received'],
                 ['First received (Manila)', when(receipt?.received_at)],
                 ['Sync delay', receipt ? Math.round((Date.parse(receipt.received_at) - Date.parse(receipt.tapped_at)) / 1000) + ' seconds' : null],
                 ['Estimated clock error', receipt?.clock_error_ms == null ? null : Number(receipt.clock_error_ms) / 1000 + ' seconds'],
                 ['Device', receipt?.device_category],
+                ['Action ID', review.action_id || payload.reportedActionId],
                 ['Shift reference', payload.entryId || payload.clockInActionId],
-                ['Requested project ID', payload.projectId],
-                ['Original clock-out note', payload.note],
-                ...(review.bucket === 'missing' ? [['Reported time (Manila)', when(payload.reportedAt)], ['Report details', payload.detail]] : [])
-            ]);
-            if (review.evidence.attempt) panel.insertAdjacentHTML('beforeend',
-                '<details><summary>Original and changed submissions</summary><pre>' +
-                esc(JSON.stringify({ original: receipt?.payload, changed: review.evidence.attempt, changedDevice: review.evidence.device }, null, 2)) + '</pre></details>');
+                ['Requested project ID', payload.projectId]
+            ])}${review.evidence.attempt ? '<pre>' + esc(JSON.stringify({
+                original: receipt?.payload, changed: review.evidence.attempt, changedDevice: review.evidence.device
+            }, null, 2)) + '</pre>' : ''}</details>`;
             if (matchingReceipt) panel.insertAdjacentHTML('beforeend', '<p>A receipt is now available for this report. Action ID <strong>' +
                 esc(matchingReceipt.action_id) + '</strong> · Received ' + esc(when(matchingReceipt.received_at)) + '</p>');
-            panel.insertAdjacentHTML('beforeend', '<h3>Current shift</h3>' + (shift ? evidenceRows([
-                ['Status', shift.deleted_at ? 'Removed' : shift.clock_out_at ? 'Closed' : 'Open'],
-                ['Clock-in (Manila)', when(shift.clock_in_at)], ['Clock-out (Manila)', shift.clock_out_at ? when(shift.clock_out_at) : 'Still open'],
-                ['Existing note', shift.final_note], ['Admin stop (Manila)', shift.stopped_by_at ? when(shift.stopped_by_at) : '—']
-            ]) + '<a href="/time-entry-details?entry=' + encodeURIComponent(shift.id) + '">Open time entry and correction tools</a>'
-                : '<p>No matching or overlapping shift is available.</p>'));
             if (review.decision) {
                 panel.insertAdjacentHTML('beforeend', evidenceRows([
                     ['Decision', review.decision === 'accepted' ? 'Accepted' : 'Rejected'],
@@ -117,7 +124,7 @@
             } else {
                 panel.insertAdjacentHTML('beforeend', `<form class="clock-review-decision">
                     ${canAccept ? '<p>Accept applies the original tap time after ACE rechecks the shift.</p>' :
-                        '<p>This request cannot be applied to the current shift. Use the existing correction tools when appropriate.</p>'}
+                        '<p>This request cannot be applied to the current shift. To change the recorded time, open the recorded shift and use Correct time.</p>'}
                     <label>Decision reason <textarea class="form-textarea" name="reason" required maxlength="1000"></textarea></label>
                     <p role="status"></p>
                     <div class="clock-review-filters">${canAccept ? '<button type="submit" class="btn btn-primary" value="accepted">Accept original tap</button>' : ''}
