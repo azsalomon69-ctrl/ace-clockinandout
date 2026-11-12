@@ -579,8 +579,12 @@ async function showEmployeeBootPreview() {
     const saved = await cached;
     if (!saved) return;
     const start = saved.shift?.ClockInAt;
-    document.getElementById('currentShiftTitle').textContent = start ? 'Last verified shift was open' : 'No open shift at last check';
-    document.getElementById('currentShiftDescription').textContent = start
+    const title = document.getElementById('currentShiftTitle');
+    const description = document.getElementById('currentShiftDescription');
+    title.classList.remove('data-value-pending');
+    description.classList.remove('data-value-pending');
+    title.textContent = start ? 'Last verified shift was open' : 'No open shift at last check';
+    description.textContent = start
         ? 'Clocked in at ' + new Date(start).toLocaleString() + '. Clock controls will be available once ACE reconnects.'
         : 'Clock controls will be available once ACE reconnects.';
     const main = card.closest('main');
@@ -596,7 +600,7 @@ async function showEmployeeBootPreview() {
         window.removeEventListener('ace:auth-account', hide);
         document.body.classList.remove('employee-boot-preview');
     };
-    window.addEventListener('ace:verified-profile-ready', dismiss, { once: true });
+    window.addEventListener('ace:app-ready', dismiss, { once: true });
     document.body.classList.add('employee-boot-preview');
     document.body.classList.remove('app-shell-pending');
 }

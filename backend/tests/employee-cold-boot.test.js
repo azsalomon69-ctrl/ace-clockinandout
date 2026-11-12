@@ -16,7 +16,11 @@ function fixture({ owner = 'employee', savedOwner = 'employee', role = 'USER' } 
     const requests = [];
     const classes = new Set(['app-shell-pending']);
     const main = { inert: true };
-    const elements = { employeeStatusPanel: { closest: () => main }, currentShiftTitle: {}, currentShiftDescription: {} };
+    const placeholder = () => {
+        const classes = new Set(['data-value-pending']);
+        return { classList: { remove: name => classes.delete(name), contains: name => classes.has(name) } };
+    };
+    const elements = { employeeStatusPanel: { closest: () => main }, currentShiftTitle: placeholder(), currentShiftDescription: placeholder() };
     const context = vm.createContext({
         localStorage: { getItem: key => records.get(key) },
         window: {
@@ -51,6 +55,10 @@ test('dashboard shows the saved shift before Render responds and hides it on an 
     assert.equal(classes.has('employee-boot-preview'), true);
     assert.equal(main.inert, false);
     assert.equal(elements.currentShiftTitle.textContent, 'Last verified shift was open');
+    assert.equal(elements.currentShiftTitle.classList.contains('data-value-pending'), false);
+    assert.equal(elements.currentShiftDescription.classList.contains('data-value-pending'), false);
+    assert.equal(events.has('ace:verified-profile-ready'), false);
+    assert.equal(events.has('ace:app-ready'), true);
     events.get('ace:auth-account')({ detail: 'employee' });
     assert.equal(classes.has('employee-boot-preview'), true);
     events.get('ace:auth-account')({ detail: 'someone-else' });
