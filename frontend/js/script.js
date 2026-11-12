@@ -464,7 +464,6 @@ function clearStartupWarmupNotice() {
 }
 
 async function withStartupWarmup(operation) {
-    const timer = window.setTimeout(showStartupWarmupNotice, 3000);
     try {
         const result = await operation();
         clearStartupWarmupNotice();
@@ -473,8 +472,6 @@ async function withStartupWarmup(operation) {
         if (error?.status === 401 || error?.status === 403) clearStartupWarmupNotice();
         else showStartupConnectionError();
         throw error;
-    } finally {
-        window.clearTimeout(timer);
     }
 }
 
@@ -484,6 +481,7 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
     const retryDelays = [1500, 2500, 4000, 6000, 8000];
     const startupDeadline = Date.now() + 300000;
     let lastError;
+    let serviceReady = false;
     for (let attempt = 0; ; attempt += 1) {
         const remaining = startupDeadline - Date.now();
         if (remaining <= 0) {
@@ -493,6 +491,7 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
             throw timeoutError;
         }
         let deadlineTimer;
+        let warmupTimer;
         try {
             const deadline = new Promise((_, reject) => {
                 deadlineTimer = window.setTimeout(() => {
@@ -503,9 +502,16 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
                 }, remaining);
             });
             const connect = async () => {
-                await window.ACEAuth?.checkService?.();
-                const status = document.querySelector('.startup-warmup-status');
-                if (status) status.textContent = 'Server connected. Loading your account and workspace…';
+                if (!serviceReady) {
+                    warmupTimer = window.setTimeout(showStartupWarmupNotice, 3000);
+                    try {
+                        await window.ACEAuth?.checkService?.();
+                        serviceReady = true;
+                        clearStartupWarmupNotice();
+                    } finally {
+                        window.clearTimeout(warmupTimer);
+                    }
+                }
                 return operation();
             };
             const loaded = await Promise.race([connect(), deadline]);
@@ -515,13 +521,14 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
             lastError = error;
             const retryable = !error.status || error.status >= 500 || error.status === 429;
             if (!retryable || Date.now() >= startupDeadline) throw error;
-            showStartupWarmupNotice();
+            if (!serviceReady) showStartupWarmupNotice();
             console.info(`Waiting for ACE services to wake up (attempt ${attempt + 1}).`);
             const status = document.querySelector('.startup-warmup-status');
-            if (status) status.textContent = 'Still trying to connect. Keep this page open; no refresh is needed.';
+            if (!serviceReady && status) status.textContent = 'Still trying to connect. Keep this page open; no refresh is needed.';
             await pause(Math.min(retryDelays[attempt] || 10000, Math.max(0, startupDeadline - Date.now())));
         } finally {
             window.clearTimeout(deadlineTimer);
+            window.clearTimeout(warmupTimer);
         }
     }
     throw lastError;

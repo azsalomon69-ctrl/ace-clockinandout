@@ -18,27 +18,44 @@ for(const publicPage of [false,true])test('automatic loading screen has no count
  assert.match(f.notice.innerHTML,/You don’t need to refresh/);assert.doesNotMatch(f.notice.innerHTML,/Connecting automatically/);assert.doesNotMatch(f.notice.innerHTML,/countdown|1:00|Refresh available/);
 });
 test('fast connections never show the loading screen',async()=>{const f=fixture();assert.equal(await f.context.withStartupWarmup(async()=>42),42);f.showDelayed();assert.equal(f.notice,undefined);});
-test('automatic recovery removes the screen without refreshing',async()=>{const f=fixture();await f.context.withStartupWarmup(async()=>{f.showDelayed();assert.ok(f.notice);});assert.equal(f.notice,null);assert.equal(f.reloads,0);});
+test('automatic recovery removes the screen without refreshing',async()=>{const f=fixture();await f.context.withStartupWarmup(async()=>{f.context.showStartupWarmupNotice();assert.ok(f.notice);});assert.equal(f.notice,null);assert.equal(f.reloads,0);});
 test('exhausted connection attempts offer manual retry without an automatic reload',async()=>{
  const f=fixture();await assert.rejects(f.context.withStartupWarmup(async()=>{throw Object.assign(new Error('Unavailable'),{status:503});}));
  assert.equal(f.node('[data-startup-refresh]').hidden,false);assert.match(f.node('[data-warmup-title]').textContent,/Unable to connect/);assert.equal(f.reloads,0);
  f.node('[data-startup-refresh]').click();assert.equal(f.reloads,1);
 });
 test('authentication failures do not retain a reconnecting screen',async()=>{
- const f=fixture();await assert.rejects(f.context.withStartupWarmup(async()=>{f.showDelayed();throw Object.assign(new Error('Expired'),{status:401});}));assert.equal(f.notice,null);
+ const f=fixture();await assert.rejects(f.context.withStartupWarmup(async()=>{f.context.showStartupWarmupNotice();throw Object.assign(new Error('Expired'),{status:401});}));assert.equal(f.notice,null);
 });
 const retrySource = source.slice(source.indexOf('async function loadDatabaseWhenServiceIsReady'), source.indexOf('// Initialize App'));
 function retryHarness(operation, checkService) {
- let notices=0, cleared=0, now=0;
+ let notices=0, cleared=0, now=0, timerId=0;
+ const timers = new Map();
  class FakeDate extends Date { static now() { return now; } }
- const context=vm.createContext({Date:FakeDate,Promise,document:{querySelector:()=>null},console:{info(){}},loadDatabase:operation,pause:async ms=>{now+=ms;},showStartupWarmupNotice(){notices++;},clearStartupWarmupNotice(){cleared++;},window:{ACEAuth:{checkService},setTimeout(){return 1;},clearTimeout(){}}});
+ const context=vm.createContext({Date:FakeDate,Promise,document:{querySelector:()=>null},console:{info(){}},loadDatabase:operation,pause:async ms=>{now+=ms;},showStartupWarmupNotice(){notices++;},clearStartupWarmupNotice(){cleared++;},window:{ACEAuth:{checkService},setTimeout(fn, delay){timers.set(++timerId, {fn, delay});return timerId;},clearTimeout(id){timers.delete(id);}}});
  vm.runInContext(retrySource,context);
- return {run:context.loadDatabaseWhenServiceIsReady,notices:()=>notices,cleared:()=>cleared};
+ return {run:context.loadDatabaseWhenServiceIsReady,notices:()=>notices,cleared:()=>cleared, fireWarmup(){for (const timer of timers.values()) if (timer.delay === 3000) timer.fn();}};
 }
 test('503 during wake-up retries and recovers without changing the session',async()=>{
- let calls=0;
- const app=retryHarness(async()=>{calls++;if(calls<3)throw Object.assign(new Error('Service unavailable'),{status:503});return true;});
- assert.equal(await app.run(),true);assert.equal(calls,3);assert.equal(app.notices(),2);assert.equal(app.cleared(),1);
+ let checks=0;
+ const app=retryHarness(async()=>true,async()=>{checks++;if(checks<3)throw Object.assign(new Error('Service unavailable'),{status:503});});
+ assert.equal(await app.run(),true);assert.equal(checks,3);assert.equal(app.notices(),2);
+});
+test('slow workspace requests and retries do not show the wake-up screen after config responds', async () => {
+ let loads = 0;
+ const app = retryHarness(async () => {
+  app.fireWarmup();
+  if (++loads === 1) throw Object.assign(new Error('Workspace temporarily unavailable'), { status: 503 });
+  return true;
+ }, async () => {});
+ assert.equal(await app.run(), true);
+ assert.equal(loads, 2);
+ assert.equal(app.notices(), 0);
+});
+test('a slow readiness check can still show the wake-up screen', async () => {
+ const app = retryHarness(async () => { assert.ok(app.cleared() > 0); return true; }, async () => app.fireWarmup());
+ assert.equal(await app.run(), true);
+ assert.equal(app.notices(), 1);
 });
 test('an unavailable service stops after bounded retries',async()=>{
  let calls=0;const app=retryHarness(async()=>{calls++;throw Object.assign(new Error('Service unavailable'),{status:503});});
