@@ -3590,8 +3590,15 @@ async function performLogout() {
     }, 450);
 }
 
+function canOpenClockForm(action) {
+    if (navigator.onLine !== false || employeeClockState?.accepting) return true;
+    showToast('Reconnect to the internet and open your dashboard before you ' + action + '.', 'info');
+    return false;
+}
+
 async function openClockInModal() {
     if (document.getElementById('mainClockInBtn')?.disabled) return;
+    if (!canOpenClockForm('clock in')) return;
     openModal('clockInModal');
     const projectSelect = document.getElementById('clockInProject');
     if (employeeClockState?.accepting && projectSelect) {
@@ -3617,7 +3624,9 @@ async function openClockInModal() {
         // signed in. Refresh here so the next clock-in uses the live list.
         await refreshUserProjectAssignments();
     } catch (error) {
-        showToast(error.message || 'Could not refresh assigned projects. Showing the last available list.', 'warning');
+        if (navigator.onLine !== false && error.status && error.status < 500) {
+            showToast('Could not refresh assigned projects. Showing the last available list.', 'warning');
+        }
     } finally {
         populateProjectSelect('clockInProject');
         if (projectSelect) projectSelect.disabled = false;
@@ -3626,6 +3635,7 @@ async function openClockInModal() {
 
 function openClockOutModal() {
     if (document.getElementById('mainClockOutBtn')?.disabled || !AppState.currentSession) return;
+    if (!canOpenClockForm('clock out')) return;
     clockOutTarget = employeeClockState?.shift;
     showClockOutSummary();
     openModal('clockOutModal');
@@ -3653,7 +3663,7 @@ async function handleClockIn(e) {
     if (submitButton?.disabled) return;
     const projectId = document.getElementById('clockInProject')?.value;
     if (employeeClockState?.accepting) return saveEmployeeClockTap('clock_in', projectId, submitButton);
-    if (employeeClockPreview || document.getElementById('mainClockInBtn')?.disabled) return;
+    if (employeeClockPreview || document.getElementById('mainClockInBtn')?.disabled || !canOpenClockForm('clock in')) return;
     try {
         setActionBusy(submitButton, true, 'Clocking in…');
         const entry = await window.ACEAuth.request('/v1/time-entries/clock-in', { method: 'POST', body: JSON.stringify({ projectId: projectId || null }) });
@@ -3666,7 +3676,12 @@ async function handleClockIn(e) {
         }).catch(() => {});
         if (AppState.currentUser?.Role === 'USER') saveEmployeeBootSnapshot(AppState.currentUser.UserId, AppState.currentSession);
         if (!showRecordedEmployeeClockTime('clock_in', entry)) showToast('Clocked in successfully', 'success');
-    } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
+    } catch (error) {
+        const message = !error.status || error.status >= 500
+            ? 'ACE couldn’t confirm your clock-in. Reconnect and check your shift before trying again.'
+            : error.message || 'Unable to clock in';
+        showToast(message, 'error');
+    }
     finally { setActionBusy(submitButton, false); }
 }
 
@@ -3676,7 +3691,7 @@ async function handleClockOut(e) {
     if (submitButton?.disabled) return;
     const note = document.getElementById('clockOutNote')?.value;
     if (employeeClockState?.accepting || employeeClockState?.clockIn) return saveEmployeeClockTap('clock_out', note || '', submitButton, clockOutTarget);
-    if (employeeClockPreview || document.getElementById('mainClockOutBtn')?.disabled || !AppState.currentSession) return;
+    if (employeeClockPreview || document.getElementById('mainClockOutBtn')?.disabled || !AppState.currentSession || !canOpenClockForm('clock out')) return;
     try {
         setActionBusy(submitButton, true, 'Clocking out…');
         const entry = await window.ACEAuth.request(`/v1/time-entries/${AppState.currentSession.TimeEntryId}/clock-out`, { method: 'POST', body: JSON.stringify({ note: note || '' }) });
@@ -3687,7 +3702,12 @@ async function handleClockOut(e) {
         if (employeeClockState) void window.ACEClockQueue.refreshShift(null).catch(() => {});
         if (AppState.currentUser?.Role === 'USER') saveEmployeeBootSnapshot(AppState.currentUser.UserId, null);
         if (!showRecordedEmployeeClockTime('clock_out', entry)) showToast('Clocked out successfully', 'success');
-    } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
+    } catch (error) {
+        const message = !error.status || error.status >= 500
+            ? 'ACE couldn’t confirm your clock-out. Reconnect and check your shift before trying again.'
+            : error.message || 'Unable to clock out';
+        showToast(message, 'error');
+    }
     finally { setActionBusy(submitButton, false); }
 }
 

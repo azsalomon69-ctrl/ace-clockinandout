@@ -353,7 +353,7 @@ test('a temporary anchor failure retries before the employee leaves the live das
 
 test('an offline clock-in form uses saved project choices without a network warning', async () => {
     const dashboard = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
-    const modal = dashboard.slice(dashboard.indexOf('async function openClockInModal()'), dashboard.indexOf('function openClockOutModal()'));
+    const modal = dashboard.slice(dashboard.indexOf('function canOpenClockForm('), dashboard.indexOf('function openClockOutModal()'));
     const options = [];
     const projectSelect = { replaceChildren: (...items) => options.push(...items), disabled: false };
     const context = vm.createContext({
@@ -415,4 +415,19 @@ test('the confirmation dialog opens only when the same saved tap is confirmed', 
     pieces = [];
     assert.equal(context.showRecordedEmployeeClockTime('clock_out', entry), true);
     assert.equal(pieces.length, 0);
+});
+
+test('offline clock forms explain when this browser cannot save a tap', () => {
+    const dashboard = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
+    const messages = [];
+    const context = vm.createContext({
+        navigator: { onLine: false }, employeeClockState: null,
+        showToast: message => messages.push(message)
+    });
+    vm.runInContext(dashboard.slice(dashboard.indexOf('function canOpenClockForm('), dashboard.indexOf('async function openClockInModal()')), context);
+    assert.equal(context.canOpenClockForm('clock out'), false);
+    assert.match(messages[0], /Reconnect to the internet/);
+    context.employeeClockState = { accepting: true };
+    assert.equal(context.canOpenClockForm('clock out'), true);
+    assert.equal(messages.length, 1);
 });
