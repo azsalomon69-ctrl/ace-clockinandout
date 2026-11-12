@@ -610,6 +610,7 @@ function renderEmployeeClockQueue(state) {
     else if (receipt?.state === 'dismissed') message = 'Saved clock-out dismissed';
     else if (receipt?.state === 'rejected') message = 'Clock action rejected. Contact an administrator if you need help.';
     else if (receipt?.state === 'confirmed') message = receipt.acceptedLate ? 'Confirmed · Synced late' : 'Confirmed';
+    if (!message && state?.connected && state.accepting) message = 'Ready to save clock actions while ACE reconnects.';
     if (receipt?.reason) message += ' · ' + receipt.reason;
     if (state && !state.accepting && !state.connected && !state.paused) {
         message += (message ? ' · ' : '') + 'New clock actions are unavailable until ACE reconnects.';
@@ -832,6 +833,9 @@ async function initApp() {
         if (clockQueue && AppState.currentUser?.Role === 'USER') {
             const owner = AppState.currentUser.UserId;
             void clockQueue.verified(owner, () => readEmployeeClockSnapshot(owner))
+                .then(status => {
+                    if (status !== 201) console.info('Queued clock actions are unavailable on this device. Setup status:', status);
+                })
                 .catch(error => console.info('Could not refresh the clock queue.', error));
         }
         employeeClockPreview = false;

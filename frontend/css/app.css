@@ -17395,3 +17395,14 @@ body.employee-boot-preview .user-dashboard .employee-dashboard-hero-grid {
 body.employee-boot-preview .app-shell-skeleton:has(.shell-startup-warmup) {
     display: none;
 }
+
+/* Clock receipts and their actions only appear when there is a relevant state. */
+#employeeStatusPanel [hidden] {
+  display: none !important;
+}
+#employeeStatusPanel #currentShiftDescription,
+#employeeClockReconnect,
+#employeeClockQueueStatus,
+#employeeClockQueueDetails {
+  color: #dceff4;
+}

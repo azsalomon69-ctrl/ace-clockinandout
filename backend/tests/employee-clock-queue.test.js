@@ -65,6 +65,7 @@ function harness() {
         let state;
         let server = () => response(503);
         let accepting = true;
+        let anchorStatus;
         const timers = new Map();
         const events = new Map();
         let id = 0;
@@ -77,6 +78,11 @@ function harness() {
                 }),
                 async authorizedFetch(path, options) {
                     assert.equal(options.expectedUserId, account);
+                    if (path.endsWith('/anchor') && anchorStatus) {
+                        const status = anchorStatus;
+                        anchorStatus = undefined;
+                        return response(status);
+                    }
                     if (path.endsWith('/anchor')) return accepting
                         ? response(201, { anchorId: 'anchor', serverAt: new Date(now).toISOString(), queueLeaseSeconds: 86400 }) : response(423);
                     if (path.includes('/receipts/')) {
@@ -120,7 +126,8 @@ function harness() {
             },
             setAccount(next) { account = next; events.get('ace:auth-account')({ detail: next }); },
             setServer(fn) { server = fn; },
-            pauseCapture() { accepting = false; }
+            pauseCapture() { accepting = false; },
+            failNextAnchor(status) { anchorStatus = status; }
         };
     }
     return {
@@ -326,4 +333,20 @@ test('a cached confirmation does not replace a freshly loaded administrator corr
     context.renderEmployeeClockQueue(cached);
     context.renderEmployeeClockQueue(cached);
     assert.equal(context.AppState.timeEntries[0], corrected);
+});
+
+test('a temporary anchor failure retries before the employee leaves the live dashboard', async () => {
+    const h = harness();
+    const page = h.tab();
+    page.failNextAnchor(503);
+    const verification = page.queue.verified(h.owner, snapshot(null));
+    await setImmediate();
+    assert.equal(await page.tick(), 1000);
+    assert.equal(await verification, 201);
+    assert.equal(page.state.accepting, true);
+
+    const reopened = h.tab();
+    assert.equal(await reopened.queue.restore(), true);
+    assert.equal(reopened.state.connected, false);
+    assert.equal(reopened.state.accepting, true);
 });

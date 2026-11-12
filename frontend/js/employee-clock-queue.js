@@ -144,9 +144,24 @@ window.ACEClockQueue = (() => {
         return { id: body.anchorId, serverAt: Date.parse(body.serverAt), leaseUntil: Date.now() + 1000 * Math.min(86400, Math.max(0, Number(body.queueLeaseSeconds) || 0)), monotonic: now, offset: Date.now() - now, usable: now - started < 4000 };
     }
 
+    async function sampleWhenReady(owner) {
+        for (const delay of [0, 1000, 3000]) {
+            if (delay) await new Promise(resolve => window.setTimeout(resolve, delay));
+            if ((await window.ACEAuth.cachedAuthSession())?.user?.id !== owner) return 401;
+            try {
+                const result = await sample(owner);
+                if (!Number.isInteger(result) || (result < 500 && result !== 429)) return result;
+                if (delay === 3000) return result;
+            } catch (error) {
+                if (error.status && error.status < 500 && error.status !== 429) return error.status;
+                if (delay === 3000) throw error;
+            }
+        }
+    }
+
     async function verified(owner, readSnapshot) {
         const baseline = await access(owner);
-        const evidence = await sample(owner);
+        const evidence = await sampleWhenReady(owner);
         if (evidence === 423 && account === owner) {
             const snapshot = await readSnapshot();
             const record = await access(owner, stored => {
@@ -157,18 +172,18 @@ window.ACEClockQueue = (() => {
             anchor = null;
             publishChange(record, owner);
             schedule(0);
-            return;
+            return 423;
         }
         if (!evidence?.id) {
             if (account === owner && evidence === 404) {
                 paused = unavailable;
                 publish(current, owner);
             }
-            return;
+            return evidence || 502;
         }
         const snapshot = await readSnapshot();
         const session = await window.ACEAuth.cachedAuthSession();
-        if (session?.user?.id !== owner) return;
+        if (session?.user?.id !== owner) return 401;
         const record = await access(owner, stored => {
             if (stored.revision !== baseline.revision && stored.snapshot) return false;
             stored.snapshot = { ...snapshot, leaseUntil: evidence.leaseUntil };
@@ -181,6 +196,7 @@ window.ACEClockQueue = (() => {
         anchor = evidence.usable ? evidence : null;
         publishChange(record, owner);
         schedule(0);
+        return canCapture(record) ? 201 : 502;
     }
 
     let heartbeat = performance.now();
