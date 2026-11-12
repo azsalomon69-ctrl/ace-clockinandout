@@ -41,19 +41,21 @@ test('503 during wake-up retries and recovers without changing the session',asyn
  const app=retryHarness(async()=>true,async()=>{checks++;if(checks<3)throw Object.assign(new Error('Service unavailable'),{status:503});});
  assert.equal(await app.run(),true);assert.equal(checks,3);assert.equal(app.notices(),2);
 });
-test('slow workspace requests and retries do not show the wake-up screen after config responds', async () => {
+test('slow workspace requests and retries can show the wake-up screen after config responds', async () => {
  let loads = 0;
  const app = retryHarness(async () => {
   app.fireWarmup();
+  assert.equal(app.cleared(), 0);
   if (++loads === 1) throw Object.assign(new Error('Workspace temporarily unavailable'), { status: 503 });
   return true;
  }, async () => {});
  assert.equal(await app.run(), true);
  assert.equal(loads, 2);
- assert.equal(app.notices(), 0);
+ assert.ok(app.notices() > 0);
+ assert.equal(app.cleared(), 1);
 });
 test('a slow readiness check can still show the wake-up screen', async () => {
- const app = retryHarness(async () => { assert.ok(app.cleared() > 0); return true; }, async () => app.fireWarmup());
+ const app = retryHarness(async () => { assert.equal(app.cleared(), 0); return true; }, async () => app.fireWarmup());
  assert.equal(await app.run(), true);
  assert.equal(app.notices(), 1);
 });

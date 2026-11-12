@@ -477,8 +477,8 @@ async function withStartupWarmup(operation) {
 }
 
 async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
-    // Free Render services can sleep. Keep the page skeleton visible while the
-    // service wakes, and only reveal the application after a complete live load.
+    // A successful config request can precede a usable workspace. Keep the
+    // loading screen visible until the live startup requests finish.
     const retryDelays = [1500, 2500, 4000, 6000, 8000];
     let startupDeadline = Date.now() + 300000;
     let lastError;
@@ -505,16 +505,11 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
                     reject(timeoutError);
                 }, remaining);
             });
+            warmupTimer = window.setTimeout(showStartupWarmupNotice, 3000);
             const connect = async () => {
                 if (!serviceReady) {
-                    warmupTimer = window.setTimeout(showStartupWarmupNotice, 3000);
-                    try {
-                        await window.ACEAuth?.checkService?.();
-                        serviceReady = true;
-                        clearStartupWarmupNotice();
-                    } finally {
-                        window.clearTimeout(warmupTimer);
-                    }
+                    await window.ACEAuth?.checkService?.();
+                    serviceReady = true;
                 }
                 return operation();
             };
@@ -526,10 +521,10 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
             const retryable = !error.status || error.status >= 500 || error.status === 429;
             const clockAvailable = document.body?.classList?.contains('employee-clock-reconnecting');
             if (!retryable || (Date.now() >= startupDeadline && !clockAvailable)) throw error;
-            if (!serviceReady) showStartupWarmupNotice();
+            showStartupWarmupNotice();
             console.info(`Waiting for ACE services to wake up (attempt ${attempt + 1}).`);
             const status = document.querySelector('.startup-warmup-status');
-            if (!serviceReady && status) status.textContent = 'Still trying to connect. Keep this page open; no refresh is needed.';
+            if (status) status.textContent = 'Still trying to connect. Keep this page open. You don’t need to refresh.';
             await pause(Math.min(retryDelays[attempt] || 10000, Math.max(0, startupDeadline - Date.now())));
         } finally {
             window.clearTimeout(deadlineTimer);
