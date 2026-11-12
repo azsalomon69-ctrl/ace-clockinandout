@@ -40,7 +40,7 @@
             const result = await request('?' + params);
             if (version !== listVersion) return;
             if (page > 1 && !result.items.length) { page -= 1; return load(); }
-            notice.textContent = result.items.length ? result.total + (result.total === 1 ? ' case' : ' cases') : 'No cases in this view.';
+            notice.textContent = result.items.length ? result.total + (result.total === 1 ? ' case' : ' cases') : 'No ' + (get('clockReviewStatus').value === 'resolved' ? 'resolved' : 'open') + ' cases for this review type.';
             const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
             get('clockReviewPage').textContent = 'Page ' + page + ' of ' + pages;
             get('clockReviewPagination').hidden = pages <= 1;

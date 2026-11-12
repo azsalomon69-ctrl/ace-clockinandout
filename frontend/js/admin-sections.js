@@ -653,7 +653,7 @@ async function renderAdminSection() {
     link.id = 'queuedClockReviewLink';
     link.className = 'btn btn-outline';
     link.href = '/queued-clock-reviews';
-    link.textContent = 'Clock sync review';
+    link.innerHTML = icon('timer') + 'Clock sync review';
     document.getElementById('sectionAction')?.after(link);
   }
   const view = { ...config, records: [], stats: [], total: 0 };
@@ -669,7 +669,16 @@ async function renderAdminSection() {
     deletedButton.className = 'btn btn-outline';
     deletedButton.type = 'button';
     deletedButton.innerHTML = icon('trash') + 'Deleted entries';
-    actionButton.insertAdjacentElement('beforebegin', deletedButton);
+    let toolbar = actionButton.closest('.time-entry-toolbar');
+    if (!toolbar) {
+      toolbar = document.createElement('div');
+      toolbar.className = 'time-entry-toolbar';
+      toolbar.setAttribute('role', 'group');
+      toolbar.setAttribute('aria-label', 'Time entry actions');
+      actionButton.before(toolbar);
+    }
+    const reviewLink = document.getElementById('queuedClockReviewLink');
+    toolbar.append(...(reviewLink ? [reviewLink] : []), deletedButton, actionButton);
     deletedButton.addEventListener('click', () => openDeletedTimeEntriesModal(deletedButton));
   }
   const renderStats = () => { document.getElementById('sectionStats').innerHTML = view.stats.map(item => '<div class="stat-card"><div class="stat-icon">' + icon(item[2]) + '</div><div class="stat-info"><div class="stat-number">' + esc(item[0]) + '</div><div class="stat-label">' + esc(item[1]) + '</div></div></div>').join(''); };

@@ -17474,3 +17474,41 @@ body.employee-boot-preview .app-shell-skeleton:has(.shell-startup-warmup) {
 .employee-clock-confirmation time { display: block; font-weight: 700; }
 .employee-clock-confirmation p { margin: .65rem 0 1rem; }
 .employee-clock-confirmation .btn { width: 100%; }
+
+.time-entry-toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+.time-entry-toolbar > .btn { min-height: 40px; white-space: nowrap; }
+#clockReviewWorkspace { gap: 1rem; }
+#clockReviewWorkspace > .admin-section-header { margin-bottom: 0; align-items: center; }
+.clock-review-back { display: inline-flex; align-items: center; gap: .4rem; margin-bottom: .5rem; font-weight: 650; }
+.clock-review-queue-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem 1rem; }
+.clock-review-queue-heading h2, .clock-review-queue-heading .clock-review-filters { margin: 0; }
+#clockReviewNotice:not(:empty) { padding: .85rem 1rem; margin: .9rem 0 0; border-radius: 8px; background: var(--ace-surface-raised); }
+#clockReviewNotice:not(:empty) + .clock-review-list:not(:empty) { margin-top: .65rem; }
+.clock-review-report-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; margin: 1rem 0; }
+#clockReviewMissingForm textarea { min-height: 5rem; }
+#clockReviewMissingForm > button { margin-top: .75rem; }
+#clockReviewWorkspace details > summary { padding-block: .3rem; }
+.employee-clock-confirmation form { position: relative; }
+.employee-clock-confirmation-mark { position: relative; }
+.employee-clock-confetti { position: absolute; top: 1.4rem; left: 50%; pointer-events: none; }
+.employee-clock-confetti span {
+  position: absolute;
+  width: 5px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--confetti-color);
+  animation: employee-clock-confetti 750ms ease-out both;
+}
+.employee-clock-confetti span:nth-child(even) { width: 6px; height: 6px; border-radius: 50%; }
+@keyframes employee-clock-confetti {
+  from { opacity: 1; transform: scale(.5); }
+  65% { opacity: 1; }
+  to { opacity: 0; transform: translate(var(--confetti-x), var(--confetti-y)) rotate(135deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .employee-clock-confetti { display: none; }
+}
+@media (max-width: 700px) {
+  .time-entry-toolbar { justify-content: flex-start; }
+  #clockReviewWorkspace > .admin-section-header { align-items: flex-start; }
+}

@@ -570,7 +570,22 @@ function showRecordedEmployeeClockTime(type, entry) {
     dialog.querySelector('h2').textContent = clockIn ? 'Clock-in confirmed' : 'Clock-out confirmed';
     dialog.querySelector('time').dateTime = recordedAt;
     dialog.querySelector('time').textContent = time + ' Manila time';
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) {
+        const confetti = dialog.querySelector('.employee-clock-confetti');
+        if (confetti && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            const colors = ['#0ea5af', '#178467', '#f1b85a', '#557dd2'];
+            confetti.replaceChildren(...Array.from({ length: 16 }, (_, index) => {
+                const piece = document.createElement('span');
+                const angle = index * Math.PI / 8;
+                const distance = index % 2 ? 112 : 70;
+                piece.style.setProperty('--confetti-x', Math.round(Math.cos(angle) * distance) + 'px');
+                piece.style.setProperty('--confetti-y', Math.round(Math.sin(angle) * distance * .55) + 'px');
+                piece.style.setProperty('--confetti-color', colors[index % colors.length]);
+                return piece;
+            }));
+        }
+        dialog.showModal();
+    }
     return true;
 }
 

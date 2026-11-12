@@ -13,14 +13,15 @@
   <main class="main-content admin-section-page">
     <div class="admin-section-wrap clock-review-workspace" id="clockReviewWorkspace">
       <header class="admin-section-header">
-        <div><a href="/admin-time-entries">Back to time entries</a><h1>Clock sync review</h1><p>Review clock actions that need a decision.</p></div>
-        <button class="btn btn-outline" id="refreshClockReviews" type="button">Refresh</button>
+        <div><a class="clock-review-back" href="/admin-time-entries"><span aria-hidden="true">←</span> Time entries</a><h1>Clock sync review</h1><p>Review clock-in and clock-out requests that need a decision.</p></div>
+        <button class="btn btn-outline" id="refreshClockReviews" type="button">Refresh cases</button>
       </header>
       <section class="table-container clock-review-panel" aria-labelledby="clockReviewListTitle">
-        <h2 id="clockReviewListTitle">Review queue</h2>
+        <div class="clock-review-queue-heading"><h2 id="clockReviewListTitle">Review queue</h2>
         <div class="clock-review-filters">
           <label>Review type<select class="form-select" id="clockReviewBucket"><option value="timing">Timing</option><option value="integrity">Integrity</option><option value="missing">Reported action missing</option></select></label>
           <label>Status<select class="form-select" id="clockReviewStatus"><option value="open">Open</option><option value="resolved">Resolved</option></select></label>
+        </div>
         </div>
         <p id="clockReviewNotice" role="status"></p>
         <ul class="clock-review-list" id="clockReviewList"></ul>
@@ -32,10 +33,10 @@
       </section>
       <section class="table-container clock-review-panel" id="clockReviewDetail" aria-labelledby="clockReviewDetailTitle" hidden></section>
       <details class="table-container clock-review-panel" id="clockReviewMissing">
-        <summary>Open a reported missing action</summary>
-        <p>Use this when an employee reports a tap and ACE has no matching receipt. The report cannot recreate a tap or its original note.</p>
+        <summary>Report a missing clock-in or clock-out</summary>
+        <p>Open a case when an employee reports a clock-in or clock-out that ACE never received.</p>
         <form id="clockReviewMissingForm">
-          <div class="clock-review-filters">
+          <div class="clock-review-report-fields">
             <label>Employee<select name="userId" class="form-select" required><option value="">Choose an employee</option></select></label>
             <label>Reported action<select name="type" class="form-select"><option value="clock_in">Clock-in</option><option value="clock_out">Clock-out</option></select></label>
             <label>Reported time (Manila)<input class="form-input" type="datetime-local" name="reportedAt" required></label>
@@ -47,7 +48,7 @@
         </form>
       </details>
       <details class="table-container clock-review-panel" id="clockReviewMetrics">
-        <summary>Weekly sync reporting</summary>
+        <summary>Weekly sync report</summary>
         <p>Manila weeks. The percentage is the share of accepted actions first received more than 10 and up to 30 minutes after the tap.</p>
         <p id="clockMetricNotice" role="status"></p>
         <div class="table-responsive">

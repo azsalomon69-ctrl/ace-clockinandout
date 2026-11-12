@@ -377,11 +377,17 @@ test('the confirmation dialog opens only when the same saved tap is confirmed', 
     const title = {};
     const time = {};
     let opened = 0;
+    let reducedMotion = false;
+    let pieces = [];
+    const confetti = { replaceChildren: (...items) => { pieces = items; } };
     const dialog = {
-        querySelector: selector => selector === 'h2' ? title : time,
+        querySelector: selector => ({ h2: title, time, '.employee-clock-confetti': confetti })[selector],
         showModal() { opened++; }
     };
-    const context = vm.createContext({ document: { getElementById: () => dialog } });
+    const context = vm.createContext({
+        window: { matchMedia: () => ({ matches: reducedMotion }) },
+        document: { getElementById: () => dialog, createElement: () => ({ style: { setProperty() {} } }) }
+    });
     vm.runInContext(helper, context);
     const entry = { clock_in_at: '2026-11-12T21:52:56.000Z', clock_out_at: '2026-11-12T21:53:28.000Z' };
     for (const [type, timestamp, label] of [
@@ -403,5 +409,10 @@ test('the confirmation dialog opens only when the same saved tap is confirmed', 
         assert.match(time.textContent, /Manila time/);
         assert.equal(context.showRecordedEmployeeClockTime(type, entry), true);
         assert.equal(opened, priorCount + 2);
+        assert.equal(pieces.length, 16);
     }
+    reducedMotion = true;
+    pieces = [];
+    assert.equal(context.showRecordedEmployeeClockTime('clock_out', entry), true);
+    assert.equal(pieces.length, 0);
 });
