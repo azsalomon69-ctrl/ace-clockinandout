@@ -589,39 +589,69 @@ function renderEmployeeClockQueue(state) {
     updateUI();
     const status = document.getElementById('employeeClockQueueStatus');
     if (!status) return;
-    if (state?.clockOut) {
-        document.getElementById('currentShiftTitle').textContent = 'Clock-out saved on this device';
-        document.getElementById('currentShiftDescription').textContent = 'Check the status below for confirmation.';
-    }
+    const tap = state?.clockOut?.payload || receipt?.payload;
+    const action = tap?.type === 'clock_out' ? 'Clock-out' : 'Clock-in';
     const reconnect = document.getElementById('employeeClockReconnect');
-    reconnect.hidden = !state || state.connected;
-    reconnect.textContent = reconnect.hidden ? '' : 'Reconnecting · Showing your last verified shift';
+    reconnect.hidden = !state || state.connected || Boolean(receipt);
+    reconnect.textContent = reconnect.hidden ? '' : state.accepting
+        ? 'Reconnecting. You can still use the clock.'
+        : 'Reconnecting. Clock controls will return when ACE is online.';
     let message = '';
-    if (!state) message = 'Sign back in to use the clock. Saved taps stay on this device.';
-    else if (state.paused) message = state.paused;
-    else if (state.clockOut && state.clockIn?.state === 'needs_review') message = 'Waiting for clock-in review';
-    else if (rejectedDependency) message = 'Clock-in rejected. Clock-out is still saved here.' +
-        (state.clockIn.reason ? ' · ' + state.clockIn.reason : '');
-    else if (state.clockOut && state.clockIn?.state === 'not_submitted') message = 'Clock-out is still saved here. Contact an administrator about your clock-in.';
-    else if (receipt?.state === 'pending') message = 'Saved on this device · Waiting to sync';
-    else if (receipt?.state === 'needs_review') message = receipt.code === 'ACTION_PAYLOAD_MISMATCH'
-        ? 'Clock action could not be verified. Contact an administrator.' : 'Sent to ACE · Needs review';
-    else if (receipt?.state === 'not_submitted') message = 'Saved on this device · Could not submit. Contact an administrator.';
-    else if (receipt?.state === 'dismissed') message = 'Saved clock-out dismissed';
-    else if (receipt?.state === 'rejected') message = 'Clock action rejected. Contact an administrator if you need help.';
-    else if (receipt?.state === 'confirmed') message = receipt.acceptedLate ? 'Confirmed · Synced late' : 'Confirmed';
-    if (!message && state?.connected && state.accepting) message = 'Ready to save clock actions while ACE reconnects.';
-    if (receipt?.reason) message += ' · ' + receipt.reason;
-    if (state && !state.accepting && !state.connected && !state.paused) {
-        message += (message ? ' · ' : '') + 'New clock actions are unavailable until ACE reconnects.';
+    let hint = '';
+    let tone = 'info';
+    if (!state || state.paused) {
+        message = state && !state.needsSignIn ? 'Clock unavailable' : 'Sign in to continue';
+        hint = state?.paused || 'Any saved clock actions stay on this device.';
+        tone = 'attention';
+    } else if (state.clockOut && state.clockIn?.state === 'needs_review') {
+        message = 'Clock-out saved on this device';
+        hint = 'ACE will send it after your clock-in is approved.';
+    } else if (rejectedDependency || (state.clockOut && state.clockIn?.state === 'not_submitted')) {
+        message = 'Clock-out needs help';
+        hint = 'Your clock-out is still saved here. Ask an administrator about your clock-in.';
+        if (state.clockIn.reason) hint += ' ' + state.clockIn.reason;
+        tone = 'attention';
+    } else if (receipt?.state === 'pending') {
+        message = action + ' saved on this device';
+        hint = 'ACE will send it automatically when it reconnects. ' +
+            (tap.type === 'clock_in' ? 'You can keep working.' : 'You don’t need to clock out again.');
+    } else if (receipt?.state === 'needs_review') {
+        message = receipt.code === 'ACTION_PAYLOAD_MISMATCH' ? action + ' needs help' : action + ' sent for review';
+        hint = receipt.code === 'ACTION_PAYLOAD_MISMATCH'
+            ? 'Ask an administrator to check this clock action.'
+            : 'An administrator needs to check this entry. You can check back here for a decision.';
+        tone = 'attention';
+    } else if (receipt?.state === 'not_submitted') {
+        message = action + ' could not be sent';
+        hint = 'It is still saved on this device. Ask an administrator for help.';
+        tone = 'attention';
+    } else if (receipt?.state === 'dismissed') {
+        message = 'Saved clock-out dismissed';
+    } else if (receipt?.state === 'rejected') {
+        message = action + ' was declined';
+        hint = 'Ask an administrator if you need help.';
+        tone = 'attention';
+    } else if (receipt?.state === 'confirmed') {
+        message = action + ' confirmed';
+        if (receipt.acceptedLate) hint = 'ACE received it later and kept your original time.';
+        tone = 'confirmed';
     }
-    status.hidden = !message;
+    if (receipt?.reason) hint += (hint ? ' ' : '') + receipt.reason;
+    const panel = document.getElementById('employeeClockReceipt');
+    panel.hidden = !message;
+    panel.dataset.tone = tone;
     if (status.textContent !== message) status.textContent = message;
+    const guidance = document.getElementById('employeeClockQueueHint');
+    guidance.hidden = !hint;
+    if (guidance.textContent !== hint) guidance.textContent = hint;
+    if (state?.clockOut) {
+        document.getElementById('currentShiftTitle').textContent = 'Shift ended on this device';
+        document.getElementById('currentShiftDescription').textContent = 'Clock In will return after ACE confirms this clock-out.';
+    }
     document.getElementById('dismissEmployeeClockOut').hidden = !rejectedDependency;
     document.getElementById('refreshEmployeeClockReceipt').hidden = receipt?.state !== 'needs_review';
     document.getElementById('employeeClockSignIn').hidden = Boolean(state && !state.needsSignIn);
     const details = document.getElementById('employeeClockQueueDetails');
-    const tap = state?.clockOut?.payload || receipt?.payload;
     details.hidden = !tap || ['confirmed', 'rejected'].includes(receipt?.state);
     details.textContent = details.hidden ? '' :
         [tap.type === 'clock_in' ? 'Clock-in' : 'Clock-out', new Date(tap.tappedAt).toLocaleString(), tap.note].filter(Boolean).join(' · ');
@@ -1760,7 +1790,7 @@ function updateEmployeeBottomNav() {
     const button = document.querySelector('[data-mobile-clock-action]');
     if (!button) return;
     button.setAttribute('aria-label', 'Open time actions');
-    button.innerHTML = suppliedIconMarkup('timer', 'shell-icon');
+    if (!button.firstElementChild) button.innerHTML = suppliedIconMarkup('timer', 'shell-icon');
 }
 
 function ensureMobileClockActionsModal() {

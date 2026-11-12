@@ -17406,3 +17406,20 @@ body.employee-boot-preview .app-shell-skeleton:has(.shell-startup-warmup) {
 #employeeClockQueueDetails {
   color: #dceff4;
 }
+
+#employeeStatusPanel .employee-clock-receipt {
+  margin-top: .85rem;
+  padding: .75rem .9rem;
+  border: 1px solid #6da9b7;
+  border-inline-start-width: 3px;
+  border-radius: 8px;
+  background: #092f3d;
+  color: #eaf7fa;
+  overflow-wrap: anywhere;
+}
+#employeeStatusPanel .employee-clock-receipt[data-tone="confirmed"] { border-inline-start-color: #77e4be; }
+#employeeStatusPanel .employee-clock-receipt[data-tone="attention"] { border-inline-start-color: #ffd394; }
+#employeeStatusPanel .employee-clock-receipt strong { display: block; font-weight: 750; }
+#employeeStatusPanel .employee-clock-receipt p { margin: .25rem 0 0; color: #d3e9ee; font-size: .85rem; }
+#employeeStatusPanel .employee-clock-receipt :is(button, a) { margin-top: .55rem; }
+#employeeClockSignIn { color: #fff; text-decoration: underline; }

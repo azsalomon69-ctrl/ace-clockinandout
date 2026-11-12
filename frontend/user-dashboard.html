@@ -28,11 +28,16 @@
                     <h2 id="currentShiftTitle">Start your shift</h2>
                     <p id="currentShiftDescription">Clock in to start tracking your work time.</p>
                     <p id="employeeClockReconnect" role="status" hidden></p>
-                    <p id="employeeClockQueueStatus" role="status" hidden></p>
-                    <p id="employeeClockQueueDetails" hidden></p>
-                    <button class="btn btn-sm btn-outline" type="button" id="refreshEmployeeClockReceipt" hidden>Refresh receipt</button>
-                    <button class="btn btn-sm btn-outline" type="button" id="dismissEmployeeClockOut" hidden>Dismiss saved clock-out</button>
-                    <a id="employeeClockSignIn" href="/login" hidden>Sign in</a>
+                    <div class="employee-clock-receipt" id="employeeClockReceipt" hidden>
+                        <div class="employee-clock-receipt-copy" role="status" aria-atomic="true">
+                            <strong id="employeeClockQueueStatus"></strong>
+                            <p id="employeeClockQueueHint" hidden></p>
+                        </div>
+                        <p id="employeeClockQueueDetails" hidden></p>
+                        <button class="btn btn-sm btn-outline" type="button" id="refreshEmployeeClockReceipt" hidden>Check for a decision</button>
+                        <button class="btn btn-sm btn-outline" type="button" id="dismissEmployeeClockOut" hidden>Dismiss saved clock-out</button>
+                        <a id="employeeClockSignIn" href="/login" hidden>Sign in</a>
+                    </div>
                 </div>
                 <div class="employee-session-detail" id="employeeSessionTimer" hidden>
                     <span>Elapsed time</span>
