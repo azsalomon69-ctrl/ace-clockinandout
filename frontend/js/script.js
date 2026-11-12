@@ -527,6 +527,73 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
     throw lastError;
 }
 
+const employeeBootSnapshotKey = 'ace_employee_boot_shift';
+const employeeBootSnapshotMaxAge = 24 * 60 * 60 * 1000;
+
+async function readEmployeeBootSnapshot() {
+    try {
+        const session = await window.ACEAuth?.cachedAuthSession?.();
+        const owner = session?.user?.id;
+        if (!owner || !session.access_token || !(session.expires_at > Date.now() / 1000)) return null;
+        const profile = JSON.parse(localStorage.getItem('ace_current_user'));
+        const saved = JSON.parse(localStorage.getItem(employeeBootSnapshotKey));
+        if (profile?.UserId !== owner || profile.Role !== 'USER' || profile.Status !== 'ACTIVE' ||
+            saved?.owner !== owner || saved.apiOrigin !== window.ACE_API_URL ||
+            !(Date.now() - saved.savedAt >= 0 && Date.now() - saved.savedAt < employeeBootSnapshotMaxAge)) return null;
+        return saved;
+    } catch { return null; }
+}
+
+function saveEmployeeBootSnapshot(owner, shift) {
+    try {
+        localStorage.setItem(employeeBootSnapshotKey, JSON.stringify({
+            owner, apiOrigin: window.ACE_API_URL, savedAt: Date.now(),
+            shift: shift ? { ClockInAt: shift.ClockInAt } : null
+        }));
+    } catch { /* A storage failure falls back to live startup. */ }
+}
+
+async function startPublicEmployeeBoot(loginNotice) {
+    const cached = loginNotice ? Promise.resolve(null) : readEmployeeBootSnapshot();
+    // Start the wake request alongside the local check. The dashboard can
+    // continue verification even if this page navigates away first.
+    const wake = window.ACEAuth?.checkService?.();
+    void wake?.catch(() => {});
+    if (!await cached) return false;
+    window.location.replace('/user-dashboard');
+    return true;
+}
+
+async function showEmployeeBootPreview() {
+    const card = document.getElementById('employeeStatusPanel');
+    if (!card) return;
+    const cached = readEmployeeBootSnapshot();
+    void window.ACEAuth?.checkService?.().catch(() => {});
+    const saved = await cached;
+    if (!saved) return;
+    const start = saved.shift?.ClockInAt;
+    document.getElementById('currentShiftTitle').textContent = start ? 'Last verified shift was open' : 'No open shift at last check';
+    document.getElementById('currentShiftDescription').textContent = start
+        ? 'Clocked in at ' + new Date(start).toLocaleString() + '. Clock controls will be available once ACE reconnects.'
+        : 'Clock controls will be available once ACE reconnects.';
+    const main = card.closest('main');
+    if (main) main.inert = false;
+    const hide = event => {
+        if (event.detail === saved.owner) return;
+        if (main) main.inert = true;
+        document.body.classList.remove('employee-boot-preview');
+        document.body.classList.add('app-shell-pending');
+    };
+    window.addEventListener('ace:auth-account', hide);
+    const dismiss = () => {
+        window.removeEventListener('ace:auth-account', hide);
+        document.body.classList.remove('employee-boot-preview');
+    };
+    window.addEventListener('ace:verified-profile-ready', dismiss, { once: true });
+    document.body.classList.add('employee-boot-preview');
+    document.body.classList.remove('app-shell-pending');
+}
+
 // Initialize App
 async function initApp() {
     // The application shell is independent of page data. Keep it resilient so
@@ -557,6 +624,7 @@ async function initApp() {
             window.setTimeout(() => showToast(loginNotice, 'warning'), 0);
         }
         clearInitialSkeletons();
+        if (await startPublicEmployeeBoot(loginNotice)) return;
         try { await withStartupWarmup(() => loadDatabaseWhenServiceIsReady(resumePublicSession)); }
         catch (error) {
             if (error?.status !== 401 && error?.status !== 403) {
@@ -565,6 +633,8 @@ async function initApp() {
         }
         return;
     }
+
+    await showEmployeeBootPreview();
 
     let earlyShellMounted = false;
     const mountVerifiedShell = () => {
@@ -577,6 +647,7 @@ async function initApp() {
     try {
         loaded = await withStartupWarmup(() => loadDatabaseWhenServiceIsReady());
     } catch (error) {
+        document.body.classList.remove('employee-boot-preview');
         // Static files can be requested directly, but protected page
         // content must never be mounted unless the Render API confirms a valid
         // Supabase session.  A missing, expired, or disallowed session belongs
@@ -595,6 +666,9 @@ async function initApp() {
     }
     window.removeEventListener('ace:verified-profile-ready', mountVerifiedShell);
     if (loaded) {
+        if (AppState.currentUser?.Role === 'USER' && document.getElementById('employeeStatusPanel')) {
+            saveEmployeeBootSnapshot(AppState.currentUser.UserId, AppState.currentSession);
+        }
         let shellMounted = earlyShellMounted;
         if (!shellMounted) {
             try { shellMounted = initializeAppShell(); }
@@ -3343,6 +3417,7 @@ async function handleClockIn(e) {
         AppState.timeEntries.unshift(AppState.currentSession);
         AppState.isClockedIn = true; AppState.clockInTime = new Date(AppState.currentSession.ClockInAt);
         closeModal('clockInModal'); startTimer(); updateUI(); loadPageSpecificData();
+        if (AppState.currentUser?.Role === 'USER') saveEmployeeBootSnapshot(AppState.currentUser.UserId, AppState.currentSession);
         showToast('Clocked in successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
     finally { setActionBusy(submitButton, false); }
@@ -3361,6 +3436,7 @@ async function handleClockOut(e) {
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
         AppState.isClockedIn = false; AppState.currentSession = null; AppState.clockInTime = null;
         stopTimer(); closeModal('clockOutModal'); updateUI(); loadPageSpecificData();
+        if (AppState.currentUser?.Role === 'USER') saveEmployeeBootSnapshot(AppState.currentUser.UserId, null);
         showToast('Clocked out successfully', 'success');
     } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
     finally { setActionBusy(submitButton, false); }

@@ -5,6 +5,10 @@ window.ACEAuth = (() => {
     let refreshPromise;
     let sessionPromise;
     let cachedSession;
+    let clientConfig;
+    let authSubscription;
+    const configCacheKey = 'ace_public_auth_config';
+    const configCacheVersion = 1;
     const sessionExpiredMessage = 'Your session expired. Please sign in again.';
     const requestTimeoutMs = 30000;
     const apiUrl = () => String(window.ACE_API_URL || '').replace(/\/$/, '');
@@ -50,16 +54,34 @@ window.ACEAuth = (() => {
         });
         return configPromise;
     }
-    async function client() {
+    function cachedConfig() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(configCacheKey));
+            if (saved?.version === configCacheVersion && saved.apiOrigin === apiUrl() &&
+                Number.isFinite(saved.refreshedAt) && typeof saved.supabaseUrl === 'string' && saved.supabaseUrl &&
+                typeof saved.supabasePublishableKey === 'string' && saved.supabasePublishableKey) return saved;
+        } catch { /* Storage can be unavailable. */ }
+        return null;
+    }
+    function resetClient() {
+        authSubscription?.unsubscribe?.();
+        authSubscription = null;
+        void clientPromise?.then(previous => previous.auth.stopAutoRefresh?.()).catch(() => {});
+        clientPromise = sessionPromise = refreshPromise = null;
+        cachedSession = null;
+    }
+    async function client(bootstrapConfig) {
         if (!clientPromise) {
-            clientPromise = getConfig().then(config => {
+            clientPromise = (bootstrapConfig ? Promise.resolve(bootstrapConfig) : getConfig()).then(config => {
+                clientConfig = config;
                 const created = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, {
                     auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
                 });
-                created.auth?.onAuthStateChange?.((_event, nextSession) => {
+                authSubscription = created.auth?.onAuthStateChange?.((_event, nextSession) => {
                     cachedSession = nextSession || null;
                     sessionPromise = null;
-                });
+                    window.dispatchEvent(new CustomEvent('ace:auth-account', { detail: nextSession?.user?.id || null }));
+                })?.data?.subscription;
                 return created;
             }).catch(error => {
                 clientPromise = null;
@@ -88,24 +110,41 @@ window.ACEAuth = (() => {
         return sessionPromise;
     }
     async function authorizedFetch(path, options = {}) {
+        const { expectedUserId, ...requestOptions } = options;
         const auth = await client();
-        const activeSession = await session(auth);
-        const send = accessToken => fetchWithTimeout(`${apiUrl()}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}), ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) } });
-        let response = await send(activeSession?.access_token);
+        const activeSession = expectedUserId ? await currentSession(auth) : await session(auth);
+        const requireExpectedAccount = active => {
+            if (expectedUserId && (active?.user?.id !== expectedUserId || !active.access_token)) {
+                const error = new Error(sessionExpiredMessage);
+                error.status = 401;
+                throw error;
+            }
+        };
+        const send = active => {
+            requireExpectedAccount(active);
+            const accessToken = active?.access_token;
+            return fetchWithTimeout(`${apiUrl()}${path}`, { ...requestOptions, headers: { 'Content-Type': 'application/json', ...(requestOptions.headers || {}), ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) } });
+        };
+        let response = await send(activeSession);
         if (response.status === 401) {
+            if (expectedUserId) requireExpectedAccount(await currentSession(auth));
             refreshPromise ||= withTimeout(auth.auth.refreshSession(), 'Session refresh took too long. Please try again.').finally(() => { refreshPromise = null; });
             const { data, error } = await refreshPromise;
             if (error && (error.name === 'AuthRetryableFetchError' || error.status >= 500 || error.status === 429)) throw error;
-            if (error || !data.session?.access_token) return expireSession(auth);
+            if (error || !data.session?.access_token) {
+                if (expectedUserId) return response;
+                return expireSession(auth);
+            }
             cachedSession = data.session;
-            response = await send(data.session.access_token);
-            if (response.status === 401) return expireSession(auth);
+            response = await send(data.session);
+            if (response.status === 401 && !expectedUserId) return expireSession(auth);
         }
         return response;
     }
+    const responseBody = response => withTimeout(response.json(), 'The ACE response took too long.');
     async function request(path, options = {}) {
         const response = await authorizedFetch(path, options);
-        const body = response.status === 204 ? {} : await withTimeout(response.json(), 'The ACE response took too long.').catch(error => {
+        const body = response.status === 204 ? {} : await responseBody(response).catch(error => {
             if (error.code === 'ETIMEDOUT') throw error;
             return {};
         });
@@ -119,7 +158,7 @@ window.ACEAuth = (() => {
     async function fetchConfig() {
         // /health is for infrastructure monitoring. Some browser filters block
         // that path, so gate startup on the configuration the app actually uses.
-        const response = await fetchWithTimeout(`${apiUrl()}/v1/auth/config`, { timeoutMs: 10000, cache: 'no-store' });
+        const response = await fetchWithTimeout(`${apiUrl()}/v1/auth/config`, { timeoutMs: 10000, cache: 'no-store', keepalive: true });
         const body = await withTimeout(response.json(), 'The ACE configuration response took too long.').catch(error => {
             if (error.code === 'ETIMEDOUT') throw error;
             return null;
@@ -129,8 +168,28 @@ window.ACEAuth = (() => {
             error.status = response.ok ? 503 : response.status;
             throw error;
         }
+        if (clientConfig && (clientConfig.supabaseUrl !== body.supabaseUrl ||
+            clientConfig.supabasePublishableKey !== body.supabasePublishableKey)) {
+            resetClient();
+            window.dispatchEvent(new CustomEvent('ace:auth-account', { detail: null }));
+        }
+        try {
+            localStorage.setItem(configCacheKey, JSON.stringify({
+                version: configCacheVersion, apiOrigin: apiUrl(), refreshedAt: Date.now(),
+                supabaseUrl: body.supabaseUrl, supabasePublishableKey: body.supabasePublishableKey
+            }));
+        } catch { /* The live client can still be used. */ }
         return body;
     }
     async function checkService() { await getConfig(); }
-    return { client, session: async () => session(await client()), request, authorizedFetch, checkService };
+    async function currentSession(auth) {
+        const { data, error } = await withTimeout(auth.auth.getSession());
+        if (error) throw error;
+        return data?.session || null;
+    }
+    async function cachedAuthSession() {
+        const config = cachedConfig();
+        return config ? currentSession(await client(config)) : null;
+    }
+    return { client, session: async () => session(await client()), cachedAuthSession, request, authorizedFetch, responseBody, checkService };
 })();

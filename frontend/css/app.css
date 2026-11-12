@@ -17347,3 +17347,19 @@ body[data-admin-view="inquiries"] .table td:nth-child(4) { min-width: 220px; max
   clip-path: polygon(0 35%, 27% 35%, 27% 12%, 76% 12%, 76% 0, 100% 50%, 76% 100%, 76% 82%, 27% 82%, 27% 63%, 0 63%);
 }
 @media(prefers-reduced-motion:reduce) { .rick-portal,.rick-portal-gun { display:none!important; } }
+
+/* Display only the last verified shift during a cold start. */
+body.employee-boot-preview .app-shell-skeleton,
+body.employee-boot-preview .user-dashboard .dashboard-container > :not(.employee-dashboard-hero-grid),
+body.employee-boot-preview .user-dashboard .employee-dashboard-hero-grid > :not(#employeeStatusPanel),
+body.employee-boot-preview .employee-bottom-nav,
+body.employee-boot-preview #employeeStatusPanel .clock-actions,
+body.employee-boot-preview #employeeStatusPanel .status-indicator {
+    display: none;
+}
+body.employee-boot-preview .user-dashboard .employee-dashboard-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+body.employee-boot-preview .app-shell-skeleton:has(.shell-startup-warmup) {
+    display: none;
+}

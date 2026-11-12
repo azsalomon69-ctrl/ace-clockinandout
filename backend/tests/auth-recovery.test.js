@@ -147,3 +147,67 @@ test('startup and sign-in share an in-flight configuration request and reuse its
   await api.checkService();
   assert.equal(calls, 1);
 });
+
+test('cached public auth config boots before Render responds and rotates to the live config', async () => {
+  const apiOrigin = 'https://api.example.test';
+  const events = [];
+  const clients = [];
+  const writes = [];
+  let fetches = 0;
+  let stored = JSON.stringify({
+    version: 1, apiOrigin, refreshedAt: 1, supabaseUrl: 'https://project.example.test', supabasePublishableKey: 'previous-key'
+  });
+  const context = vm.createContext({
+    AbortController,
+    CustomEvent: class { constructor(type, init) { Object.assign(this, { type, detail: init.detail }); } },
+    window: {
+      ACE_API_URL: apiOrigin,
+      setTimeout, clearTimeout,
+      dispatchEvent: event => events.push(event),
+      supabase: { createClient(url, key) {
+        clients.push({ url, key });
+        return { auth: {
+          getSession: async () => ({ data: { session: { user: { id: 'employee' } } } }),
+          onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+          stopAutoRefresh() {}
+        } };
+      } }
+    },
+    localStorage: {
+      getItem: () => stored,
+      setItem: (_key, value) => { stored = value; writes.push(JSON.parse(value)); }
+    },
+    fetch: async () => {
+      fetches++;
+      return { ok: true, json: async () => ({ supabaseUrl: 'https://project.example.test', supabasePublishableKey: 'live-key', extra: 'do not cache' }) };
+    }
+  });
+  vm.runInContext(source, context);
+  const auth = context.window.ACEAuth;
+  assert.equal((await auth.cachedAuthSession()).user.id, 'employee');
+  assert.equal(fetches, 0);
+  await auth.checkService();
+  await auth.client();
+  assert.deepEqual(clients.map(client => client.key), ['previous-key', 'live-key']);
+  assert.deepEqual(Object.keys(writes[0]).sort(), ['apiOrigin', 'refreshedAt', 'supabasePublishableKey', 'supabaseUrl', 'version']);
+  assert.equal(events[0].detail, null);
+});
+
+test('account-scoped fetch never sends a queued payload with a different account token', async () => {
+  let sent = 0;
+  const context = vm.createContext({
+    AbortController,
+    window: { setTimeout, clearTimeout, supabase: { createClient: () => ({ auth: {
+      getSession: async () => ({ data: { session: { user: { id: 'other-account' }, access_token: 'other-token' } } })
+    } }) } },
+    fetch: async url => {
+      if (!url.endsWith('/v1/auth/config')) sent++;
+      return { ok: true, json: async () => ({ supabaseUrl: 'https://example.test', supabasePublishableKey: 'public' }) };
+    }
+  });
+  vm.runInContext(source, context);
+  await assert.rejects(context.window.ACEAuth.authorizedFetch('/v1/time-entries/clock-sync', {
+    expectedUserId: 'original-account', method: 'POST', body: '{}'
+  }), error => error.status === 401);
+  assert.equal(sent, 0);
+});
