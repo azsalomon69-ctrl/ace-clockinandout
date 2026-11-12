@@ -350,3 +350,23 @@ test('a temporary anchor failure retries before the employee leaves the live das
     assert.equal(reopened.state.connected, false);
     assert.equal(reopened.state.accepting, true);
 });
+
+test('an offline clock-in form uses saved project choices without a network warning', async () => {
+    const dashboard = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
+    const modal = dashboard.slice(dashboard.indexOf('async function openClockInModal()'), dashboard.indexOf('function openClockOutModal()'));
+    const options = [];
+    const projectSelect = { replaceChildren: (...items) => options.push(...items), disabled: false };
+    const context = vm.createContext({
+        employeeClockState: { accepting: true, connected: true, snapshot: { projects: [{ ProjectName: 'Support', ProjectId: 'support' }] } },
+        navigator: { onLine: false },
+        document: { getElementById: id => id === 'clockInProject' ? projectSelect : null },
+        Option: class { constructor(text, value) { Object.assign(this, { text, value }); } },
+        openModal() {},
+        refreshUserProjectAssignments: () => assert.fail('Offline modal must not fetch project assignments'),
+        showToast: () => assert.fail('Offline modal must not show a fetch warning')
+    });
+    vm.runInContext(modal, context);
+    await context.openClockInModal();
+    assert.deepEqual(options.map(option => option.value), ['', 'support']);
+    assert.equal(projectSelect.disabled, false);
+});

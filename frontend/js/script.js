@@ -3520,10 +3520,19 @@ async function openClockInModal() {
     if (document.getElementById('mainClockInBtn')?.disabled) return;
     openModal('clockInModal');
     const projectSelect = document.getElementById('clockInProject');
-    if (employeeClockState && projectSelect) {
-        const projects = employeeClockState.snapshot.projects;
+    if (employeeClockState?.accepting && projectSelect) {
+        const queueState = employeeClockState;
+        const projects = queueState.snapshot.projects;
         projectSelect.replaceChildren(new Option('No project', ''), ...projects.map(project => new Option(project.ProjectName, project.ProjectId)));
-        if (!employeeClockState.connected) return;
+        if (queueState.connected && navigator.onLine !== false) {
+            void refreshUserProjectAssignments().then(() => {
+                if (employeeClockState === queueState && !projectSelect.value &&
+                    document.getElementById('clockInModal')?.classList.contains('active')) {
+                    populateProjectSelect('clockInProject');
+                }
+            }).catch(() => { /* The queued form can use its last verified projects. */ });
+        }
+        return;
     }
     if (projectSelect) {
         projectSelect.disabled = true;
