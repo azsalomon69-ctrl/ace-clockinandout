@@ -61,3 +61,22 @@ test('dashboard current-period filters anchor to today rather than the latest hi
   assert.doesNotMatch(fn, /latestTimestamp/, 'Current-period analytics must not fall back to the newest recorded entry');
   assert.match(fn, /const periodEnd = new Date\(\);/, 'Current-period analytics should use today as the period end');
 });
+
+test('export rows use the accepted shift timestamps and show late sync separately from attendance', () => {
+  const frontend = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
+  const begin = frontend.indexOf('function reportWorkbookData(');
+  const context = vm.createContext({
+    AppState: { users: [{ UserId: 'employee', FullName: 'Employee' }], projects: [] },
+    filterEntriesForReport: () => [{
+      UserId: 'employee', ClockInAt: '2026-11-10T09:00:00.000Z', ClockOutAt: '2026-11-10T19:00:00.000Z',
+      ReceivedAt: '2026-11-10T19:03:00.000Z', DurationSeconds: 36000, QueuedClockSyncedLate: true
+    }],
+    reportDateTime: value => value, formatDuration: value => String(value)
+  });
+  vm.runInContext(frontend.slice(begin, frontend.indexOf('async function exportExcelReport(', begin)), context);
+  const [, row] = context.reportWorkbookData({});
+  assert.equal(row[2], '2026-11-10T09:00:00.000Z');
+  assert.equal(row[3], '2026-11-10T19:00:00.000Z');
+  assert.equal(row[4], 36000);
+  assert.match(row[7], /Confirmed · Synced late/);
+});

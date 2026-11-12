@@ -17348,6 +17348,38 @@ body[data-admin-view="inquiries"] .table td:nth-child(4) { min-width: 220px; max
 }
 @media(prefers-reduced-motion:reduce) { .rick-portal,.rick-portal-gun { display:none!important; } }
 
+/* Keep the verified clock card usable while live dashboard data reconnects. */
+.employee-clock-reconnecting .user-dashboard .dashboard-container > :not(.employee-dashboard-hero-grid),
+.employee-clock-reconnecting .user-dashboard .employee-dashboard-hero-grid > :not(#employeeStatusPanel),
+.employee-clock-reconnecting .employee-bottom-nav {
+  display: none;
+}
+.employee-clock-reconnecting .user-dashboard .employee-dashboard-hero-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+#employeeClockQueueStatus {
+  font-weight: 700;
+}
+#employeeClockQueueDetails {
+  overflow-wrap: anywhere;
+}
+
+.clock-review-workspace { display: grid; gap: 1rem; }
+.clock-review-panel { padding: clamp(1rem, 3vw, 1.5rem); }
+.clock-review-panel[hidden], .clock-review-filters[hidden] { display: none; }
+.clock-review-panel h2, .clock-review-panel h3 { margin-bottom: .75rem; }
+.clock-review-panel summary { cursor: pointer; font-weight: 700; }
+.clock-review-panel summary + p { margin-top: .75rem; }
+.clock-review-filters { display: flex; align-items: end; flex-wrap: wrap; gap: .75rem; margin-block: .75rem; }
+.clock-review-panel label { display: grid; gap: .25rem; }
+.clock-review-list { display: grid; gap: .5rem; list-style: none; margin: 0; padding: 0; }
+.clock-review-list button { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: .5rem; text-align: start; }
+.clock-review-evidence { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .75rem; margin-block: .75rem; }
+.clock-review-evidence dt { font-weight: 700; }
+.clock-review-evidence dd, .clock-review-panel pre { overflow-wrap: anywhere; white-space: pre-wrap; }
+.clock-review-decision { margin-top: 1rem; }
+.clock-sync-late-label { display: block; font-weight: 600; margin-top: .2rem; }
+
 /* Display only the last verified shift during a cold start. */
 body.employee-boot-preview .app-shell-skeleton,
 body.employee-boot-preview .user-dashboard .dashboard-container > :not(.employee-dashboard-hero-grid),

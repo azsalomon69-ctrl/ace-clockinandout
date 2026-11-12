@@ -27,6 +27,12 @@
                     <div class="status-indicator" role="status"><span class="status-dot" aria-hidden="true"></span><span class="status-text">Clocked out</span></div>
                     <h2 id="currentShiftTitle">Start your shift</h2>
                     <p id="currentShiftDescription">Clock in to start tracking your work time.</p>
+                    <p id="employeeClockReconnect" role="status" hidden></p>
+                    <p id="employeeClockQueueStatus" role="status" hidden></p>
+                    <p id="employeeClockQueueDetails" hidden></p>
+                    <button class="btn btn-sm btn-outline" type="button" id="refreshEmployeeClockReceipt" hidden>Refresh receipt</button>
+                    <button class="btn btn-sm btn-outline" type="button" id="dismissEmployeeClockOut" hidden>Dismiss saved clock-out</button>
+                    <a id="employeeClockSignIn" href="/login" hidden>Sign in</a>
                 </div>
                 <div class="employee-session-detail" id="employeeSessionTimer" hidden>
                     <span>Elapsed time</span>
@@ -202,6 +208,7 @@
 <script src="js/api-config.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/supabase-auth.js?v=cache-bust-20260930-1"></script>
+    <script src="js/employee-clock-queue.js"></script>
     <script src="js/sidebar.js?v=cache-bust-20260930-1"></script>
     <script src="js/onboarding-config.js?v=cache-bust-20260930-2"></script><script src="js/script.js?v=cache-bust-20260930-31"></script><script src="js/onboarding.js?v=cache-bust-20260930-5"></script>
 </body>
