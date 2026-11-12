@@ -70,3 +70,21 @@ test('employee outcome reads are owner-scoped and keep the original result separ
   assert.equal(original.state, 'needs_review');
   for (const select of h.selectors) assert.deepEqual(select.filters, [['user_id', owner], ['action_id', id]]);
 });
+
+test('all-employee rollout bypasses only the pilot list', () => {
+  const h = harness({ ACE_QUEUED_CLOCK_ALL_ACTIVE_EMPLOYEES: 'true' });
+  const req = { profile: { id: 'new-employee' } };
+  let admitted = false;
+  h.context.queuedClockPilot(req, h.response(), () => { admitted = true; });
+  assert.equal(admitted, true);
+  const response = h.response();
+  h.context.queuedClockEnabled(req, response, () => assert.fail('All-employee rollout enabled the feature'));
+  assert.equal(response.code, 404);
+  for (const route of ['POST/v1/time-entries/clock-sync/anchor', 'POST/v1/time-entries/clock-sync',
+    'GET/v1/time-entries/clock-sync/receipts/:id']) {
+    const chain = h.handlers.get(route);
+    assert.equal(chain[1], h.context.authenticate);
+    assert.equal(chain[2], h.context.employeeOnly);
+    assert.equal(chain[3], h.context.queuedClockPilot);
+  }
+});

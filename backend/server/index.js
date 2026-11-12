@@ -1026,6 +1026,7 @@ function queuedClockPayload(body) {
 }
 
 function queuedClockPilot(req, res, next) {
+  if (process.env.ACE_QUEUED_CLOCK_ALL_ACTIVE_EMPLOYEES === 'true') return next();
   const users = String(process.env.ACE_QUEUED_CLOCK_PILOT_USER_IDS || '').toLowerCase().split(',').map(value => value.trim());
   if (!users.includes(req.profile.id.toLowerCase())) return fail(res, 404, 'Queued clock actions are unavailable');
   return next();
