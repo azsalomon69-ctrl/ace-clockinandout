@@ -1,0 +1,8 @@
+Miss audio by Kenney, from Impact Sounds (CC0 1.0).
+https://kenney.nl/assets/impact-sounds
+miss.ogg: impactWood_light_000.ogg
+
+hit.ogg: Face slap sound effect by magicjoshua (CC0 1.0).
+https://freesound.org/people/magicjoshua/sounds/704179/
+
+The mole and mallet are modeled for ACE using Three.js.

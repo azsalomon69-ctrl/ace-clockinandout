@@ -445,14 +445,24 @@ function showStartupWarmupNotice() {
     notice.className = 'shell-startup-warmup' + (shell ? '' : ' startup-warmup-fullpage');
     notice.setAttribute('aria-label', 'Service connection status');
     notice.innerHTML = '<div class="startup-brand"><img src="/assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"><span>ACE CLOCK IN / OUT</span></div><div class="startup-scene" aria-hidden="true"><div class="startup-scene-orbit"></div><div class="startup-float startup-float-time"><span>↗</span><div>Time<strong>tracking</strong></div></div><div class="startup-scene-clock"><span class="startup-clock-tick"></span><span class="startup-clock-index index-12">12</span><span class="startup-clock-index index-3">3</span><span class="startup-clock-index index-6">6</span><span class="startup-clock-index index-9">9</span><span class="startup-clock-signature">ACE</span><i></i><b></b><span class="startup-clock-second"></span><em></em><span class="startup-clock-caption">CLOCK IN / OUT</span></div><div class="startup-float startup-float-team"><span>✓</span><div>Employee<strong>workspace</strong></div></div><span class="startup-scene-spark spark-one">+</span><span class="startup-scene-spark spark-two">+</span><span class="startup-detail-line detail-line-one"></span><span class="startup-detail-line detail-line-two"></span></div><div class="startup-message"><p class="startup-eyebrow">PLEASE WAIT</p><div class="startup-warmup-heading"><strong data-warmup-title>Connecting<br><span>to ACE.</span></strong><p data-warmup-description>The server may be starting after inactivity. Please wait while we try to connect.</p></div><div class="startup-loading-track" aria-hidden="true"><span></span></div><p class="startup-warmup-status" role="status">Keep this page open. You don’t need to refresh. We’ll continue when ACE is ready.</p><button class="btn btn-primary" type="button" data-startup-refresh hidden>Try again</button></div>';
+    notice.innerHTML += '<section class="startup-mole" aria-label="Whack-a-Mole" hidden><div class="startup-mole-top"><h2>Whack-a-Mole</h2><button type="button" data-mole-exit>Exit game</button></div><div class="startup-mole-stats"><span>Score <strong data-mole-score>0</strong></span><span>Time left <strong data-mole-time>60s</strong></span></div><div class="startup-mole-board"></div><p role="status" data-mole-status>Tap the mole when it pops up.</p><button type="button" class="btn btn-primary" data-mole-replay hidden>Play again</button></section>';
+    const message = notice.querySelector('.startup-message');
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'btn startup-mole-play';
+    play.textContent = 'Play Whack-a-Mole';
+    message.append(play);
+    play.addEventListener('click', () => startStartupMole(notice, play));
     host.prepend(notice);
     notice.querySelector('[data-startup-refresh]').addEventListener('click', () => window.location.reload());
+    startStartupMole(notice, play, false);
 }
 
 function showStartupConnectionError() {
     showStartupWarmupNotice();
     const notice = document.querySelector('.shell-startup-warmup');
     if (!notice) return;
+    notice.stopMole?.();
     notice.classList.add('is-connection-error');
     notice.querySelector('[data-warmup-title]').textContent = 'Unable to connect';
     notice.querySelector('[data-warmup-description]').textContent = 'ACE is taking longer than expected. Check your internet connection, then try again.';
@@ -460,14 +470,170 @@ function showStartupConnectionError() {
     notice.querySelector('[data-startup-refresh]').hidden = false;
 }
 
-function clearStartupWarmupNotice() {
-    document.querySelector('.shell-startup-warmup')?.remove();
+function clearStartupWarmupNotice(fade = false) {
+    const notice = document.querySelector('.shell-startup-warmup');
+    if (!notice) return;
+    if (fade && notice.classList.contains?.('is-startup-complete')) return;
+    if (fade && notice.animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        notice.stopMole?.(true);
+        notice.inert = true;
+        notice.classList.add('startup-warmup-fullpage', 'is-startup-complete');
+        document.body.prepend(notice);
+        const animation = notice.animate([{ opacity: 1 }, { opacity: 0 }], {
+            duration: 260, easing: 'ease-out', fill: 'forwards'
+        });
+        const remove = () => {
+            notice.stopMole?.();
+            notice.remove();
+        };
+        void animation.finished.then(remove, remove);
+        return;
+    }
+    notice.stopMole?.();
+    notice.remove();
+}
+
+function startStartupMole(notice, play, focus = true) {
+    const game = notice.querySelector('.startup-mole');
+    const board = game.querySelector('.startup-mole-board');
+    const scoreText = game.querySelector('[data-mole-score]');
+    const timeText = game.querySelector('[data-mole-time]');
+    const status = game.querySelector('[data-mole-status]');
+    const replay = game.querySelector('[data-mole-replay]');
+    let score = 0;
+    let active = -1;
+    let previous = -1;
+    let timer;
+    let impactTimer;
+    let disposeScene;
+    let stopped = false;
+    let deadline = performance.now() + 60000;
+    const sounds = typeof Audio === 'function' ? [
+        new Audio('/assets/whack-a-mole/miss.ogg'),
+        new Audio('/assets/whack-a-mole/hit.ogg')
+    ] : [];
+    if (sounds.length) {
+        sounds[0].volume = .28;
+        sounds[1].volume = .9;
+    }
+    function playStrike(hit) {
+        const sound = sounds[Number(hit)];
+        if (!sound) return;
+        sound.currentTime = 0;
+        void sound.play().catch(() => {});
+    }
+    const holes = Array.from({ length: 9 }, (_, index) => {
+        const hole = document.createElement('button');
+        hole.type = 'button';
+        hole.setAttribute('aria-label', 'Hole ' + (index + 1));
+        hole.innerHTML = '<span class="startup-mole-burrow" aria-hidden="true"><span class="startup-mole-face"><i></i><b></b></span></span><span class="startup-mole-hammer" aria-hidden="true"></span><span class="startup-mole-impact" aria-hidden="true"></span><span class="startup-mole-point" aria-hidden="true">+1</span>';
+        hole.addEventListener('animationend', event => {
+            if (event.animationName === 'startup-mole-strike') hole.classList.remove('is-hit', 'is-miss', 'has-impact');
+        });
+        hole.addEventListener('click', () => {
+            if (performance.now() >= deadline) return;
+            const hit = active === index;
+            if (!hit) {
+                playStrike(false);
+                if (!hole.classList.contains('is-hit')) hole.classList.add('is-miss');
+                return;
+            }
+            hole.classList.add('is-hit');
+            hideMole();
+            impactTimer = window.setTimeout(() => {
+                playStrike(true);
+                scoreText.textContent = ++score;
+                status.textContent = 'WHACK! +1';
+                hole.classList.add('has-impact');
+            }, 84);
+            window.clearTimeout(timer);
+            timer = window.setTimeout(tick, Math.min(500, deadline - performance.now()));
+        });
+        return hole;
+    });
+    function hideMole() {
+        if (active < 0) return;
+        holes[active].classList.remove('has-mole');
+        holes[active].setAttribute('aria-label', 'Hole ' + (active + 1));
+        active = -1;
+    }
+    function tick() {
+        const remaining = deadline - performance.now();
+        timeText.textContent = Math.max(0, Math.ceil(remaining / 1000)) + 's';
+        hideMole();
+        if (remaining <= 0) {
+            status.textContent = 'Time’s up! Final score: ' + score + '.';
+            replay.hidden = false;
+            return;
+        }
+        const pick = Math.floor(Math.random() * (previous < 0 ? 9 : 8));
+        status.textContent = 'Tap the mole when it pops up.';
+        active = previous >= 0 && pick >= previous ? pick + 1 : pick;
+        previous = active;
+        holes[active].classList.add('has-mole');
+        holes[active].setAttribute('aria-label', 'Whack mole in hole ' + (active + 1));
+        timer = window.setTimeout(tick, Math.min(850, remaining));
+    }
+    notice.stopMole = (keepVisible = false) => {
+        window.clearTimeout(timer);
+        window.clearTimeout(impactTimer);
+        stopped = true;
+        for (const sound of sounds) sound.pause();
+        if (keepVisible) {
+            notice.getAnimations?.().forEach(animation => animation.pause());
+            return;
+        }
+        disposeScene?.();
+        board.classList?.remove('has-mole-scene');
+        board.classList?.remove('is-loading-mole-scene');
+        board.inert = false;
+        hideMole();
+        game.hidden = true;
+        notice.classList.remove('is-playing-mole');
+        play.hidden = false;
+    };
+    const exit = game.querySelector('[data-mole-exit]');
+    exit.onclick = () => {
+        notice.stopMole();
+        play.focus();
+    };
+    replay.onclick = () => {
+        notice.stopMole();
+        startStartupMole(notice, play);
+    };
+    replay.hidden = true;
+    scoreText.textContent = '0';
+    status.textContent = 'Tap the mole when it pops up.';
+    board.replaceChildren(...holes);
+    game.hidden = false;
+    play.hidden = true;
+    notice.classList.add('is-playing-mole');
+    if (focus) exit.focus();
+    if (window.WebGL2RenderingContext && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        board.classList.add('is-loading-mole-scene');
+        board.inert = true;
+        status.textContent = 'Loading the game…';
+        void import('/assets/whack-a-mole/scene.js').then(({ mountMoleScene }) => {
+            if (stopped) return;
+            disposeScene = mountMoleScene(board);
+            board.classList.add('has-mole-scene');
+        }).catch(() => {}).finally(() => {
+            if (stopped) return;
+            board.classList.remove('is-loading-mole-scene');
+            board.inert = false;
+            status.textContent = 'Tap the mole when it pops up.';
+            deadline = performance.now() + 60000;
+            tick();
+        });
+        return;
+    }
+    tick();
 }
 
 async function withStartupWarmup(operation) {
     try {
         const result = await operation();
-        clearStartupWarmupNotice();
+        clearStartupWarmupNotice(true);
         return result;
     } catch (error) {
         if (error?.status === 401 || error?.status === 403) clearStartupWarmupNotice();
@@ -514,7 +680,6 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
                 return operation();
             };
             const loaded = await Promise.race([connect(), deadline]);
-            clearStartupWarmupNotice();
             return loaded;
         } catch (error) {
             lastError = error;

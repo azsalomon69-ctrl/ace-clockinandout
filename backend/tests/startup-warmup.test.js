@@ -6,10 +6,10 @@ const source=readFileSync(new URL('../../frontend/js/script.js',import.meta.url)
 const functions=source.slice(source.indexOf('function showStartupWarmupNotice()'),source.indexOf('async function loadDatabaseWhenServiceIsReady'));
 function fixture(publicPage=false) {
  let delayed, notice, reloads=0;
- const nodes=new Map(); const node=id=>{if(!nodes.has(id)) nodes.set(id,{hidden:true,textContent:'',addEventListener(_,fn){this.click=fn;}});return nodes.get(id);};
+ const nodes=new Map(); const node=id=>{if(!nodes.has(id)) nodes.set(id,{hidden:true,textContent:'',append(){},replaceChildren(){},querySelector:node,addEventListener(_,fn){this.click=fn;}});return nodes.get(id);};
  const host={setAttribute(){},prepend(value){notice=value;}};
- const document={body:host,querySelector(selector){if(selector==='.app-shell-skeleton')return publicPage?null:host;if(selector==='.shell-startup-warmup')return notice;return null;},createElement(){return {innerHTML:'',classList:{add(){}},setAttribute(){},querySelector:node,remove(){notice=null;}};}};
- const context=vm.createContext({document,window:{setTimeout(fn){delayed=fn;return 2;},clearTimeout(){delayed=null;},location:{reload(){reloads++;}}}});
+ const document={body:host,querySelector(selector){if(selector==='.app-shell-skeleton')return publicPage?null:host;if(selector==='.shell-startup-warmup')return notice;return null;},createElement(){return {innerHTML:'',classList:{add(){},remove(){}},setAttribute(){},addEventListener(){},querySelector:node,remove(){notice=null;}};}};
+ const context=vm.createContext({document,performance:{now:()=>0},window:{setTimeout(fn){delayed=fn;return 2;},clearTimeout(){delayed=null;},location:{reload(){reloads++;}}}});
  vm.runInContext(functions,context);
  return {context,node,get notice(){return notice;},showDelayed(){delayed?.();},get reloads(){return reloads;}};
 }
@@ -52,7 +52,7 @@ test('slow workspace requests and retries can show the wake-up screen after conf
  assert.equal(await app.run(), true);
  assert.equal(loads, 2);
  assert.ok(app.notices() > 0);
- assert.equal(app.cleared(), 1);
+ assert.equal(app.cleared(), 0);
 });
 test('a slow readiness check can still show the wake-up screen', async () => {
  const app = retryHarness(async () => { assert.equal(app.cleared(), 0); return true; }, async () => app.fireWarmup());

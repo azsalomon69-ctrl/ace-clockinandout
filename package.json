@@ -30,6 +30,7 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.1",
     "nodemailer": "10.5.0",
+    "three": "0.180.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "overrides": {
