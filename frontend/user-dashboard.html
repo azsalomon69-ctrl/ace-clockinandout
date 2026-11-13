@@ -204,12 +204,23 @@
 
     <dialog class="employee-clock-confirmation" id="employeeClockConfirmation" aria-labelledby="employeeClockConfirmationTitle">
         <form method="dialog">
-            <div class="employee-clock-confetti" aria-hidden="true"></div>
-            <span class="employee-clock-confirmation-mark" aria-hidden="true">✓</span>
-            <h2 id="employeeClockConfirmationTitle"></h2>
-            <time></time>
-            <p>Your time is recorded. You can close this tab.</p>
-            <button class="btn btn-primary" autofocus>Done</button>
+            <header class="employee-clock-confirmation-header">
+                <div>
+                    <div class="employee-clock-confirmation-mark" aria-hidden="true">
+                        ✓<div class="employee-clock-confetti"></div>
+                    </div>
+                    <h2 id="employeeClockConfirmationTitle"></h2>
+                </div>
+                <img class="employee-clock-confirmation-art" src="/assets/images/clock-confirmation.png" width="576" height="384" alt="">
+            </header>
+            <div class="employee-clock-confirmation-body">
+                <div class="employee-clock-confirmation-receipt">
+                    <span>Recorded time</span>
+                    <time></time>
+                </div>
+                <p>You can safely close this tab.</p>
+                <button class="btn btn-primary" autofocus>Done</button>
+            </div>
         </form>
     </dialog>
 
