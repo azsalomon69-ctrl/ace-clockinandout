@@ -600,6 +600,22 @@ app.get('/health', async (_, res) => {
 });
 
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
+
+app.get('/v1/holidays/ph/:year', authenticate, employeeOnly, async (req, res) => {
+  const { year } = req.params;
+  if (!/^20\d{2}$/.test(year)) return fail(res, 400, 'Invalid holiday year');
+  try {
+    const response = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`, {
+      redirect: 'error', signal: AbortSignal.timeout(6000)
+    });
+    if (!response.ok) return fail(res, 502, 'Holiday provider unavailable');
+    const holidays = await response.json();
+    if (!Array.isArray(holidays)) return fail(res, 502, 'Holiday provider unavailable');
+    return res.json(holidays);
+  } catch {
+    return fail(res, 502, 'Holiday provider unavailable');
+  }
+});
 // The browser needs to know which navigation and safeguards to show, but it
 // must never duplicate the protected account's email or make the permission
 // decision itself.  Keep the source of truth in the server environment.

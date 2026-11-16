@@ -58,11 +58,7 @@ window.addEventListener('ace:app-ready', () => {
         status.textContent = 'Loading holidays…';
         try {
             if (!cache.has(selectedYear)) {
-                const response = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${selectedYear}/PH`, {
-                    credentials: 'omit', signal: AbortSignal.timeout(8000)
-                });
-                if (!response.ok) throw new Error('Holiday request failed');
-                const rows = await response.json();
+                const rows = await window.ACEAuth.request(`/v1/holidays/ph/${selectedYear}`);
                 if (!Array.isArray(rows)) throw new Error('Unexpected holiday response');
                 cache.set(selectedYear, rows.filter(row => row?.global === true && row.countryCode === 'PH'
                     && typeof row.name === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(row.date)
