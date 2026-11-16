@@ -1451,7 +1451,9 @@ function installPageFadeNavigation() {
             updateShellRoute(destination);
             await runMountedPage(parsed);
             await mountRouteModule(parsed);
-            window.scrollTo({ top: 0, behavior: 'auto' });
+            const reviewSection = destination.hash === '#reviewAlertsSection' && document.getElementById('reviewAlertsSection');
+            if (reviewSection) reviewSection.scrollIntoView({ block: 'start' });
+            else window.scrollTo({ top: 0, behavior: 'auto' });
             window.dispatchEvent(new CustomEvent('ace:route-ready'));
         } catch (error) {
             console.warn('Dashboard content navigation fell back to a normal page load.', error);
@@ -1548,7 +1550,7 @@ function initializeAppShell() {
     sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-account-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div>`;
     const sidebarUpdates = document.createElement('section');
     sidebarUpdates.className = 'shell-sidebar-updates';
-    sidebarUpdates.setAttribute('aria-label', 'Recent notifications');
+    sidebarUpdates.setAttribute('aria-label', isAdmin ? 'Time-entry alerts' : 'Recent notifications');
     sidebar.querySelector('.shell-account-wrap').before(sidebarUpdates);
     const overlay = document.createElement('button');
     overlay.className = 'shell-overlay'; overlay.type = 'button'; overlay.setAttribute('aria-label', 'Close navigation');
@@ -1784,11 +1786,13 @@ function initializeAppShell() {
         const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>No unread feedback.</span></div>`;
         const viewAll = `<a class="shell-sidebar-updates-link" href="${feedbackList}">View all feedback ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a>`;
         notificationMenu.innerHTML = `<div class="shell-notification-header"><p class="shell-topbar-menu-title">Notifications</p>${countLabel}</div><div class="shell-notification-list">${total ? notices.map(notice => renderNotice(notice, ' role="menuitem"')).join('') : emptyState}</div><a class="shell-sidebar-updates-link" href="${feedbackList}" role="menuitem">View all feedback ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a>`;
+        if (isAdmin) return;
         sidebarUpdates.innerHTML = `<div class="shell-sidebar-updates-panel"><div class="shell-sidebar-updates-heading"><h2>Recent updates</h2>${countLabel}</div><div class="shell-sidebar-updates-list">${total ? notices.slice(0, 2).map(notice => renderNotice(notice)).join('') : '<p>No unread feedback</p>'}</div>${viewAll}</div><a class="shell-sidebar-updates-rail" href="${feedbackList}" title="Feedback" aria-label="Feedback${total ? `, ${unreadLabel} unread` : ''}">${suppliedIconMarkup('bell', 'shell-icon')}${total ? `<span aria-hidden="true">${unreadLabel}</span>` : ''}</a>`;
     };
     // Render the notification snapshot loaded with this page.
     window.ACERenderNotifications = renderNotifications;
     renderNotifications();
+    if (isAdmin) renderAdminSidebarAlerts();
     topbarAccountButton.addEventListener('click', () => {
         setTopbarMenu(notificationButton, notificationMenu, false);
         setTopbarMenu(topbarAccountButton, topbarAccountMenu, topbarAccountMenu.hidden);
@@ -4366,6 +4370,8 @@ function loadPageSpecificData() {
     if (page === 'admin-dashboard.html') {
         loadAdminDashboard();
         loadTimeLeaderboard('adminLeaderboard', 'adminLeaderboardRank');
+    } else if (AppState.currentUser?.Role === 'ADMIN') {
+        void loadReviewAlerts();
     }
 
     if (page === 'time-entry-details.html') {
@@ -4950,12 +4956,28 @@ function renderAdminAnalytics() {
     });
 }
 
+function renderAdminSidebarAlerts(alerts) {
+    const sidebar = document.querySelector('.shell-sidebar-updates');
+    if (!sidebar) return;
+    const count = alerts?.length;
+    const countLabel = count ? String(count) : '';
+    const href = 'admin-dashboard.html#reviewAlertsSection';
+    sidebar.innerHTML = `<div class="shell-sidebar-updates-panel"><div class="shell-sidebar-updates-heading"><span class="admin-section-kicker">Needs review</span>${countLabel ? `<span class="shell-notification-count">${countLabel}</span>` : ''}</div><h2 class="shell-sidebar-review-title">Time-entry alerts</h2><p class="shell-sidebar-review-description">Open entries that may have missed a clock-out and shifts stopped by an administrator.</p><a class="shell-sidebar-updates-link" href="${href}">Review alerts ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a></div><a class="shell-sidebar-updates-rail" href="${href}" title="Time-entry alerts" aria-label="Time-entry alerts${countLabel ? `, ${countLabel} to review` : ''}">${suppliedIconMarkup('circle-alert', 'shell-icon')}${countLabel ? `<span aria-hidden="true">${countLabel}</span>` : ''}</a>`;
+}
+
 async function loadReviewAlerts() {
-    const section = document.getElementById('reviewAlertsSection'); const list = document.getElementById('reviewAlertsList');
-    if (!section || !list || AppState.currentUser?.Role !== 'ADMIN') return;
+    if (AppState.currentUser?.Role !== 'ADMIN') return;
+    const list = document.getElementById('reviewAlertsList');
+    if (!AppState.adminReviewAlertsRequest) {
+        AppState.adminReviewAlertsRequest = window.ACEAuth.request('/v1/time-entry-review')
+            .finally(() => { AppState.adminReviewAlertsRequest = null; });
+    }
     try {
-        const response = await window.ACEAuth.request('/v1/time-entry-review'); const alerts = response.items || [];
-        section.hidden = !alerts.length;
+        const response = await AppState.adminReviewAlertsRequest;
+        const alerts = response.items || [];
+        renderAdminSidebarAlerts(alerts);
+        if (!list || !list.isConnected) return;
+        if (!alerts.length) { list.innerHTML = '<p>No time-entry alerts to review.</p>'; return; }
         list.innerHTML = alerts.map(alert => {
             const isMissedClockOut = alert.type === 'MISSED_CLOCK_OUT';
             const iconName = isMissedClockOut ? 'circle-alert' : 'user-pen';
@@ -4965,7 +4987,10 @@ async function loadReviewAlerts() {
                 <a class="btn btn-sm btn-outline review-alert-action" href="time-entry-details.html?entry=${encodeURIComponent(alert.id)}">Review entry</a>
             </article>`;
         }).join('');
-    } catch (error) { section.hidden = true; console.warn('Could not load time-entry review alerts.', error); }
+    } catch (error) {
+        if (list?.isConnected) list.innerHTML = '<p>Time-entry alerts are temporarily unavailable.</p>';
+        console.warn('Could not load time-entry review alerts.', error);
+    }
 }
 
 async function refreshAdminClockInCount() {

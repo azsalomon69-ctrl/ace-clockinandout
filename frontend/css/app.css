@@ -18505,3 +18505,10 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
     font-weight: 750;
   }
 }
+
+.shell-sidebar-review-title { margin: 2px 4px 4px; font-size: .8rem; }
+.shell-sidebar-review-description { margin: 0 4px 5px; color: var(--ace-text-secondary); font-size: .7rem; line-height: 1.4; }
+.shell-sidebar-updates-heading .admin-section-kicker { margin: 0; font-size: .59rem; }
+@media (max-height: 560px) {
+  .shell-sidebar-review-description { display: none; }
+}
