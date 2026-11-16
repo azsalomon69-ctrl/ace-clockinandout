@@ -5705,7 +5705,7 @@ if (document.readyState === 'loading') {
     document.addEventListener('pointerup', (event) => {
       if (!finePointer.matches || event.pointerType === 'touch' || event.button !== 0) return;
       const target = event.target.closest(
-        'button,a[href],select,summary,[role="button"],input[type="checkbox"],input[type="radio"],input[type="submit"]',
+        'button,a[href],select,summary,[role="button"],[role="link"],input[type="checkbox"],input[type="radio"],input[type="submit"]',
       );
       if (!target || target.matches(':disabled,[aria-disabled="true"]')) return;
       clear();

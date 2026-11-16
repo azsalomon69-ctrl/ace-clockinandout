@@ -18237,12 +18237,9 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
     --ace-cursor-grabbing: var(--cursor-grabbing) 12 12, grabbing;
     --ace-cursor-wait: var(--cursor-progress) 2 2, wait;
   }
-  html,
-  body {
-    cursor:
-      var(--cursor-default, url('/assets/cursors/default.svg?v=3')) 4 3,
-      default;
-  }
+  html { cursor: var(--ace-cursor-default); }
+  /* Keep the Portal arrow on read-only content, including nested icons and labels. */
+  :where(body, body *) { cursor: inherit; }
 
   body
     :is(
@@ -18251,6 +18248,7 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
       select,
       summary,
       [role='button'],
+      [role='link'],
       input[type='checkbox'],
       input[type='radio'],
       input[type='submit']
@@ -18267,6 +18265,7 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
       select,
       summary,
       [role='button'],
+      [role='link'],
       input[type='checkbox'],
       input[type='radio'],
       input[type='submit']
@@ -18284,8 +18283,10 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
       select,
       summary,
       [role='button'],
+      [role='link'],
       input[type='checkbox'],
-      input[type='radio']
+      input[type='radio'],
+      input[type='submit']
     ):not(:disabled):not([aria-disabled='true']) {
     cursor:
       var(--cursor-click, url('/assets/cursors/click.svg?v=3')) 4 5,
@@ -18312,7 +18313,7 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
       input[type='number'],
       input[type='url'],
       textarea,
-      [contenteditable='true']
+      :read-write
     ) {
     cursor: var(--cursor-text) 12 12, text;
   }
@@ -18339,8 +18340,8 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
   body [aria-busy='true'] {
     cursor: var(--cursor-progress) 2 2, progress;
   }
-  body :is(p, h1, h2, h3, h4, h5, h6, strong, small, pre, code, blockquote, caption, td, th, dt, dd, li, label, .data-value, [data-cursor="text"]) { cursor: var(--cursor-text) 12 12, text; }
-  body :is(a[href], button, summary, [role="button"]) * { cursor: inherit; }
+  body [data-cursor="text"] { cursor: var(--cursor-text) 12 12, text; }
+  body :is(a[href], button, summary, [role="button"], [role="link"]) * { cursor: inherit; }
   body [data-cursor="move"] { cursor: var(--cursor-move) 12 12, move; }
   body [data-cursor="ew-resize"] { cursor: var(--cursor-resize-ew) 12 12, ew-resize; }
   body [data-cursor="ns-resize"] { cursor: var(--cursor-resize-ns) 12 12, ns-resize; }
