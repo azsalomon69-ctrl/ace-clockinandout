@@ -17798,12 +17798,15 @@ html[data-theme="dark"] .employee-entry-filters .filter-group:focus-within { bac
 }
 
 /* Workspace frame and collapsed navigation adapted from Akio's Ace Portal. */
-body.has-app-shell {
+:root:has(> body.has-app-shell) {
   --ace-workspace-surround: #e8e8e8;
+  background: var(--ace-workspace-surround);
+}
+:root[data-theme="dark"]:has(> body.has-app-shell) { --ace-workspace-surround: #0d0d0d; }
+:root > body.has-app-shell {
   --ace-workspace-gutter: 12px;
   background: var(--ace-workspace-surround);
 }
-html[data-theme="dark"] body.has-app-shell { --ace-workspace-surround: #0d0d0d; }
 body.has-app-shell :is(.shell-topbar, .app-sidebar, .shell-brand, .shell-account-wrap) {
   background-color: var(--ace-workspace-surround)!important;
   border-color: transparent!important;
