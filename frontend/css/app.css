@@ -15788,10 +15788,10 @@ html[data-theme="dark"] .project-bar-fill { background: linear-gradient(90deg, #
 /* Dark mode uses one quiet, solid navigation surface. Legacy gradients and
    cyan-tinted controls made the sidebar compete with the actual workspace. */
 html[data-theme="dark"] :is(.app-sidebar,.shell-brand,.shell-account-wrap) {
-  background-color: #151c20!important;
+  background-color: var(--ace-surface-nav)!important;
   background-image: none!important;
 }
-html[data-theme="dark"] .shell-brand { border-color: #2b383d!important; }
+html[data-theme="dark"] .shell-brand { border-color: var(--ace-border)!important; }
 html[data-theme="dark"] .shell-nav-label { color: var(--ace-text-tertiary)!important; }
 html[data-theme="dark"] .shell-nav-group-toggle {
   color: var(--ace-text-primary)!important;
@@ -15930,7 +15930,7 @@ html[data-theme="dark"] :is(.btn-secondary,.btn-outline) > .ui-icon {
 .admin-dashboard .project-allocation-card .project-bar-track { height: 28px; border-radius: 3px; background: var(--dashboard-chart-track); }
 .admin-dashboard .project-allocation-card .project-bar-fill { background: linear-gradient(90deg,#11afc4,#36cbb8); }
 html[data-theme="dark"] .admin-dashboard {
-  --dashboard-chart-card: #15262b;
+  --dashboard-chart-card: var(--ace-surface);
   --dashboard-chart-soft: #1a3036;
   --dashboard-chart-border: #29454d;
   --dashboard-chart-grid: #29464e;
@@ -16006,7 +16006,7 @@ html[data-theme="dark"] .admin-dashboard .line-chart-point { fill: var(--dashboa
 .employee-quick-action-list strong { color: var(--employee-ink); font-size: .72rem; }
 .employee-quick-action-list small { overflow: hidden; color: var(--employee-copy); font-size: .61rem; text-overflow: ellipsis; white-space: nowrap; }
 .employee-action-arrow { width: 14px; height: 14px; }
-html[data-theme="dark"] .user-dashboard { --employee-card: #15262b; --employee-soft: #1b3036; --employee-border: #294750; --employee-ink: var(--ace-text-primary); --employee-copy: var(--ace-text-secondary); --employee-accent: #38cbd7; }
+html[data-theme="dark"] .user-dashboard { --employee-card: var(--ace-surface); --employee-soft: var(--ace-surface-raised); --employee-border: var(--ace-border); --employee-ink: var(--ace-text-primary); --employee-copy: var(--ace-text-secondary); --employee-accent: #38cbd7; }
 html[data-theme="dark"] .user-dashboard .employee-status-panel { background-color: #10252d!important; background-image: linear-gradient(100deg,rgba(2,28,37,.72),rgba(5,64,77,.5)),url('/assets/images/analytics-mountain-banner-v1.png')!important; background-position: center; background-size: cover; border-color: #245260!important; box-shadow: 0 12px 26px rgba(0,0,0,.2); }
 html[data-theme="dark"] .user-dashboard :is(.employee-week-card,.employee-quick-actions) { background: var(--employee-card)!important; border-color: var(--employee-border)!important; box-shadow: 0 8px 20px rgba(0,0,0,.16); }
 html[data-theme="dark"] .employee-card-icon { background: #21434b; }
@@ -16074,7 +16074,7 @@ html[data-theme="dark"] .employee-quick-action-list a:hover { background: #23414
 .admin-dashboard .dashboard-section:not(#reviewAlertsSection) { order: 6; margin-top: 4px; }
 .admin-dashboard .dashboard-section { border-radius: 8px; box-shadow: 0 2px 7px rgba(9,64,79,.045); }
 html[data-theme="dark"] .admin-dashboard .dashboard-header { background: transparent!important; }
-html[data-theme="dark"] .admin-dashboard .admin-dashboard-date,html[data-theme="dark"] .admin-dashboard .dashboard-command-center,html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-card { color: var(--ace-text-secondary); border-color: #294750!important; background-color: #15262b!important; box-shadow: 0 7px 18px rgba(0,0,0,.15); }
+html[data-theme="dark"] .admin-dashboard .admin-dashboard-date,html[data-theme="dark"] .admin-dashboard .dashboard-command-center,html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-card { color: var(--ace-text-secondary); border-color: var(--ace-border)!important; background-color: var(--ace-surface)!important; box-shadow: 0 7px 18px rgba(0,0,0,.15); }
 html[data-theme="dark"] .admin-dashboard .admin-dashboard-date { background-image: url('../assets/icons/calendar-days.svg'); }
 html[data-theme="dark"] .admin-dashboard .dashboard-command-copy h2 { color: var(--ace-text-primary); }
 html[data-theme="dark"] .admin-dashboard .dashboard-command-copy > p:last-child,html[data-theme="dark"] .admin-dashboard .dashboard-header-stats .stat-label { color: var(--ace-text-secondary); }
@@ -16153,33 +16153,33 @@ html[data-theme="dark"] .user-dashboard :is(
   box-shadow: 0 6px 18px rgba(0,0,0,.16);
 }
 
-/* Shared visual system: calm surfaces, readable hierarchy, and cyan used as an accent. */
+/* Palette and navigation states adapted from Akio’s Ace Portal tokens.css and components.css. */
 :root {
   color-scheme: light;
-  --ace-page-bg: #f4f7f8;
-  --ace-page-subtle: #edf2f3;
-  --ace-surface: #ffffff;
-  --ace-surface-raised: #f6f8f8;
+  --ace-page-bg: #f5f5f5;
+  --ace-page-subtle: #ededed;
+  --ace-surface: #fafafa;
+  --ace-surface-raised: #ededed;
   --ace-surface-input: #ffffff;
-  --ace-surface-nav: #edf2f3;
+  --ace-surface-nav: #ededed;
   --ace-surface-modal: #ffffff;
-  --ace-text-primary: #223238;
-  --ace-text-secondary: #52656c;
-  --ace-text-tertiary: #687b81;
+  --ace-text-primary: #252525;
+  --ace-text-secondary: #454545;
+  --ace-text-tertiary: #686868;
   --ace-text-disabled: #87969a;
-  --ace-border: #dce4e6;
-  --ace-border-strong: #c5d1d4;
-  --ace-accent: #087f91;
-  --ace-accent-hover: #066c7c;
-  --ace-accent-active: #075765;
-  --ace-accent-muted: #e8f1f2;
-  --ace-navy: #183d49;
-  --ace-navy-2: #244c58;
+  --ace-border: #dedede;
+  --ace-border-strong: #b6b6b6;
+  --ace-accent: #357bb8;
+  --ace-accent-hover: #205181;
+  --ace-accent-active: #1d4369;
+  --ace-accent-muted: #eff6fc;
+  --ace-navy: #252525;
+  --ace-navy-2: #454545;
   --ace-cyan: var(--ace-accent);
   --ace-cyan-dark: var(--ace-accent-active);
   --ace-blue: var(--ace-accent-active);
   --ace-blue-dark: var(--ace-accent-active);
-  --ace-sky: #edf4f5;
+  --ace-sky: #eff6fc;
   --ace-sky-2: var(--ace-page-bg);
   --ace-white: var(--ace-surface);
   --ace-text: var(--ace-text-primary);
@@ -16189,27 +16189,31 @@ html[data-theme="dark"] .user-dashboard :is(
   --ace-shadow-xs: 0 1px 2px rgba(24,53,61,.04);
   --ace-shadow-sm: 0 4px 14px rgba(24,53,61,.06);
   --ace-shadow-md: 0 16px 36px rgba(24,53,61,.12);
+  --ace-nav-active-bg: #205181;
+  --ace-nav-active-text: #ffffff;
+  --ace-nav-active-border: #1d4369;
+  --ace-nav-hover: #dedede;
 }
 html[data-theme="dark"] {
   color-scheme: dark;
-  --ace-page-bg: #0d141b;
-  --ace-page-subtle: #111d26;
-  --ace-surface: #17242e;
-  --ace-surface-raised: #20323e;
-  --ace-surface-input: #101c25;
-  --ace-surface-nav: #111d26;
-  --ace-surface-modal: #1c2d38;
-  --ace-text-primary: #e7f0f4;
-  --ace-text-secondary: #b2c4cf;
-  --ace-text-tertiary: #8fa6b5;
-  --ace-text-disabled: #8fa6b5;
-  --ace-border: #304552;
-  --ace-border-strong: #486573;
-  --ace-accent: #5cd6d0;
-  --ace-accent-hover: #83e4df;
-  --ace-accent-active: #299caa;
-  --ace-accent-muted: #183c43;
-  --ace-navy: #111d26;
+  --ace-page-bg: #141414;
+  --ace-page-subtle: #1c1c1c;
+  --ace-surface: #222222;
+  --ace-surface-raised: #2c2c2c;
+  --ace-surface-input: #1c1c1c;
+  --ace-surface-nav: #1c1c1c;
+  --ace-surface-modal: #2c2c2c;
+  --ace-text-primary: #ededed;
+  --ace-text-secondary: #c6c6c6;
+  --ace-text-tertiary: #a0a0a0;
+  --ace-text-disabled: #999999;
+  --ace-border: #363636;
+  --ace-border-strong: #555555;
+  --ace-accent: #8ab7df;
+  --ace-accent-hover: #b9d6ee;
+  --ace-accent-active: #5b96cc;
+  --ace-accent-muted: #172b40;
+  --ace-navy: #1c1c1c;
   --ace-navy-2: var(--ace-surface);
   --ace-cyan: var(--ace-accent);
   --ace-cyan-dark: var(--ace-accent-hover);
@@ -16225,6 +16229,10 @@ html[data-theme="dark"] {
   --ace-shadow-xs: 0 1px 2px rgba(0,0,0,.12);
   --ace-shadow-sm: 0 4px 14px rgba(0,0,0,.14);
   --ace-shadow-md: 0 16px 36px rgba(0,0,0,.28);
+  --ace-nav-active-bg: #333333;
+  --ace-nav-active-text: #ededed;
+  --ace-nav-active-border: #555555;
+  --ace-nav-hover: #2c2c2c;
 }
 html,
 body { color: var(--ace-text-primary); background: var(--ace-page-bg); }
@@ -16254,61 +16262,48 @@ body { color: var(--ace-text-primary); background: var(--ace-page-bg); }
   background-image: none!important;
   border-color: var(--ace-border)!important;
 }
-.shell-nav-group-toggle {
+.app-sidebar .shell-nav :is(.shell-link, .shell-nav-group-toggle) {
+  border-radius: 10px;
   color: var(--ace-text-secondary)!important;
   background: transparent!important;
   border-color: transparent!important;
   box-shadow: none!important;
 }
-.shell-nav-group-toggle:hover,
-.shell-nav-group-toggle[aria-expanded="true"],
-.shell-nav-group.is-open .shell-nav-group-toggle {
+.app-sidebar .shell-nav :is(.shell-link, .shell-nav-group-toggle):hover,
+.app-sidebar .shell-nav .shell-nav-group-toggle[aria-expanded="true"] {
   color: var(--ace-text-primary)!important;
-  background: var(--ace-surface-raised)!important;
-  border-color: transparent!important;
+  background: var(--ace-nav-hover)!important;
 }
-.shell-link { color: var(--ace-text-secondary)!important; border-color: transparent!important; }
-.shell-link:hover,
-.shell-link:focus-visible { color: var(--ace-text-primary)!important; background: var(--ace-surface-raised)!important; }
-.shell-link.active {
+.app-sidebar .shell-nav .shell-link[aria-current="page"] {
+  color: var(--ace-nav-active-text)!important;
+  background: var(--ace-nav-active-bg)!important;
+  border-color: var(--ace-nav-active-border)!important;
+  font-weight: 700;
+}
+.app-sidebar .shell-nav .shell-link[aria-current="page"]::before { display: none; }
+.app-sidebar .shell-nav .shell-link[aria-current="page"] .shell-icon {
+  filter: brightness(0) invert(1)!important;
+  opacity: 1;
+}
+.app-sidebar .shell-nav :is(.shell-link, .shell-nav-group-toggle):focus-visible,
+.app-sidebar :is(.shell-account, .shell-collapse):focus-visible {
+  outline: 2px solid var(--ace-accent);
+  outline-offset: -2px;
+}
+.app-sidebar .shell-nav-label { color: var(--ace-text-tertiary)!important; }
+.app-sidebar .shell-nav-group-items { border-color: var(--ace-border-strong); }
+.app-sidebar :is(.shell-account, .shell-collapse) {
   color: var(--ace-text-primary)!important;
-  background: var(--ace-accent-muted)!important;
-  border-color: transparent!important;
-  box-shadow: inset 3px 0 0 var(--ace-accent)!important;
-}
-.shell-link.active::before { background: var(--ace-accent)!important; border-radius: 2px; }
-.shell-collapse {
-  color: var(--ace-text-secondary)!important;
   background: var(--ace-surface)!important;
   border-color: var(--ace-border)!important;
   box-shadow: none!important;
 }
-.shell-collapse:hover,.shell-collapse:focus-visible {
-  color: var(--ace-text-primary)!important;
-  background: var(--ace-surface-raised)!important;
+.app-sidebar :is(.shell-account, .shell-collapse):hover,
+.app-sidebar .shell-account[aria-expanded="true"] {
+  background: var(--ace-nav-hover)!important;
   border-color: var(--ace-border-strong)!important;
 }
 html[data-theme="dark"] .has-app-shell .shell-topbar { box-shadow: 0 4px 18px rgb(0 0 0 / 12%); }
-html[data-theme="dark"] .app-sidebar,
-html[data-theme="dark"] .shell-brand,
-html[data-theme="dark"] .shell-account-wrap { background-color: var(--ace-surface-nav)!important; }
-html[data-theme="dark"] .shell-link.active { color: var(--ace-text-primary)!important; }
-html[data-theme="dark"] .shell-link.active {
-  background: var(--ace-accent-muted)!important;
-  box-shadow: inset 3px 0 0 var(--ace-accent)!important;
-}
-html[data-theme="dark"] .shell-link.active::before { background: var(--ace-accent)!important; }
-/* Standalone navigation links already get the active ::before marker. Avoid
-   drawing a second cyan stripe with box-shadow; nested dropdown links retain
-   their existing rail-aligned treatment. */
-.shell-nav-group:not(.shell-nav-group--collapsible) .shell-link.active {
-  box-shadow: none!important;
-}
-html[data-theme="dark"] .shell-collapse {
-  color: var(--ace-text-secondary)!important;
-  background: var(--ace-surface-raised)!important;
-  border-color: var(--ace-border)!important;
-}
 html[data-theme="dark"] .has-app-shell :is(.employee-eyebrow,.employee-section-kicker,.clock-kicker,.admin-section-kicker) {
   color: var(--ace-text-tertiary)!important;
 }
