@@ -1,58 +1,59 @@
 <!DOCTYPE html>
 <!-- Akio <3: Project page maintained by Akio Zaki Salomon. -->
-<html lang="en">
+<html lang="en" class="public-system-theme">
 <head>
-    <link rel="icon" type="image/png" href="assets/images/ace-logo.png">
+    <link rel="icon" type="image/png" href="/assets/images/ace-logo.png">
     <meta charset="UTF-8">
+    <meta name="color-scheme" content="light dark">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="ACE brings time tracking, project context, reports, and administration into one clear company workspace.">
     <title>ACE Outsource Solutions · Time Tracking</title>
-    <link rel="stylesheet" href="css/app.css?v=cache-bust-20260930-2">
-    <link rel="stylesheet" href="css/public.css">
+    <link rel="stylesheet" href="/css/app.css?v=cache-bust-20260930-2">
+    <link rel="stylesheet" href="/css/public.css">
 </head>
 <body class="public-page public-tour-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="public-header public-width">
         <a class="public-brand" href="/">
-            <img src="assets/images/ace-logo-hd-cropped.png" alt="">
+            <img src="/assets/images/ace-logo-hd-cropped.png" alt="">
             <span>ACE Outsource Solutions</span>
         </a>
         <nav class="public-nav" aria-label="Main navigation">
             <button class="public-help" type="button" id="navHelpBtn">Help</button>
-            <a class="public-button public-button-small" href="/login">Sign in <img src="assets/icons/chevron-right.svg" alt=""></a>
+            <a class="public-button public-button-small" href="/login">Sign in <img src="/assets/icons/chevron-right.svg" alt=""></a>
         </nav>
     </header>
 
     <main class="public-width public-tour" id="main-content">
         <nav class="public-tour-tabs" aria-label="Workspace previews">
-            <a href="#tour-clock" data-tour-link aria-current="true"><img src="assets/icons/timer.svg" alt=""><span>Clock in & out</span></a>
-            <a href="#tour-employee" data-tour-link><img src="assets/icons/file-text.svg" alt=""><span>My time</span></a>
-            <a href="#tour-admin" data-tour-link><img src="assets/icons/layout-panel-top.svg" alt=""><span>Admin dashboard</span></a>
-            <a href="#tour-entries" data-tour-link><img src="assets/icons/chart-column-big.svg" alt=""><span>Manage time</span></a>
+            <a href="#tour-clock" data-tour-link aria-current="true"><img src="/assets/icons/timer.svg" alt=""><span>Clock in & out</span></a>
+            <a href="#tour-employee" data-tour-link><img src="/assets/icons/file-text.svg" alt=""><span>My time</span></a>
+            <a href="#tour-admin" data-tour-link><img src="/assets/icons/layout-panel-top.svg" alt=""><span>Admin dashboard</span></a>
+            <a href="#tour-entries" data-tour-link><img src="/assets/icons/chart-column-big.svg" alt=""><span>Manage time</span></a>
         </nav>
         <div class="public-tour-track" id="publicTourTrack" tabindex="0" aria-label="Preview gallery">
             <section class="public-tour-panel" id="tour-clock" aria-labelledby="tour-clock-title">
                 <div class="public-tour-devices shows-phone">
-                    <div class="public-laptop"><img src="assets/images/tour-employee-desktop.png" alt="ACE employee dashboard with shift controls and weekly time" width="1280" height="800" fetchpriority="high"></div>
-                    <div class="public-phone"><img src="assets/images/tour-employee-phone.png" alt="ACE employee clock-in screen with the mobile Home dock" width="500" height="900"></div>
+                    <div class="public-laptop"><img src="/assets/images/tour-employee-desktop.png" alt="ACE employee dashboard with shift controls and weekly time" width="1280" height="800" fetchpriority="high"></div>
+                    <div class="public-phone"><img src="/assets/images/tour-employee-phone.png" alt="ACE employee clock-in screen with the mobile Home dock" width="500" height="900"></div>
                 </div>
                 <div class="public-tour-caption"><h1 id="tour-clock-title">Employee clock-in</h1><p>See the employee dashboard on a laptop and phone.</p></div>
             </section>
             <section class="public-tour-panel" id="tour-employee" aria-labelledby="tour-employee-title">
                 <div class="public-tour-devices">
-                    <div class="public-laptop"><img src="assets/images/tour-employee-history.png" alt="ACE employee time entry history with sample shifts" width="1280" height="800" loading="lazy"></div>
+                    <div class="public-laptop"><img src="/assets/images/tour-employee-history.png" alt="ACE employee time entry history with sample shifts" width="1280" height="800" loading="lazy"></div>
                 </div>
                 <div class="public-tour-caption"><h2 id="tour-employee-title">Employee time entries</h2><p>See recent shifts, clock-out notes, and feedback in one place.</p></div>
             </section>
             <section class="public-tour-panel" id="tour-admin" aria-labelledby="tour-admin-title">
                 <div class="public-tour-devices">
-                    <div class="public-laptop"><img src="assets/images/tour-admin-dashboard.png" alt="ACE admin dashboard showing sample activity and hours by project" width="1280" height="800" loading="lazy"></div>
+                    <div class="public-laptop"><img src="/assets/images/tour-admin-dashboard.png" alt="ACE admin dashboard showing sample activity and hours by project" width="1280" height="800" loading="lazy"></div>
                 </div>
                 <div class="public-tour-caption"><h2 id="tour-admin-title">Admin dashboard</h2><p>See who is clocked in and review time and project activity.</p></div>
             </section>
             <section class="public-tour-panel" id="tour-entries" aria-labelledby="tour-entries-title">
                 <div class="public-tour-devices">
-                    <div class="public-laptop"><img src="assets/images/tour-admin-entries.png" alt="ACE admin time entries table with sample shifts" width="1280" height="800" loading="lazy"></div>
+                    <div class="public-laptop"><img src="/assets/images/tour-admin-entries.png" alt="ACE admin time entries table with sample shifts" width="1280" height="800" loading="lazy"></div>
                 </div>
                 <div class="public-tour-caption"><h2 id="tour-entries-title">Admin time entries</h2><p>Browse employee shifts and open the entries that need a closer look.</p></div>
             </section>
@@ -102,11 +103,11 @@
         <div class="spinner"></div>
     </div>
 
-    <script src="js/api-config.js?v=cache-bust-20260912-1"></script>
-    <script src="js/supabase.js"></script>
-    <script src="js/supabase-auth.js?v=cache-bust-20260930-1"></script>
-    <script src="js/sidebar.js?v=cache-bust-20260930-1"></script>
-    <script src="js/script.js?v=cache-bust-20260930-31"></script>
-    <script src="js/public-tour.js" defer></script>
+    <script src="/js/api-config.js?v=cache-bust-20260912-1"></script>
+    <script src="/js/supabase.js"></script>
+    <script src="/js/supabase-auth.js?v=cache-bust-20260930-1"></script>
+    <script src="/js/sidebar.js?v=cache-bust-20260930-1"></script>
+    <script src="/js/script.js?v=cache-bust-20260930-31"></script>
+    <script src="/js/public-tour.js" defer></script>
 </body>
 </html>

@@ -183,35 +183,40 @@ html[data-theme="dark"] .public-page {
 }
 .public-features strong { font-size: .84rem; }
 .public-features p { margin: 2px 0 0; color: var(--ace-text-secondary); font-size: .78rem; line-height: 1.45; }
-:root.public-login-root {
+:root.public-system-theme {
   color-scheme: light;
-  background: #f0f4f9;
-}
-:root.public-login-root .public-page.public-login {
-  color-scheme: light;
-  background: var(--public-frame);
-  --public-frame: #f0f4f9;
+  --public-system-canvas: #f0f4f9;
+  --ace-surface: #ffffff;
   --ace-text-primary: #252525;
   --ace-text-secondary: #454545;
-  --signin-card: #ffffff;
-  --signin-line: #d8dfe8;
-  --signin-action-hover: #eef4fc;
+  --ace-border: #d8dfe8;
+  --ace-accent: #357bb8;
+  --ace-accent-muted: #eff6fc;
+  background: var(--public-system-canvas);
+}
+:root.public-system-theme .public-page {
+  --public-frame: var(--public-system-canvas);
+  --public-accent-text: #205181;
+  background: var(--public-frame);
+}
+.public-login {
+  --signin-card: var(--ace-surface);
+  --signin-line: var(--ace-border);
+  --signin-action-hover: var(--ace-accent-muted);
 }
 @media (prefers-color-scheme: dark) {
-  :root.public-login-root {
+  :root.public-system-theme {
     color-scheme: dark;
-    background: #202124;
-  }
-  :root.public-login-root .public-page.public-login {
-    color-scheme: dark;
-    --public-frame: #202124;
-    --signin-card: #111111;
-    --signin-line: #41454a;
-    --signin-action-hover: #262a30;
+    --public-system-canvas: #202124;
+    --ace-surface: #111111;
     --ace-text-primary: #ededed;
     --ace-text-secondary: #c6c6c6;
+    --ace-border: #41454a;
+    --ace-accent: #8ab7df;
+    --ace-accent-muted: #262a30;
   }
-  .public-login .public-google-arrow { filter: brightness(0) invert(1); }
+  :root.public-system-theme .public-page { --public-accent-text: var(--ace-accent); }
+  .public-system-theme :is(.public-google-arrow, .public-tour-tabs a img) { filter: brightness(0) invert(1); }
 }
 .public-login > main {
   width: min(1040px, calc(100% - 48px));
@@ -322,7 +327,6 @@ html[data-theme="dark"] .public-page {
   text-decoration: none;
 }
 .public-tour-tabs a img { width: 20px; height: 20px; }
-html[data-theme="dark"] .public-tour-tabs a img { filter: brightness(0) invert(1); }
 .public-tour-tabs a:is(:hover, [aria-current="true"]) {
   color: var(--public-accent-text);
   background: var(--ace-accent-muted);

@@ -1166,7 +1166,7 @@ function applyStoredAppearance() {
 }
 
 function applyTheme(theme) {
-    const preference = document.body.classList.contains('public-login') ? 'system' : theme;
+    const preference = document.documentElement.classList.contains('public-system-theme') ? 'system' : theme;
     const resolvedTheme = preference === 'system' ? (systemThemeMedia.matches ? 'dark' : 'light') : preference;
     document.documentElement.dataset.theme = resolvedTheme;
     document.documentElement.dataset.themePreference = preference;
