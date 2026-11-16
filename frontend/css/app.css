@@ -18423,3 +18423,85 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
 @media (max-width: 420px) {
   .user-dashboard .employee-week-day small { font-size: .58rem; }
 }
+
+/* Sidebar and bell share one unread feedback snapshot. */
+.shell-sidebar-updates { flex: 0 0 auto; min-width: 0; margin: 0 10px 8px; }
+.shell-sidebar-updates-panel {
+  padding: 8px;
+  border: 1px solid var(--ace-border);
+  border-radius: 11px;
+  background: var(--ace-surface);
+}
+.shell-sidebar-updates-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 4px 5px;
+}
+.shell-sidebar-updates-heading h2 { margin: 0; font-size: .75rem; }
+.shell-sidebar-updates-list > p { margin: 6px 4px; color: var(--ace-text-secondary); font-size: .72rem; }
+.shell-sidebar-updates-list .shell-notification-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 12px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  color: var(--ace-text-primary);
+  text-decoration: none;
+  border-radius: 7px;
+}
+.shell-sidebar-updates-list .shell-notification-item:is(:hover, :focus-visible),
+.shell-sidebar-updates-link:is(:hover, :focus-visible),
+.shell-sidebar-updates-rail:is(:hover, :focus-visible) { background: var(--ace-accent-muted); }
+.shell-sidebar-updates-list .shell-notification-item-icon { width: 24px; height: 24px; }
+.shell-sidebar-updates-list .shell-notification-item-icon img { width: 14px; height: 14px; }
+.shell-sidebar-updates-list .shell-notification-item-copy strong { font-size: .67rem; }
+.shell-sidebar-updates-list .shell-notification-item-copy small { font-size: .65rem; }
+.shell-sidebar-updates-link,
+.shell-notification-menu .shell-sidebar-updates-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 4px 7px;
+  border-top: 1px solid var(--ace-border);
+  color: var(--ace-text-primary);
+  font-size: .7rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.shell-sidebar-updates-link img { width: 13px; height: 13px; }
+.shell-sidebar-updates-rail { display: none; }
+@media (max-height: 780px) {
+  .shell-sidebar-updates-list > .shell-notification-item + .shell-notification-item { display: none; }
+}
+@media (max-height: 560px) {
+  .shell-sidebar-updates-list { display: none; }
+}
+@media (min-width: 1181px) {
+  .shell-collapsed .shell-sidebar-updates-panel { display: none; }
+  .shell-collapsed .shell-sidebar-updates-rail {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    margin: 0 auto;
+    border: 1px solid var(--ace-border);
+    border-radius: 10px;
+    background: var(--ace-surface);
+  }
+  .shell-sidebar-updates-rail img { width: 18px; height: 18px; }
+  .shell-sidebar-updates-rail span {
+    position: absolute;
+    inset: -4px -4px auto auto;
+    padding: 2px 4px;
+    border-radius: 999px;
+    background: var(--ace-nav-active-bg);
+    color: var(--ace-nav-active-text);
+    font-size: .56rem;
+    font-weight: 750;
+  }
+}

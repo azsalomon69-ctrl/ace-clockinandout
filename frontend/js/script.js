@@ -1546,6 +1546,10 @@ function initializeAppShell() {
     sidebar.className = 'app-sidebar';
     sidebar.id = 'appSidebar';
     sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-account-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div>`;
+    const sidebarUpdates = document.createElement('section');
+    sidebarUpdates.className = 'shell-sidebar-updates';
+    sidebarUpdates.setAttribute('aria-label', 'Recent notifications');
+    sidebar.querySelector('.shell-account-wrap').before(sidebarUpdates);
     const overlay = document.createElement('button');
     overlay.className = 'shell-overlay'; overlay.type = 'button'; overlay.setAttribute('aria-label', 'Close navigation');
     const mobileToggle = document.createElement('button');
@@ -1756,30 +1760,31 @@ function initializeAppShell() {
     });
     const renderNotifications = () => {
         const reviewedRemarks = getReviewedAdminRemarkIds();
-        const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt && (!isAdmin || !reviewedRemarks.has(String(remark.RemarkId))));
-        const unreadRemarksCount = unreadRemarks.length;
-        const total = unreadRemarksCount;
+        const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt && (!isAdmin || !reviewedRemarks.has(String(remark.RemarkId))))
+            .sort((a, b) => (Date.parse(b.CreatedAt) || 0) - (Date.parse(a.CreatedAt) || 0));
+        const total = unreadRemarks.length;
+        const unreadLabel = total > 99 ? '99+' : String(total);
+        const feedbackList = isAdmin ? 'admin-time-entries.html?remarks=with' : 'remarks.html';
         notificationBadge.hidden = !total;
-        notificationBadge.textContent = total > 99 ? '99+' : total;
-        const notices = [];
-        if (unreadRemarksCount) {
-            const entryById = new Map(AppState.timeEntries.map(entry => [String(entry.TimeEntryId), entry]));
-            notices.push(...unreadRemarks.slice(0, 3).map(remark => {
-                const entry = entryById.get(String(remark.TimeEntryId));
-                const employee = AppState.users.find(user => String(user.UserId) === String(entry?.UserId));
-                const summary = String(remark.Remark || '').replace(/\s+/g, ' ').trim();
-                const preview = summary.length > 100 ? `${summary.slice(0, 99)}…` : summary;
-                const href = isAdmin ? `time-entry-details.html?entry=${encodeURIComponent(remark.TimeEntryId)}` : `remarks.html?remark=${encodeURIComponent(remark.RemarkId)}`;
-                const title = isAdmin
-                    ? `Feedback awaiting review${employee?.FullName ? ` · ${employee.FullName}` : ''}`
-                    : `Feedback from ${remark.AdminName || 'an administrator'}`;
-                return `<a class="shell-notification-item shell-remark-notice" href="${href}" role="menuitem"><span class="shell-notification-item-icon">${suppliedIconMarkup('message-circle-more', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(preview || 'Open to read the administrator feedback.')}</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`;
-            }));
-            if (unreadRemarksCount > 3) notices.push(`<a class="shell-notification-item shell-notification-more" href="${isAdmin ? 'admin-time-entries.html?remarks=with' : 'remarks.html'}" role="menuitem"><span class="shell-notification-item-icon">${suppliedIconMarkup('bell', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${unreadRemarksCount - 3} more unread remark${unreadRemarksCount === 4 ? '' : 's'}</strong><small>Open the feedback list to review them.</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`);
-        }
-        const countLabel = total ? `<span class="shell-notification-count">${total > 99 ? '99+' : total} new</span>` : '';
-        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>Refresh the page to check for administrator feedback.</span></div>`;
-        notificationMenu.innerHTML = `<div class="shell-notification-header"><div><p class="shell-topbar-menu-title">Notifications</p><strong>Stay up to date</strong></div>${countLabel}</div><div class="shell-notification-list">${notices.length ? notices.join('') : emptyState}</div>`;
+        notificationBadge.textContent = unreadLabel;
+
+        const entryById = new Map(AppState.timeEntries.map(entry => [String(entry.TimeEntryId), entry]));
+        const notices = unreadRemarks.slice(0, 3).map(remark => {
+            const entry = entryById.get(String(remark.TimeEntryId));
+            const employee = AppState.users.find(user => String(user.UserId) === String(entry?.UserId));
+            const summary = String(remark.Remark || '').replace(/\s+/g, ' ').trim();
+            const href = isAdmin ? `time-entry-details.html?entry=${encodeURIComponent(remark.TimeEntryId)}` : `remarks.html?remark=${encodeURIComponent(remark.RemarkId)}`;
+            const title = isAdmin
+                ? `Feedback awaiting review${employee?.FullName ? ` · ${employee.FullName}` : ''}`
+                : `Feedback from ${remark.AdminName || 'an administrator'}`;
+            return { href, title, preview: summary.length > 100 ? `${summary.slice(0, 99)}…` : summary || 'Open to read the feedback.' };
+        });
+        const renderNotice = ({ href, title, preview }, role = '') => `<a class="shell-notification-item shell-remark-notice" href="${href}"${role}><span class="shell-notification-item-icon">${suppliedIconMarkup('message-circle-more', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(preview)}</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`;
+        const countLabel = total ? `<span class="shell-notification-count">${unreadLabel} new</span>` : '';
+        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>No unread feedback.</span></div>`;
+        const viewAll = `<a class="shell-sidebar-updates-link" href="${feedbackList}">View all feedback ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a>`;
+        notificationMenu.innerHTML = `<div class="shell-notification-header"><p class="shell-topbar-menu-title">Notifications</p>${countLabel}</div><div class="shell-notification-list">${total ? notices.map(notice => renderNotice(notice, ' role="menuitem"')).join('') : emptyState}</div><a class="shell-sidebar-updates-link" href="${feedbackList}" role="menuitem">View all feedback ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a>`;
+        sidebarUpdates.innerHTML = `<div class="shell-sidebar-updates-panel"><div class="shell-sidebar-updates-heading"><h2>Recent updates</h2>${countLabel}</div><div class="shell-sidebar-updates-list">${total ? notices.slice(0, 2).map(notice => renderNotice(notice)).join('') : '<p>No unread feedback</p>'}</div>${viewAll}</div><a class="shell-sidebar-updates-rail" href="${feedbackList}" title="Feedback" aria-label="Feedback${total ? `, ${unreadLabel} unread` : ''}">${suppliedIconMarkup('bell', 'shell-icon')}${total ? `<span aria-hidden="true">${unreadLabel}</span>` : ''}</a>`;
     };
     // Render the notification snapshot loaded with this page.
     window.ACERenderNotifications = renderNotifications;
