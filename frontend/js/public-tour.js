@@ -1,8 +1,17 @@
 const tourTrack = document.getElementById('publicTourTrack');
 const tourLinks = [...document.querySelectorAll('[data-tour-link]')];
 const tourPanels = [...tourTrack.children];
+let activePanel;
+
+function fitTourTrack() {
+    const height = activePanel.offsetHeight;
+    if (height > 0) tourTrack.style.height = height + 'px';
+}
 
 function selectTourPanel(panel) {
+    activePanel = panel;
+    tourPanels.forEach(item => { item.inert = item !== panel; });
+    fitTourTrack();
     let activeLink;
     tourLinks.forEach(link => {
         if (link.hash === '#' + panel.id) {
@@ -44,10 +53,8 @@ tourTrack.addEventListener('scroll', () => {
     }
 }, { passive: true });
 
-const linkedPanel = tourPanels.find(panel => '#' + panel.id === location.hash);
-if (linkedPanel) {
-    requestAnimationFrame(() => {
-        tourTrack.scrollLeft = linkedPanel.offsetLeft;
-        selectTourPanel(linkedPanel);
-    });
-}
+const linkedPanel = tourPanels.find(panel => '#' + panel.id === location.hash) || tourPanels[0];
+selectTourPanel(linkedPanel);
+const panelResize = new ResizeObserver(fitTourTrack);
+tourPanels.forEach(panel => panelResize.observe(panel));
+requestAnimationFrame(() => { tourTrack.scrollLeft = linkedPanel.offsetLeft; });

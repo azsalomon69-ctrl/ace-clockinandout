@@ -345,6 +345,7 @@ html[data-theme="dark"] .public-page {
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scroll-snap-type: x mandatory;
+  align-items: flex-start;
   scrollbar-width: none;
 }
 .public-tour-track::-webkit-scrollbar { display: none; }
@@ -406,6 +407,7 @@ html[data-theme="dark"] .public-page {
 
 /* The public tour is deliberately light, independent of workspace or device preferences. */
 :root.public-light-theme {
+  scrollbar-gutter: stable;
   color-scheme: light;
   --ace-surface: #fff;
   --ace-text-primary: #213247;
@@ -442,7 +444,7 @@ html[data-theme="dark"] .public-page {
   white-space: nowrap;
 }
 .public-tour-page .public-tour-tabs a[aria-current="true"]::after { inset-inline: 27%; height: 2px; }
-.public-tour-page .public-tour-track { margin-top: 12px; border-radius: 23px; }
+.public-tour-page .public-tour-track { margin-top: 12px; border-radius: 23px; transition: none!important; }
 .public-tour-page .public-tour-panel {
   box-sizing: border-box;
   display: grid;
@@ -485,5 +487,5 @@ html[data-theme="dark"] .public-page {
   .public-tour-page .public-tour-caption p { max-width: 40ch; margin-top: 5px; }
   .public-tour-preview-links { margin-top: 3px; }
   .public-tour-page .public-tour-devices.shows-phone { padding-inline-end: 0; }
-  .public-tour-page .public-phone { width: min(57%, 195px); margin-top: -14%; }
+  .public-tour-page .public-phone { width: min(57%, 195px); margin-top: 4px; }
 }
