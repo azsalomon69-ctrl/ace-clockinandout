@@ -1166,9 +1166,10 @@ function applyStoredAppearance() {
 }
 
 function applyTheme(theme) {
-    const resolvedTheme = theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : theme;
+    const preference = document.body.classList.contains('public-login') ? 'system' : theme;
+    const resolvedTheme = preference === 'system' ? (systemThemeMedia.matches ? 'dark' : 'light') : preference;
     document.documentElement.dataset.theme = resolvedTheme;
-    document.documentElement.dataset.themePreference = theme;
+    document.documentElement.dataset.themePreference = preference;
 }
 
 const systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
@@ -3763,7 +3764,9 @@ function initializeSecondaryActions() {
 async function handleGoogleLogin(event) {
     event?.preventDefault();
     const loginButton = document.getElementById('googleLoginBtn');
+    const loginStatus = document.getElementById('googleLoginStatus');
     if (loginButton) loginButton.disabled = true;
+    if (loginStatus) loginStatus.textContent = 'Opening Google sign-in…';
     try {
         if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
         const auth = await withStartupWarmup(() => loadDatabaseWhenServiceIsReady(() => window.ACEAuth.client()));
@@ -3774,6 +3777,7 @@ async function handleGoogleLogin(event) {
         showToast(error.message || 'Unable to start Google sign-in', 'error');
     } finally {
         if (loginButton) loginButton.disabled = false;
+        if (loginStatus) loginStatus.textContent = '';
     }
 }
 
