@@ -6940,17 +6940,6 @@ button:disabled {
 .admin-table-toolbar .table-search {
   order: 2
 }
-.table-responsive {
-  scrollbar-color: #a9d3dc transparent;
-  scrollbar-width: thin
-}
-.table-responsive::-webkit-scrollbar {
-  height: 8px
-}
-.table-responsive::-webkit-scrollbar-thumb {
-  background: #a9d3dc;
-  border-radius: 999px
-}
 .pagination button:disabled {
   opacity: .48;
   background: #f4f8f9
@@ -14394,43 +14383,6 @@ html[data-theme="dark"] .shell-nav-group.is-open .shell-nav-group-toggle {
 .shell-nav-group.is-open .shell-nav-group-toggle > b::before {
   transform: rotate(-45deg)
 }
-.shell-nav {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(70, 139, 153, .48) rgba(218, 238, 241, .5)
-}
-.shell-nav::-webkit-scrollbar {
-  width: 6px
-}
-.shell-nav::-webkit-scrollbar-button {
-  display: none;
-  width: 0;
-  height: 0
-}
-.shell-nav::-webkit-scrollbar-track {
-  margin: 12px 0;
-  background: rgba(218, 238, 241, .5);
-  border-radius: 999px
-}
-.shell-nav::-webkit-scrollbar-thumb {
-  min-height: 44px;
-  background: rgba(70, 139, 153, .52);
-  border: 1px solid rgba(239, 250, 251, .92);
-  border-radius: 999px;
-  background-clip: padding-box
-}
-.shell-nav::-webkit-scrollbar-thumb:hover {
-  background: rgba(26, 126, 146, .78)
-}
-html[data-theme="dark"] .shell-nav {
-  scrollbar-color: rgba(126, 204, 216, .48) rgba(17,57,67,.55)
-}
-html[data-theme="dark"] .shell-nav::-webkit-scrollbar-track {
-  background: rgba(17,57,67,.55)
-}
-html[data-theme="dark"] .shell-nav::-webkit-scrollbar-thumb {
-  background: rgba(126, 204, 216, .52);
-  border-color: rgba(10,45,55,.9)
-}
 html[data-theme="dark"] {
   --ace-page-bg: #050505;
   --ace-page-subtle: #0b0b0b;
@@ -15324,7 +15276,7 @@ html[data-theme="dark"] .admin-section-tabs { background: var(--ace-surface-rais
 html[data-theme="dark"] .admin-section-tabs a { color: var(--ace-text-secondary); }
 html[data-theme="dark"] .admin-section-tabs a:hover { color: var(--ace-text-primary); background: #2b3438; border-color: var(--ace-border-strong); }
 html[data-theme="dark"] .admin-section-tabs a[aria-current="page"] { color: #fff; background: #087d94; border-color: #087d94; }
-@media (max-width: 620px) { .admin-section-tabs { overflow-x: auto; scrollbar-width: thin; } .admin-section-tabs a { flex: 0 0 auto; } }
+@media (max-width: 620px) { .admin-section-tabs { overflow-x: auto; } .admin-section-tabs a { flex: 0 0 auto; } }
 
 /* Contextual inspection stays beside the current workspace instead of forcing
    a page transition or a second stacked modal. */
@@ -15433,7 +15385,6 @@ html[data-theme="dark"] :is(.time-leaderboard-empty,.analytics-empty) { color: v
 .table-container .table-header h2 { margin: 0; color: var(--ace-navy); font-size: 1rem; }
 .table-container .table-header > :first-child { min-width: 0; }
 .table-container .table-search { width: min(280px, 42vw); min-height: 38px; }
-.table-responsive { scrollbar-color: #9fcad4 transparent; scrollbar-width: thin; }
 .table { min-width: max-content; }
 .table thead th {
   padding: 12px 16px;
@@ -15552,10 +15503,6 @@ html[data-theme="dark"] .review-alert-card--info .review-alert-icon { color: #bd
 html[data-theme="dark"] .review-alert-card--warning .review-alert-icon { color: #f3cf8c; background: var(--ace-warning-bg); }
 html[data-theme="dark"] .admin-pagination { border-color: var(--ace-border); }
 html[data-theme="dark"] ::selection { color: var(--ace-text-primary); background: #285c67; }
-html[data-theme="dark"] ::-webkit-scrollbar { width: 10px; height: 10px; }
-html[data-theme="dark"] ::-webkit-scrollbar-track { background: var(--ace-page-subtle); }
-html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3b4a4f; border: 2px solid var(--ace-page-subtle); border-radius: 999px; }
-html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #52636a; }
 
 /* Filter and setup forms should read as a short decision sequence, not a wall
    of inputs.  The selected/focused field carries the emphasis; the container
@@ -15645,7 +15592,7 @@ html[data-theme="dark"] .workspace-page-tabs { border-color: var(--ace-border); 
 html[data-theme="dark"] .workspace-page-tabs a { color: var(--ace-text-secondary); }
 html[data-theme="dark"] .workspace-page-tabs a:hover { color: var(--ace-text-primary); background: var(--ace-surface-raised); }
 html[data-theme="dark"] .workspace-page-tabs a[aria-current="page"] { color: var(--ace-text-primary); border-bottom-color: var(--ace-accent); }
-@media (max-width: 620px) { .workspace-page-tabs { overflow-x: auto; margin-bottom: 16px; scrollbar-width: thin; } .workspace-page-tabs a { flex: 0 0 auto; } }
+@media (max-width: 620px) { .workspace-page-tabs { overflow-x: auto; margin-bottom: 16px; } .workspace-page-tabs a { flex: 0 0 auto; } }
 
 /* Keep existing records in place while a page filter refreshes. */
 .table-container.is-data-refreshing { position: relative; }
@@ -17210,7 +17157,7 @@ body[data-admin-view="inquiries"] .table td:nth-child(4) { min-width: 220px; max
 .help-bot-header p { font: 400 11.5px/1.5 'Open Sans', sans-serif; color: #b8d7de; }
 .help-bot-close { width: 40px; height: 40px; flex-shrink: 0; border-color: #ffffff26; border-radius: 50%; background: #ffffff0a; transition: background 180ms ease; }
 .help-bot-close:hover { background: #ffffff24; }
-.help-bot-body { flex: 1 1 auto; min-height: 0; padding: 16px 14px; background: #fff; scrollbar-width: thin; scrollbar-color: #b4cbd2 transparent; }
+.help-bot-body { flex: 1 1 auto; min-height: 0; padding: 16px 14px; background: #fff; }
 .help-bot-welcome { padding: 10px 6px 14px; }
 .help-bot-welcome > span { color: #718a93; font-size: 10px; font-weight: 600; letter-spacing: .1em; }
 .help-bot-welcome h3 { margin: 8px 0; color: #123e4b; font: 600 21px/1.4 'Montserrat', sans-serif; }
@@ -18176,4 +18123,42 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
 @media (max-width: 480px) {
   .dashboard-chart-header .dashboard-chart-icon { display: none; }
   .hours-bar-chart .activity-axis-label { font-size: 17px; }
+}
+
+/* Shared workspace scrollbars. Native overflow, keyboard and touch behavior stay intact. */
+:root {
+  --ace-scroll-track: #f1f1f1;
+  --ace-scroll-thumb: #858585;
+  --ace-scroll-hover: #666666;
+  --ace-scroll-active: #505050;
+}
+:root[data-theme="dark"] {
+  --ace-scroll-track: #181818;
+  --ace-scroll-thumb: #777777;
+  --ace-scroll-hover: #969696;
+  --ace-scroll-active: #b3b3b3;
+}
+
+@media (forced-colors: none) and (hover: hover) and (pointer: fine) {
+  :root, :root * {
+    scrollbar-color: var(--ace-scroll-thumb) var(--ace-scroll-track);
+    scrollbar-width: thin;
+  }
+
+  @supports selector(::-webkit-scrollbar) {
+    /* Blink and WebKit ignore their scrollbar parts when the standard properties are non-auto. */
+    :root, :root * { scrollbar-color: auto; scrollbar-width: auto; }
+    ::-webkit-scrollbar { width: 11px; height: 11px; }
+    ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: var(--ace-scroll-track); }
+    ::-webkit-scrollbar-thumb {
+      min-width: 30px;
+      min-height: 30px;
+      border: 2px solid var(--ace-scroll-track);
+      border-radius: 999px;
+      background: var(--ace-scroll-thumb);
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-thumb:hover { background-color: var(--ace-scroll-hover); }
+    ::-webkit-scrollbar-thumb:active { background-color: var(--ace-scroll-active); }
+  }
 }
