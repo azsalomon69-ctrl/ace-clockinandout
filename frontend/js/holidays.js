@@ -37,7 +37,8 @@ window.addEventListener('ace:app-ready', () => {
         && row.holiday_name.toLowerCase().includes(search.value.trim().toLowerCase());
     const appliesToOffice = row => {
         const location = row.location.trim().toLowerCase();
-        return row.geographic_scope === 'city' && location === 'santa rosa, laguna'
+        return row.geographic_scope === 'national'
+            || row.geographic_scope === 'city' && location === 'santa rosa, laguna'
             || row.geographic_scope === 'province' && location === 'laguna';
     };
 
@@ -388,7 +389,7 @@ window.addEventListener('ace:app-ready', () => {
             get('holidayBrowse').setAttribute('aria-pressed', String(!value));
             get('holidayPageTitle').textContent = value ? 'Manage Holidays' : 'Santa Rosa Holiday Calendar';
             get('holidayPageDescription').textContent = value ? 'Maintain Philippine holiday dates and their official references.'
-                : 'Local holidays for the Santa Rosa, Laguna office.';
+                : 'Philippine nationwide holidays and local holidays for the Santa Rosa, Laguna office.';
             render();
         }
         get('holidayBrowse').onclick = () => showManagement(false);

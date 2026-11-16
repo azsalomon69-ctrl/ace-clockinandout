@@ -629,7 +629,7 @@ app.get('/v1/holidays/ph/:year', authenticate, activeOnly, async (req, res, next
   let holidays = db.from('philippine_holidays').select('*').eq('year', Number(year));
   if (req.profile.role !== 'ADMIN') {
     holidays = holidays.is('archived_at', null).or(
-      'and(geographic_scope.eq.city,location.ilike."Santa Rosa, Laguna"),and(geographic_scope.eq.province,location.ilike.Laguna)'
+      'geographic_scope.eq.national,and(geographic_scope.eq.city,location.ilike."Santa Rosa, Laguna"),and(geographic_scope.eq.province,location.ilike.Laguna)'
     );
   }
   return res.json(await query(holidays.order('holiday_date').order('holiday_name')));
