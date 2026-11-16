@@ -601,21 +601,64 @@ app.get('/health', async (_, res) => {
 
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
 
-app.get('/v1/holidays/ph/:year', authenticate, employeeOnly, async (req, res) => {
+const holidayClassifications = ['regular', 'special_non_working', 'special_working', 'other_non_working'];
+const holidayScopes = ['national', 'region', 'province', 'city', 'municipality'];
+const holidayDay = value => typeof value === 'string' && /^20\d{2}-\d{2}-\d{2}$/.test(value)
+  && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+
+function holidayRecord(input) {
+  const fields = ['holiday_name', 'holiday_date', 'classification', 'description', 'geographic_scope',
+    'location', 'source_name', 'source_url', 'proclamation_number', 'verification_status'];
+  if (!input || fields.some(field => input[field] != null && typeof input[field] !== 'string')) return null;
+  const row = Object.fromEntries(fields.map(field => [field, input[field]?.trim() || '']));
+  if (!row.holiday_name || !holidayDay(row.holiday_date) || !holidayClassifications.includes(row.classification)
+    || !holidayScopes.includes(row.geographic_scope) || !['verified', 'pending'].includes(row.verification_status)
+    || (row.geographic_scope === 'national') !== (row.location === '')
+    || (row.verification_status === 'verified' && (!row.source_name || !row.source_url))) return null;
+  if (row.source_url) {
+    try { if (new URL(row.source_url).protocol !== 'https:') return null; }
+    catch { return null; }
+  }
+  if (Object.values(row).some(value => value.length > 2000) || row.holiday_name.length > 160 || row.location.length > 160) return null;
+  return row;
+}
+
+app.get('/v1/holidays/ph/:year', authenticate, activeOnly, async (req, res, next) => { try {
   const { year } = req.params;
   if (!/^20\d{2}$/.test(year)) return fail(res, 400, 'Invalid holiday year');
-  try {
-    const response = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`, {
-      redirect: 'error', signal: AbortSignal.timeout(6000)
-    });
-    if (!response.ok) return fail(res, 502, 'Holiday provider unavailable');
-    const holidays = await response.json();
-    if (!Array.isArray(holidays)) return fail(res, 502, 'Holiday provider unavailable');
-    return res.json(holidays);
-  } catch {
-    return fail(res, 502, 'Holiday provider unavailable');
-  }
-});
+  return res.json(await query(db.from('philippine_holidays').select('*').eq('year', Number(year))
+    .order('holiday_date').order('holiday_name')));
+} catch (error) { return next(error); } });
+
+app.post('/v1/holidays/ph', authenticate, adminOnly, async (req, res, next) => { try {
+  const inputs = Array.isArray(req.body) ? req.body : [req.body];
+  if (!inputs.length || inputs.length > 200) return fail(res, 400, 'Submit between 1 and 200 holiday records');
+  const rows = inputs.map(holidayRecord);
+  const invalid = rows.indexOf(null);
+  if (invalid >= 0) return fail(res, 400, `Check the fields in holiday record ${invalid + 1}`);
+  await query(db.from('philippine_holidays').insert(rows));
+  return res.status(201).json({ count: rows.length });
+} catch (error) {
+  if (error.code === '23505') return fail(res, 409, 'A holiday in this submission already exists');
+  return next(error);
+} });
+
+app.patch('/v1/holidays/ph/:id', authenticate, adminOnly, async (req, res, next) => { try {
+  const row = holidayRecord(req.body);
+  if (!row) return fail(res, 400, 'Check the holiday fields');
+  const changed = await query(db.from('philippine_holidays').update({ ...row, updated_at: new Date().toISOString() })
+    .eq('id', req.params.id).select('id').maybeSingle());
+  return changed ? res.json(changed) : fail(res, 404, 'Holiday not found');
+} catch (error) {
+  if (error.code === '23505') return fail(res, 409, 'This holiday already exists');
+  return next(error);
+} });
+
+app.delete('/v1/holidays/ph/:id', authenticate, adminOnly, async (req, res, next) => { try {
+  const deleted = await query(db.from('philippine_holidays').delete().eq('id', req.params.id).select('id').maybeSingle());
+  return deleted ? res.json(deleted) : fail(res, 404, 'Holiday not found');
+} catch (error) { return next(error); } });
+
 // The browser needs to know which navigation and safeguards to show, but it
 // must never duplicate the protected account's email or make the permission
 // decision itself.  Keep the source of truth in the server environment.

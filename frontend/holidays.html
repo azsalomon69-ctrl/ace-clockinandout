@@ -9,16 +9,27 @@
 <link rel="stylesheet" href="css/app.css?v=cache-bust-20260930-2">
     <link rel="stylesheet" href="css/holidays.css">
 </head>
-<body class="app-shell-pending has-employee-bottom-nav">
+<body class="app-shell-pending">
     <div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div><script src="js/initial-skeletons.js?v=20261015-1"></script>
     <main class="main-content admin-section-page">
         <div class="admin-section-wrap holiday-page">
             <header class="admin-section-header holiday-header">
                 <div>
                     <h1>Philippine holidays</h1>
-                    <p>Browse nationwide holiday dates in Manila time.</p>
+                    <p>Browse national and local holidays in Manila time.</p>
                 </div>
             </header>
+            <div class="holiday-filters">
+                <label>Year <input id="holidayYear" class="form-input" type="number" min="2000" max="2099"></label>
+                <label>Classification <select id="holidayClassification"><option value="">All classifications</option></select></label>
+                <label>Coverage <select id="holidayScope"><option value="">All locations</option><option value="national">Nationwide</option><option value="local">Local</option></select></label>
+                <label>Find a holiday <input id="holidaySearch" class="form-input" type="search" placeholder="Search by name"></label>
+            </div>
+            <ul class="holiday-legend" aria-label="Calendar legend">
+                <li data-kind="regular">Regular</li><li data-kind="special_non_working">Special non-working</li>
+                <li data-kind="special_working">Special working</li><li data-kind="local">Local</li>
+                <li data-kind="other_non_working">Other non-working</li><li data-kind="pending">Pending verification</li>
+            </ul>
             <div class="holiday-layout">
             <section class="holiday-calendar" aria-labelledby="holidayCalendarTitle">
                 <div class="holiday-toolbar">
@@ -37,19 +48,51 @@
                 </table>
             </section>
             <aside class="holiday-agenda" aria-label="Holiday agenda">
-                <section class="holiday-next" aria-labelledby="holidayNextTitle" hidden>
-                    <p>Next holiday</p>
-                    <h2 id="holidayNextTitle"></h2>
-                    <time></time>
-                </section>
                 <section class="holiday-month-list" aria-labelledby="holidayAgendaTitle">
                     <h2 id="holidayAgendaTitle">Holidays this month</h2>
                     <p id="holidayStatus" role="status"></p>
-                    <div id="holidayList"></div>
+                    <ul id="holidayList"></ul>
+                </section>
+                <section class="holiday-month-list">
+                    <h2>Upcoming holidays</h2>
+                    <ul id="holidayUpcoming"></ul>
+                    <p id="holidayPendingNote" hidden>2027 Eid dates are pending separate proclamations.</p>
                 </section>
             </aside>
             </div>
-            <p class="holiday-source">Dates provided by <a href="https://date.nager.at/" target="_blank" rel="noopener noreferrer">Nager.Date</a>. Recently declared and local holidays may be missing. Check official announcements and your work schedule before making plans.</p>
+            <section class="holiday-month-list holiday-management" id="holidayManagement" hidden>
+                <h2>Manage holidays</h2>
+                <div class="holiday-controls">
+                    <button id="holidayAdd" class="btn btn-primary" type="button">Add holiday</button>
+                    <button id="holidayExport" class="btn btn-secondary" type="button">Export Excel</button>
+                    <label>Import CSV or Excel <input id="holidayImport" type="file" accept=".csv,.xlsx,.xls"></label>
+                </div>
+                <p id="holidayManagementStatus" role="status"></p>
+                <ul id="holidayAdminList"></ul>
+            </section>
+            <dialog id="holidayDetails" class="holiday-dialog" aria-labelledby="holidayDetailsTitle">
+                <h2 id="holidayDetailsTitle"></h2><ul></ul>
+                <form method="dialog"><button class="btn btn-secondary">Close</button></form>
+            </dialog>
+            <dialog id="holidayEditor" class="holiday-dialog" aria-labelledby="holidayEditorTitle">
+                <form id="holidayEditorForm">
+                    <h2 id="holidayEditorTitle">Holiday details</h2>
+                    <div class="holiday-filters">
+                        <label>Name <input class="form-input" name="holiday_name" required maxlength="160"></label>
+                        <label>Date <input class="form-input" name="holiday_date" type="date" required min="2000-01-01" max="2099-12-31"></label>
+                        <label>Classification <select name="classification" required></select></label>
+                        <label>Scope <select name="geographic_scope"><option value="national">Nationwide</option><option value="region">Region</option><option value="province">Province</option><option value="city">City</option><option value="municipality">Municipality</option></select></label>
+                        <label>Location <input class="form-input" name="location" maxlength="160"></label>
+                        <label>Verification <select name="verification_status"><option value="pending">Pending verification</option><option value="verified">Verified</option></select></label>
+                        <label>Source name <input class="form-input" name="source_name"></label>
+                        <label>Official source URL <input class="form-input" type="url" name="source_url"></label>
+                        <label>Proclamation number <input class="form-input" name="proclamation_number"></label>
+                        <label>Description <textarea class="form-input" name="description" maxlength="2000"></textarea></label>
+                    </div>
+                    <p id="holidayEditorStatus" role="status"></p>
+                    <div class="holiday-controls"><button class="btn btn-primary" type="submit">Save holiday</button><button id="holidayCancel" class="btn btn-secondary" type="button">Cancel</button></div>
+                </form>
+            </dialog>
         </div>
     </main>
     <div id="toastContainer" class="toast-container"></div>
