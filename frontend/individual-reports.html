@@ -14,19 +14,19 @@
     <div class="admin-section-wrap">
       <h1 class="page-heading-accessible" data-workspace-tabs-anchor>Individual employee reports</h1>
       <div class="individual-report-workspace">
-        <section class="settings-section individual-report-builder">
-          <div class="individual-report-builder-heading"><p class="admin-section-kicker">REPORT SETUP</p><h2>Choose report scope</h2><p>Leave the employee blank to prepare a report for every active employee.</p></div>
+        <section class="settings-section individual-report-builder" aria-labelledby="reportSetupTitle">
+          <div class="individual-report-builder-heading"><h2 id="reportSetupTitle">Report setup</h2></div>
           <form id="individualReportForm">
             <label>Employee <input class="form-input" id="individualEmployee" list="individualEmployeeOptions" placeholder="All active employees" autocomplete="off"><datalist id="individualEmployeeOptions"></datalist></label>
-            <fieldset class="individual-report-period" id="individualReportPeriod"><legend>Report period</legend><label class="individual-period-option"><input type="radio" name="individualReportRange" value="month" checked><span><strong>This month</strong><small>From the first day of this month through today</small></span></label><label class="individual-period-option"><input type="radio" name="individualReportRange" value="custom"><span><strong>Custom date range</strong><small>Choose any start and end date</small></span></label></fieldset>
+            <fieldset class="individual-report-period" id="individualReportPeriod"><legend>Report period</legend><label class="individual-period-option"><input type="radio" name="individualReportRange" value="month" checked><span><strong>This month</strong><small>Month to date</small></span></label><label class="individual-period-option"><input type="radio" name="individualReportRange" value="custom"><span><strong>Custom range</strong></span></label></fieldset>
             <div class="individual-custom-dates" id="individualCustomDates" hidden><label>From <input class="form-input" id="individualDateFrom" type="date" required disabled></label><label>To <input class="form-input" id="individualDateTo" type="date" required disabled></label></div>
             <p class="individual-report-selection" id="individualReportSelection" aria-live="polite"></p>
             <button class="btn btn-primary" type="submit">Prepare reports</button>
           </form>
         </section>
-        <section class="table-container individual-report-results">
-          <div class="individual-report-results-heading"><div><p class="admin-section-kicker">READY TO EXPORT</p><h2>Generated employee reports</h2><p id="individualReportCount">Choose a date range to prepare reports.</p></div></div>
-          <div class="table-responsive"><table class="table"><thead><tr><th>Employee</th><th>Date range</th><th>Actions</th></tr></thead><tbody id="individualReportRows"><tr class="table-empty-row"><td colspan="3"><div class="empty-state empty-state-compact"><h3>Choose report details</h3><p>Choose a date range, then prepare reports.</p></div></td></tr></tbody></table></div>
+        <section class="table-container individual-report-results" aria-labelledby="preparedReportsTitle">
+          <div class="individual-report-results-heading"><h2 id="preparedReportsTitle">Prepared reports</h2><p id="individualReportCount" role="status"></p></div>
+          <div class="table-responsive"><table class="table"><thead><tr><th>Employee</th><th>Date range</th><th>Actions</th></tr></thead><tbody id="individualReportRows"><tr class="table-empty-row"><td colspan="3"><div class="empty-state empty-state-compact"><h3>No reports prepared</h3><p>Choose an employee or use all active employees, then select Prepare reports.</p></div></td></tr></tbody></table></div>
         </section>
       </div>
     </div>
