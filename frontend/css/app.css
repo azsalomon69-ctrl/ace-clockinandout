@@ -17628,3 +17628,69 @@ body.employee-boot-preview .app-shell-skeleton:has(.shell-startup-warmup) {
 .startup-mole-canvas { position: absolute; inset: -46px -34px; width: calc(100% + 68px); height: calc(100% + 92px); pointer-events: none; z-index: 1; }
 .has-mole-scene .startup-mole-burrow, .has-mole-scene .startup-mole-hammer { visibility: hidden; }
 .has-mole-scene .startup-mole-impact, .has-mole-scene .startup-mole-point { z-index: 2; }
+
+/* Compact workspace headers */
+.page-heading-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.admin-page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.admin-page-toolbar .admin-section-tabs { margin: 0 auto 0 0; }
+.admin-section-page .admin-page-toolbar .admin-section-stats { border: 0; flex-wrap: wrap; }
+.admin-section-page .admin-page-toolbar .stat-card { min-width: 0; padding: 0 10px; }
+.admin-page-toolbar #sectionAction { margin-inline-start: auto; }
+.admin-page-toolbar #sectionAction[hidden] { display: none; }
+
+.admin-section-page .archived-accounts-note {
+  margin: 0;
+  color: var(--ace-muted, #557783);
+  font-size: .88rem;
+}
+
+.admin-quick-actions-date,
+.user-dashboard .employee-dashboard-intro .employee-dashboard-date {
+  color: var(--ace-muted, #557783);
+  font-size: .8rem;
+  font-weight: 650;
+}
+
+.user-dashboard .employee-dashboard-intro {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  margin-bottom: 16px;
+  padding: 6px 0 16px 14px;
+  border: 0;
+  border-inline-start: 3px solid var(--employee-accent);
+}
+body[data-user-role="employee"] .employee-dashboard-intro > h1 {
+  margin: 0;
+  font-size: clamp(1.45rem, 2.4vw, 2.15rem);
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+@media (max-width: 620px) {
+  .admin-section-page .admin-page-toolbar #sectionStats {
+    order: 1;
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .admin-section-page .admin-page-toolbar #sectionStats .stat-card:first-child { padding-inline-start: 0; }
+  .user-dashboard .employee-dashboard-intro { padding-bottom: 8px; }
+}

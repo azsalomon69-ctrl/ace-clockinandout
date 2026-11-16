@@ -1,6 +1,4 @@
 .holiday-page { max-width: 88rem; }
-.holiday-page .holiday-header { padding: 0 0 1.2rem; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-.holiday-header h1 { letter-spacing: -.045em; }
 .holiday-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem); gap: 1rem; align-items: start; }
 .holiday-calendar, .holiday-month-list {
     padding: clamp(.75rem, 2vw, 1.4rem);
@@ -72,8 +70,6 @@
 
 /* Calendar and management share the workspace's surface and text tokens. */
 .holiday-page [hidden] { display: none !important; }
-.holiday-page .holiday-header { padding-bottom: 1rem; }
-.holiday-page .holiday-header h1 { font-size: clamp(1.75rem, 4vw, 2.65rem); }
 .holiday-tabs { padding: .3rem; margin-block-end: .85rem; width: fit-content; background: var(--ace-accent-muted); border-radius: 12px; }
 .holiday-tabs [aria-pressed="true"], .holiday-controls #holidayView[aria-pressed="true"] { background: #0e5067; color: #fff; }
 .holiday-page > .holiday-filters { align-items: end; padding: .8rem; border: 1px solid var(--ace-border); background: var(--ace-surface); border-radius: 12px; }

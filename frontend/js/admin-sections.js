@@ -567,7 +567,8 @@ window.ACEPrepareAdminSection = function prepareAdminSection() {
   const view = ADMIN_SECTION_CONFIG[key];
   if (!view) return;
   document.getElementById('sectionTitle').textContent = view.title;
-  document.getElementById('sectionDescription').textContent = view.description;
+  const description = document.getElementById('sectionDescription');
+  if (description) description.textContent = view.description;
   document.getElementById('sectionTableTitle').textContent = view.title;
   document.getElementById('sectionTableHead').innerHTML = '<tr>' + view.columns.map(column => '<th>' + esc(column) + '</th>').join('') + '</tr>';
   const tabGroups = {
@@ -581,7 +582,7 @@ window.ACEPrepareAdminSection = function prepareAdminSection() {
   const tabs = tabGroups[key] || [];
   let tabBar = document.getElementById('adminSectionTabs');
   if (tabs.length > 1) {
-    if (!tabBar) { tabBar = document.createElement('nav'); tabBar.id = 'adminSectionTabs'; tabBar.className = 'admin-section-tabs'; tabBar.setAttribute('aria-label', 'Related workspace pages'); document.querySelector('.admin-section-header').insertAdjacentElement('afterend', tabBar); }
+    if (!tabBar) { tabBar = document.createElement('nav'); tabBar.id = 'adminSectionTabs'; tabBar.className = 'admin-section-tabs'; tabBar.setAttribute('aria-label', 'Related workspace pages'); const toolbar = document.querySelector('.admin-page-toolbar'); if (toolbar) toolbar.prepend(tabBar); else document.querySelector('.admin-section-header').after(tabBar); }
     const activeHref = { users: 'users.html', invitations: 'invitations.html', projects: 'projects.html', entries: 'admin-time-entries.html' }[key];
     tabBar.innerHTML = tabs.map(([label, href]) => {
       const invitations = label === 'Invitations';
@@ -659,7 +660,6 @@ async function renderAdminSection() {
   const view = { ...config, records: [], stats: [], total: 0 };
   try { await applyLiveData(key, view, serverPaged ? pageState : null, activeFilters); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); if (key === 'inquiries') { document.getElementById('sectionTableBody').innerHTML = emptyTable('Could not load inquiries', 'Please refresh to try again.', view.columns.length); return; } }
   document.title = view.title + ' · ACE Outsource Solutions';
-  document.getElementById('sectionTitle').textContent = view.title; document.getElementById('sectionDescription').textContent = view.description;
   window.ACEPrepareAdminSection();
   document.querySelectorAll('.admin-user-filters').forEach(node => node.remove());
   const actionButton = document.getElementById('sectionAction');

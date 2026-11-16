@@ -17,10 +17,7 @@
             <!-- Dashboard Content -->
             <div class="dashboard-content">
                 <!-- Dashboard Header -->
-                <header class="dashboard-header" id="adminDashboardHeader">
-                    <div class="dashboard-header-copy"><p class="admin-section-kicker">WELCOME BACK</p><h1 class="dashboard-title">Admin Dashboard</h1><p>Review live work, handle staffing tasks, and follow up on recent time activity.</p></div>
-                    <time class="admin-dashboard-date" id="currentDate" aria-live="polite">Monday, January 1, 2024</time>
-                </header>
+                <h1 class="page-heading-accessible">Admin Dashboard</h1>
 
                 <section class="dashboard-overview" id="dashboardOverview" aria-label="Current workspace status">
                     <div class="dashboard-header-stats">
@@ -62,8 +59,10 @@
                 </section>
 
                 <!-- Quick Actions -->
-                <section class="dashboard-command-center" aria-labelledby="operationsTitle">
-                    <div class="dashboard-command-copy"><h2 id="operationsTitle">Quick actions</h2></div>
+                <section class="dashboard-command-center" id="adminDashboardHeader" aria-labelledby="operationsTitle">
+                    <div class="dashboard-command-copy"><h2 id="operationsTitle">Quick actions</h2>
+                        <time class="admin-quick-actions-date" id="currentDate" aria-live="polite"></time>
+                    </div>
                     <div class="quick-actions" id="dashboardQuickActions">
                     <button class="btn btn-primary" id="inviteUserBtn">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
