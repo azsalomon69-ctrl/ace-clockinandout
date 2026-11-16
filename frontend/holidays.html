@@ -18,7 +18,6 @@
                     <h1>Philippine holidays</h1>
                     <p>Browse nationwide holiday dates in Manila time.</p>
                 </div>
-                <label for="holidayYear">Calendar year<select id="holidayYear"></select></label>
             </header>
             <section class="holiday-next" aria-labelledby="holidayNextTitle" hidden>
                 <p>Next holiday</p>
@@ -26,7 +25,20 @@
                 <time></time>
             </section>
             <section class="holiday-calendar" aria-labelledby="holidayCalendarTitle">
-                <h2 id="holidayCalendarTitle">Holiday calendar</h2>
+                <div class="holiday-toolbar">
+                    <h2 id="holidayCalendarTitle" aria-live="polite"></h2>
+                    <div class="holiday-controls">
+                        <button id="holidayPrevious" class="btn btn-secondary" type="button" aria-label="Previous month">‹</button>
+                        <button id="holidayToday" class="btn btn-secondary" type="button">Today</button>
+                        <button id="holidayFollowing" class="btn btn-secondary" type="button" aria-label="Next month">›</button>
+                    </div>
+                </div>
+                <table class="holiday-grid" aria-labelledby="holidayCalendarTitle">
+                    <thead><tr>
+                        <th scope="col" abbr="Sunday">Sun</th><th scope="col" abbr="Monday">Mon</th><th scope="col" abbr="Tuesday">Tue</th><th scope="col" abbr="Wednesday">Wed</th><th scope="col" abbr="Thursday">Thu</th><th scope="col" abbr="Friday">Fri</th><th scope="col" abbr="Saturday">Sat</th>
+                    </tr></thead>
+                    <tbody id="holidayGrid"></tbody>
+                </table>
                 <p id="holidayStatus" role="status"></p>
                 <button id="holidayRetry" class="btn btn-secondary" type="button" hidden>Try again</button>
                 <div id="holidayList"></div>

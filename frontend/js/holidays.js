@@ -1,71 +1,92 @@
 window.addEventListener('ace:app-ready', () => {
-    const year = document.getElementById('holidayYear');
     const status = document.getElementById('holidayStatus');
     const list = document.getElementById('holidayList');
     const retry = document.getElementById('holidayRetry');
+    const grid = document.getElementById('holidayGrid');
     const next = document.querySelector('.holiday-next');
     const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Manila', dateStyle: 'short' }).format(new Date());
-    const currentYear = Number(today.slice(0, 4));
+    const currentMonth = new Date(today.slice(0, 7) + '-01');
+    let month = currentMonth;
     const dateLabel = new Intl.DateTimeFormat('en-PH', { timeZone: 'UTC', dateStyle: 'full' });
-    const monthLabel = new Intl.DateTimeFormat('en-PH', { timeZone: 'UTC', month: 'long' });
+    const monthLabel = new Intl.DateTimeFormat('en-PH', { timeZone: 'UTC', month: 'long', year: 'numeric' });
     const cache = new Map();
     let requestId = 0;
 
-    for (const value of [currentYear - 1, currentYear, currentYear + 1]) {
-        year.add(new Option(String(value), String(value)));
-    }
-    year.value = String(currentYear);
-
-    function render(rows, selectedYear) {
-        const upcoming = selectedYear === String(currentYear) && rows.find(row => row.date >= today);
+    function render(rows) {
+        const key = month.toISOString().slice(0, 7);
+        const holidays = rows.filter(row => row.date.startsWith(key));
+        const upcoming = month.getTime() === currentMonth.getTime() && rows.find(row => row.date >= today);
+        next.hidden = !upcoming;
         if (upcoming) {
             next.querySelector('h2').textContent = upcoming.name;
             const time = next.querySelector('time');
             time.dateTime = upcoming.date;
             time.textContent = dateLabel.format(new Date(upcoming.date));
-            next.hidden = false;
         }
-        let month;
-        let items;
-        for (const holiday of rows) {
-            const date = new Date(holiday.date);
-            const key = holiday.date.slice(0, 7);
-            if (month !== key) {
-                month = key;
-                const title = document.createElement('h3');
-                title.textContent = monthLabel.format(date);
-                items = document.createElement('ul');
-                list.append(title, items);
+
+        const year = month.getUTCFullYear();
+        const index = month.getUTCMonth();
+        const offset = month.getUTCDay();
+        const days = new Date(Date.UTC(year, index + 1, 0)).getUTCDate();
+        grid.replaceChildren();
+        for (let cell = 0; cell < Math.ceil((days + offset) / 7) * 7; cell++) {
+            const row = cell % 7 === 0 ? grid.insertRow() : grid.lastElementChild;
+            const tile = row.insertCell();
+            const day = cell - offset + 1;
+            if (day < 1 || day > days) {
+                tile.className = 'holiday-grid-empty';
+                continue;
             }
-            const item = document.createElement('li');
-            const name = document.createElement('strong');
-            name.textContent = holiday.name;
-            const time = document.createElement('time');
-            time.dateTime = holiday.date;
-            time.textContent = dateLabel.format(date);
-            item.append(name, time);
-            items.append(item);
+            const date = key + '-' + String(day).padStart(2, '0');
+            const number = document.createElement('time');
+            number.dateTime = date;
+            number.textContent = day;
+            if (date === today) number.setAttribute('aria-current', 'date');
+            tile.append(number);
+            for (const holiday of holidays.filter(item => item.date === date)) {
+                const label = document.createElement('span');
+                label.textContent = holiday.name;
+                label.className = 'holiday-grid-label';
+                tile.classList.add('holiday-grid-marked');
+                tile.append(label);
+            }
         }
-        status.textContent = rows.length ? '' : 'No nationwide holidays are available for this year.';
+
+        list.replaceChildren();
+        if (holidays.length) {
+            const summary = document.createElement('ul');
+            for (const holiday of holidays) {
+                const item = document.createElement('li');
+                const name = document.createElement('strong');
+                const time = document.createElement('time');
+                name.textContent = holiday.name;
+                time.dateTime = holiday.date;
+                time.textContent = dateLabel.format(new Date(holiday.date));
+                item.append(name, time);
+                summary.append(item);
+            }
+            list.append(summary);
+        }
+        return holidays.length;
     }
 
     async function load() {
         const id = ++requestId;
-        const selectedYear = year.value;
-        next.hidden = true;
+        const year = String(month.getUTCFullYear());
+        document.getElementById('holidayCalendarTitle').textContent = monthLabel.format(month);
         retry.hidden = true;
-        list.replaceChildren();
+        render(cache.get(year) || []);
         status.textContent = 'Loading holidays…';
         try {
-            if (!cache.has(selectedYear)) {
-                const rows = await window.ACEAuth.request(`/v1/holidays/ph/${selectedYear}`);
+            if (!cache.has(year)) {
+                const rows = await window.ACEAuth.request(`/v1/holidays/ph/${year}`);
                 if (!Array.isArray(rows)) throw new Error('Unexpected holiday response');
-                cache.set(selectedYear, rows.filter(row => row?.global === true && row.countryCode === 'PH'
+                cache.set(year, rows.filter(row => row?.global === true && row.countryCode === 'PH'
                     && typeof row.name === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(row.date)
-                    && row.date.startsWith(selectedYear + '-') && Number.isFinite(Date.parse(row.date)))
+                    && row.date.startsWith(year + '-') && Number.isFinite(Date.parse(row.date)))
                     .sort((a, b) => a.date.localeCompare(b.date)));
             }
-            if (id === requestId) render(cache.get(selectedYear), selectedYear);
+            if (id === requestId) status.textContent = render(cache.get(year)) ? '' : 'No nationwide holidays listed this month.';
         } catch {
             if (id !== requestId) return;
             status.textContent = 'Holidays could not load. Check your connection and try again.';
@@ -73,7 +94,17 @@ window.addEventListener('ace:app-ready', () => {
         }
     }
 
-    year.addEventListener('change', load);
+    function moveMonth(step) {
+        month = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + step, 1));
+        void load();
+    }
+
+    document.getElementById('holidayPrevious').addEventListener('click', () => moveMonth(-1));
+    document.getElementById('holidayFollowing').addEventListener('click', () => moveMonth(1));
+    document.getElementById('holidayToday').addEventListener('click', () => {
+        month = currentMonth;
+        void load();
+    });
     retry.addEventListener('click', load);
     void load();
 }, { once: true });
