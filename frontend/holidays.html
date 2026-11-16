@@ -15,16 +15,25 @@
         <div class="admin-section-wrap holiday-page">
             <header class="admin-section-header holiday-header">
                 <div>
-                    <h1>Philippine holidays</h1>
-                    <p>Browse national and local holidays in Manila time.</p>
+                    <h1 id="holidayPageTitle">Holiday Calendar</h1>
+                    <p id="holidayPageDescription">Explore Philippine national and local holidays in Manila time.</p>
                 </div>
             </header>
+            <nav id="holidayTabs" class="holiday-controls holiday-tabs" aria-label="Holiday workspace" hidden>
+                <button id="holidayBrowse" class="btn btn-secondary" type="button" aria-pressed="true">Calendar</button>
+                <button id="holidayManage" class="btn btn-secondary" type="button" aria-pressed="false">Manage holidays</button>
+            </nav>
             <div class="holiday-filters">
                 <label>Year <input id="holidayYear" class="form-input" type="number" min="2000" max="2099"></label>
                 <label>Classification <select id="holidayClassification"><option value="">All classifications</option></select></label>
                 <label>Coverage <select id="holidayScope"><option value="">All locations</option><option value="national">Nationwide</option><option value="local">Local</option></select></label>
                 <label>Find a holiday <input id="holidaySearch" class="form-input" type="search" placeholder="Search by name"></label>
+                <label id="holidayVerificationField" hidden>Verification <select id="holidayVerification"><option value="">Any status</option><option value="verified">Verified</option><option value="pending">Pending verification</option><option value="archived">Archived</option></select></label>
+                <button id="holidayReset" type="button" class="btn btn-secondary">Clear filters</button>
             </div>
+            <dl id="holidayStats" class="holiday-stats" aria-label="Holiday totals"></dl>
+            <p id="holidayLoadStatus" class="holiday-load-status" role="status"></p>
+            <div id="holidayBrowsePanel">
             <ul class="holiday-legend" aria-label="Calendar legend">
                 <li data-kind="regular">Regular</li><li data-kind="special_non_working">Special non-working</li>
                 <li data-kind="special_working">Special working</li><li data-kind="local">Local</li>
@@ -38,6 +47,7 @@
                         <button id="holidayPrevious" class="btn btn-secondary" type="button" aria-label="Previous month">‹</button>
                         <button id="holidayToday" class="btn btn-secondary" type="button">Today</button>
                         <button id="holidayFollowing" class="btn btn-secondary" type="button" aria-label="Next month">›</button>
+                        <button id="holidayView" class="btn btn-secondary" type="button" aria-pressed="false">Year view</button>
                     </div>
                 </div>
                 <table class="holiday-grid" aria-labelledby="holidayCalendarTitle">
@@ -46,6 +56,7 @@
                     </tr></thead>
                     <tbody id="holidayGrid"></tbody>
                 </table>
+                <div id="holidayYearGrid" class="holiday-year-grid" hidden></div>
             </section>
             <aside class="holiday-agenda" aria-label="Holiday agenda">
                 <section class="holiday-month-list" aria-labelledby="holidayAgendaTitle">
@@ -60,15 +71,27 @@
                 </section>
             </aside>
             </div>
+            </div>
             <section class="holiday-month-list holiday-management" id="holidayManagement" hidden>
-                <h2>Manage holidays</h2>
                 <div class="holiday-controls">
                     <button id="holidayAdd" class="btn btn-primary" type="button">Add holiday</button>
                     <button id="holidayExport" class="btn btn-secondary" type="button">Export Excel</button>
-                    <label>Import CSV or Excel <input id="holidayImport" type="file" accept=".csv,.xlsx,.xls"></label>
+                    <button id="holidayImportButton" class="btn btn-secondary" type="button">Import CSV or Excel</button>
+                    <input id="holidayImport" type="file" accept=".csv,.xlsx,.xls" hidden>
+                    <label>Sort <select id="holidaySort"><option value="date">Date</option><option value="name">Holiday name</option></select></label>
                 </div>
                 <p id="holidayManagementStatus" role="status"></p>
-                <ul id="holidayAdminList"></ul>
+                <div class="holiday-controls holiday-bulk" id="holidayBulk" hidden>
+                    <span id="holidaySelectedCount"></span>
+                    <button class="btn btn-secondary" type="button" data-holiday-bulk="archive">Archive</button>
+                    <button class="btn btn-secondary" type="button" data-holiday-bulk="restore">Restore</button>
+                    <button class="btn btn-secondary" type="button" data-holiday-bulk="verify">Verify</button>
+                </div>
+                <p id="holidayAdminEmpty" role="status"></p>
+                <table class="holiday-admin-table">
+                    <thead><tr><th><input id="holidaySelectAll" type="checkbox" aria-label="Select all matching holidays"></th><th scope="col">Date</th><th scope="col">Holiday</th><th scope="col">Classification</th><th scope="col">Coverage</th><th scope="col">Verification</th><th scope="col">Source</th><th scope="col">Actions</th></tr></thead>
+                    <tbody id="holidayAdminList"></tbody>
+                </table>
             </section>
             <dialog id="holidayDetails" class="holiday-dialog" aria-labelledby="holidayDetailsTitle">
                 <h2 id="holidayDetailsTitle"></h2><ul></ul>
@@ -77,18 +100,22 @@
             <dialog id="holidayEditor" class="holiday-dialog" aria-labelledby="holidayEditorTitle">
                 <form id="holidayEditorForm">
                     <h2 id="holidayEditorTitle">Holiday details</h2>
-                    <div class="holiday-filters">
-                        <label>Name <input class="form-input" name="holiday_name" required maxlength="160"></label>
+                    <fieldset class="holiday-filters"><legend>Holiday information</legend>
+                        <label>Name (required) <input class="form-input" name="holiday_name" required maxlength="160" placeholder="e.g. Bonifacio Day"></label>
                         <label>Date <input class="form-input" name="holiday_date" type="date" required min="2000-01-01" max="2099-12-31"></label>
                         <label>Classification <select name="classification" required></select></label>
+                        <label>Description <textarea class="form-input" name="description" maxlength="2000"></textarea></label>
+                    </fieldset>
+                    <fieldset class="holiday-filters"><legend>Geographic coverage</legend>
                         <label>Scope <select name="geographic_scope"><option value="national">Nationwide</option><option value="region">Region</option><option value="province">Province</option><option value="city">City</option><option value="municipality">Municipality</option></select></label>
-                        <label>Location <input class="form-input" name="location" maxlength="160"></label>
+                        <label id="holidayLocationField" hidden><span>Location</span><input class="form-input" name="location" maxlength="160"></label>
+                    </fieldset>
+                    <fieldset class="holiday-filters"><legend>Official reference</legend>
                         <label>Verification <select name="verification_status"><option value="pending">Pending verification</option><option value="verified">Verified</option></select></label>
                         <label>Source name <input class="form-input" name="source_name"></label>
                         <label>Official source URL <input class="form-input" type="url" name="source_url"></label>
                         <label>Proclamation number <input class="form-input" name="proclamation_number"></label>
-                        <label>Description <textarea class="form-input" name="description" maxlength="2000"></textarea></label>
-                    </div>
+                    </fieldset>
                     <p id="holidayEditorStatus" role="status"></p>
                     <div class="holiday-controls"><button class="btn btn-primary" type="submit">Save holiday</button><button id="holidayCancel" class="btn btn-secondary" type="button">Cancel</button></div>
                 </form>

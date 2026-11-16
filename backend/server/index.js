@@ -626,9 +626,27 @@ function holidayRecord(input) {
 app.get('/v1/holidays/ph/:year', authenticate, activeOnly, async (req, res, next) => { try {
   const { year } = req.params;
   if (!/^20\d{2}$/.test(year)) return fail(res, 400, 'Invalid holiday year');
-  return res.json(await query(db.from('philippine_holidays').select('*').eq('year', Number(year))
-    .order('holiday_date').order('holiday_name')));
+  let holidays = db.from('philippine_holidays').select('*').eq('year', Number(year));
+  if (req.profile.role !== 'ADMIN') holidays = holidays.is('archived_at', null);
+  return res.json(await query(holidays.order('holiday_date').order('holiday_name')));
 } catch (error) { return next(error); } });
+
+app.post('/v1/holidays/ph/bulk', authenticate, adminOnly, async (req, res, next) => { try {
+  const { ids, action } = req.body || {};
+  if (!Array.isArray(ids) || !ids.length || ids.length > 200 || !ids.every(isUuid)
+    || !['archive', 'restore', 'verify'].includes(action)) return fail(res, 400, 'Invalid holiday selection');
+  const now = new Date().toISOString();
+  const changes = action === 'verify' ? { verification_status: 'verified' } : { archived_at: action === 'archive' ? now : null };
+  let update = db.from('philippine_holidays').update({ ...changes, updated_at: now }).in('id', ids);
+  if (action === 'archive') update = update.is('archived_at', null);
+  if (action === 'restore') update = update.not('archived_at', 'is', null);
+  if (action === 'verify') update = update.is('archived_at', null).eq('verification_status', 'pending');
+  const rows = await query(update.select('id'));
+  return res.json({ count: rows.length });
+} catch (error) {
+  if (error.code === '23514') return fail(res, 400, 'Every verified holiday needs an official source name and URL');
+  return next(error);
+} });
 
 app.post('/v1/holidays/ph', authenticate, adminOnly, async (req, res, next) => { try {
   const inputs = Array.isArray(req.body) ? req.body : [req.body];

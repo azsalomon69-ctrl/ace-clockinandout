@@ -69,3 +69,62 @@
     .holiday-grid .holiday-grid-label { display: block; width: 100%; height: 1.25rem; padding: 0; border: 0; background: transparent; font-size: 0; }
     .holiday-grid .holiday-grid-label::before { content: ''; display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; background: var(--holiday-tone); }
 }
+
+/* Calendar and management share the workspace's surface and text tokens. */
+.holiday-page [hidden] { display: none !important; }
+.holiday-page .holiday-header { padding-bottom: 1rem; }
+.holiday-page .holiday-header h1 { font-size: clamp(1.75rem, 4vw, 2.65rem); }
+.holiday-tabs { padding: .3rem; margin-block-end: .85rem; width: fit-content; background: var(--ace-accent-muted); border-radius: 12px; }
+.holiday-tabs [aria-pressed="true"], .holiday-controls #holidayView[aria-pressed="true"] { background: #0e5067; color: #fff; }
+.holiday-page > .holiday-filters { align-items: end; padding: .8rem; border: 1px solid var(--ace-border); background: var(--ace-surface); border-radius: 12px; }
+.holiday-filters label { min-width: 0; font-size: .8rem; }
+.holiday-filters label input, .holiday-filters label select, .holiday-filters label textarea { width: 100%; min-width: 0; }
+.holiday-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: .6rem; margin: 0 0 1rem; }
+.holiday-stats > div { min-width: 0; padding: .75rem .85rem; border: 1px solid var(--ace-border); border-top: 2px solid var(--holiday-tone, var(--ace-accent)); border-radius: 10px; background: var(--ace-surface); }
+.holiday-stats dt { color: var(--ace-text-secondary); font-size: .75rem; }
+.holiday-stats dd { margin: .3rem 0 0; color: var(--ace-text-primary); font-weight: 800; font-size: 1.2rem; overflow-wrap: anywhere; }
+.holiday-load-status:empty, #holidayAdminEmpty:empty { display: none; }
+.holiday-page [data-kind="verified"] { --holiday-tone: #218057; }
+.holiday-badge { display: inline-flex; align-items: center; gap: .3rem; border-radius: 5px; padding: .18rem .4rem; margin: .25rem 0; border: 1px solid var(--ace-border); background: var(--ace-accent-muted); color: var(--ace-text-primary); font-size: .7rem; font-weight: 650; }
+.holiday-badge::before { content: ''; width: .45rem; height: .45rem; flex: 0 0 .45rem; border-radius: 50%; background: var(--holiday-tone); }
+.holiday-calendar .holiday-grid td.holiday-grid-marked { background: var(--ace-surface); }
+.holiday-grid td.is-selected { outline: 2px solid var(--ace-accent); outline-offset: -2px; }
+.holiday-grid-empty span { color: var(--ace-text-secondary); opacity: .6; font-size: .8rem; }
+.holiday-grid-label { transition: box-shadow 140ms ease; }
+.holiday-grid-label:hover, #holidayList button:hover, #holidayUpcoming button:hover { box-shadow: inset 0 0 0 1px var(--ace-accent); }
+.holiday-grid-label small { display: block; font-size: .64rem; color: var(--ace-text-secondary); margin-top: .2rem; }
+.holiday-year-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); gap: .55rem; }
+.holiday-year-grid button { border: 1px solid var(--ace-border); border-radius: 10px; padding: .8rem; background: var(--ace-page-bg); color: var(--ace-text-primary); text-align: start; font-weight: 700; cursor: pointer; }
+.holiday-year-grid small, .holiday-admin-table small { display: block; color: var(--ace-text-secondary); margin-top: .25rem; font-weight: 400; }
+.holiday-bulk { padding: .6rem; margin-bottom: .5rem; background: var(--ace-accent-muted); border-radius: 8px; }
+.holiday-admin-table { border-collapse: collapse; width: 100%; font-size: .83rem; }
+.holiday-admin-table th { text-align: start; color: var(--ace-text-secondary); background: var(--ace-page-bg); }
+.holiday-admin-table th, .holiday-admin-table td { padding: .55rem .45rem; border-bottom: 1px solid var(--ace-border); vertical-align: middle; overflow-wrap: anywhere; }
+.holiday-admin-table td:nth-child(3) { width: 21%; }
+.holiday-admin-table tbody tr:hover td { background: var(--ace-accent-muted); }
+.holiday-admin-table input[type="checkbox"] { accent-color: #0e5067; width: 1rem; height: 1rem; }
+.holiday-admin-table .holiday-controls { flex-wrap: wrap; }
+.holiday-admin-table .btn { min-width: auto; padding-inline: .45rem; }
+.holiday-dialog fieldset { border: 1px solid var(--ace-border); border-radius: 10px; padding: .8rem; margin-block: .8rem; }
+.holiday-dialog legend { padding-inline: .35rem; font-weight: 750; }
+.holiday-dialog li > small { display: block; margin: .5rem 0; }
+.holiday-dialog li > button { margin: .25rem .35rem .25rem 0; }
+@media (max-width: 1050px) {
+    .holiday-admin-table thead th:not(:first-child) { display: none; }
+    .holiday-admin-table, .holiday-admin-table thead, .holiday-admin-table tbody { display: block; }
+    .holiday-admin-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin: .6rem 0; padding: .8rem; border: 1px solid var(--ace-border); border-radius: 10px; }
+    .holiday-admin-table td { display: block; width: auto !important; border: 0; padding: 0; }
+    .holiday-admin-table td[data-label]:not([data-label=""])::before { content: attr(data-label); display: block; font-size: .7rem; color: var(--ace-text-secondary); }
+    .holiday-admin-table td:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+    .holiday-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .holiday-grid-label small { display: none; }
+    .holiday-grid .holiday-grid-label { height: 1.65rem; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .holiday-grid-label { transition: none; }
+}
+.holiday-mini-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin-top: .6rem; font-size: .65rem; font-weight: 500; text-align: center; }
+.holiday-mini-grid span[data-kind] { box-shadow: inset 0 -2px var(--holiday-tone); font-weight: 800; }
+.holiday-stats.is-loading dd { width: 2rem; border-radius: 5px; background: var(--ace-accent-muted); color: transparent; }
