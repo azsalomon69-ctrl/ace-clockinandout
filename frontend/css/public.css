@@ -183,14 +183,26 @@ html[data-theme="dark"] .public-page {
 }
 .public-features strong { font-size: .84rem; }
 .public-features p { margin: 2px 0 0; color: var(--ace-text-secondary); font-size: .78rem; line-height: 1.45; }
-.public-page.public-login {
+:root.public-login-root {
+  color-scheme: light;
+  background: #f0f4f9;
+}
+:root.public-login-root .public-page.public-login {
+  color-scheme: light;
+  background: var(--public-frame);
   --public-frame: #f0f4f9;
+  --ace-text-primary: #252525;
+  --ace-text-secondary: #454545;
   --signin-card: #ffffff;
   --signin-line: #d8dfe8;
   --signin-action-hover: #eef4fc;
 }
 @media (prefers-color-scheme: dark) {
-  .public-page.public-login {
+  :root.public-login-root {
+    color-scheme: dark;
+    background: #202124;
+  }
+  :root.public-login-root .public-page.public-login {
     color-scheme: dark;
     --public-frame: #202124;
     --signin-card: #111111;
