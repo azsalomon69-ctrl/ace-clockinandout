@@ -19,11 +19,7 @@
                     <p>Browse nationwide holiday dates in Manila time.</p>
                 </div>
             </header>
-            <section class="holiday-next" aria-labelledby="holidayNextTitle" hidden>
-                <p>Next holiday</p>
-                <h2 id="holidayNextTitle"></h2>
-                <time></time>
-            </section>
+            <div class="holiday-layout">
             <section class="holiday-calendar" aria-labelledby="holidayCalendarTitle">
                 <div class="holiday-toolbar">
                     <h2 id="holidayCalendarTitle" aria-live="polite"></h2>
@@ -39,10 +35,20 @@
                     </tr></thead>
                     <tbody id="holidayGrid"></tbody>
                 </table>
-                <p id="holidayStatus" role="status"></p>
-                <button id="holidayRetry" class="btn btn-secondary" type="button" hidden>Try again</button>
-                <div id="holidayList"></div>
             </section>
+            <aside class="holiday-agenda" aria-label="Holiday agenda">
+                <section class="holiday-next" aria-labelledby="holidayNextTitle" hidden>
+                    <p>Next holiday</p>
+                    <h2 id="holidayNextTitle"></h2>
+                    <time></time>
+                </section>
+                <section class="holiday-month-list" aria-labelledby="holidayAgendaTitle">
+                    <h2 id="holidayAgendaTitle">Holidays this month</h2>
+                    <p id="holidayStatus" role="status"></p>
+                    <div id="holidayList"></div>
+                </section>
+            </aside>
+            </div>
             <p class="holiday-source">Dates provided by <a href="https://date.nager.at/" target="_blank" rel="noopener noreferrer">Nager.Date</a>. Recently declared and local holidays may be missing. Check official announcements and your work schedule before making plans.</p>
         </div>
     </main>

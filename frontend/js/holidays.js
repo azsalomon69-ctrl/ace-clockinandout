@@ -1,7 +1,6 @@
 window.addEventListener('ace:app-ready', () => {
     const status = document.getElementById('holidayStatus');
     const list = document.getElementById('holidayList');
-    const retry = document.getElementById('holidayRetry');
     const grid = document.getElementById('holidayGrid');
     const next = document.querySelector('.holiday-next');
     const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Manila', dateStyle: 'short' }).format(new Date());
@@ -59,10 +58,16 @@ window.addEventListener('ace:app-ready', () => {
                 const item = document.createElement('li');
                 const name = document.createElement('strong');
                 const time = document.createElement('time');
+                const day = document.createElement('span');
+                const details = document.createElement('div');
+                day.className = 'holiday-agenda-day';
+                day.setAttribute('aria-hidden', 'true');
+                day.textContent = Number(holiday.date.slice(-2));
                 name.textContent = holiday.name;
                 time.dateTime = holiday.date;
                 time.textContent = dateLabel.format(new Date(holiday.date));
-                item.append(name, time);
+                details.append(name, time);
+                item.append(day, details);
                 summary.append(item);
             }
             list.append(summary);
@@ -74,7 +79,6 @@ window.addEventListener('ace:app-ready', () => {
         const id = ++requestId;
         const year = String(month.getUTCFullYear());
         document.getElementById('holidayCalendarTitle').textContent = monthLabel.format(month);
-        retry.hidden = true;
         render(cache.get(year) || []);
         status.textContent = 'Loading holidays…';
         try {
@@ -89,8 +93,7 @@ window.addEventListener('ace:app-ready', () => {
             if (id === requestId) status.textContent = render(cache.get(year)) ? '' : 'No nationwide holidays listed this month.';
         } catch {
             if (id !== requestId) return;
-            status.textContent = 'Holidays could not load. Check your connection and try again.';
-            retry.hidden = false;
+            status.textContent = 'Holiday dates are temporarily unavailable.';
         }
     }
 
@@ -105,6 +108,6 @@ window.addEventListener('ace:app-ready', () => {
         month = currentMonth;
         void load();
     });
-    retry.addEventListener('click', load);
+    window.addEventListener('online', load);
     void load();
 }, { once: true });
