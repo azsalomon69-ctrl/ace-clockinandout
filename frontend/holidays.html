@@ -15,8 +15,8 @@
         <div class="admin-section-wrap holiday-page">
             <header class="admin-section-header holiday-header">
                 <div>
-                    <h1 id="holidayPageTitle">Holiday Calendar</h1>
-                    <p id="holidayPageDescription">Explore Philippine national and local holidays in Manila time.</p>
+                    <h1 id="holidayPageTitle">Santa Rosa Holiday Calendar</h1>
+                    <p id="holidayPageDescription">Local holidays for the Santa Rosa, Laguna office.</p>
                 </div>
             </header>
             <nav id="holidayTabs" class="holiday-controls holiday-tabs" aria-label="Holiday workspace" hidden>
@@ -26,7 +26,7 @@
             <div class="holiday-filters">
                 <label>Year <input id="holidayYear" class="form-input" type="number" min="2000" max="2099"></label>
                 <label>Classification <select id="holidayClassification"><option value="">All classifications</option></select></label>
-                <label>Coverage <select id="holidayScope"><option value="">All locations</option><option value="national">Nationwide</option><option value="local">Local</option></select></label>
+                <label id="holidayScopeField" hidden>Coverage <select id="holidayScope"><option value="">All coverage</option><option value="national">Nationwide</option><option value="local">Local</option></select></label>
                 <label>Find a holiday <input id="holidaySearch" class="form-input" type="search" placeholder="Search by name"></label>
                 <label id="holidayVerificationField" hidden>Verification <select id="holidayVerification"><option value="">Any status</option><option value="verified">Verified</option><option value="pending">Pending verification</option><option value="archived">Archived</option></select></label>
                 <button id="holidayReset" type="button" class="btn btn-secondary">Clear filters</button>
@@ -67,7 +67,6 @@
                 <section class="holiday-month-list">
                     <h2>Upcoming holidays</h2>
                     <ul id="holidayUpcoming"></ul>
-                    <p id="holidayPendingNote" hidden>2027 Eid dates are pending separate proclamations.</p>
                 </section>
             </aside>
             </div>

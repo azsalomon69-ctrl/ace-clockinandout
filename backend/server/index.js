@@ -627,7 +627,11 @@ app.get('/v1/holidays/ph/:year', authenticate, activeOnly, async (req, res, next
   const { year } = req.params;
   if (!/^20\d{2}$/.test(year)) return fail(res, 400, 'Invalid holiday year');
   let holidays = db.from('philippine_holidays').select('*').eq('year', Number(year));
-  if (req.profile.role !== 'ADMIN') holidays = holidays.is('archived_at', null);
+  if (req.profile.role !== 'ADMIN') {
+    holidays = holidays.is('archived_at', null).or(
+      'and(geographic_scope.eq.city,location.ilike."Santa Rosa, Laguna"),and(geographic_scope.eq.province,location.ilike.Laguna)'
+    );
+  }
   return res.json(await query(holidays.order('holiday_date').order('holiday_name')));
 } catch (error) { return next(error); } });
 

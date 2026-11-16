@@ -35,6 +35,11 @@ window.addEventListener('ace:app-ready', () => {
     const matches = row => (!filter.value || row.classification === filter.value)
         && (!scope.value || (scope.value === 'national') === (row.geographic_scope === 'national'))
         && row.holiday_name.toLowerCase().includes(search.value.trim().toLowerCase());
+    const appliesToOffice = row => {
+        const location = row.location.trim().toLowerCase();
+        return row.geographic_scope === 'city' && location === 'santa rosa, laguna'
+            || row.geographic_scope === 'province' && location === 'laguna';
+    };
 
     function text(tag, value) {
         const node = document.createElement(tag);
@@ -99,7 +104,7 @@ window.addEventListener('ace:app-ready', () => {
         const offset = month.getUTCDay();
         const days = new Date(Date.UTC(year, index + 1, 0)).getUTCDate();
         const matching = records.filter(matches);
-        const filtered = matching.filter(row => !row.archived_at);
+        const filtered = matching.filter(row => !row.archived_at && appliesToOffice(row));
         const adminRows = matching.filter(row => verification.value === 'archived' ? row.archived_at
             : !row.archived_at && (!verification.value || row.verification_status === verification.value));
         const holidays = filtered.filter(row => row.holiday_date.startsWith(key));
@@ -109,7 +114,6 @@ window.addEventListener('ace:app-ready', () => {
         agenda('holidayList', holidays);
         agenda('holidayUpcoming', upcoming);
         if (!upcoming.length && !loadMessage) get('holidayUpcoming').append(text('li', 'No matching upcoming dates in this year.'));
-        get('holidayPendingNote').hidden = year !== 2027 || records.filter(row => /^Eid/i.test(row.holiday_name) && row.verification_status === 'verified' && row.geographic_scope === 'national').length >= 2;
         renderStats(management ? adminRows : filtered, management ? null : upcoming[0]);
         get('holidayLoadStatus').textContent = loadMessage;
         get('holidayStats').classList.toggle('is-loading', loadMessage === 'Loading holiday dates…');
@@ -378,11 +382,13 @@ window.addEventListener('ace:app-ready', () => {
             get('holidayManagement').hidden = !value;
             get('holidayBrowsePanel').hidden = value;
             get('holidayVerificationField').hidden = !value;
+            get('holidayScopeField').hidden = !value;
+            scope.value = '';
             get('holidayManage').setAttribute('aria-pressed', String(value));
             get('holidayBrowse').setAttribute('aria-pressed', String(!value));
-            get('holidayPageTitle').textContent = value ? 'Manage Holidays' : 'Holiday Calendar';
+            get('holidayPageTitle').textContent = value ? 'Manage Holidays' : 'Santa Rosa Holiday Calendar';
             get('holidayPageDescription').textContent = value ? 'Maintain Philippine holiday dates and their official references.'
-                : 'Explore Philippine national and local holidays in Manila time.';
+                : 'Local holidays for the Santa Rosa, Laguna office.';
             render();
         }
         get('holidayBrowse').onclick = () => showManagement(false);
