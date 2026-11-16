@@ -1528,7 +1528,7 @@ function initializeAppShell() {
     const user = AppState.currentUser || { FullName: isAdmin ? 'ACE Administrator' : 'ACE Employee', Role: isAdmin ? 'ADMIN' : 'USER' };
     const initials = String(user.FullName || '').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
     const unreadRemarks = !isAdmin ? AppState.adminRemarks.filter(remark => !remark.SeenAt).length : 0;
-    const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const groupId = `shell-nav-group-${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => file === href); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}" aria-controls="${groupId}" aria-label="${open ? 'Collapse' : 'Expand'} ${groupLabel}"><span>${groupLabel}</span><b aria-hidden="true">${suppliedIconMarkup('chevron-right', 'shell-nav-group-chevron')}</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; return `<section class="shell-nav-group${collapsible ? ' shell-nav-group--collapsible' : ''}${hasActive ? ' has-active-route' : ''}${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}" data-group-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}<div class="shell-nav-group-items" id="${groupId}"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
+    const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const groupId = `shell-nav-group-${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => file === href); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}" aria-controls="${groupId}" aria-label="${open ? 'Collapse' : 'Expand'} ${groupLabel}"><span>${groupLabel}</span><b aria-hidden="true">${suppliedIconMarkup('chevron-right', 'shell-nav-group-chevron')}</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; const railButton = collapsible ? `<button class="shell-folded-group" type="button" title="${groupLabel}" aria-label="${groupLabel} pages" aria-expanded="false" aria-controls="shellGroupFlyout">${suppliedIconMarkup(groupLabel === 'People' ? 'users' : 'folder', 'shell-icon')}</button>` : ''; return `<section class="shell-nav-group${collapsible ? ' shell-nav-group--collapsible' : ''}${hasActive ? ' has-active-route' : ''}${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}" data-group-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}${railButton}<div class="shell-nav-group-items" id="${groupId}"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
         const active = file === href || (file === 'admin-management.html' && new URLSearchParams(location.search).get('view') === href.replace('.html', '').replace('admin-time-entries', 'entries').replace('audit-logs', 'audit'));
         const remarkBadge = href === 'remarks.html' && unreadRemarks ? `<b class="shell-notification-badge" aria-label="${unreadRemarks} new administrator remark${unreadRemarks === 1 ? '' : 's'}">${unreadRemarks > 9 ? '9+' : unreadRemarks}</b>` : '';
         return `<a class="shell-link${active ? ' active' : ''}" href="${href}" title="${label}"${active ? ' aria-current="page"' : ''}>${icon(iconName)}<span class="shell-label">${label}</span>${remarkBadge}</a>`;
@@ -1582,7 +1582,62 @@ function initializeAppShell() {
         updateEmployeeBottomNav();
     }
 
+    const compactNavigation = window.matchMedia('(max-width: 1180px)');
+    const foldedGroupFlyout = document.createElement('nav');
+    foldedGroupFlyout.id = 'shellGroupFlyout';
+    foldedGroupFlyout.className = 'shell-group-flyout';
+    foldedGroupFlyout.hidden = true;
+    document.body.append(foldedGroupFlyout);
+
+    let flyoutTrigger = null;
+    const closeGroupFlyout = (restoreFocus = false) => {
+        if (!flyoutTrigger) return;
+        const trigger = flyoutTrigger;
+        flyoutTrigger = null;
+        trigger.setAttribute('aria-expanded', 'false');
+        foldedGroupFlyout.hidden = true;
+        if (restoreFocus) trigger.focus();
+    };
+    const openGroupFlyout = button => {
+        if (flyoutTrigger === button) { closeGroupFlyout(true); return; }
+        closeGroupFlyout();
+        const group = button.closest('.shell-nav-group');
+        const heading = document.createElement('p');
+        heading.textContent = group.dataset.groupLabel;
+        foldedGroupFlyout.setAttribute('aria-label', heading.textContent + ' pages');
+        const links = [...group.querySelectorAll('.shell-link')].map(link => link.cloneNode(true));
+        foldedGroupFlyout.replaceChildren(heading, ...links);
+        flyoutTrigger = button;
+        button.setAttribute('aria-expanded', 'true');
+        foldedGroupFlyout.hidden = false;
+        const bounds = button.getBoundingClientRect();
+        const top = Math.max(8, Math.min(bounds.top, window.innerHeight - foldedGroupFlyout.offsetHeight - 8));
+        foldedGroupFlyout.style.top = top + 'px';
+        (foldedGroupFlyout.querySelector('[aria-current="page"]') || links[0])?.focus({ preventScroll: true });
+    };
+    sidebar.querySelectorAll('.shell-folded-group').forEach(button => {
+        button.addEventListener('click', () => openGroupFlyout(button));
+    });
+    foldedGroupFlyout.addEventListener('click', event => {
+        if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.target.closest('a')) closeGroupFlyout(true);
+    });
+    foldedGroupFlyout.addEventListener('focusout', event => {
+        if (!foldedGroupFlyout.contains(event.relatedTarget) && event.relatedTarget !== flyoutTrigger) closeGroupFlyout();
+    });
+    document.addEventListener('pointerdown', event => {
+        if (flyoutTrigger && !foldedGroupFlyout.contains(event.target) && !flyoutTrigger.contains(event.target)) closeGroupFlyout();
+    });
+    document.addEventListener('keydown', event => {
+        if (flyoutTrigger && (event.key === 'Escape' || (event.key === 'ArrowLeft' && foldedGroupFlyout.contains(event.target)))) {
+            event.preventDefault();
+            closeGroupFlyout(true);
+        }
+    });
+    window.addEventListener('resize', () => closeGroupFlyout());
+    window.addEventListener('ace:route-ready', () => closeGroupFlyout());
+
     const setCollapsed = collapsed => {
+        closeGroupFlyout();
         document.body.classList.toggle('shell-collapsed', collapsed);
         const collapseButton = sidebar.querySelector('.shell-collapse');
         collapseButton.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
@@ -1609,7 +1664,6 @@ function initializeAppShell() {
         setGroupOpen(group, group.querySelector('.shell-nav-group-items').hidden);
     }));
     let mobileReturnFocus = null;
-    const compactNavigation = window.matchMedia('(max-width: 1180px)');
     const setMobileNavigation = (open, { restoreFocus = true } = {}) => {
         if (open && !document.body.classList.contains('shell-mobile-open')) mobileReturnFocus = document.activeElement;
         document.body.classList.toggle('shell-mobile-open', open);
@@ -1638,11 +1692,13 @@ function initializeAppShell() {
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     });
     sidebar.addEventListener('keydown', event => {
-        const controls = [...sidebar.querySelectorAll('.shell-nav-group-toggle, .shell-link')].filter(element => !element.closest('[hidden]'));
+        const controls = [...sidebar.querySelectorAll('.shell-folded-group, .shell-nav-group-toggle, .shell-link')].filter(element => element.getClientRects().length);
         const index = controls.indexOf(document.activeElement);
         if (index < 0) return;
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault(); controls[(index + (event.key === 'ArrowDown' ? 1 : controls.length - 1)) % controls.length].focus();
+        } else if (event.key === 'ArrowRight' && document.activeElement.matches('.shell-folded-group')) {
+            event.preventDefault(); openGroupFlyout(document.activeElement);
         } else if (event.key === 'ArrowRight' && document.activeElement.matches('.shell-nav-group-toggle')) {
             event.preventDefault(); const group = document.activeElement.closest('.shell-nav-group'); setGroupOpen(group, true); group.querySelector('.shell-link')?.focus();
         } else if (event.key === 'ArrowLeft' && document.activeElement.matches('.shell-nav-group-toggle')) {
