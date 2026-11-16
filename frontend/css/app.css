@@ -18162,3 +18162,197 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
     ::-webkit-scrollbar-thumb:active { background-color: var(--ace-scroll-active); }
   }
 }
+
+/* Native cursor artwork and hotspots from Akio’s Ace Portal. */
+:root {
+  --cursor-text: url("/assets/cursors/text-blue.svg");
+  --cursor-disabled: url("/assets/cursors/disabled-blue.svg");
+  --cursor-move: url("/assets/cursors/move-blue.svg");
+  --cursor-resize-ew: url("/assets/cursors/resize-ew-blue.svg");
+  --cursor-resize-ns: url("/assets/cursors/resize-ns-blue.svg");
+  --cursor-resize-nwse: url("/assets/cursors/resize-nwse-blue.svg");
+  --cursor-resize-nesw: url("/assets/cursors/resize-nesw-blue.svg");
+  --cursor-crosshair: url("/assets/cursors/crosshair-blue.svg");
+  --cursor-help: url("/assets/cursors/help-blue.svg");
+  --cursor-zoom-in: url("/assets/cursors/zoom-in-blue.svg");
+  --cursor-zoom-out: url("/assets/cursors/zoom-out-blue.svg");
+  --cursor-copy: url("/assets/cursors/copy-blue.svg");
+  --cursor-alias: url("/assets/cursors/alias-blue.svg");
+  --cursor-context-menu: url("/assets/cursors/context-menu-blue.svg");
+  --cursor-grab: url("/assets/cursors/grab-blue.svg");
+  --cursor-grabbing: url("/assets/cursors/grabbing-blue.svg");
+  --cursor-progress-0: url("/assets/cursors/progress-0-blue.svg");
+  --cursor-progress-1: url("/assets/cursors/progress-1-blue.svg");
+  --cursor-progress-2: url("/assets/cursors/progress-2-blue.svg");
+  --cursor-progress-3: url("/assets/cursors/progress-3-blue.svg");
+  --cursor-progress-4: url("/assets/cursors/progress-4-blue.svg");
+  --cursor-progress-5: url("/assets/cursors/progress-5-blue.svg");
+  --cursor-progress-6: url("/assets/cursors/progress-6-blue.svg");
+  --cursor-progress-7: url("/assets/cursors/progress-7-blue.svg");
+  --cursor-default: url("/assets/cursors/default-blue.svg");
+  --cursor-pointer: url("/assets/cursors/pointer-blue.svg");
+  --cursor-pressed: url("/assets/cursors/pressed-blue.svg");
+  --cursor-click: url("/assets/cursors/click-blue.svg");
+  --cursor-back: url("/assets/cursors/back-blue.svg");
+  --cursor-progress: var(--cursor-progress-0);
+}
+:root[data-theme="dark"] {
+  --cursor-text: url("/assets/cursors/text-dark.svg");
+  --cursor-disabled: url("/assets/cursors/disabled-dark.svg");
+  --cursor-move: url("/assets/cursors/move-dark.svg");
+  --cursor-resize-ew: url("/assets/cursors/resize-ew-dark.svg");
+  --cursor-resize-ns: url("/assets/cursors/resize-ns-dark.svg");
+  --cursor-resize-nwse: url("/assets/cursors/resize-nwse-dark.svg");
+  --cursor-resize-nesw: url("/assets/cursors/resize-nesw-dark.svg");
+  --cursor-crosshair: url("/assets/cursors/crosshair-dark.svg");
+  --cursor-help: url("/assets/cursors/help-dark.svg");
+  --cursor-zoom-in: url("/assets/cursors/zoom-in-dark.svg");
+  --cursor-zoom-out: url("/assets/cursors/zoom-out-dark.svg");
+  --cursor-copy: url("/assets/cursors/copy-dark.svg");
+  --cursor-alias: url("/assets/cursors/alias-dark.svg");
+  --cursor-context-menu: url("/assets/cursors/context-menu-dark.svg");
+  --cursor-grab: url("/assets/cursors/grab-dark.svg");
+  --cursor-grabbing: url("/assets/cursors/grabbing-dark.svg");
+  --cursor-progress-0: url("/assets/cursors/progress-0-dark.svg");
+  --cursor-progress-1: url("/assets/cursors/progress-1-dark.svg");
+  --cursor-progress-2: url("/assets/cursors/progress-2-dark.svg");
+  --cursor-progress-3: url("/assets/cursors/progress-3-dark.svg");
+  --cursor-progress-4: url("/assets/cursors/progress-4-dark.svg");
+  --cursor-progress-5: url("/assets/cursors/progress-5-dark.svg");
+  --cursor-progress-6: url("/assets/cursors/progress-6-dark.svg");
+  --cursor-progress-7: url("/assets/cursors/progress-7-dark.svg");
+  --cursor-default: url("/assets/cursors/default-dark.svg");
+  --cursor-pointer: url("/assets/cursors/pointer-dark.svg");
+  --cursor-pressed: url("/assets/cursors/pressed-dark.svg");
+  --cursor-click: url("/assets/cursors/click-dark.svg");
+  --cursor-back: url("/assets/cursors/back-dark.svg");
+}
+/* Theme-matched native cursors retain precise hotspots, including inside dialogs. */
+@media (hover: hover) and (pointer: fine) {
+  html,
+  body {
+    cursor:
+      var(--cursor-default, url('/assets/cursors/default.svg?v=3')) 4 3,
+      default;
+  }
+
+  body
+    :is(
+      a[href],
+      button,
+      select,
+      summary,
+      [role='button'],
+      input[type='checkbox'],
+      input[type='radio'],
+      input[type='submit']
+    ):not(:disabled):not([aria-disabled='true']) {
+    cursor:
+      var(--cursor-pointer, url('/assets/cursors/pointer.svg?v=3')) 10 3,
+      pointer;
+  }
+
+  body
+    :is(
+      a[href],
+      button,
+      select,
+      summary,
+      [role='button'],
+      input[type='checkbox'],
+      input[type='radio'],
+      input[type='submit']
+    ):not(:disabled):not([aria-disabled='true']):active {
+    cursor:
+      var(--cursor-pressed, url('/assets/cursors/pressed.svg?v=3')) 10 5,
+      pointer;
+  }
+
+  html.cursor-clicked
+    body
+    :is(
+      a[href],
+      button,
+      select,
+      summary,
+      [role='button'],
+      input[type='checkbox'],
+      input[type='radio']
+    ):not(:disabled):not([aria-disabled='true']) {
+    cursor:
+      var(--cursor-click, url('/assets/cursors/click.svg?v=3')) 4 5,
+      pointer;
+  }
+
+  body
+    :is(.back-link, [data-cursor='back'], button[aria-label='Previous page']):not(:disabled):not(
+      [aria-disabled='true']
+    ) {
+    cursor:
+      var(--cursor-back, url('/assets/cursors/back.svg?v=3')) 3 10,
+      pointer;
+  }
+
+  body
+    :is(
+      input:not([type]),
+      input[type='text'],
+      input[type='email'],
+      input[type='password'],
+      input[type='search'],
+      input[type='tel'],
+      input[type='number'],
+      input[type='url'],
+      textarea,
+      [contenteditable='true']
+    ) {
+    cursor: var(--cursor-text) 12 12, text;
+  }
+
+  body
+    :is(
+      button:disabled,
+      input:disabled,
+      select:disabled,
+      textarea:disabled,
+      [aria-disabled='true']
+    ) {
+    cursor: var(--cursor-disabled) 12 12, not-allowed;
+  }
+
+  body [draggable='true'] {
+    cursor: var(--cursor-grab) 12 12, grab;
+  }
+
+  body [draggable='true']:active {
+    cursor: var(--cursor-grabbing) 12 12, grabbing;
+  }
+
+  body [aria-busy='true'] {
+    cursor: var(--cursor-progress) 2 2, progress;
+  }
+  body :is(p, h1, h2, h3, h4, h5, h6, strong, small, pre, code, blockquote, caption, td, th, dt, dd, li, label, .data-value, [data-cursor="text"]) { cursor: var(--cursor-text) 12 12, text; }
+  body :is(a[href], button, summary, [role="button"]) * { cursor: inherit; }
+  body [data-cursor="move"] { cursor: var(--cursor-move) 12 12, move; }
+  body [data-cursor="ew-resize"] { cursor: var(--cursor-resize-ew) 12 12, ew-resize; }
+  body [data-cursor="ns-resize"] { cursor: var(--cursor-resize-ns) 12 12, ns-resize; }
+  body [data-cursor="nwse-resize"] { cursor: var(--cursor-resize-nwse) 12 12, nwse-resize; }
+  body [data-cursor="nesw-resize"] { cursor: var(--cursor-resize-nesw) 12 12, nesw-resize; }
+  body [data-cursor="crosshair"] { cursor: var(--cursor-crosshair) 12 12, crosshair; }
+  body [data-cursor="help"] { cursor: var(--cursor-help) 12 12, help; }
+  body [data-cursor="zoom-in"] { cursor: var(--cursor-zoom-in) 12 12, zoom-in; }
+  body [data-cursor="zoom-out"] { cursor: var(--cursor-zoom-out) 12 12, zoom-out; }
+  body [data-cursor="copy"] { cursor: var(--cursor-copy) 12 12, copy; }
+  body [data-cursor="alias"] { cursor: var(--cursor-alias) 12 12, alias; }
+  body [data-cursor="context-menu"] { cursor: var(--cursor-context-menu) 12 12, context-menu; }
+  body :is([aria-busy="true"], [data-cursor="progress"], [data-cursor="wait"]) { cursor: var(--cursor-progress) 2 2, progress; }
+  body [aria-busy="true"] * { cursor: var(--cursor-progress) 2 2, progress; }
+}
+
+:root[data-cursor-frame="1"] { --cursor-progress: var(--cursor-progress-1); }
+:root[data-cursor-frame="2"] { --cursor-progress: var(--cursor-progress-2); }
+:root[data-cursor-frame="3"] { --cursor-progress: var(--cursor-progress-3); }
+:root[data-cursor-frame="4"] { --cursor-progress: var(--cursor-progress-4); }
+:root[data-cursor-frame="5"] { --cursor-progress: var(--cursor-progress-5); }
+:root[data-cursor-frame="6"] { --cursor-progress: var(--cursor-progress-6); }
+:root[data-cursor-frame="7"] { --cursor-progress: var(--cursor-progress-7); }

@@ -5692,3 +5692,74 @@ if (document.readyState === 'loading') {
 } else {
     startApp();
 }
+
+// Native cursor interaction adapted from Akio’s Ace Portal.
+(() => {
+    // Native cursor assets preserve accurate hotspots and work inside native dialogs.
+    const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
+    let clickTimer;
+    const clear = () => {
+      clearTimeout(clickTimer);
+      document.documentElement.classList.remove('cursor-clicked');
+    };
+    document.addEventListener('pointerup', (event) => {
+      if (!finePointer.matches || event.pointerType === 'touch' || event.button !== 0) return;
+      const target = event.target.closest(
+        'button,a[href],select,summary,[role="button"],input[type="checkbox"],input[type="radio"],input[type="submit"]',
+      );
+      if (!target || target.matches(':disabled,[aria-disabled="true"]')) return;
+      clear();
+      document.documentElement.classList.add('cursor-clicked');
+      clickTimer = setTimeout(clear, 160);
+    });
+    document.addEventListener('pointerdown', clear);
+    window.addEventListener('blur', clear);
+    finePointer.addEventListener('change', clear);
+
+    // Animate native cursor frames only while a visible load is pending. No overlay
+    // follows the mouse, so text selection and native dialogs keep working normally.
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const root = document.documentElement;
+    let animation;
+    let frame = 0;
+    let scheduled = false;
+    const visible = (element) =>
+      !element.closest('[hidden]') &&
+      (element.checkVisibility() || [...element.children].some((child) => child.checkVisibility()));
+    const syncLoading = () => {
+      scheduled = false;
+      const busy = finePointer.matches && [...document.querySelectorAll('[aria-busy="true"]')].some(visible);
+      const animate = busy && !reducedMotion.matches && !document.hidden;
+      if (animate && !animation) {
+        animation = setInterval(() => {
+          frame = (frame + 1) % 8;
+          root.dataset.cursorFrame = String(frame);
+        }, 100);
+      } else if (!animate) {
+        clearInterval(animation);
+        animation = undefined;
+        frame = 0;
+        delete root.dataset.cursorFrame;
+      }
+    };
+    const scheduleLoading = () => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(syncLoading);
+    };
+    new MutationObserver(scheduleLoading).observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['aria-busy', 'hidden'],
+    });
+    document.addEventListener('visibilitychange', syncLoading);
+    finePointer.addEventListener('change', syncLoading);
+    reducedMotion.addEventListener('change', syncLoading);
+    window.addEventListener('pagehide', () => {
+      clearInterval(animation);
+      animation = undefined;
+    });
+    window.addEventListener('pageshow', syncLoading);
+    syncLoading();
+})();
