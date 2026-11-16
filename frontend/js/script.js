@@ -1231,7 +1231,7 @@ function mountRelatedPageTabs() {
     };
     const group = groups[page];
     if (!group || document.getElementById('workspaceRelatedTabs')) return;
-    const header = document.querySelector('.schedule-page-header, .individual-reports-header, .reports-header');
+    const header = document.querySelector('[data-workspace-tabs-anchor], .reports-header');
     if (!header) return;
     const nav = document.createElement('nav');
     nav.id = 'workspaceRelatedTabs';

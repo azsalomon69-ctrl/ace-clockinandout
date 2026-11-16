@@ -14,8 +14,13 @@
     <main class="main-content time-entries-page">
         <div class="time-entries-container">
             <!-- Time Entries Header -->
-            <div class="time-entries-header">
-                <div class="time-entries-heading"><p class="employee-eyebrow">MY TIME</p><h1 class="time-entries-title">Time entries</h1><p>Review your recorded work and keep each shift note complete.</p></div>
+            <div class="employee-entries-toolbar">
+                <h1 class="page-heading-accessible">My time entries</h1>
+                <dl class="workspace-metrics" aria-label="Time entry totals">
+                    <div><dt>Total hours</dt><dd id="totalHours">0h 0m</dd></div>
+                    <div><dt>Total entries</dt><dd id="totalEntries">0</dd></div>
+                    <div><dt>Average duration</dt><dd id="avgDuration">0h 0m</dd></div>
+                </dl>
                 <div class="time-entries-actions">
                     <button class="btn btn-primary" id="clockInBtn">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -62,8 +67,7 @@
             </div>
 
             <!-- Filters Section -->
-            <div class="filters-section">
-                <h2 class="filters-title">Filters</h2>
+            <section class="filters-section employee-entry-filters" aria-label="Time entry filters">
                 <div class="filters-grid">
                     <div class="filter-group">
                         <label for="filterDateFrom" class="filter-label">Date From</label>
@@ -90,50 +94,10 @@
                     </div>
                 </div>
                 <div class="filter-actions">
-                    <button class="btn btn-primary" id="applyFiltersBtn">Apply Filters</button>
-                    <button class="btn btn-secondary" id="clearFiltersBtn">Clear Filters</button>
+                    <button class="btn btn-primary" id="applyFiltersBtn">Apply</button>
+                    <button class="btn btn-secondary" id="clearFiltersBtn">Clear</button>
                 </div>
-            </div>
-
-            <!-- Summary Stats -->
-            <div class="summary-stats">
-                <div class="summary-card">
-                    <div class="summary-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                            <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <div class="summary-info">
-                        <div class="summary-value" id="totalHours">0h 0m</div>
-                        <div class="summary-label">Total Hours</div>
-                    </div>
-                </div>
-                <div class="summary-card">
-                    <div class="summary-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4 20V10M10 20V4M16 20V12M22 20H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <div class="summary-info">
-                        <div class="summary-value" id="totalEntries">0</div>
-                        <div class="summary-label">Total Entries</div>
-                    </div>
-                </div>
-                <div class="summary-card">
-                    <div class="summary-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                            <path d="M12 2C6.47715 2 2 6.47715 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <div class="summary-info">
-                        <div class="summary-value" id="avgDuration">0h 0m</div>
-                        <div class="summary-label">Average Duration</div>
-                    </div>
-                </div>
-            </div>
+            </section>
 
             <!-- Time Entries List -->
             <div class="time-entries-list-section">
