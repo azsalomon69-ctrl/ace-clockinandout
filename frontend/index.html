@@ -8,59 +8,55 @@
     <meta name="description" content="ACE brings time tracking, project context, reports, and administration into one clear company workspace.">
     <title>ACE Outsource Solutions · Time Tracking</title>
     <link rel="stylesheet" href="css/app.css?v=cache-bust-20260930-2">
+    <link rel="stylesheet" href="css/public.css">
 </head>
-<body class="home-page">
+<body class="public-page">
     <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="public-header public-width">
+        <a class="public-brand" href="/">
+            <img src="assets/images/ace-logo-hd-cropped.png" alt="">
+            <span>ACE Outsource Solutions</span>
+        </a>
+        <nav class="public-nav" aria-label="Main navigation">
+            <button class="public-help" type="button" id="navHelpBtn">Help</button>
+            <a class="public-button public-button-small" href="/login">Sign in <img src="assets/icons/chevron-right.svg" alt=""></a>
+        </nav>
+    </header>
 
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <svg class="nav-logo" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                <span class="nav-title">ACE Outsource Solutions</span>
+    <main class="public-width" id="main-content">
+        <section class="public-hero public-frame" aria-labelledby="home-title">
+            <div class="public-hero-copy">
+                <h1 id="home-title">Your workday<br><span>at a glance.</span></h1>
+                <p>Clock in, track time by project, and see how your week adds up in one workspace.</p>
+                <a class="public-button" href="/login">Open your workspace <img src="assets/icons/chevron-right.svg" alt=""></a>
             </div>
-            <div class="nav-links">
-                <a href="/login" class="nav-link">Sign in&nbsp; →</a>
-                <a href="#" id="navHelpBtn" class="nav-link">Help</a>
-            </div>
-        </div>
-    </nav>
-
-    <main class="main-content" id="main-content">
-        <section class="home-v2-hero" aria-labelledby="home-title">
-            <div class="home-v2-hero-copy">
-                <h1 id="home-title">Work time,<br><em>made visible.</em></h1>
-                <p>One calm, reliable place to clock in, stay on top of projects, and understand the workday as it happens.</p>
-                <div class="home-v2-actions">
-                    <a class="btn btn-primary btn-lg" href="/login">Open your workspace <span aria-hidden="true">→</span></a>
+            <figure class="public-preview" aria-labelledby="preview-caption">
+                <figcaption id="preview-caption">
+                    <span><img src="assets/icons/chart-column-big.svg" alt=""> Time this week</span>
+                    <small>Example</small>
+                </figcaption>
+                <div class="public-activity-chart" aria-hidden="true">
+                    <span><b>Mon</b><i style="--bar-height:65%"></i></span>
+                    <span><b>Tue</b><i style="--bar-height:81%"></i></span>
+                    <span><b>Wed</b><i style="--bar-height:60%"></i></span>
+                    <span><b>Thu</b><i style="--bar-height:92%"></i></span>
+                    <span class="is-highlighted"><b>Fri</b><i style="--bar-height:97%"></i></span>
+                    <span><b>Sat</b></span>
+                    <span><b>Sun</b></span>
                 </div>
-                <dl class="home-v2-proof" aria-label="ACE benefits">
-                    <div>
-                        <img class="ui-icon home-v2-proof-icon" src="assets/icons/folder.svg" alt="" aria-hidden="true">
-                        <span><dt>One workspace</dt><dd>for people, projects, and time</dd></span>
-                    </div>
-                    <div>
-                        <img class="ui-icon home-v2-proof-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true">
-                        <span><dt>Real-time clarity</dt><dd>without spreadsheet chasing</dd></span>
-                    </div>
+                <dl class="public-preview-summary">
+                    <div><dt>Tracked time</dt><dd>38h 20m</dd></div>
+                    <div><dt>Completed shifts</dt><dd>5</dd></div>
                 </dl>
-            </div>
-            <div class="home-v2-preview" aria-label="Preview of the ACE workspace">
-                <div class="home-v2-preview-glow" aria-hidden="true"></div>
-                <div class="home-v2-status"><span></span> Workspace live</div>
-                <img src="assets/images/mock-dashboard.png" alt="ACE dashboard showing team time and project activity" loading="lazy">
-                <div class="home-v2-time-card"><small>Today’s focus</small><strong>08:42</strong><span>on the clock</span></div>
-                <div class="home-v2-phone"><img src="assets/images/mock-dashboard-mobile.png" alt="ACE mobile workspace view" loading="lazy"></div>
-            </div>
+            </figure>
         </section>
-
-        <section class="home-v2-band" id="home-benefits" aria-label="Copyright">
-            <p>© ACE Outsource Solutions 2026</p>
-        </section>
-
+        <ul class="public-features" aria-label="Workspace features">
+            <li><span class="public-feature-icon"><img src="assets/icons/timer.svg" alt=""></span><div><strong>Clock in from any device</strong><p>Start or end your shift on mobile or desktop.</p></div></li>
+            <li><span class="public-feature-icon"><img src="assets/icons/folder.svg" alt=""></span><div><strong>Track time by project</strong><p>See where your work hours go.</p></div></li>
+            <li><span class="public-feature-icon"><img src="assets/icons/file-text.svg" alt=""></span><div><strong>Review your time entries</strong><p>Find past shifts and administrator feedback.</p></div></li>
+        </ul>
     </main>
+    <footer class="public-footer public-width">© ACE Outsource Solutions 2026</footer>
 
     <div id="helpModal" class="modal">
         <div class="modal-content">
