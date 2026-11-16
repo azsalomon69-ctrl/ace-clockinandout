@@ -1,0 +1,30 @@
+.holiday-page { max-width: 68rem; }
+.holiday-header label { display: grid; gap: .35rem; min-width: 8rem; font-weight: 650; }
+.holiday-next, .holiday-calendar {
+    padding: clamp(1rem, 3vw, 1.75rem);
+    border: 1px solid var(--ace-border);
+    border-radius: 16px;
+    background: var(--ace-surface);
+}
+.holiday-next {
+    margin-bottom: 1rem;
+    border-inline-start: 4px solid var(--ace-accent);
+    background: var(--ace-accent-muted);
+}
+.holiday-next p, .holiday-next h2 { margin: 0 0 .3rem; }
+.holiday-calendar h2 { margin-top: 0; }
+.holiday-calendar h3 { margin: 1.25rem 0 .5rem; font-size: 1rem; }
+#holidayList ul { list-style: none; margin: 0; padding: 0; }
+#holidayList li {
+    display: flex;
+    justify-content: space-between;
+    gap: .4rem 1.25rem;
+    padding: .75rem 0;
+    border-top: 1px solid var(--ace-border);
+}
+#holidayList time, .holiday-source { color: var(--ace-text-secondary); font-size: .875rem; }
+.holiday-source { margin: 1rem 0; }
+@media (max-width: 540px) {
+    .holiday-header { align-items: flex-start; flex-wrap: wrap; }
+    #holidayList li { flex-direction: column; }
+}

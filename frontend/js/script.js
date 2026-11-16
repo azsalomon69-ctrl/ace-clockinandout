@@ -1496,7 +1496,7 @@ function initializeAppShell() {
     // forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
     const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chatbot-inquiry.html', 'queued-clock-reviews.html'];
-    const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
+    const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'holidays.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
     const isEmployee = employeeFiles.includes(file) && !isAdmin;
@@ -1521,7 +1521,7 @@ function initializeAppShell() {
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['Work', [['time-entries.html', 'clock', 'My time entries'], ['remarks.html', 'remarks', 'Remarks']]],
+        ['Work', [['time-entries.html', 'clock', 'My time entries'], ['remarks.html', 'remarks', 'Remarks'], ['holidays.html', 'calendar', 'Holidays']]],
         ['Account', [['settings.html', 'settings', 'Settings']]]
     ];
     const groups = isAdmin ? adminGroups : employeeGroups;
@@ -1570,7 +1570,7 @@ function initializeAppShell() {
             employeeBottomNav.className = 'employee-bottom-nav';
             employeeBottomNav.setAttribute('aria-label', 'Employee mobile navigation');
             const navLink = ([href, iconName, label]) => `<a class="employee-bottom-nav-item${file === href ? ' is-active' : ''}" href="${href}"${file === href ? ' aria-current="page"' : ''}>${suppliedIconMarkup(iconName, 'shell-icon')}<span>${label}</span></a>`;
-            const moreIsActive = file === 'settings.html';
+            const moreIsActive = ['settings.html', 'holidays.html'].includes(file);
             employeeBottomNav.innerHTML = `${navLink(bottomNavItems[0])}${navLink(bottomNavItems[1])}<button class="employee-bottom-nav-clock" type="button" data-mobile-clock-action aria-label="Open time actions">${suppliedIconMarkup('timer', 'shell-icon')}</button>${navLink(bottomNavItems[2])}<button class="employee-bottom-nav-item${moreIsActive ? ' is-active' : ''}" type="button" data-bottom-nav-more aria-label="Open navigation" aria-expanded="false"${moreIsActive ? ' aria-current="page"' : ''}>${suppliedIconMarkup('menu', 'shell-icon')}<span>More</span></button>`;
             document.body.append(employeeBottomNav);
         }
@@ -1757,6 +1757,7 @@ function initializeAppShell() {
         ['Dashboard', 'Workspace · Clock in and clock out', 'user-dashboard.html', 'home start shift clock in clock out'],
         ['My time entries', 'Work · Review your shifts', 'time-entries.html', 'time entries history shifts filters'],
         ['Remarks', 'Work · Read administrator feedback', 'remarks.html', 'remarks feedback admin note'],
+        ['Holidays', 'Work · Philippine holiday calendar', 'holidays.html', 'holiday philippines calendar'],
         ['Profile & settings', 'Account · Profile, security, appearance', 'settings.html', 'settings profile password security appearance']
     ];
     const quickActionItems = isAdmin ? [
