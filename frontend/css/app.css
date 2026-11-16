@@ -12653,12 +12653,11 @@ html[data-theme="dark"] .ace-select-menu {
   }
     .employee-bottom-nav {
     --dock-top: #ffffff;
-    --dock-bottom: #e0e4ea;
-    --dock-rim: #bec7d2;
+    --dock-bottom: #f1f4f8;
+    --dock-rim: #d3dbe5;
     --dock-shine: #ffffff;
     --dock-label: #34465a;
-    --dock-selected-top: #e9f3ff;
-    --dock-selected-bottom: #cadff9;
+    --dock-selected-fill: #e6effa;
     --dock-selected-label: #173f6a;
     position: fixed;
     z-index: 2700;
@@ -12673,7 +12672,7 @@ html[data-theme="dark"] .ace-select-menu {
     background: linear-gradient(180deg, var(--dock-top), var(--dock-bottom));
     border: 1px solid var(--dock-rim);
     border-radius: 19px;
-    box-shadow: inset 0 1px 0 var(--dock-shine), 0 5px 14px rgb(15 32 52 / 22%);
+    box-shadow: inset 0 1px 0 var(--dock-shine), 0 4px 12px rgb(15 32 52 / 13%);
   }
   .employee-bottom-nav-item {
     min-width: 0;
@@ -12705,9 +12704,8 @@ html[data-theme="dark"] .ace-select-menu {
   }
   .employee-bottom-nav-item:is(.is-active, :active) {
     color: var(--dock-selected-label);
-    background: linear-gradient(180deg, var(--dock-selected-top), var(--dock-selected-bottom));
-    border-color: var(--dock-rim);
-    box-shadow: inset 0 1px 3px rgb(15 32 52 / 16%), 0 1px 0 var(--dock-shine);
+    background: var(--dock-selected-fill);
+    border-color: transparent;
   }
   .employee-bottom-nav-clock {
     box-sizing: border-box;
@@ -12718,16 +12716,16 @@ html[data-theme="dark"] .ace-select-menu {
     aspect-ratio: 1;
     margin: -9px 0 0;
     padding: 0;
-    background: radial-gradient(ellipse at 50% 5%, rgb(255 255 255 / 34%), transparent 53%), linear-gradient(180deg, #4f9fdd, #1a5b9a 52%, #174b7c);
+    background: linear-gradient(180deg, #377ebd, #24639e);
     border: 2px solid var(--dock-top);
     border-radius: 50%;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 43%), inset 0 -2px 3px rgb(13 44 77 / 40%), 0 3px 8px rgb(17 50 84 / 34%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), 0 2px 6px rgb(17 50 84 / 25%);
     cursor: var(--ace-cursor-pointer, pointer);
   }
   .employee-bottom-nav-clock .shell-icon {
     width: 23px;
     height: 23px;
-    filter: brightness(0) invert(1) drop-shadow(0 1px 1px rgb(9 37 67 / 65%));
+    filter: brightness(0) invert(1);
   }
   .employee-bottom-nav-clock:active:not(:disabled) { transform: translateY(2px); }
   .employee-bottom-nav-clock:disabled {
@@ -12743,13 +12741,12 @@ html[data-theme="dark"] .ace-select-menu {
     z-index: 9000
   }
   html[data-theme="dark"] .employee-bottom-nav {
-    --dock-top: #414950;
+    --dock-top: #303943;
     --dock-bottom: #222931;
     --dock-rim: #626c77;
-    --dock-shine: #68727c;
+    --dock-shine: #414d59;
     --dock-label: #e1e9f3;
-    --dock-selected-top: #334e68;
-    --dock-selected-bottom: #20394f;
+    --dock-selected-fill: #314b65;
     --dock-selected-label: #f4f9ff;
   }
   html[data-theme="dark"] .employee-bottom-nav-item .shell-icon {

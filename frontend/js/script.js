@@ -1560,7 +1560,7 @@ function initializeAppShell() {
     if (isEmployee) {
         document.body.classList.add('has-employee-bottom-nav');
         const bottomNavItems = [
-            ['user-dashboard.html', 'layout-panel-top', 'Dashboard'],
+            ['user-dashboard.html', 'layout-panel-top', 'Home'],
             ['time-entries.html', 'timer', 'My time'],
             ['remarks.html', 'message-circle-more', 'Remarks']
         ];
