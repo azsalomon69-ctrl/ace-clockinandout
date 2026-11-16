@@ -64,16 +64,16 @@
 
             <section class="employee-week-card" id="employeeWeekSummary" aria-labelledby="timeAtGlanceTitle">
                 <div class="employee-card-title"><span class="employee-card-icon"><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"></span><h2 id="timeAtGlanceTitle">Time this week</h2></div>
-                <div class="employee-week-metrics"><div><strong id="weekHours">—</strong><span>Completed hours</span></div><div><strong id="weekEntries">—</strong><span>Completed sessions</span></div></div>
                 <p id="employeeWeekState" class="employee-week-state" role="status">Loading time-entry history…</p>
                 <div class="employee-week-chart" id="employeeWeekChart" role="list" aria-label="Completed time by day this week" hidden></div>
+                <div class="employee-week-metrics"><div><strong id="weekHours">—</strong><span>Completed hours</span></div><div><strong id="weekEntries">—</strong><span>Completed sessions</span></div></div>
             </section>
             </div>
 
             <div class="employee-work-grid">
             <!-- Recent Activity -->
             <section class="recent-activity-section" id="employeeRecentActivity">
-                <div class="employee-section-heading"><div><p class="employee-section-kicker">TIME RECORDS</p><h2 class="section-title">Recent activity</h2></div><p>Your latest clock sessions.</p></div>
+                <div class="employee-section-heading"><div><h2 class="section-title">Recent activity</h2></div></div>
                 <div class="activity-list" id="recentActivity">
                     <!-- Recent time entries will be populated here -->
                 </div>
@@ -84,7 +84,7 @@
 
             <!-- Projects Section -->
             <section class="projects-section">
-                <div class="employee-section-heading"><div><p class="employee-section-kicker">ASSIGNED WORK</p><h2 class="section-title">My projects</h2></div><p>Available when starting a session.</p></div>
+                <div class="employee-section-heading"><div><h2 class="section-title">My projects</h2></div></div>
                 <div class="projects-grid" id="myProjects">
                     <!-- User's projects will be populated here -->
                 </div>
@@ -93,7 +93,7 @@
 
             <div class="employee-dashboard-support-grid">
                 <section class="employee-quick-actions" id="employeeQuickActions" aria-labelledby="quickActionsTitle">
-                    <div class="employee-section-heading"><div><p class="employee-section-kicker">SHORTCUTS</p><h2 class="section-title" id="quickActionsTitle">Quick actions</h2></div></div>
+                    <div class="employee-section-heading"><div><h2 class="section-title" id="quickActionsTitle">Quick actions</h2></div></div>
                     <nav class="employee-quick-action-list" aria-label="Employee quick actions">
                         <a href="time-entries.html"><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"><span><strong>View time entries</strong><small>Review your completed sessions</small></span><img class="employee-action-arrow" src="assets/icons/chevron-right.svg" alt="" aria-hidden="true"></a>
                         <a href="remarks.html"><img class="ui-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span><strong>View remarks</strong><small>Read notes from your administrator</small></span><img class="employee-action-arrow" src="assets/icons/chevron-right.svg" alt="" aria-hidden="true"></a>
@@ -101,7 +101,7 @@
                     </nav>
                 </section>
                 <section class="admin-remarks-section" aria-labelledby="dashboardRemarksTitle">
-                    <div class="employee-section-heading"><div><p class="employee-section-kicker">ADMINISTRATOR NOTES</p><h2 class="section-title" id="dashboardRemarksTitle">Remarks on your time entries</h2></div><p>Updates from your administrators.</p></div>
+                    <div class="employee-section-heading"><div><h2 class="section-title" id="dashboardRemarksTitle">Remarks on your time entries</h2></div></div>
                     <div class="remarks-list" id="dashboardRemarks"></div>
                 </section>
             </div>

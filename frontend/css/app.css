@@ -18365,3 +18365,80 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
 :root[data-cursor-frame="5"] { --cursor-progress: var(--cursor-progress-5); }
 :root[data-cursor-frame="6"] { --cursor-progress: var(--cursor-progress-6); }
 :root[data-cursor-frame="7"] { --cursor-progress: var(--cursor-progress-7); }
+
+/* Employee activity uses the same rounded inset chart and summary as admin analytics. */
+.user-dashboard .employee-dashboard-hero-grid {
+  margin-bottom: 12px;
+  gap: 12px;
+}
+.user-dashboard .employee-dashboard-hero-grid .employee-status-panel {
+  min-height: 220px;
+  padding: clamp(16px, 2vw, 24px);
+  border-radius: 16px;
+  gap: 12px;
+}
+.user-dashboard .employee-week-card {
+  min-height: 0;
+  padding: 13px;
+  border-radius: 16px;
+}
+.user-dashboard .employee-week-card .employee-card-title { gap: 8px; }
+.user-dashboard .employee-week-card .employee-card-icon { width: 30px; height: 30px; }
+.user-dashboard .employee-week-card .employee-card-icon img { width: 17px; height: 17px; }
+.user-dashboard .employee-week-chart {
+  flex: 0 0 auto;
+  min-height: 0;
+  gap: 0;
+  margin-top: 9px;
+  padding: 0;
+  border: 1px solid var(--ace-border);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--ace-surface), var(--ace-page-subtle));
+}
+.user-dashboard .employee-week-day {
+  grid-template-rows: auto 54px auto;
+  gap: 3px;
+  padding: 6px 2px;
+}
+.user-dashboard .employee-week-day + .employee-week-day { border-inline-start: 1px solid var(--ace-border); }
+.user-dashboard .employee-week-day[data-today] strong {
+  background: var(--ace-accent-muted);
+  color: var(--ace-text-primary);
+}
+.user-dashboard .employee-week-day small { font-variant-numeric: tabular-nums; }
+.employee-week-slot { display: flex; align-items: flex-end; justify-content: center; height: 100%; }
+.user-dashboard .employee-week-bar {
+  width: clamp(9px, 48%, 20px);
+  min-height: 0;
+  margin: 0;
+  border-radius: 5px 5px 2px 2px;
+  background: var(--ace-border-strong);
+}
+.user-dashboard .employee-week-bar.is-peak { background: var(--ace-accent); }
+.user-dashboard .employee-week-metrics {
+  margin: 8px 0 0;
+  padding: 7px 10px;
+  border: 1px solid var(--ace-border);
+  border-radius: 10px;
+  background: var(--ace-surface-raised);
+}
+.user-dashboard .employee-week-metrics > div { gap: 2px; border-color: var(--ace-border); }
+.user-dashboard .employee-week-state { padding: 10px 0; }
+.user-dashboard .employee-work-grid,
+.user-dashboard .employee-dashboard-support-grid {
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.user-dashboard :is(.employee-work-grid, .employee-dashboard-support-grid) > section {
+  min-height: 0;
+  padding: 14px;
+  border-radius: 16px;
+}
+.user-dashboard .employee-section-heading { margin-bottom: 9px; }
+.user-dashboard .employee-section-heading .section-title { margin: 0; }
+.user-dashboard .employee-quick-action-list { gap: 3px; }
+.user-dashboard .employee-quick-action-list a { min-height: 42px; border-radius: 9px; }
+@media (max-width: 420px) {
+  .user-dashboard .employee-week-day small { font-size: .58rem; }
+}

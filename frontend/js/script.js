@@ -4562,10 +4562,10 @@ function loadUserDashboard() {
         });
         const largestDay = Math.max(...dailySeconds.map(item => item.seconds), 1);
         weekChart.innerHTML = dailySeconds.map(({ day, seconds }) => {
-            const height = seconds ? Math.max(8, Math.round(seconds / largestDay * 100)) : 4;
+            const height = seconds / largestDay * 100;
             const label = day.toLocaleDateString([], { weekday: 'short' });
             const today = day.toDateString() === now.toDateString();
-            return `<div class="employee-week-day"${today ? ' data-today' : ''} role="listitem"${today ? ' aria-current="date"' : ''}><span class="employee-week-bar" style="height:${height}%" aria-hidden="true"></span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(formatDuration(seconds))}</small></div>`;
+            return `<div class="employee-week-day"${today ? ' data-today' : ''} role="listitem"${today ? ' aria-current="date"' : ''}><strong>${escapeHtml(label)}</strong><span class="employee-week-slot" aria-hidden="true"><span class="employee-week-bar${seconds === largestDay ? ' is-peak' : ''}" style="height:${height}%"></span></span><small>${escapeHtml(formatDuration(seconds))}</small></div>`;
         }).join('');
     }
 
