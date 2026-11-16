@@ -4850,53 +4850,32 @@ function formatDashboardDuration(seconds) {
     return value > 0 && value < 60 ? '<1m' : formatDuration(value);
 }
 
-function smoothChartPath(points) {
-    if (!points.length) return '';
-    if (points.length === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-    return points.slice(1).reduce((path, point, index) => {
-        const previous = points[index];
-        const next = points[index + 2] || point;
-        const controlOneX = previous.x + (point.x - previous.x) * .38;
-        const controlTwoX = point.x - (next.x - previous.x) * .18;
-        return `${path} C ${controlOneX.toFixed(1)} ${previous.y.toFixed(1)}, ${controlTwoX.toFixed(1)} ${point.y.toFixed(1)}, ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
-    }, `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`);
-}
-
-function renderTrackedTimeLineChart(mount, buckets, totalEntries, periodStart, periodEnd) {
-    const width = 720, height = 254, left = 48, right = 16, top = 18, bottom = 36;
-    const plotWidth = width - left - right, plotHeight = height - top - bottom;
+function renderTrackedTimeBarChart(mount, buckets, totalEntries, periodStart, periodEnd) {
+    const width = 640, height = 154, left = 34, right = 12, top = 10, baseline = 126;
+    const slot = (width - left - right) / buckets.length;
+    const barWidth = Math.min(34, slot * .55);
     const maximumCount = Math.max(...buckets.map(bucket => bucket.count), 1);
-    const tickStep = niceChartTickStep(maximumCount);
-    const roundedMaximum = Math.ceil(maximumCount / tickStep) * tickStep;
-    const pointFor = (bucket, index) => {
-        const x = left + (buckets.length === 1 ? plotWidth / 2 : index / (buckets.length - 1) * plotWidth);
-        const y = top + plotHeight - (bucket.count / roundedMaximum * plotHeight);
-        return { x, y };
-    };
-    const points = buckets.map(pointFor);
-    const linePath = smoothChartPath(points);
-    const yGrid = Array.from({ length: 5 }, (_, index) => {
-        const value = roundedMaximum / 4 * (4 - index);
-        const y = top + plotHeight / 4 * index;
-        return `<g class="line-chart-gridline"><line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}"/><text x="${left - 10}" y="${y + 4}" text-anchor="end">${Number.isInteger(value) ? value : value.toFixed(1)}</text></g>`;
+    const tick = Math.max(1, niceChartTickStep(maximumCount));
+    const steps = Math.ceil(maximumCount / tick);
+    const scale = (baseline - top) / (steps * tick);
+    const grid = Array.from({ length: steps + 1 }, (_, index) => {
+        const value = index * tick;
+        const y = baseline - value * scale;
+        return `<path class="activity-gridline" d="M${left} ${y}H${width - right}"/><text class="activity-axis-label" x="${left - 8}" y="${y + 4}" text-anchor="end">${value}</text>`;
     }).join('');
-    const xGrid = points.map(point => `<line class="line-chart-gridline line-chart-gridline--vertical" x1="${point.x}" y1="${top}" x2="${point.x}" y2="${top + plotHeight}"/>`).join('');
-    const labelStride = Math.max(1, Math.ceil(buckets.length / 7));
-    const xLabels = buckets.map((bucket, index) => {
-        if (index % labelStride && index !== buckets.length - 1) return '';
-        const point = points[index];
-        const label = buckets.length <= 8
-            ? bucket.start.toLocaleDateString('en-US', { weekday: 'short' })
-            : bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return `<text class="line-chart-x-label" x="${point.x}" y="${height - 11}" text-anchor="middle">${label}</text>`;
-    }).join('');
-    const circles = points.map((point, index) => {
-        const bucket = buckets[index];
-        const label = bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return `<circle class="line-chart-point" cx="${point.x}" cy="${point.y}" r="4"><title>${label}: ${bucket.count} completed ${bucket.count === 1 ? 'entry' : 'entries'}</title></circle>`;
+    const peakIndex = buckets.findIndex(bucket => bucket.count === maximumCount);
+    const columns = buckets.map((bucket, index) => {
+        const center = left + slot * (index + .5);
+        const barHeight = bucket.count * scale;
+        const date = bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const label = buckets.length <= 8 ? bucket.start.toLocaleDateString('en-US', { weekday: 'short' }) : date;
+        const countLabel = bucket.count === 1 ? 'entry' : 'entries';
+        const labelVisible = buckets.length <= 7 || index % 2 === 0 || (index === buckets.length - 1 && buckets.length % 2 === 0 && buckets.length < 10);
+        const bar = barHeight ? `<rect class="activity-column${index === peakIndex ? ' is-peak' : ''}" x="${center - barWidth / 2}" y="${baseline - barHeight}" width="${barWidth}" height="${barHeight}" rx="${Math.min(6, barHeight / 2)}"/>` : '';
+        return `<g><title>${date}: ${bucket.count} completed ${countLabel}</title><rect x="${center - slot / 2}" y="${top}" width="${slot}" height="${baseline - top}" fill="transparent"/>${bar}${labelVisible ? `<text class="activity-axis-label" x="${center}" y="146" text-anchor="middle">${label}</text>` : ''}</g>`;
     }).join('');
     mount.setAttribute('aria-label', `Completed time entries from ${toAnalyticsDateValue(periodStart)} to ${toAnalyticsDateValue(periodEnd)}: ${totalEntries}`);
-    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${yGrid}${xGrid}<path class="line-chart-path" d="${linePath}"/>${circles}${xLabels}</svg>`;
+    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${grid}${columns}</svg>`;
 }
 
 function renderAdminAnalytics() {
@@ -4914,7 +4893,7 @@ function renderAdminAnalytics() {
     const totalSeconds = trackedEntries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
     const bucketCount = Math.min(trackedBounds.days, trackedBounds.days <= 8 ? trackedBounds.days : 10);
     const bucketDays = Math.ceil(trackedBounds.days / bucketCount);
-    const buckets = Array.from({ length: bucketCount }, (_, index) => {
+    const buckets = Array.from({ length: Math.ceil(trackedBounds.days / bucketDays) }, (_, index) => {
         const start = new Date(trackedBounds.periodStart);
         start.setDate(start.getDate() + index * bucketDays);
         const end = new Date(Math.min(new Date(start).setDate(start.getDate() + bucketDays), trackedBounds.periodEnd.getTime() + 1));
@@ -4931,9 +4910,9 @@ function renderAdminAnalytics() {
     const averageNode = document.getElementById('analyticsAverage');
     if (totalNode) totalNode.textContent = formatDashboardDuration(totalSeconds);
     if (entryTotalNode) entryTotalNode.textContent = String(trackedEntries.length);
-    if (detailNode) detailNode.textContent = `${rangeDescription} · completed entries`;
+    if (detailNode) detailNode.textContent = rangeDescription;
     if (averageNode) averageNode.textContent = (trackedEntries.length / trackedBounds.days).toFixed(trackedEntries.length && trackedEntries.length / trackedBounds.days < 1 ? 1 : 0);
-    if (trackedEntries.length) renderTrackedTimeLineChart(hoursChart, buckets, trackedEntries.length, trackedBounds.periodStart, trackedBounds.periodEnd);
+    if (trackedEntries.length) renderTrackedTimeBarChart(hoursChart, buckets, trackedEntries.length, trackedBounds.periodStart, trackedBounds.periodEnd);
     else hoursChart.innerHTML = analyticsEmpty('No completed entries in this period', 'Choose a different date range or wait for the first completed shift.');
 
     const projectBounds = dashboardPeriodBounds(projectRange?.value || 'month');
@@ -4951,7 +4930,7 @@ function renderAdminAnalytics() {
     const projects = [...projectTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
     const largestProject = Math.max(...projects.map(([, seconds]) => seconds), 1);
     const projectDetail = document.getElementById('projectAllocationDetail');
-    if (projectDetail) projectDetail.textContent = `${formatDashboardDuration(projectSeconds)} completed in selected period`;
+    if (projectDetail) projectDetail.textContent = `${formatDashboardDuration(projectSeconds)} tracked`;
     projectChart.innerHTML = projects.length ? `<div class="project-bar-chart">${projects.map(([name, seconds]) => {
         const share = projectSeconds ? Math.round(seconds / projectSeconds * 100) : 0;
         const detail = `${name}: ${formatDashboardDuration(seconds)} tracked (${share}% of selected time)`;

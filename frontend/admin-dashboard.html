@@ -86,19 +86,19 @@
                 <!-- Time analytics -->
                 <section class="dashboard-analytics dashboard-insights" aria-labelledby="analyticsTitle">
                     <div class="dashboard-insights-heading">
-                        <div><p class="admin-section-kicker">TIME ANALYTICS</p><h2 id="analyticsTitle">Work at a glance</h2></div>
+                        <h2 id="analyticsTitle">Work at a glance</h2>
                     </div>
                     <div class="analytics-grid dashboard-insights-grid">
                             <article class="analytics-card hours-trend-card" id="analyticsTimeEntriesCard">
                             <div class="analytics-card-header dashboard-chart-header">
-                                <div class="dashboard-chart-title"><span class="dashboard-chart-icon"><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"></span><span class="analytics-label">Time entries</span></div>
-                                <label class="chart-range-control" for="trackedTimeRange"><span class="chart-range-label">Time entries date range</span><select class="form-select" id="trackedTimeRange"><option value="week">This week</option><option value="month" selected>This month</option><option value="quarter">Last 3 months</option></select></label>
+                                <div class="dashboard-chart-title"><span class="dashboard-chart-icon"><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"></span><h3>Time entries</h3></div>
+                                <div class="chart-range-control"><select class="form-select" id="trackedTimeRange" aria-label="Time entries date range"><option value="week">This week</option><option value="month" selected>This month</option><option value="quarter">Last 3 months</option></select></div>
                             </div>
-                            <div class="chart-summary-strip" aria-live="polite"><p class="chart-summary-date" id="analyticsDetail">Entries recorded over time</p><div class="chart-summary-metrics"><span><strong id="analyticsEntryTotal">0</strong><small>completed entries</small></span><span><strong id="analyticsTotalHours">0h 0m</strong><small>tracked time</small></span><span><strong id="analyticsAverage">0</strong><small>average entries per day</small></span></div></div>
-                            <div class="hours-chart hours-line-chart" id="hoursChart" role="img" aria-label="Time entries over time"></div>
+                            <div class="hours-chart hours-bar-chart" id="hoursChart" role="img" aria-label="Time entries over time"></div>
+                            <div class="chart-summary-strip" aria-live="polite"><p class="chart-summary-date" id="analyticsDetail">Entries recorded over time</p><div class="chart-summary-metrics"><span><strong id="analyticsEntryTotal">0</strong><small>completed entries</small></span><span><strong id="analyticsTotalHours">0h 0m</strong><small>tracked time</small></span><span><strong id="analyticsAverage">0</strong><small>entries per day</small></span></div></div>
                         </article>
                         <article class="analytics-card project-allocation-card">
-                            <div class="analytics-card-header dashboard-chart-header"><div class="dashboard-chart-title"><span class="dashboard-chart-icon"><img class="ui-icon" src="assets/icons/chart-column-big.svg" alt="" aria-hidden="true"></span><div><span class="analytics-label">Project allocation</span><strong>Hours by project</strong><small class="analytics-detail" id="projectAllocationDetail">Completed work by project</small></div></div><label class="chart-range-control" for="projectHoursRange"><span class="chart-range-label">Project hours date range</span><select class="form-select" id="projectHoursRange"><option value="week">This week</option><option value="month" selected>This month</option><option value="quarter">Last 3 months</option></select></label></div>
+                            <div class="analytics-card-header dashboard-chart-header"><div class="dashboard-chart-title"><span class="dashboard-chart-icon"><img class="ui-icon" src="assets/icons/chart-column-big.svg" alt="" aria-hidden="true"></span><div><h3>Hours by project</h3><small class="analytics-detail" id="projectAllocationDetail">Completed work by project</small></div></div><div class="chart-range-control"><select class="form-select" id="projectHoursRange" aria-label="Project hours date range"><option value="week">This week</option><option value="month" selected>This month</option><option value="quarter">Last 3 months</option></select></div></div>
                             <div class="project-allocation" id="projectAllocationChart" role="list" aria-label="Tracked time by project"></div>
                         </article>
                         <article class="analytics-card time-leaderboard-card">
