@@ -17,14 +17,17 @@ window.ACERenderInitialSkeletons = function renderAceInitialSkeleton() {
     body.innerHTML = Array.from({ length: 4 }, () => '<tr class="skeleton-table-row">' + Array.from({ length: columns }, () => '<td>' + line + '</td>').join('') + '</tr>').join('');
   });
   const regions = {
-    hoursChart: 'chart', projectAllocationChart: 'chart', employeeWeekChart: 'chart',
+    hoursChart: 'plot', projectAllocationChart: 'allocation', employeeWeekChart: 'week',
     adminLeaderboard: 'list', recentActivity: 'list', myProjects: 'list',
     dashboardRemarks: 'list', remarksPageList: 'list'
   };
   Object.entries(regions).forEach(([id, kind]) => {
     const node = document.getElementById(id);
     if (!node || node.children.length) return;
-    node.innerHTML = '<div class="data-region-placeholder data-region-' + kind + '" role="status" aria-label="Loading data">' + line.repeat(kind === 'chart' ? 5 : 3) + '</div>';
+    const content = kind === 'plot' ? '<span class="data-loading-plot" aria-hidden="true"></span>'
+      : kind === 'allocation' ? ('<div class="data-loading-allocation-row">' + line.repeat(3) + '</div>').repeat(4)
+      : line.repeat(kind === 'week' ? 7 : 3);
+    node.innerHTML = '<div class="data-region-placeholder data-region-' + kind + '" role="status" aria-label="Loading data">' + content + '</div>';
   });
   ['employeeProfileContent', 'timeEntryDetailsContent'].forEach(id => {
     const node = document.getElementById(id);

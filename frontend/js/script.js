@@ -1510,13 +1510,13 @@ function initializeAppShell() {
         return false;
     }
 
-    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', building: 'building', folder: 'folder', clock: 'timer', calendar: 'calendar-days', chart: 'chart-column-big', audit: 'brick-wall-shield', download: 'download', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
+    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', building: 'building', folder: 'folder', archive: 'archive', document: 'file-text', clock: 'timer', calendar: 'calendar-days', schedule: 'clock', chart: 'chart-column-big', audit: 'brick-wall-shield', download: 'download', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
     const icon = name => suppliedIconMarkup(icons[name], 'shell-icon');
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['departments.html', 'building', 'Departments']]],
-        ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['holidays.html', 'calendar', 'Holidays']]],
-        ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'chart', 'Individual reports']]],
+        ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'archive', 'Archived users'], ['departments.html', 'building', 'Departments']]],
+        ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'schedule', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['holidays.html', 'calendar', 'Holidays']]],
+        ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'document', 'Individual reports']]],
         ['Administration', [...(AppState.currentUser?.IsHeadAdmin ? [['chatbot-inquiry.html', 'remarks', 'Chatbot Inquiry']] : []), ['audit-logs.html', 'audit', 'Audit log'], ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
@@ -1528,7 +1528,7 @@ function initializeAppShell() {
     const user = AppState.currentUser || { FullName: isAdmin ? 'ACE Administrator' : 'ACE Employee', Role: isAdmin ? 'ADMIN' : 'USER' };
     const initials = String(user.FullName || '').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
     const unreadRemarks = !isAdmin ? AppState.adminRemarks.filter(remark => !remark.SeenAt).length : 0;
-    const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const groupId = `shell-nav-group-${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => file === href); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}" aria-controls="${groupId}" aria-label="${open ? 'Collapse' : 'Expand'} ${groupLabel}"><span>${groupLabel}</span><b aria-hidden="true">${suppliedIconMarkup('chevron-right', 'shell-nav-group-chevron')}</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; const railButton = collapsible ? `<button class="shell-folded-group" type="button" title="${groupLabel}" aria-label="${groupLabel} pages" aria-expanded="false" aria-controls="shellGroupFlyout">${suppliedIconMarkup(groupLabel === 'People' ? 'users' : 'folder', 'shell-icon')}</button>` : ''; return `<section class="shell-nav-group${collapsible ? ' shell-nav-group--collapsible' : ''}${hasActive ? ' has-active-route' : ''}${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}" data-group-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}${railButton}<div class="shell-nav-group-items" id="${groupId}"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
+    const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const groupId = `shell-nav-group-${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => file === href); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}" aria-controls="${groupId}" aria-label="${open ? 'Collapse' : 'Expand'} ${groupLabel}"><span>${groupLabel}</span><b aria-hidden="true">${suppliedIconMarkup('chevron-right', 'shell-nav-group-chevron')}</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; const railButton = collapsible ? `<button class="shell-folded-group" type="button" title="${groupLabel}" aria-label="${groupLabel} pages" aria-expanded="false" aria-controls="shellGroupFlyout">${suppliedIconMarkup(groupLabel === 'People' ? 'hierarchy' : 'briefcase', 'shell-icon')}${suppliedIconMarkup('chevron-right', 'shell-folded-chevron')}</button>` : ''; return `<section class="shell-nav-group${collapsible ? ' shell-nav-group--collapsible' : ''}${hasActive ? ' has-active-route' : ''}${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}" data-group-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}${railButton}<div class="shell-nav-group-items" id="${groupId}"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
         const active = file === href || (file === 'admin-management.html' && new URLSearchParams(location.search).get('view') === href.replace('.html', '').replace('admin-time-entries', 'entries').replace('audit-logs', 'audit'));
         const remarkBadge = href === 'remarks.html' && unreadRemarks ? `<b class="shell-notification-badge" aria-label="${unreadRemarks} new administrator remark${unreadRemarks === 1 ? '' : 's'}">${unreadRemarks > 9 ? '9+' : unreadRemarks}</b>` : '';
         return `<a class="shell-link${active ? ' active' : ''}" href="${href}" title="${label}"${active ? ' aria-current="page"' : ''}>${icon(iconName)}<span class="shell-label">${label}</span>${remarkBadge}</a>`;
@@ -1869,6 +1869,19 @@ function initializeAppShell() {
         searchInput.removeAttribute('aria-activedescendant');
         activeSearchIndex = -1;
     };
+    const searchWrap = searchInput.closest('.shell-topbar-search-wrap');
+    document.addEventListener('pointerdown', event => {
+        if (!searchWrap.contains(event.target)) closeSearchResults();
+    }, true);
+    searchWrap.addEventListener('focusout', event => {
+        if (!searchWrap.contains(event.relatedTarget)) closeSearchResults();
+    });
+    searchWrap.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || searchResults.hidden) return;
+        event.preventDefault();
+        if (event.target !== searchInput) searchInput.focus();
+        closeSearchResults();
+    });
     const openSearchResult = result => {
         if (!result) return;
         if (result.action === 'search') {
@@ -1883,6 +1896,7 @@ function initializeAppShell() {
             return;
         }
         if (result.quickAction) sessionStorage.setItem('ace_workspace_quick_action', result.quickAction);
+        closeSearchResults();
         window.location.assign(result.href);
     };
     const timeEntrySearchResult = entry => {
@@ -2014,7 +2028,8 @@ function initializeAppShell() {
         visibleSearchResults = results.slice(0, 8);
         if (!visibleSearchResults.length) { closeSearchResults(); searchResults.innerHTML = ''; return; }
         const heading = query ? 'Search results' : 'Recent & quick access';
-        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}<span>${query ? '↑↓ to move · Enter to open' : 'Stored only in this browser'}</span></p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result${result.suggestion ? ' shell-search-suggestion' : ''}" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${highlightSearchText(result.label)}</strong><small>${highlightSearchText(result.detail)}</small></span></button>`).join('')}`;
+        searchInput.removeAttribute('aria-activedescendant');
+        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}</p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result${result.suggestion ? ' shell-search-suggestion' : ''}" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${highlightSearchText(result.label)}</strong><small>${highlightSearchText(result.detail)}</small></span>${suppliedIconMarkup('chevron-right', 'shell-search-open-icon')}</button>`).join('')}`;
         searchResults.hidden = false;
         searchInput.setAttribute('aria-expanded', 'true');
         searchResults.querySelectorAll('[data-search-result]').forEach(button => button.addEventListener('click', () => openSearchResult(visibleSearchResults[Number(button.dataset.searchResult)])));
@@ -2023,7 +2038,6 @@ function initializeAppShell() {
     searchInput.addEventListener('focus', () => renderSearchResults({ showSuggestions: true }));
     searchInput.addEventListener('input', () => renderSearchResults({ showSuggestions: true }));
     searchInput.addEventListener('keydown', event => {
-        if (event.key === 'Escape') { searchInput.value = ''; closeSearchResults(); searchInput.blur(); return; }
         if (event.key === 'ArrowDown') { event.preventDefault(); if (searchResults.hidden) renderSearchResults({ showSuggestions: true }); setActiveSearchResult(activeSearchIndex + 1); return; }
         if (event.key === 'ArrowUp') { event.preventDefault(); if (searchResults.hidden) renderSearchResults({ showSuggestions: true }); setActiveSearchResult(activeSearchIndex - 1); return; }
         if (event.key === 'Enter' && activeSearchIndex >= 0) { event.preventDefault(); openSearchResult(visibleSearchResults[activeSearchIndex]); }
@@ -2038,10 +2052,10 @@ function initializeAppShell() {
     });
     document.addEventListener('click', event => {
         if (!sidebar.contains(event.target)) setAccountMenu(false);
+        if (!searchWrap.contains(event.target)) closeSearchResults();
         if (!topbar.contains(event.target)) {
             setTopbarMenu(topbarAccountButton, topbarAccountMenu, false);
             setTopbarMenu(notificationButton, notificationMenu, false);
-            closeSearchResults();
         }
     });
     return true;

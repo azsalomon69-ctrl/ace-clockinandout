@@ -17931,3 +17931,159 @@ html[data-theme="dark"] .admin-dashboard .dashboard-overview .stat-icon { backgr
 @media (max-width: 720px) {
   .admin-dashboard .dashboard-overview .dashboard-header-stats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr)); }
 }
+
+/* Anchor workspace search to its input and make each result read as a link. */
+.has-app-shell .shell-topbar-search-wrap .shell-global-results {
+  position: absolute;
+  inset: calc(100% + 8px) auto auto 0;
+  width: max(100%, 370px);
+  max-height: min(430px, calc(100dvh - 82px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--ace-surface-modal);
+  border-color: var(--ace-border);
+}
+.shell-global-results .shell-global-result {
+  grid-template-columns: 32px minmax(0, 1fr) 16px;
+  justify-content: start;
+  min-height: 48px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+.shell-global-results .shell-global-result:is(:hover, :focus-visible, .is-active) {
+  background: var(--ace-accent-muted);
+  border-color: var(--ace-accent);
+}
+.shell-global-results .shell-global-result strong { color: var(--ace-text-primary); font-size: .82rem; }
+.shell-global-results .shell-global-result small { color: var(--ace-text-secondary); font-size: .72rem; }
+.shell-global-results .shell-search-highlight { background: transparent; color: inherit; font-weight: 800; }
+.shell-search-open-icon { width: 14px; height: 14px; opacity: .65; }
+html[data-theme="dark"] .shell-global-results .shell-global-result.shell-search-suggestion { background: transparent; }
+html[data-theme="dark"] .shell-global-results .shell-global-result:is(:hover, :focus-visible, .is-active) { background: var(--ace-accent-muted); }
+html[data-theme="dark"] .shell-search-open-icon { filter: brightness(0) invert(1); }
+@media (max-width: 640px) {
+  .has-app-shell .shell-topbar-search-wrap .shell-global-results {
+    width: min(370px, calc(100vw - 88px));
+  }
+}
+
+/* Let the rail and topbar share the same uninterrupted shell surface. */
+html[data-theme="dark"] body.has-app-shell > :is(.app-sidebar, .shell-topbar),
+html[data-theme="dark"] body.has-app-shell > .app-sidebar > :is(.shell-nav, .shell-brand, .shell-account-wrap) {
+  background: var(--ace-workspace-surround)!important;
+  border-color: transparent!important;
+  box-shadow: none!important;
+}
+@media (min-width: 1181px) {
+  .shell-collapsed .app-sidebar .shell-nav-group { justify-items: center; }
+  .shell-collapsed .app-sidebar .shell-nav-group + .shell-nav-group::before {
+    content: "";
+    display: block;
+    width: 26px;
+    height: 1px;
+    margin: 4px 0;
+    background: var(--ace-border-strong);
+  }
+  .shell-collapsed .app-sidebar .shell-folded-group {
+    position: relative;
+    background: var(--ace-surface);
+    border-color: var(--ace-border-strong);
+  }
+  .shell-collapsed .app-sidebar .shell-folded-group:hover { background: var(--ace-nav-hover); }
+  .shell-collapsed .app-sidebar .shell-folded-group[aria-expanded="true"],
+  .shell-collapsed .app-sidebar .has-active-route > .shell-folded-group {
+    background: var(--ace-nav-active-bg);
+    border-color: var(--ace-nav-active-border);
+  }
+  .shell-folded-chevron { position: absolute; right: 2px; bottom: 4px; width: 10px; height: 10px; }
+  .shell-folded-group[aria-expanded="true"] > img,
+  .has-active-route > .shell-folded-group > img,
+  html[data-theme="dark"] .shell-folded-chevron { filter: brightness(0) invert(1); }
+}
+.shell-group-flyout { width: 235px; padding: 6px; }
+.shell-group-flyout > p {
+  margin: 0 0 4px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--ace-border);
+}
+.shell-collapsed .shell-group-flyout .shell-link {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  justify-items: start;
+  justify-content: start;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 10px;
+  text-align: left;
+}
+.shell-group-flyout .shell-link[aria-current="page"] { border-color: var(--ace-nav-active-border)!important; }
+
+html[data-theme="dark"] .has-app-shell .pagination button:not(:disabled):is(.active, [aria-current="page"], :hover) {
+  color: #11253b!important;
+  background: var(--ace-accent);
+  border-color: var(--ace-accent);
+}
+
+html[data-theme="dark"] .help-bot-panel {
+  color: var(--ace-text-primary);
+  background: var(--ace-surface);
+  border-color: var(--ace-border-strong);
+}
+html[data-theme="dark"] .help-bot-header { background: var(--ace-surface-raised); }
+html[data-theme="dark"] :is(.help-bot-body, .help-bot-composer, .help-bot-typing) { background: var(--ace-surface); }
+html[data-theme="dark"] :is(.help-bot-header p, .help-bot-welcome > span, .help-bot-welcome p, .help-bot-typing, .help-bot-skip) { color: var(--ace-text-secondary); }
+html[data-theme="dark"] :is(.help-bot-header h2, .help-bot-welcome h3, .help-bot-reply h4, .help-bot-reply strong, .help-bot-close, .help-bot-search textarea) { color: var(--ace-text-primary); }
+html[data-theme="dark"] :is(.help-bot-composer, .help-bot-composer .help-bot-search) { border-color: var(--ace-border-strong); }
+html[data-theme="dark"] .help-bot-composer .help-bot-search { background: var(--ace-surface-input); }
+html[data-theme="dark"] .help-bot-conversation .help-bot-reply { color: var(--ace-text-primary); background: var(--ace-surface-raised); border-color: var(--ace-border); }
+html[data-theme="dark"] .help-bot-conversation .help-bot-asked { color: var(--ace-text-primary); background: var(--ace-accent-muted); }
+html[data-theme="dark"] :is(.help-bot-reply a, .help-bot-typing-dots) { color: var(--ace-accent); }
+html[data-theme="dark"] .help-bot [data-help-forward] { color: var(--ace-text-primary); background: var(--ace-surface-raised); border-color: var(--ace-border-strong); }
+html[data-theme="dark"] .help-bot-send:not(:disabled) { color: #11253b; background: var(--ace-accent); }
+html[data-theme="dark"] .help-bot-send:hover:not(:disabled) { background: var(--ace-accent-hover); }
+html[data-theme="dark"] .help-bot-send:disabled { color: var(--ace-text-secondary); background: var(--ace-surface-raised); }
+
+:root { --ace-skeleton-fill: #dedede; --ace-skeleton-glint: #f1f1f1; }
+html[data-theme="dark"] { --ace-skeleton-fill: #383838; --ace-skeleton-glint: #484848; }
+body .main-content .data-value-pending { -webkit-text-fill-color: transparent; }
+body .main-content .data-value-pending::after,
+body .main-content .data-loading-line {
+  background: linear-gradient(100deg, var(--ace-skeleton-fill) 25%, var(--ace-skeleton-glint) 50%, var(--ace-skeleton-fill) 75%) 0 0 / 220% 100%;
+  animation: ace-loader-sweep 1.8s ease-in-out infinite;
+  box-shadow: none;
+}
+body .main-content .stat-number.data-value-pending::after { max-width: 4ch; inset-block: 18%; }
+body .main-content .data-value-pending::after { max-width: 10ch; }
+body .main-content .data-loading-line { height: 9px; margin: 0; }
+.data-region-plot { height: 100%; padding: 0; }
+.data-loading-plot {
+  display: block;
+  min-height: 0;
+  border: 1px solid var(--ace-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(var(--ace-border) 1px, transparent 1px) 0 0 / 100% 25%,
+    linear-gradient(90deg, var(--ace-border) 1px, transparent 1px) 0 0 / 14.28% 100%,
+    var(--ace-surface);
+}
+.data-region-allocation { gap: 13px; padding: 6px 0; }
+.data-loading-allocation-row {
+  display: grid;
+  grid-template-columns: minmax(56px, 1fr) minmax(80px, 2fr) 36px;
+  align-items: center;
+  gap: 12px;
+  min-height: 29px;
+}
+.data-loading-allocation-row .data-loading-line:nth-child(2) { width: 100%; height: 13px; }
+.employee-week-chart > .data-region-week {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: end;
+}
+.employee-week-chart > .data-region-week .data-loading-line { width: 65%; height: 26px; justify-self: center; }
+@keyframes ace-loader-sweep { from { background-position: 120% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  body .main-content .data-value-pending::after,
+body .main-content .data-loading-line { animation: none; }
+}
