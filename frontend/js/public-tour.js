@@ -2,6 +2,20 @@ const tourTrack = document.getElementById('publicTourTrack');
 const tourLinks = [...document.querySelectorAll('[data-tour-link]')];
 const tourPanels = [...tourTrack.children];
 let activePanel;
+let clockPreview;
+let clockScrollTimer;
+const clockPanel = document.getElementById('tour-clock');
+
+function showStaticClockPreview() {
+    clockPanel.querySelector('.is-device-loading')?.classList.remove('is-device-loading');
+}
+
+function loadClockPreview() {
+    clockPreview ??= import('/assets/tour-devices/scene.js?v=full-page-loader')
+        .then(module => module.activate())
+        .catch(showStaticClockPreview);
+    return clockPreview;
+}
 
 function fitTourTrack() {
     const height = activePanel.offsetHeight;
@@ -35,6 +49,7 @@ tourLinks.forEach(link => {
         if (!panel) return;
         event.preventDefault();
         selectTourPanel(panel);
+        if (panel === clockPanel) void loadClockPreview();
         tourTrack.scrollTo({
             left: panel.offsetLeft,
             behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
@@ -44,6 +59,7 @@ tourLinks.forEach(link => {
 });
 
 tourTrack.addEventListener('scroll', () => {
+    clearTimeout(clockScrollTimer);
     const offset = tourTrack.scrollLeft;
     const current = tourPanels.reduce((closest, panel) =>
         Math.abs(panel.offsetLeft - offset) < Math.abs(closest.offsetLeft - offset) ? panel : closest
@@ -51,28 +67,29 @@ tourTrack.addEventListener('scroll', () => {
     if (!tourLinks.some(link => link.hash === '#' + current.id && link.getAttribute('aria-current') === 'true')) {
         selectTourPanel(current);
     }
+    if (!clockPreview && current === clockPanel) {
+        clockScrollTimer = setTimeout(() => {
+            if (Math.abs(tourTrack.scrollLeft - clockPanel.offsetLeft) < 2) void loadClockPreview();
+        }, 160);
+    }
 }, { passive: true });
 
 const linkedPanel = tourPanels.find(panel => '#' + panel.id === location.hash) || tourPanels[0];
 selectTourPanel(linkedPanel);
 const panelResize = new ResizeObserver(fitTourTrack);
 tourPanels.forEach(panel => panelResize.observe(panel));
-requestAnimationFrame(() => { tourTrack.scrollLeft = linkedPanel.offsetLeft; });
-
-const showStaticPreviews = () => {
-    document.querySelectorAll('.is-device-loading').forEach(preview => preview.classList.remove('is-device-loading'));
-};
+tourTrack.scrollLeft = linkedPanel.offsetLeft;
 
 let tourLoadTimeout;
 const tourLoadDeadline = new Promise(resolve => {
     tourLoadTimeout = setTimeout(() => {
-        showStaticPreviews();
+        showStaticClockPreview();
         resolve();
     }, 15000);
 });
-const tourSetup = import('/assets/tour-devices/scene.js?v=full-page-loader')
-    .then(module => module.activate())
-    .catch(showStaticPreviews);
+const firstScreenshot = linkedPanel.querySelector('.public-screenshot img');
+if (firstScreenshot) firstScreenshot.loading = 'eager';
+const tourSetup = firstScreenshot ? firstScreenshot.decode().catch(() => {}) : loadClockPreview();
 Promise.race([tourSetup, tourLoadDeadline]).finally(() => {
     clearTimeout(tourLoadTimeout);
     document.body.classList.remove('is-tour-starting');
