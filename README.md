@@ -4,7 +4,7 @@ This is the single maintained Markdown guide for ACE Clock In/Out. It describes 
 
 ## Contents
 
-- [Architecture and source map](#architecture-and-source-map)
+- [Architecture and code layout](#architecture-and-code-layout)
 - [Requests, identity, and permissions](#requests-identity-and-permissions)
 - [Employee and administrator workflows](#employee-and-administrator-workflows)
 - [ACE Help and Rick](#ace-help-and-rick)
@@ -13,7 +13,7 @@ This is the single maintained Markdown guide for ACE Clock In/Out. It describes 
 - [Testing and troubleshooting](#testing-and-troubleshooting)
 - [Historical audit archive](#historical-audit-archive)
 
-## Architecture and source map
+## Architecture and code layout
 
 ACE is a workforce time-tracking application. Static HTML, CSS, and browser JavaScript call a Node.js/Express API. Supabase provides authentication and PostgreSQL storage. Cloudinary stores profile images; Gmail API or SMTP delivers mail. There is no frontend framework or separate compiled backend.
 
@@ -137,19 +137,7 @@ npm run preview:build -- --listen 5500
 
 Set FRONTEND_ORIGIN and authentication redirect settings to the matching frontend origin. Supabase Auth must be configured for the intended Google provider and redirect URLs. Cloudinary/mail credentials are needed for their respective features.
 
-The build validates its API URL, minifies HTML/CSS/JavaScript, bundles browser dependencies, hashes asset filenames and writes dist with static-host headers. Deploy the whole generated artifact together. render.yaml starts the Express backend with npm start and checks /health. Static frontend hosting is separate; configure its API endpoint and clean-URL behavior. Database changes and application releases must be coordinated; rebuilding assets does not apply SQL.
-
-### Private JavaScript debugging artifacts
-
-Use the same API URL as the deployment and run `npm run build:local` to generate the production build plus `SEMANTIC_MAP.local.md` and full first-party JavaScript source maps under `%USERPROFILE%/OneDrive/Documents/obfuscation/`. Set `ACE_PRIVATE_MAP_DIR` to choose another private location outside any Git checkout. The maps embed the original JavaScript. The Markdown guide lists the latest build; maps are retained by bundle hash so prior releases can still be debugged.
-
-Production names are seeded deterministically. Set ACE_OBFUSCATION_SEED to choose a different seed and ACE_OBFUSCATION_NAMES to base36 or hex. Set ACE_OBFUSCATION_STRINGS, ACE_OBFUSCATION_PROPERTIES, or ACE_OBFUSCATION_BRANCHES to 0 to disable the corresponding optional pass. Use matching values for the production and local builds.
-
-The private guide lists project JavaScript and the decisions for classic-script globals. The build preserves names mentioned in another browser source or HTML page, original string and member references in the declaring file, and names in scripts that evaluate strings as code. The browser build includes classic scripts and the dynamically imported game module. The Express runtime and the separately deployed Render wake worker use their existing deployment commands.
-
-Use the bundle filename and generated position from the stack trace to find the matching map in the guide. In Chrome DevTools, right-click the deployed script in Sources, choose **Add source map**, and point it to the matching local map. Reproducing a deployed build requires its Git revision, lockfile dependencies, and API URL.
-
-Build and deploy normally with `npm run build`. Publish only `dist/`. The build emits no source-map references and keeps the private JavaScript maps outside the deployable directory. Confirm the local exclusions with `git check-ignore SEMANTIC_MAP.local.md .semantic-local/source-maps/example.js.map` and confirm that `git ls-files -- "*.map" "SEMANTIC_MAP*.md" ".semantic-local/*"` returns nothing. Local development uses the original readable frontend files.
+The build validates its API URL, minifies HTML/CSS/JavaScript, bundles browser dependencies, hashes asset filenames and writes dist with static-host headers. Deploy the entire generated dist/ directory. render.yaml starts the Express backend with npm start and checks /health. Static frontend hosting is separate; configure its API endpoint and clean-URL behavior. Database changes and application releases must be coordinated; rebuilding assets does not apply SQL.
 
 npm run seed:admin is a provisioning action, not a normal start command. Use it only against the intended environment. Preserve .env.example, .env.test.example, package-lock.json, scripts and migration history; they support reproducible setup and maintenance.
 
