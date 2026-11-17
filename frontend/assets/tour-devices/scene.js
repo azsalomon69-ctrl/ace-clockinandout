@@ -12,12 +12,12 @@ const models = new Map();
 function displayTexture(image, isPhone) {
     const displayAspect = isPhone ? .462 : 1.545;
     const canvas = document.createElement('canvas');
-    canvas.width = isPhone ? 768 : 1440;
-    canvas.height = Math.round(canvas.width / displayAspect);
+    canvas.width = isPhone ? image.naturalWidth : 1440;
+    canvas.height = isPhone ? image.naturalHeight : Math.round(canvas.width / displayAspect);
     const context = canvas.getContext('2d');
-    const side = Math.round(canvas.width * (isPhone ? .028 : .012));
-    const top = Math.round(canvas.height * (isPhone ? .073 : .045));
-    const bottom = Math.round(canvas.height * .022);
+    const side = isPhone ? 0 : Math.round(canvas.width * .012);
+    const top = isPhone ? 0 : Math.round(canvas.height * .045);
+    const bottom = isPhone ? 0 : Math.round(canvas.height * .022);
     const scale = Math.min((canvas.width - 2 * side) / image.naturalWidth,
         (canvas.height - top - bottom) / image.naturalHeight);
     const width = Math.round(image.naturalWidth * scale);
@@ -236,8 +236,6 @@ export async function activate() {
         if (active) {
             resizeObserver.unobserve(active.preview);
             active.preview.classList.replace('has-device-scene', 'is-device-loading');
-            const hint = active.preview.parentElement.querySelector('.public-device-hint');
-            if (hint) hint.hidden = true;
             canvas.remove();
             active = undefined;
             drag = undefined;
@@ -258,8 +256,6 @@ export async function activate() {
             preview.append(canvas);
             preview.classList.add('has-device-scene');
             preview.classList.remove('is-device-loading');
-            const hint = preview.parentElement.querySelector('.public-device-hint');
-            if (hint) hint.hidden = false;
             resizeObserver.observe(preview);
             resize();
             renderer.render(active.scene, camera);

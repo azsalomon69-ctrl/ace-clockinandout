@@ -521,7 +521,6 @@ html[data-theme="dark"] .public-page {
   .public-tour-page .public-phone img { border-radius: 11px; }
 }
 
-.public-tour-page .public-device-hint { font-size: .76rem; margin-top: .4rem; }
 .public-tour-devices.has-device-scene { padding: 0; min-height: 0; aspect-ratio: 1.65; background: radial-gradient(ellipse 62% 10% at 51% 84%, #52668228, transparent); }
 .public-tour-devices.has-device-scene > :is(.public-laptop, .public-phone) { visibility: hidden; position: absolute; }
 .public-device-canvas {
@@ -545,7 +544,7 @@ html[data-theme="dark"] .public-page {
   .public-tour-devices.is-device-loading::before {
     content: "";
     position: absolute;
-    inset: 13% 8%;
+    inset: 8% 4%;
     border-radius: 18px;
     background: rgb(89 127 166 / 8%);
     border: 1px solid rgb(89 127 166 / 12%);
@@ -557,5 +556,52 @@ html[data-theme="dark"] .public-page {
 /* Laptop-only views use a taller stage to bring the screen closer. */
 .public-tour-page .public-tour-devices:not(.shows-phone):is(.has-device-scene, .is-device-loading) {
   aspect-ratio: 1.4;
+}
+
+.public-device-loader { display: none; }
+@media (scripting: enabled) {
+  .is-device-loading > .public-device-loader {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 8px;
+    color: var(--public-accent-text);
+    font-size: .88rem;
+    font-weight: 700;
+  }
+  .public-device-loader::before {
+    content: "";
+    width: 22px;
+    height: 22px;
+    border: 2px solid #b3c7dd;
+    border-top-color: var(--ace-accent);
+    border-radius: 50%;
+    animation: public-device-loading 1s linear infinite;
+  }
+}
+@keyframes public-device-loading { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .public-device-loader::before { animation: none; }
+}
+@media (min-width: 761px) {
+  .public-tour-page .public-tour-panel:not(#tour-clock) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .public-tour-panel:not(#tour-clock) .public-tour-caption {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 16px;
+  }
+  .public-tour-panel:not(#tour-clock) .public-tour-caption :is(h1, h2) { max-width: none; }
+  .public-tour-panel:not(#tour-clock) .public-tour-caption p { grid-column: 1; max-width: none; }
+  .public-tour-panel:not(#tour-clock) .public-tour-preview-links { grid-column: 2; grid-row: 1 / 3; margin: 0; }
+  .public-tour-page .public-tour-devices:not(.shows-phone):is(.has-device-scene, .is-device-loading) {
+    width: min(100%, 1120px);
+    aspect-ratio: 1.6;
+  }
 }
 .public-device-credits { margin-inline-start: 1rem; color: var(--public-accent-text); }

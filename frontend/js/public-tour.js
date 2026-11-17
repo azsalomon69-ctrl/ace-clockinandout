@@ -59,6 +59,6 @@ const panelResize = new ResizeObserver(fitTourTrack);
 tourPanels.forEach(panel => panelResize.observe(panel));
 requestAnimationFrame(() => { tourTrack.scrollLeft = linkedPanel.offsetLeft; });
 
-import('/assets/tour-devices/scene.js?v=drag-inertia').then(module => module.activate()).catch(() => {
+import('/assets/tour-devices/scene.js?v=edge-to-edge-iphone').then(module => module.activate()).catch(() => {
     document.querySelectorAll('.is-device-loading').forEach(preview => preview.classList.remove('is-device-loading'));
 });
