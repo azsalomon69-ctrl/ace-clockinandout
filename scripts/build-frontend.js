@@ -7,12 +7,16 @@ import CleanCSS from 'clean-css';
 import { minify as minifyHtml } from 'html-minifier-terser';
 import { minify as minifyJs } from 'terser';
 import { deduplicateAssetScripts } from './html-transforms.mjs';
+import { discoverJavaScript, auditJavaScript } from './frontend-coverage.mjs';
 import { createPrivateMappings } from './private-semantic-maps.mjs';
+import { createObfuscationProfile, obfuscationOptions, encodePrivateLiterals } from './frontend-obfuscation.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const frontend = path.join(root, 'frontend');
 const dist = path.join(root, 'dist');
-const privateMappings = process.argv.includes('--local-maps') ? createPrivateMappings(root) : null;
+const profile = createObfuscationProfile();
+const bundledSources = new Map();
+const privateMappings = process.argv.includes('--local-maps') ? await createPrivateMappings(profile) : null;
 const sourceHash = source => createHash('sha256').update(source).digest('hex').slice(0, 16);
 const filesIn = async directory => (await readdir(directory, { withFileTypes: true }))
   .filter(entry => entry.isFile())
@@ -28,18 +32,20 @@ try {
 }
 
 async function emitScript(sources, { toplevel = false, module = false, asset } = {}) {
-  const result = await minifyJs(sources, {
-    module,
-    compress: { defaults: true, passes: 3 },
-    mangle: { toplevel, nth_identifier: { get: index => "_0x" + index.toString(36) } },
+  const files = Object.keys(sources);
+  const options = obfuscationOptions(profile, files, toplevel);
+  const minified = await minifyJs(sources, {
+    module, compress: options.compress, mangle: options.mangle, nameCache: options.nameCache,
     format: { comments: false },
     sourceMap: privateMappings ? { includeSources: true } : false
   });
+  const result = encodePrivateLiterals(minified, profile.encodeStrings && files.includes('frontend/js/supabase-auth.js'));
   if (!result.code) throw new Error("Could not minify " + Object.keys(sources).join(", "));
   const hash = sourceHash(result.code);
   const target = asset || "assets/js/" + hash + ".js";
   await writeFile(path.join(dist, target), result.code);
-  await privateMappings?.record(target, hash, result.code, result.map);
+  for (const file of files) bundledSources.set(file, target);
+  await privateMappings?.record(target, hash, result.code, result.map, options.nameCache, result.strings);
   return target;
 }
 
@@ -140,5 +146,7 @@ await cp(path.join(root, 'node_modules', 'three', 'LICENSE'), path.join(dist, 'v
 const assetMap = new Map([...(await buildScripts()), ...(await buildStyles())]);
 await buildPages(assetMap);
 await cp(path.join(frontend, '_headers'), path.join(dist, '_headers'));
-await privateMappings?.writeDocument();
+const browserFiles = await discoverJavaScript(frontend, 'frontend/');
+auditJavaScript(browserFiles, bundledSources);
+if (privateMappings) await privateMappings.writeDocument(auditJavaScript(await discoverJavaScript(root), bundledSources));
 console.log(`Built ${dist} with ${assetMap.size} minified, hashed frontend assets and Cloudflare headers.`);
