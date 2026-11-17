@@ -522,7 +522,7 @@ function startStartupMole(notice, play, focus = true) {
     let deadline = performance.now() + 60000;
     const sounds = typeof Audio === 'function' ? [
         new Audio('/assets/whack-a-mole/miss.ogg'),
-        new Audio('/assets/whack-a-mole/hit.ogg')
+        new Audio('/assets/whack-a-mole/whack04.mp3')
     ] : [];
     if (sounds.length) {
         sounds[0].volume = .28;
