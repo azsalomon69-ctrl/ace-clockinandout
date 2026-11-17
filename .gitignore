@@ -15,3 +15,11 @@ dist/
 # Supabase CLI machine-local state
 /supabase/.temp/
 /supabase/.branches/
+
+# Local-only production debugging artifacts
+SEMANTIC_MAP.local.md
+SEMANTIC_MAP*.local.md
+*.map
+.semantic-local/
+*.obfuscation.local.*
+*.reverse-map.local.*
