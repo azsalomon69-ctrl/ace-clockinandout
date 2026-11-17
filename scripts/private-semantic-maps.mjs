@@ -141,7 +141,7 @@ export async function createPrivateMappings(profile) {
       }
     },
 
-    async writeDocument(audit) {
+    async writeDocument(audit, bindingAudit) {
       const activeAssets = new Set(bundles.map(([asset, name]) => asset + ':' + name.split(/[.-]/)[0]));
       for (const entry of corrections.values()) {
         if (activeAssets.has(entry.asset + ':' + entry.hash)) throw new Error('Private mapping correction did not match a generated identifier: ' + entry.asset);
@@ -174,7 +174,10 @@ export async function createPrivateMappings(profile) {
         '## Application state management', '',
         'Cross-script globals, storage keys and application event names remain stable. Clock-outbox storage stays readable for development.', '',
         '## Excluded identifiers and properties', '',
-        'Classic script globals and exported module names stay stable. Property mangling is limited to the two audited analytics boundary fields listed below.', '',
+        'Cross-file classic script globals and exported module names stay stable. Property mangling is limited to the two audited analytics boundary fields listed below.', '',
+        '## Classic browser bindings', '',
+        '| Module | Original | Generated | Decision | Reason |', '| --- | --- | --- | --- | --- |',
+        ...bindingAudit.map(row => '| ' + row.join(' | ') + ' |'), '',
         '## Property mapping', '',
         ...properties.map(([name, emitted, asset]) => '- ' + name + ' → ' + emitted + ' in ' + asset + '. Internal analytics date-range boundary.'), '',
         '## String transformation documentation', '',

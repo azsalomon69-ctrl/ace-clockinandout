@@ -145,7 +145,7 @@ Use the same API URL as the deployment and run `npm run build:local` to generate
 
 Production names are seeded deterministically. Set ACE_OBFUSCATION_SEED to choose a different seed and ACE_OBFUSCATION_NAMES to base36 or hex. Set ACE_OBFUSCATION_STRINGS, ACE_OBFUSCATION_PROPERTIES, or ACE_OBFUSCATION_BRANCHES to 0 to disable the corresponding optional pass. Use matching values for the production and local builds.
 
-The audit in the private guide lists all project JavaScript. The browser build includes classic scripts and the dynamically imported game module. The Express runtime and the separately deployed Render wake worker use their existing deployment commands.
+The private guide lists project JavaScript and the decisions for classic-script globals. The build preserves names mentioned in another browser source or HTML page, original string and member references in the declaring file, and names in scripts that evaluate strings as code. The browser build includes classic scripts and the dynamically imported game module. The Express runtime and the separately deployed Render wake worker use their existing deployment commands.
 
 Use the bundle filename and generated position from the stack trace to find the matching map in the guide. In Chrome DevTools, right-click the deployed script in Sources, choose **Add source map**, and point it to the matching local map. Reproducing a deployed build requires its Git revision, lockfile dependencies, and API URL.
 

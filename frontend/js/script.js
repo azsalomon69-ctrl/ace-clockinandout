@@ -4663,9 +4663,11 @@ function loadUserDashboard() {
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     startOfWeek.setHours(0, 0, 0, 0);
-    const secondsFor = predicate => userEntriesForStats.filter(predicate).reduce((total, entry) => total + Number(entry.DurationSeconds || 0), 0);
-    const weekSeconds = secondsFor(entry => new Date(entry.ClockInAt) >= startOfWeek);
-    const completedWeekEntries = userEntriesForStats.filter(entry => new Date(entry.ClockInAt) >= startOfWeek);
+    const completedWeekEntries = userEntriesForStats.filter(entry => {
+        const started = new Date(entry.ClockInAt);
+        return started >= startOfWeek && started <= now;
+    });
+    const weekSeconds = completedWeekEntries.reduce((total, entry) => total + Number(entry.DurationSeconds || 0), 0);
     const dashboardStats = {
         weekHours: formatDuration(weekSeconds),
         weekEntries: completedWeekEntries.length
