@@ -554,4 +554,8 @@ html[data-theme="dark"] .public-page {
 @media (scripting: enabled) and (max-width: 760px) {
   .public-tour-page .public-tour-devices.shows-phone.is-device-loading { aspect-ratio: 1.31; }
 }
+/* Laptop-only views use a taller stage to bring the screen closer. */
+.public-tour-page .public-tour-devices:not(.shows-phone):is(.has-device-scene, .is-device-loading) {
+  aspect-ratio: 1.4;
+}
 .public-device-credits { margin-inline-start: 1rem; color: var(--public-accent-text); }

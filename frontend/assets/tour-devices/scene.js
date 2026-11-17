@@ -81,6 +81,7 @@ export async function activate() {
     const scenes = new Map();
     let active;
     let drag;
+    let coast;
     let hover;
     let releasedDevice;
     const tilt = new THREE.Vector2();
@@ -124,9 +125,31 @@ export async function activate() {
         }
     }
 
+    function advanceCoast(timestamp) {
+        if (!coast || reducedMotion.matches) {
+            coast = undefined;
+            return;
+        }
+        const elapsed = Math.max(0, (timestamp - coast.timestamp) / 1000);
+        const decay = Math.exp(-elapsed / .16);
+        const travel = .16 * (1 - decay);
+        const { device } = coast;
+        const rest = device.userData.rest;
+        const [pitch, yaw] = rotationAngles(rest.x + coast.pitch * travel, rest.y + coast.yaw * travel);
+        if (coast.pitch && pitch === rest.x && travel) coast.pitch = 0;
+        if (coast.yaw && yaw === rest.y && travel) coast.yaw = 0;
+        rest.set(pitch, yaw, rest.z);
+        device.rotation.copy(rest);
+        coast.pitch *= decay;
+        coast.yaw *= decay;
+        coast.timestamp = timestamp;
+        if (Math.hypot(coast.pitch, coast.yaw) < .018) coast = undefined;
+    }
+
     function render(timestamp) {
         frame = 0;
         if (!active) return;
+        advanceCoast(timestamp);
         const motion = !reducedMotion.matches;
         const phase = timestamp * .0017;
         let settling = false;
@@ -136,7 +159,7 @@ export async function activate() {
         for (const device of [active.movable]) {
             if (device === drag?.device) continue;
             const rest = device.userData.rest;
-            const hovering = motion && device === hover;
+            const hovering = motion && !coast && device === hover;
             const [x, y] = rotationAngles(rest.x + (hovering ? tilt.x : 0), rest.y + (hovering ? tilt.y : 0));
             if (motion) {
                 device.rotation.x = THREE.MathUtils.lerp(device.rotation.x, x, .18);
@@ -147,7 +170,7 @@ export async function activate() {
             }
         }
         renderer.render(active.scene, camera);
-        if (visible && (settling || (motion && active.handset))) requestRender();
+        if (visible && (settling || coast || (motion && active.handset))) requestRender();
     }
     function requestRender() {
         if (!frame) frame = requestAnimationFrame(render);
@@ -157,7 +180,7 @@ export async function activate() {
         const { clientWidth: width, clientHeight: height } = active.preview;
         if (!width || !height) return;
         const aspect = width / height;
-        const halfHeight = 2.45;
+        const halfHeight = active.handset ? 2.45 : 2.05;
         camera.left = -halfHeight * aspect;
         camera.right = halfHeight * aspect;
         camera.top = halfHeight;
@@ -218,6 +241,7 @@ export async function activate() {
             canvas.remove();
             active = undefined;
             drag = undefined;
+            coast = undefined;
             hover = undefined;
             releasedDevice = undefined;
         }
@@ -272,7 +296,9 @@ export async function activate() {
         if (device !== active.movable) return;
         hover = undefined;
         releasedDevice = undefined;
-        drag = { device, id: event.pointerId, x: event.clientX, y: event.clientY };
+        coast = undefined;
+        drag = { device, id: event.pointerId, x: event.clientX, y: event.clientY,
+            timestamp: event.timeStamp, pitch: 0, yaw: 0 };
         canvas.setPointerCapture(event.pointerId);
     });
     canvas.addEventListener('pointermove', event => {
@@ -281,6 +307,11 @@ export async function activate() {
             const rotation = drag.device.rotation;
             const [pitch, yaw] = rotationAngles(rotation.x + (event.clientY - drag.y) * .012,
                 rotation.y + (event.clientX - drag.x) * .015);
+            const elapsed = Math.max(12, event.timeStamp - drag.timestamp) / 1000;
+            const { clamp } = THREE.MathUtils;
+            drag.pitch = clamp((pitch - rotation.x) / elapsed, -3.2, 3.2);
+            drag.yaw = clamp((yaw - rotation.y) / elapsed, -3.2, 3.2);
+            drag.timestamp = event.timeStamp;
             rotation.set(pitch, yaw, rotation.z);
             drag.x = event.clientX;
             drag.y = event.clientY;
@@ -292,14 +323,23 @@ export async function activate() {
         }
         requestRender();
     });
-    function keepRotation() {
-        if (!drag) return;
+    function releaseDrag(event) {
+        if (!drag || drag.id !== event.pointerId) return;
+        if (event.type === 'pointerup' && !reducedMotion.matches) {
+            const idle = event.timeStamp - drag.timestamp;
+            const carry = Math.max(0, 1 - idle / 100);
+            if (carry && Math.hypot(drag.pitch, drag.yaw) > .018) {
+                coast = { device: drag.device, pitch: carry * drag.pitch,
+                    yaw: carry * drag.yaw, timestamp: performance.now() };
+            }
+        }
         drag.device.userData.rest.copy(drag.device.rotation);
         releasedDevice = drag.device;
         drag = undefined;
         requestRender();
     }
-    canvas.addEventListener('lostpointercapture', keepRotation);
+    canvas.addEventListener('pointerup', releaseDrag);
+    canvas.addEventListener('lostpointercapture', releaseDrag);
     canvas.addEventListener('pointerleave', () => {
         hover = undefined;
         releasedDevice = undefined;
@@ -308,6 +348,7 @@ export async function activate() {
     canvas.addEventListener('keydown', event => {
         if (!active || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home'].includes(event.key)) return;
         event.preventDefault();
+        coast = undefined;
         const device = active.movable;
         if (event.key === 'Home') {
             device.rotation.copy(device.userData.front);
