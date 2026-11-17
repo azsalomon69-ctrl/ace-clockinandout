@@ -459,6 +459,11 @@ window.addEventListener('ace:app-ready', () => {
     filter.addEventListener('change', render);
     scope.addEventListener('change', render);
     search.addEventListener('input', render);
+    const filterToggle = get('holidayFilterToggle');
+    filterToggle.addEventListener('click', () => {
+        const expanded = filterToggle.getAttribute('aria-expanded') === 'true';
+        filterToggle.setAttribute('aria-expanded', String(!expanded));
+    });
     get('holidayView').onclick = () => setYearView(!yearly);
     get('holidayReset').onclick = () => {
         for (const control of [filter, scope, verification, search]) control.value = '';

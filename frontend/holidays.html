@@ -18,15 +18,18 @@
                 <button id="holidayBrowse" class="btn btn-secondary" type="button" aria-pressed="true">Calendar</button>
                 <button id="holidayManage" class="btn btn-secondary" type="button" aria-pressed="false">Manage holidays</button>
             </nav>
-            <div class="holiday-filters">
-                <label>Year <input id="holidayYear" class="form-input" type="number" min="2000" max="2099"></label>
-                <label>Classification <select id="holidayClassification"><option value="">All classifications</option></select></label>
-                <label id="holidayScopeField" hidden>Coverage <select id="holidayScope"><option value="">All coverage</option><option value="national">Nationwide</option><option value="local">Local</option></select></label>
-                <label>Find a holiday <input id="holidaySearch" class="form-input" type="search" placeholder="Search by name"></label>
-                <label id="holidayVerificationField" hidden>Verification <select id="holidayVerification"><option value="">Any status</option><option value="verified">Verified</option><option value="pending">Pending verification</option><option value="archived">Archived</option></select></label>
-                <button id="holidayReset" type="button" class="btn btn-secondary">Clear filters</button>
+            <button id="holidayFilterToggle" class="btn btn-secondary holiday-filter-toggle" type="button" aria-controls="holidayFilterPanel" aria-expanded="false">Filters &amp; totals</button>
+            <div id="holidayFilterPanel" class="holiday-filter-panel" aria-labelledby="holidayFilterToggle">
+                <div class="holiday-filters">
+                    <label>Year <input id="holidayYear" class="form-input" type="number" min="2000" max="2099"></label>
+                    <label>Classification <select id="holidayClassification"><option value="">All classifications</option></select></label>
+                    <label id="holidayScopeField" hidden>Coverage <select id="holidayScope"><option value="">All coverage</option><option value="national">Nationwide</option><option value="local">Local</option></select></label>
+                    <label>Find a holiday <input id="holidaySearch" class="form-input" type="search" placeholder="Search by name"></label>
+                    <label id="holidayVerificationField" hidden>Verification <select id="holidayVerification"><option value="">Any status</option><option value="verified">Verified</option><option value="pending">Pending verification</option><option value="archived">Archived</option></select></label>
+                    <button id="holidayReset" type="button" class="btn btn-secondary">Clear filters</button>
+                </div>
+                <dl id="holidayStats" class="holiday-stats" aria-label="Holiday totals"></dl>
             </div>
-            <dl id="holidayStats" class="holiday-stats" aria-label="Holiday totals"></dl>
             <p id="holidayLoadStatus" class="holiday-load-status" role="status"></p>
             <div id="holidayBrowsePanel">
             <ul class="holiday-legend" aria-label="Calendar legend">
