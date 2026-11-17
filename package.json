@@ -8,6 +8,7 @@
     "start": "node backend/server/index.js",
     "seed:admin": "node scripts/seed-admin.js",
     "build": "node scripts/build-frontend.js",
+    "build:local": "node scripts/build-frontend.js --local-maps",
     "test": "node --test",
     "test:overtime-acl": "node --test scripts/overtime-acl.integration.mjs",
     "test:security": "node scripts/security-regression-check.js",
@@ -40,6 +41,7 @@
     "ip-address": "10.7.4"
   },
   "devDependencies": {
+    "@jridgewell/sourcemap-codec": "1.6.0",
     "clean-css": "^5.3.3",
     "html-minifier-terser": "^7.2.0",
     "parse5": "^8.0.1",
