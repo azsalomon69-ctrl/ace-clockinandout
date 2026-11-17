@@ -444,14 +444,26 @@ function showStartupWarmupNotice() {
     const notice = document.createElement('section');
     notice.className = 'shell-startup-warmup' + (shell ? '' : ' startup-warmup-fullpage');
     notice.setAttribute('aria-label', 'Service connection status');
-    notice.innerHTML = '<div class="startup-brand"><img src="/assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"><span>ACE CLOCK IN / OUT</span></div><div class="startup-scene" aria-hidden="true"><div class="startup-scene-orbit"></div><div class="startup-float startup-float-time"><span>↗</span><div>Time<strong>tracking</strong></div></div><div class="startup-scene-clock"><span class="startup-clock-tick"></span><span class="startup-clock-index index-12">12</span><span class="startup-clock-index index-3">3</span><span class="startup-clock-index index-6">6</span><span class="startup-clock-index index-9">9</span><span class="startup-clock-signature">ACE</span><i></i><b></b><span class="startup-clock-second"></span><em></em><span class="startup-clock-caption">CLOCK IN / OUT</span></div><div class="startup-float startup-float-team"><span>✓</span><div>Employee<strong>workspace</strong></div></div><span class="startup-scene-spark spark-one">+</span><span class="startup-scene-spark spark-two">+</span><span class="startup-detail-line detail-line-one"></span><span class="startup-detail-line detail-line-two"></span></div><div class="startup-message"><p class="startup-eyebrow">PLEASE WAIT</p><div class="startup-warmup-heading"><strong data-warmup-title>Connecting<br><span>to ACE.</span></strong><p data-warmup-description>The server may be starting after inactivity. Please wait while we try to connect.</p></div><div class="startup-loading-track" aria-hidden="true"><span></span></div><p class="startup-warmup-status" role="status">Keep this page open. You don’t need to refresh. We’ll continue when ACE is ready.</p><button class="btn btn-primary" type="button" data-startup-refresh hidden>Try again</button></div>';
+    notice.innerHTML = '' +
+        '<div class="startup-message">' +
+            '<header class="startup-brand"><img src="/assets/images/ace-logo-hd-cropped.png" alt=""><span>ACE Clock In / Out</span></header>' +
+            '<div class="startup-connection-body">' +
+                '<h1 data-warmup-title>Connecting to ACE</h1>' +
+                '<p data-warmup-description>ACE may be waking up after inactivity.</p>' +
+                '<div class="startup-connection-status">' +
+                    '<div class="startup-loading-track" aria-hidden="true"><span></span></div>' +
+                    '<p class="startup-warmup-status" role="status">We’ll continue automatically when ACE is ready. You don’t need to refresh.</p>' +
+                '</div>' +
+                '<button class="btn btn-primary" type="button" data-startup-refresh hidden>Try again</button>' +
+            '</div>' +
+        '</div>';
     notice.innerHTML += '<section class="startup-mole" aria-label="Whack-a-Mole" hidden><div class="startup-mole-top"><h2>Whack-a-Mole</h2><button type="button" data-mole-exit>Exit game</button></div><div class="startup-mole-stats"><span>Score <strong data-mole-score>0</strong></span><span>Time left <strong data-mole-time>60s</strong></span></div><div class="startup-mole-board"></div><p role="status" data-mole-status>Tap the mole when it pops up.</p><button type="button" class="btn btn-primary" data-mole-replay hidden>Play again</button></section>';
     const message = notice.querySelector('.startup-message');
     const play = document.createElement('button');
     play.type = 'button';
     play.className = 'btn startup-mole-play';
     play.textContent = 'Play Whack-a-Mole';
-    message.append(play);
+    message.querySelector('.startup-connection-body').append(play);
     play.addEventListener('click', () => startStartupMole(notice, play));
     host.prepend(notice);
     notice.querySelector('[data-startup-refresh]').addEventListener('click', () => window.location.reload());
