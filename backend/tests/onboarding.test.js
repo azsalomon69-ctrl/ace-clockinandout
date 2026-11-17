@@ -203,25 +203,24 @@ test('a collapsed desktop rail does not hide mobile admin dropdowns', () => {
   assert.match(styles, /@media \(max-width: 1180px\) \{[\s\S]*?\.shell-collapsed \.shell-nav-label \{ display: block; \}[\s\S]*?\.shell-collapsed \.shell-nav-group-toggle \{ display: flex; \}/, 'A saved desktop collapse preference must not hide mobile admin dropdown triggers');
 });
 
-test('dashboard analytics render smooth time lines and scaled project bars', () => {
+test('dashboard analytics render activity columns and scaled project bars', () => {
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
-  assert.match(shellSource, /function smoothChartPath\(points\)/, 'Time-entry analytics should generate a smooth SVG path');
-  assert.match(shellSource, /<path class="line-chart-path" d="\$\{linePath\}"/, 'The time chart should use the generated smooth path instead of a polyline');
-  assert.match(shellSource, /const xGrid = points\.map\(point => `<line class="line-chart-gridline line-chart-gridline--vertical"/, 'The time chart should include vertical grid guides for each time bucket');
+  assert.match(shellSource, /<rect class="activity-column/);
+  assert.match(shellSource, /<path class="activity-gridline"/);
   assert.match(shellSource, /class="project-bar-chart"/, 'Project allocation should render as a chart container');
   assert.match(shellSource, /class="project-bar-fill" style="width:\$\{width\}%"/, 'Project values should scale each bar to the largest selected project');
   assert.match(styles, /\.admin-dashboard \.project-allocation-card \.project-allocation \{ display: grid; grid-template-columns: minmax\(0,1fr\);/, 'The allocation chart must span the full card width instead of inheriting a legacy two-column grid');
   assert.match(styles, /\.project-bar-track \{[\s\S]*?repeating-linear-gradient/, 'Project bars should show a shared grid scale');
-  assert.match(styles, /\.line-chart-gridline--vertical \{ stroke: #e7f0f2;/, 'Vertical chart guides should stay visually subtle');
+  assert.ok(styles.includes(".hours-bar-chart .activity-gridline { stroke: var(--ace-border)"));
 });
 
 test('admin dashboard keeps its compact operations hierarchy across screen sizes', () => {
   const dashboard = readFileSync(new URL('../../frontend/admin-dashboard.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
-  assert.match(dashboard, /<header class="dashboard-header" id="adminDashboardHeader">[\s\S]*?id="currentDate"/, 'The dashboard header should pair its greeting with the live date');
-  assert.match(dashboard, /class="dashboard-overview"/, 'Workspace metrics should have a dedicated dashboard row');
-  assert.match(styles, /\.admin-dashboard \.dashboard-command-center \{[\s\S]*?grid-template-columns: minmax\(170px,\.9fr\) minmax\(0,2\.2fr\)/, 'Quick actions should share a compact desktop action strip');
-  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.admin-dashboard \.dashboard-header-stats \{ grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/, 'Small screens should retain scannable two-column status cards');
+  assert.match(dashboard, /<section class="dashboard-command-center" id="adminDashboardHeader" aria-labelledby="operationsTitle">[\s\S]*?<time [^>]*id="currentDate"[^>]*aria-live="polite"/);
+  assert.match(dashboard, /class="dashboard-overview"[^>]*aria-label="Current workspace status"/);
+  assert.match(styles, /\.admin-dashboard \.dashboard-command-center \{[^}]*grid-template-columns: minmax\(210px,\.9fr\) minmax\(0,2\.2fr\)/);
+  assert.match(styles, /@media \(max-width: 720px\) \{\s*\.admin-dashboard \.dashboard-overview \.dashboard-header-stats \{ grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 145px\), 1fr\)\);/);
 });
 
 test('employee dashboard presents weekly time, responsive actions, and a shared dark surface', () => {
@@ -242,12 +241,16 @@ test('dark navigation is flat, high-contrast, and keeps primary actions white', 
   assert.match(styles, /html\[data-theme="dark"\] \.btn-primary \{[\s\S]*?background: #fff!important;/, 'Dark primary actions should use a white surface');
 });
 
-test('dark public home and sign-in pages preserve readable light-card contrast', () => {
-  const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
-  assert.match(styles, /html\[data-theme="dark"\] \.login-view \.login-card \{[\s\S]*?background: #fff!important;/, 'The sign-in card should remain a readable light surface in dark mode');
-  assert.match(styles, /html\[data-theme="dark"\] \.login-view \.login-card \.login-title \{ color: #103d4a!important;/, 'Sign-in heading must stay dark on its light card');
-  assert.match(styles, /html\[data-theme="dark"\] \.login-view :is\(\.login-brand-logo img,\.login-mobile-brand img\) \{ filter: none!important;/, 'Dark mode must not invert login brand artwork');
-  assert.match(styles, /html\[data-theme="dark"\] body\.home-page:not\(\.has-app-shell\) :is\(\.nav-brand \.nav-title,\.nav-links \.nav-link\) \{ color: #eef6f7!important;/, 'Home navigation copy must be readable on the dark header');
+test('public home stays light and sign-in pairs readable surfaces with the system palette', () => {
+  const styles = readFileSync(new URL('../../frontend/css/public.css', import.meta.url), 'utf8');
+  const home = readFileSync(new URL('../../frontend/index.html', import.meta.url), 'utf8');
+  const login = readFileSync(new URL('../../frontend/login.html', import.meta.url), 'utf8');
+  assert.match(home, /class="public-light-theme"/);
+  assert.match(login, /class="public-system-theme"/);
+  assert.match(styles, /:root\.public-light-theme \{[^}]*color-scheme: light;[^}]*--ace-text-primary: #213247;[^}]*background: #f5f8fc;/);
+  assert.match(styles, /@media \(prefers-color-scheme: dark\) \{\s*:root\.public-system-theme \{[^}]*--ace-surface: #111111;[^}]*--ace-text-primary: #ededed;/);
+  assert.match(styles, /\.public-login \.public-signin \{[^}]*background: var\(--signin-card\);/);
+  assert.match(styles, /\.public-signin-brand \.public-brand > img \{[^}]*width: 32px;/);
 });
 
 test('action buttons retain visible icons after dynamic page content is added', () => {

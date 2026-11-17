@@ -8,8 +8,61 @@
   <link rel="stylesheet" href="css/app.css?v=cache-bust-20260930-2">
 </head>
 <body class="app-shell-pending employee-profile-page">
-  <div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div></main></div><script src="js/initial-skeletons.js?v=20261015-1"></script>
-  <main class="main-content admin-section-page"><div class="admin-section-wrap" id="employeeProfileContent"></div></main>
+  <div class="app-shell-skeleton" aria-hidden="true"></div><script src="js/initial-skeletons.js?v=20261015-1"></script>
+  <main class="main-content admin-section-page">
+    <div class="admin-section-wrap" id="employeeProfileContent">
+      <span class="profile-loading-status" role="status">Loading employee profile…</span>
+      <div class="employee-profile-loading" aria-hidden="true">
+        <div class="entry-breadcrumb">Users <span>/</span> Employee profile</div>
+        <header class="employee-profile-header">
+          <div class="employee-profile-identity"><span class="employee-profile-avatar data-loading-line"></span><div>
+            <p class="admin-section-kicker">EMPLOYEE PROFILE</p>
+            <div class="profile-loading-name"><span class="data-loading-line"></span></div><span class="data-loading-line"></span>
+            <div class="profile-identity-meta"><span class="data-loading-line"></span><span class="data-loading-line"></span></div>
+          </div></div>
+          <div class="employee-profile-actions"><span class="data-loading-line"></span><span class="data-loading-line"></span></div>
+        </header>
+        <section class="employee-profile-stats">
+          <article><span>Total worked</span><strong><span class="data-loading-line"></span></strong><small><span class="data-loading-line"></span></small></article>
+          <article><span>Time entries</span><strong><span class="data-loading-line"></span></strong><small><span class="data-loading-line"></span></small></article>
+          <article><span>Average session</span><strong><span class="data-loading-line"></span></strong><small><span class="data-loading-line"></span></small></article>
+        </section>
+        <section class="employee-profile-grid">
+          <article class="employee-profile-card">
+            <div class="employee-profile-card-head"><div><span>WEEKLY ACTIVITY</span><h2>Daily worked time</h2></div><small>Last 7 days</small></div>
+            <div class="employee-profile-chart">
+              <div><b><span class="data-loading-line"></span></b><i><em class="data-loading-line" style="--profile-loading-height:38%"></em></i><span class="data-loading-line"></span></div>
+              <div><b><span class="data-loading-line"></span></b><i><em class="data-loading-line" style="--profile-loading-height:66%"></em></i><span class="data-loading-line"></span></div>
+              <div><b><span class="data-loading-line"></span></b><i><em class="data-loading-line" style="--profile-loading-height:47%"></em></i><span class="data-loading-line"></span></div>
+              <div><b><span class="data-loading-line"></span></b><i><em class="data-loading-line" style="--profile-loading-height:75%"></em></i><span class="data-loading-line"></span></div>
+              <div><b><span class="data-loading-line"></span></b><i><em class="data-loading-line" style="--profile-loading-height:52%"></em></i><span class="data-loading-line"></span></div>
+              <div><b><span class="data-loading-line"></span></b><i><em class="data-loading-line" style="--profile-loading-height:33%"></em></i><span class="data-loading-line"></span></div>
+              <div><b><span class="data-loading-line"></span></b><i><em class="data-loading-line" style="--profile-loading-height:60%"></em></i><span class="data-loading-line"></span></div>
+            </div>
+          </article>
+          <article class="employee-profile-card">
+            <div class="employee-profile-card-head"><div><span>PROJECT ALLOCATION</span><h2>Hours by project</h2></div><small>All time · Top 4</small></div>
+            <div class="employee-profile-projects">
+              <div><span class="data-loading-line"></span><i class="data-loading-line"></i><strong><span class="data-loading-line"></span></strong></div>
+              <div><span class="data-loading-line"></span><i class="data-loading-line"></i><strong><span class="data-loading-line"></span></strong></div>
+              <div><span class="data-loading-line"></span><i class="data-loading-line"></i><strong><span class="data-loading-line"></span></strong></div>
+            </div>
+          </article>
+        </section>
+        <section class="table-container employee-profile-entries">
+          <div class="table-header employee-history-header"><div><h2>Clock-in history</h2><span class="data-loading-line"></span></div><div class="profile-history-tools"><span class="data-loading-line"></span><span class="data-loading-line"></span></div></div>
+          <div class="table-responsive"><table class="table">
+            <thead><tr><th scope="col">Project</th><th scope="col">Clock in</th><th scope="col">Clock out</th><th scope="col">Worked</th><th scope="col">Approved overtime</th><th scope="col">Remarks</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+            <tbody>
+              <tr class="skeleton-table-row"><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td></tr>
+              <tr class="skeleton-table-row"><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td></tr>
+              <tr class="skeleton-table-row"><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td><td><span class="data-loading-line"></span></td></tr>
+            </tbody>
+          </table></div>
+        </section>
+      </div>
+    </div>
+  </main>
   <div id="toastContainer" class="toast-container"></div>
   <script src="js/api-config.js"></script><script src="js/supabase.js"></script><script src="js/supabase-auth.js?v=cache-bust-20260930-1"></script><script src="js/sidebar.js?v=cache-bust-20260930-1"></script><script src="js/onboarding-config.js?v=cache-bust-20260930-2"></script><script src="js/script.js?v=cache-bust-20260930-31"></script><script src="js/onboarding.js?v=cache-bust-20260930-5"></script><script src="js/admin-sections.js"></script><script src="js/employee-profile.js?v=cache-bust-20260930-1"></script>
 </body>

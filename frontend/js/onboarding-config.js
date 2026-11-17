@@ -21,7 +21,7 @@ window.ACETutorialConfig = {
     ADMIN: {
         version: 20,
         steps: [
-            { page: 'admin-dashboard.html', target: '#adminDashboardHeader', title: 'Your admin dashboard', body: 'Start here each day. This header orients you with the current date before you review live work and operational priorities.', navigation: { group: 'Workspace', label: 'Dashboard' } },
+            { page: 'admin-dashboard.html', target: '#adminDashboardHeader', title: 'Quick actions', body: 'Find common admin tasks and today’s date here.', navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'admin-dashboard.html', target: '#dashboardQuickActions', title: 'Use quick actions', body: 'These action buttons are the fastest way to invite a team member or open departments, projects, and schedules.' },
             { page: 'admin-dashboard.html', target: '#dashboardOverview', title: 'Read workspace status', body: 'Check the live clock-in count, today’s entries, and completed time this month. Select the Currently clocked in link below the count to jump straight to the Clocked-in employees panel in Time entries.' },
             { page: 'admin-dashboard.html', target: '#inviteUserBtn', title: 'Invite a team member', body: 'Choose Invite User and enter the person’s work email and role. ACE saves their access before attempting to send the invitation email. They should sign in with the invited work address.' },

@@ -444,14 +444,26 @@ function showStartupWarmupNotice() {
     const notice = document.createElement('section');
     notice.className = 'shell-startup-warmup' + (shell ? '' : ' startup-warmup-fullpage');
     notice.setAttribute('aria-label', 'Service connection status');
-    notice.innerHTML = '<div class="startup-brand"><img src="/assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"><span>ACE CLOCK IN / OUT</span></div><div class="startup-scene" aria-hidden="true"><div class="startup-scene-orbit"></div><div class="startup-float startup-float-time"><span>↗</span><div>Time<strong>tracking</strong></div></div><div class="startup-scene-clock"><span class="startup-clock-tick"></span><span class="startup-clock-index index-12">12</span><span class="startup-clock-index index-3">3</span><span class="startup-clock-index index-6">6</span><span class="startup-clock-index index-9">9</span><span class="startup-clock-signature">ACE</span><i></i><b></b><span class="startup-clock-second"></span><em></em><span class="startup-clock-caption">CLOCK IN / OUT</span></div><div class="startup-float startup-float-team"><span>✓</span><div>Employee<strong>workspace</strong></div></div><span class="startup-scene-spark spark-one">+</span><span class="startup-scene-spark spark-two">+</span><span class="startup-detail-line detail-line-one"></span><span class="startup-detail-line detail-line-two"></span></div><div class="startup-message"><p class="startup-eyebrow">PLEASE WAIT</p><div class="startup-warmup-heading"><strong data-warmup-title>Connecting<br><span>to ACE.</span></strong><p data-warmup-description>The server may be starting after inactivity. Please wait while we try to connect.</p></div><div class="startup-loading-track" aria-hidden="true"><span></span></div><p class="startup-warmup-status" role="status">Keep this page open. You don’t need to refresh. We’ll continue when ACE is ready.</p><button class="btn btn-primary" type="button" data-startup-refresh hidden>Try again</button></div>';
+    notice.innerHTML = '' +
+        '<div class="startup-message">' +
+            '<header class="startup-brand"><img src="/assets/images/ace-logo-hd-cropped.png" alt=""><span>ACE Clock In / Out</span></header>' +
+            '<div class="startup-connection-body">' +
+                '<h1 data-warmup-title>Connecting to ACE</h1>' +
+                '<p data-warmup-description>ACE may be waking up after inactivity.</p>' +
+                '<div class="startup-connection-status">' +
+                    '<div class="startup-loading-track" aria-hidden="true"><span></span></div>' +
+                    '<p class="startup-warmup-status" role="status">We’ll continue automatically when ACE is ready. You don’t need to refresh.</p>' +
+                '</div>' +
+                '<button class="btn btn-primary" type="button" data-startup-refresh hidden>Try again</button>' +
+            '</div>' +
+        '</div>';
     notice.innerHTML += '<section class="startup-mole" aria-label="Whack-a-Mole" hidden><div class="startup-mole-top"><h2>Whack-a-Mole</h2><button type="button" data-mole-exit>Exit game</button></div><div class="startup-mole-stats"><span>Score <strong data-mole-score>0</strong></span><span>Time left <strong data-mole-time>60s</strong></span></div><div class="startup-mole-board"></div><p role="status" data-mole-status>Tap the mole when it pops up.</p><button type="button" class="btn btn-primary" data-mole-replay hidden>Play again</button></section>';
     const message = notice.querySelector('.startup-message');
     const play = document.createElement('button');
     play.type = 'button';
     play.className = 'btn startup-mole-play';
     play.textContent = 'Play Whack-a-Mole';
-    message.append(play);
+    message.querySelector('.startup-connection-body').append(play);
     play.addEventListener('click', () => startStartupMole(notice, play));
     host.prepend(notice);
     notice.querySelector('[data-startup-refresh]').addEventListener('click', () => window.location.reload());
@@ -510,7 +522,7 @@ function startStartupMole(notice, play, focus = true) {
     let deadline = performance.now() + 60000;
     const sounds = typeof Audio === 'function' ? [
         new Audio('/assets/whack-a-mole/miss.ogg'),
-        new Audio('/assets/whack-a-mole/hit.ogg')
+        new Audio('/assets/whack-a-mole/whack04.mp3')
     ] : [];
     if (sounds.length) {
         sounds[0].volume = .28;
@@ -637,17 +649,15 @@ async function withStartupWarmup(operation) {
         return result;
     } catch (error) {
         if (error?.status === 401 || error?.status === 403) clearStartupWarmupNotice();
-        else showStartupConnectionError();
+        else if (document.querySelector('.shell-startup-warmup:not(.is-startup-complete)')) showStartupConnectionError();
         throw error;
     }
 }
 
 async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
-    // A successful config request can precede a usable workspace. Keep the
-    // loading screen visible until the live startup requests finish.
+    // Once the service responds, the workspace skeletons own data loading.
     const retryDelays = [1500, 2500, 4000, 6000, 8000];
     let startupDeadline = Date.now() + 300000;
-    let lastError;
     let serviceReady = false;
     for (let attempt = 0; ; attempt += 1) {
         if (Date.now() >= startupDeadline && document.body?.classList?.contains('employee-clock-reconnecting')) {
@@ -671,32 +681,29 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
                     reject(timeoutError);
                 }, remaining);
             });
-            warmupTimer = window.setTimeout(showStartupWarmupNotice, 3000);
-            const connect = async () => {
-                if (!serviceReady) {
-                    await window.ACEAuth?.checkService?.();
-                    serviceReady = true;
-                }
-                return operation();
-            };
-            const loaded = await Promise.race([connect(), deadline]);
-            return loaded;
+            if (!serviceReady) {
+                warmupTimer = window.setTimeout(showStartupWarmupNotice, 3000);
+                await Promise.race([window.ACEAuth?.checkService?.(), deadline]);
+                window.clearTimeout(warmupTimer);
+                serviceReady = true;
+                clearStartupWarmupNotice(true);
+            }
+            return await Promise.race([operation(), deadline]);
         } catch (error) {
-            lastError = error;
             const retryable = !error.status || error.status >= 500 || error.status === 429;
             const clockAvailable = document.body?.classList?.contains('employee-clock-reconnecting');
             if (!retryable || (Date.now() >= startupDeadline && !clockAvailable)) throw error;
-            showStartupWarmupNotice();
-            console.info(`Waiting for ACE services to wake up (attempt ${attempt + 1}).`);
-            const status = document.querySelector('.startup-warmup-status');
-            if (status) status.textContent = 'Still trying to connect. Keep this page open. You don’t need to refresh.';
+            if (!serviceReady) {
+                showStartupWarmupNotice();
+                const status = document.querySelector('.startup-warmup-status');
+                if (status) status.textContent = 'Still trying to connect. Keep this page open. You don’t need to refresh.';
+            }
             await pause(Math.min(retryDelays[attempt] || 10000, Math.max(0, startupDeadline - Date.now())));
         } finally {
             window.clearTimeout(deadlineTimer);
             window.clearTimeout(warmupTimer);
         }
     }
-    throw lastError;
 }
 
 let employeeClockPreview = false;
@@ -977,8 +984,8 @@ async function initApp() {
         if (await startPublicEmployeeBoot(loginNotice)) return;
         try { await withStartupWarmup(() => loadDatabaseWhenServiceIsReady(resumePublicSession)); }
         catch (error) {
-            if (error?.status !== 401 && error?.status !== 403) {
-                showStartupConnectionError();
+            if (error?.status !== 401 && error?.status !== 403 && !document.querySelector('.shell-startup-warmup:not(.is-startup-complete)')) {
+                showToast('ACE could not load your session. Please try signing in again.', 'error');
             }
         }
         return;
@@ -1166,9 +1173,12 @@ function applyStoredAppearance() {
 }
 
 function applyTheme(theme) {
-    const resolvedTheme = theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : theme;
+    const root = document.documentElement;
+    const preference = root.classList.contains('public-light-theme') ? 'light'
+        : root.classList.contains('public-system-theme') ? 'system' : theme;
+    const resolvedTheme = preference === 'system' ? (systemThemeMedia.matches ? 'dark' : 'light') : preference;
     document.documentElement.dataset.theme = resolvedTheme;
-    document.documentElement.dataset.themePreference = theme;
+    document.documentElement.dataset.themePreference = preference;
 }
 
 const systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
@@ -1231,7 +1241,7 @@ function mountRelatedPageTabs() {
     };
     const group = groups[page];
     if (!group || document.getElementById('workspaceRelatedTabs')) return;
-    const header = document.querySelector('.schedule-page-header, .individual-reports-header, .reports-header');
+    const header = document.querySelector('[data-workspace-tabs-anchor], .reports-header');
     if (!header) return;
     const nav = document.createElement('nav');
     nav.id = 'workspaceRelatedTabs';
@@ -1251,7 +1261,109 @@ function mountRelatedPageTabs() {
     }
 }
 
+// Move supporting copy into a shared help tip for compact workspace headers.
+const cardTipHeaders = [
+    '.dashboard-section-heading', '.admin-section-header', '.employee-section-heading',
+    '.schedule-card-heading', '.table-header', '.active-entries-heading-copy',
+    '.settings-header', '.reports-header', '.shell-sidebar-updates-panel'
+].join(',');
+let cardTipSequence = 0;
+let openCardTip;
+let pinnedCardTip;
+
+function closeCardTip() {
+    if (!openCardTip) return;
+    const { tip } = openCardTip;
+    openCardTip = null;
+    pinnedCardTip = null;
+    if (tip.matches(':popover-open')) tip.hidePopover();
+    tip.hidden = true;
+}
+
+function showCardTip(control) {
+    if (openCardTip?.button === control.button) return;
+    closeCardTip();
+    const { button, tip, description } = control;
+    tip.textContent = description.textContent.trim();
+    if (!tip.textContent) return;
+    tip.hidden = false;
+    if (tip.showPopover) tip.showPopover();
+    const anchor = button.getBoundingClientRect();
+    const width = tip.offsetWidth;
+    const left = Math.max(8, Math.min(anchor.left, document.documentElement.clientWidth - width - 8));
+    const top = anchor.bottom + tip.offsetHeight + 8 < window.innerHeight
+        ? anchor.bottom + 6 : Math.max(8, anchor.top - tip.offsetHeight - 6);
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+    openCardTip = control;
+}
+
+function initializeCardTips(root) {
+    const headers = new Set(root.querySelectorAll(cardTipHeaders));
+    const parentHeader = root.closest?.(cardTipHeaders);
+    if (parentHeader) headers.add(parentHeader);
+    headers.forEach(header => {
+        if (header.dataset.cardTipReady) return;
+        const heading = header.querySelector(':scope > h1, :scope > h2, :scope > div > h1, :scope > div > h2');
+        if (!heading) return;
+        const description = heading.nextElementSibling || (heading.parentElement !== header ? heading.parentElement.nextElementSibling : null);
+        if (!description?.matches('p:not([role]):not([aria-live])') || !description.textContent.trim()) return;
+
+        header.dataset.cardTipReady = 'true';
+        const titleRow = document.createElement('div');
+        titleRow.className = 'card-heading-line';
+        heading.before(titleRow);
+        titleRow.append(heading);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'card-tip-button';
+        button.setAttribute('aria-label', 'About ' + heading.textContent.trim());
+        button.innerHTML = suppliedIconMarkup('info', 'ui-icon');
+        if (!description.id) description.id = 'aceCardTip' + (++cardTipSequence);
+        button.setAttribute('aria-describedby', description.id);
+        description.hidden = true;
+        description.classList.add('card-tip-source');
+        titleRow.append(button);
+
+        const tip = document.createElement('span');
+        tip.className = 'card-tip-popup';
+        tip.setAttribute('aria-hidden', 'true');
+        tip.setAttribute('popover', 'manual');
+        tip.hidden = true;
+        titleRow.append(tip);
+        const control = { button, tip, description };
+        button.addEventListener('pointerenter', event => {
+            if (event.pointerType !== 'touch') showCardTip(control);
+        });
+        button.addEventListener('pointerleave', () => {
+            if (openCardTip === control && pinnedCardTip !== control && document.activeElement !== button) closeCardTip();
+        });
+        button.addEventListener('focus', () => showCardTip(control));
+        button.addEventListener('blur', () => {
+            if (openCardTip === control) closeCardTip();
+        });
+        button.addEventListener('click', () => {
+            if (pinnedCardTip === control) { closeCardTip(); return; }
+            showCardTip(control);
+            if (openCardTip === control) pinnedCardTip = control;
+        });
+    });
+}
+
+document.addEventListener('pointerdown', event => {
+    if (openCardTip && !openCardTip.button.contains(event.target)) closeCardTip();
+}, true);
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && openCardTip) {
+        event.preventDefault();
+        closeCardTip();
+    }
+});
+window.addEventListener('scroll', closeCardTip, { capture: true, passive: true });
+window.addEventListener('resize', closeCardTip);
+
 function initializeUXEnhancements() {
+    initializeCardTips(document);
     mountRelatedPageTabs();
     document.querySelectorAll('.modal').forEach(modal => {
         modal.setAttribute('role', 'dialog');
@@ -1280,7 +1392,13 @@ function initializeUXEnhancements() {
             mutations.forEach(mutation => mutation.addedNodes.forEach(node => {
                 if (node.nodeType === Node.ELEMENT_NODE) roots.add(node);
             }));
-            roots.forEach(root => applyTableLabels(root.closest?.('table') || root));
+            roots.forEach(root => {
+                applyTableLabels(root.closest?.('table') || root);
+                if (root.isConnected) initializeCardTips(root);
+            });
+            mutations.forEach(({ target }) => {
+                if (target.id === 'sectionDescription') initializeCardTips(target);
+            });
         });
         window.__aceTableLabelObserver.observe(document.body, { childList: true, subtree: true });
     }
@@ -1451,7 +1569,9 @@ function installPageFadeNavigation() {
             updateShellRoute(destination);
             await runMountedPage(parsed);
             await mountRouteModule(parsed);
-            window.scrollTo({ top: 0, behavior: 'auto' });
+            const reviewSection = destination.hash === '#reviewAlertsSection' && document.getElementById('reviewAlertsSection');
+            if (reviewSection) reviewSection.scrollIntoView({ block: 'start' });
+            else window.scrollTo({ top: 0, behavior: 'auto' });
             window.dispatchEvent(new CustomEvent('ace:route-ready'));
         } catch (error) {
             console.warn('Dashboard content navigation fell back to a normal page load.', error);
@@ -1510,13 +1630,13 @@ function initializeAppShell() {
         return false;
     }
 
-    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', building: 'building', folder: 'folder', clock: 'timer', calendar: 'calendar-days', chart: 'chart-column-big', audit: 'brick-wall-shield', download: 'download', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
+    const icons = { dashboard: 'layout-panel-top', users: 'users', mail: 'mail', building: 'building', folder: 'folder', archive: 'archive', document: 'file-text', clock: 'timer', calendar: 'calendar-days', schedule: 'clock', chart: 'chart-column-big', audit: 'brick-wall-shield', download: 'download', settings: 'settings', remarks: 'message-circle-more', logout: 'log-out', chevron: 'chevron-left' };
     const icon = name => suppliedIconMarkup(icons[name], 'shell-icon');
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['departments.html', 'building', 'Departments']]],
-        ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['holidays.html', 'calendar', 'Holidays']]],
-        ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'chart', 'Individual reports']]],
+        ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'archive', 'Archived users'], ['departments.html', 'building', 'Departments']]],
+        ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'schedule', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['holidays.html', 'calendar', 'Holidays']]],
+        ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'document', 'Individual reports']]],
         ['Administration', [...(AppState.currentUser?.IsHeadAdmin ? [['chatbot-inquiry.html', 'remarks', 'Chatbot Inquiry']] : []), ['audit-logs.html', 'audit', 'Audit log'], ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
@@ -1528,7 +1648,7 @@ function initializeAppShell() {
     const user = AppState.currentUser || { FullName: isAdmin ? 'ACE Administrator' : 'ACE Employee', Role: isAdmin ? 'ADMIN' : 'USER' };
     const initials = String(user.FullName || '').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
     const unreadRemarks = !isAdmin ? AppState.adminRemarks.filter(remark => !remark.SeenAt).length : 0;
-    const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const groupId = `shell-nav-group-${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => file === href); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}" aria-controls="${groupId}" aria-label="${open ? 'Collapse' : 'Expand'} ${groupLabel}"><span>${groupLabel}</span><b aria-hidden="true">${suppliedIconMarkup('chevron-right', 'shell-nav-group-chevron')}</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; return `<section class="shell-nav-group${collapsible ? ' shell-nav-group--collapsible' : ''}${hasActive ? ' has-active-route' : ''}${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}" data-group-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}<div class="shell-nav-group-items" id="${groupId}"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
+    const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const groupId = `shell-nav-group-${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => file === href); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}" aria-controls="${groupId}" aria-label="${open ? 'Collapse' : 'Expand'} ${groupLabel}"><span>${groupLabel}</span><b aria-hidden="true">${suppliedIconMarkup('chevron-right', 'shell-nav-group-chevron')}</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; const railButton = collapsible ? `<button class="shell-folded-group" type="button" title="${groupLabel}" aria-label="${groupLabel} pages" aria-expanded="false" aria-controls="shellGroupFlyout">${suppliedIconMarkup(groupLabel === 'People' ? 'hierarchy' : 'briefcase', 'shell-icon')}${suppliedIconMarkup('chevron-right', 'shell-folded-chevron')}</button>` : ''; return `<section class="shell-nav-group${collapsible ? ' shell-nav-group--collapsible' : ''}${hasActive ? ' has-active-route' : ''}${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}" data-group-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}${railButton}<div class="shell-nav-group-items" id="${groupId}"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
         const active = file === href || (file === 'admin-management.html' && new URLSearchParams(location.search).get('view') === href.replace('.html', '').replace('admin-time-entries', 'entries').replace('audit-logs', 'audit'));
         const remarkBadge = href === 'remarks.html' && unreadRemarks ? `<b class="shell-notification-badge" aria-label="${unreadRemarks} new administrator remark${unreadRemarks === 1 ? '' : 's'}">${unreadRemarks > 9 ? '9+' : unreadRemarks}</b>` : '';
         return `<a class="shell-link${active ? ' active' : ''}" href="${href}" title="${label}"${active ? ' aria-current="page"' : ''}>${icon(iconName)}<span class="shell-label">${label}</span>${remarkBadge}</a>`;
@@ -1546,6 +1666,10 @@ function initializeAppShell() {
     sidebar.className = 'app-sidebar';
     sidebar.id = 'appSidebar';
     sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-account-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div>`;
+    const sidebarUpdates = document.createElement('section');
+    sidebarUpdates.className = 'shell-sidebar-updates';
+    sidebarUpdates.setAttribute('aria-label', isAdmin ? 'Time-entry alerts' : 'Recent notifications');
+    sidebar.querySelector('.shell-account-wrap').before(sidebarUpdates);
     const overlay = document.createElement('button');
     overlay.className = 'shell-overlay'; overlay.type = 'button'; overlay.setAttribute('aria-label', 'Close navigation');
     const mobileToggle = document.createElement('button');
@@ -1560,7 +1684,7 @@ function initializeAppShell() {
     if (isEmployee) {
         document.body.classList.add('has-employee-bottom-nav');
         const bottomNavItems = [
-            ['user-dashboard.html', 'layout-panel-top', 'Dashboard'],
+            ['user-dashboard.html', 'layout-panel-top', 'Home'],
             ['time-entries.html', 'timer', 'My time'],
             ['remarks.html', 'message-circle-more', 'Remarks']
         ];
@@ -1582,7 +1706,62 @@ function initializeAppShell() {
         updateEmployeeBottomNav();
     }
 
+    const compactNavigation = window.matchMedia('(max-width: 1180px)');
+    const foldedGroupFlyout = document.createElement('nav');
+    foldedGroupFlyout.id = 'shellGroupFlyout';
+    foldedGroupFlyout.className = 'shell-group-flyout';
+    foldedGroupFlyout.hidden = true;
+    document.body.append(foldedGroupFlyout);
+
+    let flyoutTrigger = null;
+    const closeGroupFlyout = (restoreFocus = false) => {
+        if (!flyoutTrigger) return;
+        const trigger = flyoutTrigger;
+        flyoutTrigger = null;
+        trigger.setAttribute('aria-expanded', 'false');
+        foldedGroupFlyout.hidden = true;
+        if (restoreFocus) trigger.focus();
+    };
+    const openGroupFlyout = button => {
+        if (flyoutTrigger === button) { closeGroupFlyout(true); return; }
+        closeGroupFlyout();
+        const group = button.closest('.shell-nav-group');
+        const heading = document.createElement('p');
+        heading.textContent = group.dataset.groupLabel;
+        foldedGroupFlyout.setAttribute('aria-label', heading.textContent + ' pages');
+        const links = [...group.querySelectorAll('.shell-link')].map(link => link.cloneNode(true));
+        foldedGroupFlyout.replaceChildren(heading, ...links);
+        flyoutTrigger = button;
+        button.setAttribute('aria-expanded', 'true');
+        foldedGroupFlyout.hidden = false;
+        const bounds = button.getBoundingClientRect();
+        const top = Math.max(8, Math.min(bounds.top, window.innerHeight - foldedGroupFlyout.offsetHeight - 8));
+        foldedGroupFlyout.style.top = top + 'px';
+        (foldedGroupFlyout.querySelector('[aria-current="page"]') || links[0])?.focus({ preventScroll: true });
+    };
+    sidebar.querySelectorAll('.shell-folded-group').forEach(button => {
+        button.addEventListener('click', () => openGroupFlyout(button));
+    });
+    foldedGroupFlyout.addEventListener('click', event => {
+        if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.target.closest('a')) closeGroupFlyout(true);
+    });
+    foldedGroupFlyout.addEventListener('focusout', event => {
+        if (!foldedGroupFlyout.contains(event.relatedTarget) && event.relatedTarget !== flyoutTrigger) closeGroupFlyout();
+    });
+    document.addEventListener('pointerdown', event => {
+        if (flyoutTrigger && !foldedGroupFlyout.contains(event.target) && !flyoutTrigger.contains(event.target)) closeGroupFlyout();
+    });
+    document.addEventListener('keydown', event => {
+        if (flyoutTrigger && (event.key === 'Escape' || (event.key === 'ArrowLeft' && foldedGroupFlyout.contains(event.target)))) {
+            event.preventDefault();
+            closeGroupFlyout(true);
+        }
+    });
+    window.addEventListener('resize', () => closeGroupFlyout());
+    window.addEventListener('ace:route-ready', () => closeGroupFlyout());
+
     const setCollapsed = collapsed => {
+        closeGroupFlyout();
         document.body.classList.toggle('shell-collapsed', collapsed);
         const collapseButton = sidebar.querySelector('.shell-collapse');
         collapseButton.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
@@ -1609,7 +1788,6 @@ function initializeAppShell() {
         setGroupOpen(group, group.querySelector('.shell-nav-group-items').hidden);
     }));
     let mobileReturnFocus = null;
-    const compactNavigation = window.matchMedia('(max-width: 1180px)');
     const setMobileNavigation = (open, { restoreFocus = true } = {}) => {
         if (open && !document.body.classList.contains('shell-mobile-open')) mobileReturnFocus = document.activeElement;
         document.body.classList.toggle('shell-mobile-open', open);
@@ -1638,11 +1816,13 @@ function initializeAppShell() {
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     });
     sidebar.addEventListener('keydown', event => {
-        const controls = [...sidebar.querySelectorAll('.shell-nav-group-toggle, .shell-link')].filter(element => !element.closest('[hidden]'));
+        const controls = [...sidebar.querySelectorAll('.shell-folded-group, .shell-nav-group-toggle, .shell-link')].filter(element => element.getClientRects().length);
         const index = controls.indexOf(document.activeElement);
         if (index < 0) return;
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault(); controls[(index + (event.key === 'ArrowDown' ? 1 : controls.length - 1)) % controls.length].focus();
+        } else if (event.key === 'ArrowRight' && document.activeElement.matches('.shell-folded-group')) {
+            event.preventDefault(); openGroupFlyout(document.activeElement);
         } else if (event.key === 'ArrowRight' && document.activeElement.matches('.shell-nav-group-toggle')) {
             event.preventDefault(); const group = document.activeElement.closest('.shell-nav-group'); setGroupOpen(group, true); group.querySelector('.shell-link')?.focus();
         } else if (event.key === 'ArrowLeft' && document.activeElement.matches('.shell-nav-group-toggle')) {
@@ -1700,34 +1880,37 @@ function initializeAppShell() {
     });
     const renderNotifications = () => {
         const reviewedRemarks = getReviewedAdminRemarkIds();
-        const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt && (!isAdmin || !reviewedRemarks.has(String(remark.RemarkId))));
-        const unreadRemarksCount = unreadRemarks.length;
-        const total = unreadRemarksCount;
+        const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt && (!isAdmin || !reviewedRemarks.has(String(remark.RemarkId))))
+            .sort((a, b) => (Date.parse(b.CreatedAt) || 0) - (Date.parse(a.CreatedAt) || 0));
+        const total = unreadRemarks.length;
+        const unreadLabel = total > 99 ? '99+' : String(total);
+        const feedbackList = isAdmin ? 'admin-time-entries.html?remarks=with' : 'remarks.html';
         notificationBadge.hidden = !total;
-        notificationBadge.textContent = total > 99 ? '99+' : total;
-        const notices = [];
-        if (unreadRemarksCount) {
-            const entryById = new Map(AppState.timeEntries.map(entry => [String(entry.TimeEntryId), entry]));
-            notices.push(...unreadRemarks.slice(0, 3).map(remark => {
-                const entry = entryById.get(String(remark.TimeEntryId));
-                const employee = AppState.users.find(user => String(user.UserId) === String(entry?.UserId));
-                const summary = String(remark.Remark || '').replace(/\s+/g, ' ').trim();
-                const preview = summary.length > 100 ? `${summary.slice(0, 99)}…` : summary;
-                const href = isAdmin ? `time-entry-details.html?entry=${encodeURIComponent(remark.TimeEntryId)}` : `remarks.html?remark=${encodeURIComponent(remark.RemarkId)}`;
-                const title = isAdmin
-                    ? `Feedback awaiting review${employee?.FullName ? ` · ${employee.FullName}` : ''}`
-                    : `Feedback from ${remark.AdminName || 'an administrator'}`;
-                return `<a class="shell-notification-item shell-remark-notice" href="${href}" role="menuitem"><span class="shell-notification-item-icon">${suppliedIconMarkup('message-circle-more', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(preview || 'Open to read the administrator feedback.')}</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`;
-            }));
-            if (unreadRemarksCount > 3) notices.push(`<a class="shell-notification-item shell-notification-more" href="${isAdmin ? 'admin-time-entries.html?remarks=with' : 'remarks.html'}" role="menuitem"><span class="shell-notification-item-icon">${suppliedIconMarkup('bell', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${unreadRemarksCount - 3} more unread remark${unreadRemarksCount === 4 ? '' : 's'}</strong><small>Open the feedback list to review them.</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`);
-        }
-        const countLabel = total ? `<span class="shell-notification-count">${total > 99 ? '99+' : total} new</span>` : '';
-        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>Refresh the page to check for administrator feedback.</span></div>`;
-        notificationMenu.innerHTML = `<div class="shell-notification-header"><div><p class="shell-topbar-menu-title">Notifications</p><strong>Stay up to date</strong></div>${countLabel}</div><div class="shell-notification-list">${notices.length ? notices.join('') : emptyState}</div>`;
+        notificationBadge.textContent = unreadLabel;
+
+        const entryById = new Map(AppState.timeEntries.map(entry => [String(entry.TimeEntryId), entry]));
+        const notices = unreadRemarks.slice(0, 3).map(remark => {
+            const entry = entryById.get(String(remark.TimeEntryId));
+            const employee = AppState.users.find(user => String(user.UserId) === String(entry?.UserId));
+            const summary = String(remark.Remark || '').replace(/\s+/g, ' ').trim();
+            const href = isAdmin ? `time-entry-details.html?entry=${encodeURIComponent(remark.TimeEntryId)}` : `remarks.html?remark=${encodeURIComponent(remark.RemarkId)}`;
+            const title = isAdmin
+                ? `Feedback awaiting review${employee?.FullName ? ` · ${employee.FullName}` : ''}`
+                : `Feedback from ${remark.AdminName || 'an administrator'}`;
+            return { href, title, preview: summary.length > 100 ? `${summary.slice(0, 99)}…` : summary || 'Open to read the feedback.' };
+        });
+        const renderNotice = ({ href, title, preview }, role = '') => `<a class="shell-notification-item shell-remark-notice" href="${href}"${role}><span class="shell-notification-item-icon">${suppliedIconMarkup('message-circle-more', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(preview)}</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`;
+        const countLabel = total ? `<span class="shell-notification-count">${unreadLabel} new</span>` : '';
+        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>No unread feedback.</span></div>`;
+        const viewAll = `<a class="shell-sidebar-updates-link" href="${feedbackList}">View all feedback ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a>`;
+        notificationMenu.innerHTML = `<div class="shell-notification-header"><p class="shell-topbar-menu-title">Notifications</p>${countLabel}</div><div class="shell-notification-list">${total ? notices.map(notice => renderNotice(notice, ' role="menuitem"')).join('') : emptyState}</div><a class="shell-sidebar-updates-link" href="${feedbackList}" role="menuitem">View all feedback ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a>`;
+        if (isAdmin) return;
+        sidebarUpdates.innerHTML = `<div class="shell-sidebar-updates-panel"><div class="shell-sidebar-updates-heading"><h2>Recent updates</h2>${countLabel}</div><div class="shell-sidebar-updates-list">${total ? notices.slice(0, 2).map(notice => renderNotice(notice)).join('') : '<p>No unread feedback</p>'}</div>${viewAll}</div><a class="shell-sidebar-updates-rail" href="${feedbackList}" title="Feedback" aria-label="Feedback${total ? `, ${unreadLabel} unread` : ''}">${suppliedIconMarkup('bell', 'shell-icon')}${total ? `<span aria-hidden="true">${unreadLabel}</span>` : ''}</a>`;
     };
     // Render the notification snapshot loaded with this page.
     window.ACERenderNotifications = renderNotifications;
     renderNotifications();
+    if (isAdmin) renderAdminSidebarAlerts();
     topbarAccountButton.addEventListener('click', () => {
         setTopbarMenu(notificationButton, notificationMenu, false);
         setTopbarMenu(topbarAccountButton, topbarAccountMenu, topbarAccountMenu.hidden);
@@ -1813,6 +1996,19 @@ function initializeAppShell() {
         searchInput.removeAttribute('aria-activedescendant');
         activeSearchIndex = -1;
     };
+    const searchWrap = searchInput.closest('.shell-topbar-search-wrap');
+    document.addEventListener('pointerdown', event => {
+        if (!searchWrap.contains(event.target)) closeSearchResults();
+    }, true);
+    searchWrap.addEventListener('focusout', event => {
+        if (!searchWrap.contains(event.relatedTarget)) closeSearchResults();
+    });
+    searchWrap.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || searchResults.hidden) return;
+        event.preventDefault();
+        if (event.target !== searchInput) searchInput.focus();
+        closeSearchResults();
+    });
     const openSearchResult = result => {
         if (!result) return;
         if (result.action === 'search') {
@@ -1827,6 +2023,7 @@ function initializeAppShell() {
             return;
         }
         if (result.quickAction) sessionStorage.setItem('ace_workspace_quick_action', result.quickAction);
+        closeSearchResults();
         window.location.assign(result.href);
     };
     const timeEntrySearchResult = entry => {
@@ -1958,7 +2155,8 @@ function initializeAppShell() {
         visibleSearchResults = results.slice(0, 8);
         if (!visibleSearchResults.length) { closeSearchResults(); searchResults.innerHTML = ''; return; }
         const heading = query ? 'Search results' : 'Recent & quick access';
-        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}<span>${query ? '↑↓ to move · Enter to open' : 'Stored only in this browser'}</span></p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result${result.suggestion ? ' shell-search-suggestion' : ''}" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${highlightSearchText(result.label)}</strong><small>${highlightSearchText(result.detail)}</small></span></button>`).join('')}`;
+        searchInput.removeAttribute('aria-activedescendant');
+        searchResults.innerHTML = `<p class="shell-search-results-heading">${heading}</p>${visibleSearchResults.map((result, index) => `<button class="shell-global-result${result.suggestion ? ' shell-search-suggestion' : ''}" id="shellSearchResult${index}" type="button" role="option" aria-selected="false" data-search-result="${index}"><span class="shell-search-result-avatar">${result.picture ? `<img src="${escapeHtml(result.picture)}" alt="">` : suppliedIconMarkup(result.icon || 'search', 'shell-icon')}</span><span><strong>${highlightSearchText(result.label)}</strong><small>${highlightSearchText(result.detail)}</small></span>${suppliedIconMarkup('chevron-right', 'shell-search-open-icon')}</button>`).join('')}`;
         searchResults.hidden = false;
         searchInput.setAttribute('aria-expanded', 'true');
         searchResults.querySelectorAll('[data-search-result]').forEach(button => button.addEventListener('click', () => openSearchResult(visibleSearchResults[Number(button.dataset.searchResult)])));
@@ -1967,7 +2165,6 @@ function initializeAppShell() {
     searchInput.addEventListener('focus', () => renderSearchResults({ showSuggestions: true }));
     searchInput.addEventListener('input', () => renderSearchResults({ showSuggestions: true }));
     searchInput.addEventListener('keydown', event => {
-        if (event.key === 'Escape') { searchInput.value = ''; closeSearchResults(); searchInput.blur(); return; }
         if (event.key === 'ArrowDown') { event.preventDefault(); if (searchResults.hidden) renderSearchResults({ showSuggestions: true }); setActiveSearchResult(activeSearchIndex + 1); return; }
         if (event.key === 'ArrowUp') { event.preventDefault(); if (searchResults.hidden) renderSearchResults({ showSuggestions: true }); setActiveSearchResult(activeSearchIndex - 1); return; }
         if (event.key === 'Enter' && activeSearchIndex >= 0) { event.preventDefault(); openSearchResult(visibleSearchResults[activeSearchIndex]); }
@@ -1982,10 +2179,10 @@ function initializeAppShell() {
     });
     document.addEventListener('click', event => {
         if (!sidebar.contains(event.target)) setAccountMenu(false);
+        if (!searchWrap.contains(event.target)) closeSearchResults();
         if (!topbar.contains(event.target)) {
             setTopbarMenu(topbarAccountButton, topbarAccountMenu, false);
             setTopbarMenu(notificationButton, notificationMenu, false);
-            closeSearchResults();
         }
     });
     return true;
@@ -3684,7 +3881,9 @@ function initializeSecondaryActions() {
 async function handleGoogleLogin(event) {
     event?.preventDefault();
     const loginButton = document.getElementById('googleLoginBtn');
+    const loginStatus = document.getElementById('googleLoginStatus');
     if (loginButton) loginButton.disabled = true;
+    if (loginStatus) loginStatus.textContent = 'Opening Google sign-in…';
     try {
         if (!window.ACEAuth) throw new Error('Authentication service is unavailable.');
         const auth = await withStartupWarmup(() => loadDatabaseWhenServiceIsReady(() => window.ACEAuth.client()));
@@ -3695,6 +3894,7 @@ async function handleGoogleLogin(event) {
         showToast(error.message || 'Unable to start Google sign-in', 'error');
     } finally {
         if (loginButton) loginButton.disabled = false;
+        if (loginStatus) loginStatus.textContent = '';
     }
 }
 
@@ -4291,6 +4491,8 @@ function loadPageSpecificData() {
     if (page === 'admin-dashboard.html') {
         loadAdminDashboard();
         loadTimeLeaderboard('adminLeaderboard', 'adminLeaderboardRank');
+    } else if (AppState.currentUser?.Role === 'ADMIN') {
+        void loadReviewAlerts();
     }
 
     if (page === 'time-entry-details.html') {
@@ -4454,32 +4656,42 @@ function updateEmployeeScheduleNotice(now = new Date()) {
 
 function loadUserDashboard() {
     updateEmployeeScheduleNotice();
-    const historyUnavailable = ['pending', 'loading', 'error'].includes(AppState.employeeHistoryStatus);
+    const historyLoading = ['pending', 'loading'].includes(AppState.employeeHistoryStatus);
+    const historyUnavailable = historyLoading || AppState.employeeHistoryStatus === 'error';
     const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.ClockOutAt);
     const now = new Date();
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     startOfWeek.setHours(0, 0, 0, 0);
-    const secondsFor = predicate => userEntriesForStats.filter(predicate).reduce((total, entry) => total + Number(entry.DurationSeconds || 0), 0);
-    const weekSeconds = secondsFor(entry => new Date(entry.ClockInAt) >= startOfWeek);
-    const completedWeekEntries = userEntriesForStats.filter(entry => new Date(entry.ClockInAt) >= startOfWeek);
+    const completedWeekEntries = userEntriesForStats.filter(entry => {
+        const started = new Date(entry.ClockInAt);
+        return started >= startOfWeek && started <= now;
+    });
+    const weekSeconds = completedWeekEntries.reduce((total, entry) => total + Number(entry.DurationSeconds || 0), 0);
     const dashboardStats = {
         weekHours: formatDuration(weekSeconds),
         weekEntries: completedWeekEntries.length
     };
     Object.entries(dashboardStats).forEach(([id, value]) => {
         const node = document.getElementById(id);
-        if (node) node.textContent = historyUnavailable ? '—' : value;
+        if (node) {
+            node.textContent = historyUnavailable ? '—' : value;
+            node.classList.toggle('data-value-pending', historyLoading);
+        }
     });
     const weekChart = document.getElementById('employeeWeekChart');
     const weekState = document.getElementById('employeeWeekState');
     const showChart = !historyUnavailable && completedWeekEntries.length > 0;
     if (weekState) {
-        weekState.hidden = showChart;
+        weekState.hidden = showChart || historyLoading;
         weekState.textContent = AppState.employeeHistoryStatus === 'error' ? 'Could not load weekly activity.'
             : historyUnavailable ? 'Loading time-entry history…' : 'Completed sessions will appear here.';
     }
-    if (weekChart) weekChart.hidden = !showChart;
+    if (weekChart) {
+        weekChart.hidden = !showChart && !historyLoading;
+        if (historyLoading) window.ACERenderLoadingRegion?.(weekChart);
+        else window.ACEClearLoadingRegion?.(weekChart);
+    }
     if (weekChart && showChart) {
         const dailySeconds = Array.from({ length: 7 }, (_, index) => {
             const day = new Date(startOfWeek);
@@ -4492,16 +4704,17 @@ function loadUserDashboard() {
         });
         const largestDay = Math.max(...dailySeconds.map(item => item.seconds), 1);
         weekChart.innerHTML = dailySeconds.map(({ day, seconds }) => {
-            const height = seconds ? Math.max(8, Math.round(seconds / largestDay * 100)) : 4;
+            const height = seconds / largestDay * 100;
             const label = day.toLocaleDateString([], { weekday: 'short' });
             const today = day.toDateString() === now.toDateString();
-            return `<div class="employee-week-day"${today ? ' data-today' : ''} role="listitem"${today ? ' aria-current="date"' : ''}><span class="employee-week-bar" style="height:${height}%" aria-hidden="true"></span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(formatDuration(seconds))}</small></div>`;
+            return `<div class="employee-week-day"${today ? ' data-today' : ''} role="listitem"${today ? ' aria-current="date"' : ''}><strong>${escapeHtml(label)}</strong><span class="employee-week-slot" aria-hidden="true"><span class="employee-week-bar${seconds === largestDay ? ' is-peak' : ''}" style="height:${height}%"></span></span><small>${escapeHtml(formatDuration(seconds))}</small></div>`;
         }).join('');
     }
 
     // Populate user projects
     const myProjects = document.getElementById('myProjects');
     if (myProjects) {
+        window.ACEClearLoadingRegion?.(myProjects);
         const userProjects = AppState.userProjects.filter(up => up.UserId === AppState.currentUser?.UserId);
         const projects = userProjects.map(up => AppState.projects.find(p => p.ProjectId === up.ProjectId)).filter(Boolean);
         
@@ -4518,12 +4731,14 @@ function loadUserDashboard() {
     
     // Populate recent activity
     const recentActivity = document.getElementById('recentActivity');
-    if (recentActivity && historyUnavailable) {
-        recentActivity.innerHTML = AppState.employeeHistoryStatus === 'error'
-            ? '<p role="status">Could not load time-entry history. You can still clock in or out.</p><button class="btn btn-outline" type="button" data-retry-employee-history>Retry history</button>'
-            : '<p role="status">Loading time-entry history…</p>';
+    if (recentActivity && historyLoading) {
+        window.ACERenderLoadingRegion?.(recentActivity);
+    } else if (recentActivity && historyUnavailable) {
+        window.ACEClearLoadingRegion?.(recentActivity);
+        recentActivity.innerHTML = '<p role="status">Could not load time-entry history. You can still clock in or out.</p><button class="btn btn-outline" type="button" data-retry-employee-history>Retry history</button>';
         recentActivity.querySelector('[data-retry-employee-history]')?.addEventListener('click', () => void loadEmployeeHistory());
     } else if (recentActivity) {
+        window.ACEClearLoadingRegion?.(recentActivity);
         const userEntries = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId).slice(0, 5);
         recentActivity.innerHTML = userEntries.length
             ? `<ol class="employee-activity-list">${userEntries.map(renderEmployeeActivityRow).join('')}</ol>`
@@ -4532,6 +4747,7 @@ function loadUserDashboard() {
 
     const dashboardRemarks = document.getElementById('dashboardRemarks');
     if (dashboardRemarks) {
+        window.ACEClearLoadingRegion?.(dashboardRemarks);
         const entryById = new Map(AppState.timeEntries.map(entry => [entry.TimeEntryId, entry]));
         const remarks = AppState.adminRemarks.slice(0, 5);
         dashboardRemarks.innerHTML = remarks.length ? remarks.map(remark => {
@@ -4548,6 +4764,7 @@ async function loadTimeLeaderboard(listId, rankId) {
     if (!list || !window.ACEAuth) return;
     try {
         const data = await window.ACEAuth.request('/v1/time-leaderboard');
+        window.ACEClearLoadingRegion?.(list);
         if (rank) rank.textContent = AppState.currentUser?.Role === 'ADMIN' ? 'Top ten by completed worked time.' : `Your team rank: #${data.my_rank} of ${data.total_people}`;
         list.innerHTML = data.leaders.length ? data.leaders.map((person, index) => {
             const initials = (person.full_name || '?').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
@@ -4557,6 +4774,7 @@ async function loadTimeLeaderboard(listId, rankId) {
             return `<li class="time-leaderboard-row${isMe ? ' is-current-user' : ''}"><b class="time-leaderboard-rank">${index + 1}</b><span class="time-leaderboard-avatar">${person.profile_picture_url ? `<img src="${escapeHtml(person.profile_picture_url)}" alt="">` : escapeHtml(initials)}</span>${profileName}<span>${formatDuration(person.tracked_seconds)}</span></li>`;
         }).join('') : `<li class="time-leaderboard-empty"><span>${suppliedIconMarkup('users')}</span><strong>No completed work sessions yet</strong><p>Team rankings will appear after people finish their first shifts.</p></li>`;
     } catch {
+        window.ACEClearLoadingRegion?.(list);
         if (rank) rank.textContent = 'Leaderboard is unavailable right now.';
         list.innerHTML = `<li class="time-leaderboard-empty"><span>${suppliedIconMarkup('circle-alert')}</span><strong>Rankings are unavailable</strong><p>Refresh the page and try again in a moment.</p></li>`;
     }
@@ -4780,59 +4998,40 @@ function formatDashboardDuration(seconds) {
     return value > 0 && value < 60 ? '<1m' : formatDuration(value);
 }
 
-function smoothChartPath(points) {
-    if (!points.length) return '';
-    if (points.length === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-    return points.slice(1).reduce((path, point, index) => {
-        const previous = points[index];
-        const next = points[index + 2] || point;
-        const controlOneX = previous.x + (point.x - previous.x) * .38;
-        const controlTwoX = point.x - (next.x - previous.x) * .18;
-        return `${path} C ${controlOneX.toFixed(1)} ${previous.y.toFixed(1)}, ${controlTwoX.toFixed(1)} ${point.y.toFixed(1)}, ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
-    }, `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`);
-}
-
-function renderTrackedTimeLineChart(mount, buckets, totalEntries, periodStart, periodEnd) {
-    const width = 720, height = 254, left = 48, right = 16, top = 18, bottom = 36;
-    const plotWidth = width - left - right, plotHeight = height - top - bottom;
+function renderTrackedTimeBarChart(mount, buckets, totalEntries, periodStart, periodEnd) {
+    const width = 640, height = 154, left = 34, right = 12, top = 10, baseline = 126;
+    const slot = (width - left - right) / buckets.length;
+    const barWidth = Math.min(34, slot * .55);
     const maximumCount = Math.max(...buckets.map(bucket => bucket.count), 1);
-    const tickStep = niceChartTickStep(maximumCount);
-    const roundedMaximum = Math.ceil(maximumCount / tickStep) * tickStep;
-    const pointFor = (bucket, index) => {
-        const x = left + (buckets.length === 1 ? plotWidth / 2 : index / (buckets.length - 1) * plotWidth);
-        const y = top + plotHeight - (bucket.count / roundedMaximum * plotHeight);
-        return { x, y };
-    };
-    const points = buckets.map(pointFor);
-    const linePath = smoothChartPath(points);
-    const yGrid = Array.from({ length: 5 }, (_, index) => {
-        const value = roundedMaximum / 4 * (4 - index);
-        const y = top + plotHeight / 4 * index;
-        return `<g class="line-chart-gridline"><line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}"/><text x="${left - 10}" y="${y + 4}" text-anchor="end">${Number.isInteger(value) ? value : value.toFixed(1)}</text></g>`;
+    const tick = Math.max(1, niceChartTickStep(maximumCount));
+    const steps = Math.ceil(maximumCount / tick);
+    const scale = (baseline - top) / (steps * tick);
+    const grid = Array.from({ length: steps + 1 }, (_, index) => {
+        const value = index * tick;
+        const y = baseline - value * scale;
+        return `<path class="activity-gridline" d="M${left} ${y}H${width - right}"/><text class="activity-axis-label" x="${left - 8}" y="${y + 4}" text-anchor="end">${value}</text>`;
     }).join('');
-    const xGrid = points.map(point => `<line class="line-chart-gridline line-chart-gridline--vertical" x1="${point.x}" y1="${top}" x2="${point.x}" y2="${top + plotHeight}"/>`).join('');
-    const labelStride = Math.max(1, Math.ceil(buckets.length / 7));
-    const xLabels = buckets.map((bucket, index) => {
-        if (index % labelStride && index !== buckets.length - 1) return '';
-        const point = points[index];
-        const label = buckets.length <= 8
-            ? bucket.start.toLocaleDateString('en-US', { weekday: 'short' })
-            : bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return `<text class="line-chart-x-label" x="${point.x}" y="${height - 11}" text-anchor="middle">${label}</text>`;
-    }).join('');
-    const circles = points.map((point, index) => {
-        const bucket = buckets[index];
-        const label = bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return `<circle class="line-chart-point" cx="${point.x}" cy="${point.y}" r="4"><title>${label}: ${bucket.count} completed ${bucket.count === 1 ? 'entry' : 'entries'}</title></circle>`;
+    const peakIndex = buckets.findIndex(bucket => bucket.count === maximumCount);
+    const columns = buckets.map((bucket, index) => {
+        const center = left + slot * (index + .5);
+        const barHeight = bucket.count * scale;
+        const date = bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const label = buckets.length <= 8 ? bucket.start.toLocaleDateString('en-US', { weekday: 'short' }) : date;
+        const countLabel = bucket.count === 1 ? 'entry' : 'entries';
+        const labelVisible = buckets.length <= 7 || index % 2 === 0 || (index === buckets.length - 1 && buckets.length % 2 === 0 && buckets.length < 10);
+        const bar = barHeight ? `<rect class="activity-column${index === peakIndex ? ' is-peak' : ''}" x="${center - barWidth / 2}" y="${baseline - barHeight}" width="${barWidth}" height="${barHeight}" rx="${Math.min(6, barHeight / 2)}"/>` : '';
+        return `<g><title>${date}: ${bucket.count} completed ${countLabel}</title><rect x="${center - slot / 2}" y="${top}" width="${slot}" height="${baseline - top}" fill="transparent"/>${bar}${labelVisible ? `<text class="activity-axis-label" x="${center}" y="146" text-anchor="middle">${label}</text>` : ''}</g>`;
     }).join('');
     mount.setAttribute('aria-label', `Completed time entries from ${toAnalyticsDateValue(periodStart)} to ${toAnalyticsDateValue(periodEnd)}: ${totalEntries}`);
-    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${yGrid}${xGrid}<path class="line-chart-path" d="${linePath}"/>${circles}${xLabels}</svg>`;
+    mount.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${grid}${columns}</svg>`;
 }
 
 function renderAdminAnalytics() {
     const hoursChart = document.getElementById('hoursChart');
     const projectChart = document.getElementById('projectAllocationChart');
     if (!hoursChart || !projectChart) return;
+    window.ACEClearLoadingRegion?.(hoursChart);
+    window.ACEClearLoadingRegion?.(projectChart);
     const completed = employeeTimeEntries().filter(entry => entry.ClockOutAt);
     const trackedRange = document.getElementById('trackedTimeRange');
     const projectRange = document.getElementById('projectHoursRange');
@@ -4844,7 +5043,7 @@ function renderAdminAnalytics() {
     const totalSeconds = trackedEntries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
     const bucketCount = Math.min(trackedBounds.days, trackedBounds.days <= 8 ? trackedBounds.days : 10);
     const bucketDays = Math.ceil(trackedBounds.days / bucketCount);
-    const buckets = Array.from({ length: bucketCount }, (_, index) => {
+    const buckets = Array.from({ length: Math.ceil(trackedBounds.days / bucketDays) }, (_, index) => {
         const start = new Date(trackedBounds.periodStart);
         start.setDate(start.getDate() + index * bucketDays);
         const end = new Date(Math.min(new Date(start).setDate(start.getDate() + bucketDays), trackedBounds.periodEnd.getTime() + 1));
@@ -4861,9 +5060,9 @@ function renderAdminAnalytics() {
     const averageNode = document.getElementById('analyticsAverage');
     if (totalNode) totalNode.textContent = formatDashboardDuration(totalSeconds);
     if (entryTotalNode) entryTotalNode.textContent = String(trackedEntries.length);
-    if (detailNode) detailNode.textContent = `${rangeDescription} · completed entries`;
+    if (detailNode) detailNode.textContent = rangeDescription;
     if (averageNode) averageNode.textContent = (trackedEntries.length / trackedBounds.days).toFixed(trackedEntries.length && trackedEntries.length / trackedBounds.days < 1 ? 1 : 0);
-    if (trackedEntries.length) renderTrackedTimeLineChart(hoursChart, buckets, trackedEntries.length, trackedBounds.periodStart, trackedBounds.periodEnd);
+    if (trackedEntries.length) renderTrackedTimeBarChart(hoursChart, buckets, trackedEntries.length, trackedBounds.periodStart, trackedBounds.periodEnd);
     else hoursChart.innerHTML = analyticsEmpty('No completed entries in this period', 'Choose a different date range or wait for the first completed shift.');
 
     const projectBounds = dashboardPeriodBounds(projectRange?.value || 'month');
@@ -4881,7 +5080,7 @@ function renderAdminAnalytics() {
     const projects = [...projectTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
     const largestProject = Math.max(...projects.map(([, seconds]) => seconds), 1);
     const projectDetail = document.getElementById('projectAllocationDetail');
-    if (projectDetail) projectDetail.textContent = `${formatDashboardDuration(projectSeconds)} completed in selected period`;
+    if (projectDetail) projectDetail.textContent = `${formatDashboardDuration(projectSeconds)} tracked`;
     projectChart.innerHTML = projects.length ? `<div class="project-bar-chart">${projects.map(([name, seconds]) => {
         const share = projectSeconds ? Math.round(seconds / projectSeconds * 100) : 0;
         const detail = `${name}: ${formatDashboardDuration(seconds)} tracked (${share}% of selected time)`;
@@ -4896,12 +5095,28 @@ function renderAdminAnalytics() {
     });
 }
 
+function renderAdminSidebarAlerts(alerts) {
+    const sidebar = document.querySelector('.shell-sidebar-updates');
+    if (!sidebar) return;
+    const count = alerts?.length;
+    const countLabel = count ? String(count) : '';
+    const href = 'admin-dashboard.html#reviewAlertsSection';
+    sidebar.innerHTML = `<div class="shell-sidebar-updates-panel"><div class="shell-sidebar-updates-heading"><span class="admin-section-kicker">Needs review</span>${countLabel ? `<span class="shell-notification-count">${countLabel}</span>` : ''}</div><h2 class="shell-sidebar-review-title">Time-entry alerts</h2><p class="shell-sidebar-review-description">Open entries that may have missed a clock-out and shifts stopped by an administrator.</p><a class="shell-sidebar-updates-link" href="${href}">Review alerts ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a></div><a class="shell-sidebar-updates-rail" href="${href}" title="Time-entry alerts" aria-label="Time-entry alerts${countLabel ? `, ${countLabel} to review` : ''}">${suppliedIconMarkup('circle-alert', 'shell-icon')}${countLabel ? `<span aria-hidden="true">${countLabel}</span>` : ''}</a>`;
+}
+
 async function loadReviewAlerts() {
-    const section = document.getElementById('reviewAlertsSection'); const list = document.getElementById('reviewAlertsList');
-    if (!section || !list || AppState.currentUser?.Role !== 'ADMIN') return;
+    if (AppState.currentUser?.Role !== 'ADMIN') return;
+    const list = document.getElementById('reviewAlertsList');
+    if (!AppState.adminReviewAlertsRequest) {
+        AppState.adminReviewAlertsRequest = window.ACEAuth.request('/v1/time-entry-review')
+            .finally(() => { AppState.adminReviewAlertsRequest = null; });
+    }
     try {
-        const response = await window.ACEAuth.request('/v1/time-entry-review'); const alerts = response.items || [];
-        section.hidden = !alerts.length;
+        const response = await AppState.adminReviewAlertsRequest;
+        const alerts = response.items || [];
+        renderAdminSidebarAlerts(alerts);
+        if (!list || !list.isConnected) return;
+        if (!alerts.length) { list.innerHTML = '<p>No time-entry alerts to review.</p>'; return; }
         list.innerHTML = alerts.map(alert => {
             const isMissedClockOut = alert.type === 'MISSED_CLOCK_OUT';
             const iconName = isMissedClockOut ? 'circle-alert' : 'user-pen';
@@ -4911,7 +5126,10 @@ async function loadReviewAlerts() {
                 <a class="btn btn-sm btn-outline review-alert-action" href="time-entry-details.html?entry=${encodeURIComponent(alert.id)}">Review entry</a>
             </article>`;
         }).join('');
-    } catch (error) { section.hidden = true; console.warn('Could not load time-entry review alerts.', error); }
+    } catch (error) {
+        if (list?.isConnected) list.innerHTML = '<p>Time-entry alerts are temporarily unavailable.</p>';
+        console.warn('Could not load time-entry review alerts.', error);
+    }
 }
 
 async function refreshAdminClockInCount() {
@@ -5158,6 +5376,7 @@ function loadTimeEntries() {
 function loadRemarksPage() {
     const list = document.getElementById('remarksPageList');
     if (!list) return;
+    window.ACEClearLoadingRegion?.(list);
     const entryById = new Map(AppState.timeEntries.map(entry => [entry.TimeEntryId, entry]));
     const remarks = AppState.adminRemarks;
     const requestedRemarkId = new URLSearchParams(window.location.search).get('remark');
@@ -5625,14 +5844,14 @@ function hideSpinner() {
 const startApp = () => {
     initApp().catch(error => {
         console.error('Application startup failed.', error);
-        if (document.querySelector('.shell-startup-warmup')) { showStartupConnectionError(); return; }
+        if (document.querySelector('.shell-startup-warmup:not(.is-startup-complete)')) { showStartupConnectionError(); return; }
         clearStartupWarmupNotice();
         document.body.classList.remove('app-shell-pending');
         const shell = document.querySelector('.app-shell-skeleton');
         if (!shell) return;
         shell.classList.add('is-startup-error');
         shell.setAttribute('aria-hidden', 'false');
-        shell.innerHTML = '<main class="shell-skeleton-main"><section class="shell-startup-error" role="alert"><h1>Workspace could not load</h1><p>ACE did not finish connecting. Check your connection, then try again.</p><button class="btn btn-primary" type="button" data-startup-retry>Try again</button></section></main>';
+        shell.innerHTML = '<main class="shell-skeleton-main"><section class="shell-startup-error" role="alert"><h1>Workspace could not load</h1><p>ACE could not load the workspace data. Please try again.</p><button class="btn btn-primary" type="button" data-startup-retry>Try again</button></section></main>';
         shell.querySelector('[data-startup-retry]')?.addEventListener('click', () => window.location.reload());
     });
 };
@@ -5643,3 +5862,74 @@ if (document.readyState === 'loading') {
 } else {
     startApp();
 }
+
+// Native cursor interaction adapted from Akio’s Ace Portal.
+(() => {
+    // Native cursor assets preserve accurate hotspots and work inside native dialogs.
+    const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
+    let clickTimer;
+    const clear = () => {
+      clearTimeout(clickTimer);
+      document.documentElement.classList.remove('cursor-clicked');
+    };
+    document.addEventListener('pointerup', (event) => {
+      if (!finePointer.matches || event.pointerType === 'touch' || event.button !== 0) return;
+      const target = event.target.closest(
+        'button,a[href],select,summary,[role="button"],[role="link"],input[type="checkbox"],input[type="radio"],input[type="submit"]',
+      );
+      if (!target || target.matches(':disabled,[aria-disabled="true"]')) return;
+      clear();
+      document.documentElement.classList.add('cursor-clicked');
+      clickTimer = setTimeout(clear, 160);
+    });
+    document.addEventListener('pointerdown', clear);
+    window.addEventListener('blur', clear);
+    finePointer.addEventListener('change', clear);
+
+    // Animate native cursor frames only while a visible load is pending. No overlay
+    // follows the mouse, so text selection and native dialogs keep working normally.
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const root = document.documentElement;
+    let animation;
+    let frame = 0;
+    let scheduled = false;
+    const visible = (element) =>
+      !element.closest('[hidden]') &&
+      (element.checkVisibility() || [...element.children].some((child) => child.checkVisibility()));
+    const syncLoading = () => {
+      scheduled = false;
+      const busy = finePointer.matches && [...document.querySelectorAll('[aria-busy="true"]')].some(visible);
+      const animate = busy && !reducedMotion.matches && !document.hidden;
+      if (animate && !animation) {
+        animation = setInterval(() => {
+          frame = (frame + 1) % 8;
+          root.dataset.cursorFrame = String(frame);
+        }, 100);
+      } else if (!animate) {
+        clearInterval(animation);
+        animation = undefined;
+        frame = 0;
+        delete root.dataset.cursorFrame;
+      }
+    };
+    const scheduleLoading = () => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(syncLoading);
+    };
+    new MutationObserver(scheduleLoading).observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['aria-busy', 'hidden'],
+    });
+    document.addEventListener('visibilitychange', syncLoading);
+    finePointer.addEventListener('change', syncLoading);
+    reducedMotion.addEventListener('change', syncLoading);
+    window.addEventListener('pagehide', () => {
+      clearInterval(animation);
+      animation = undefined;
+    });
+    window.addEventListener('pageshow', syncLoading);
+    syncLoading();
+})();

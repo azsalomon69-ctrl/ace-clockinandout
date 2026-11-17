@@ -75,7 +75,7 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     const items = response.items || response;
     view.total = response.total ?? items.length;
     view.records = items.map(item => ({ id: item.id, email: item.sender_email, cells: [time(item.created_at), item.sender_name || 'Unnamed user', item.sender_email, item.question, 'Reply by email'] }));
-    view.stats = [[view.total, 'Inquiries', 'message-circle-more']];
+    view.stats = [[view.total, 'Inquiries']];
   } else if (key === 'users') {
     const params = new URLSearchParams();
     if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); }
@@ -103,17 +103,16 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
       const projectLabel = item.role === 'USER' ? (assignedProjects.join(', ') || 'Unassigned') : '—';
       return { id: item.id, email: item.email, isHeadAdmin: Boolean(item.is_head_admin), avatarUrl: item.profile_picture_url || '', cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', projectLabel, item.departments?.name || '—', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
     });
-    view.stats = [[items.filter(item => item.status === 'ACTIVE').length, 'Active users', 'check'], [items.filter(item => item.status === 'PENDING').length, 'Pending accounts', 'circle-alert']];
   } else if (key === 'invitations') {
     const params = new URLSearchParams(); if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); } if (filters.q) params.set('q', filters.q);
     const response = await liveRequest('/v1/invitations' + (params.size ? '?' + params : '')); const items = response.items || response; view.total = response.total ?? items.length;
     view.records = items.map(item => ({ id: item.id, cells: [item.email, item.profiles?.full_name || item.profiles?.email || 'Administrator', date(item.invited_at), date(item.expires_at), item.status[0] + item.status.slice(1).toLowerCase(), 'View'] }));
-    view.stats = [[items.filter(item => item.status === 'PENDING').length, 'Pending', 'timer'], [items.filter(item => item.status === 'ACCEPTED').length, 'Accepted', 'check'], [items.filter(item => item.status === 'PENDING' && new Date(item.expires_at).toDateString() === new Date().toDateString()).length, 'Expires today', 'circle-alert']];
+    view.stats = [[items.filter(item => item.status === 'PENDING').length, 'Pending'], [items.filter(item => item.status === 'ACCEPTED').length, 'Accepted'], [items.filter(item => item.status === 'PENDING' && new Date(item.expires_at).toDateString() === new Date().toDateString()).length, 'Expires today']];
   } else if (key === 'departments' || key === 'projects') {
     const params = new URLSearchParams(); if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); } if (filters.q) params.set('q', filters.q);
     const response = await liveRequest('/v1/' + key + (params.size ? '?' + params : '')); const items = response.items || response; view.total = response.total ?? items.length;
     view.records = items.map(item => ({ id: item.id, cells: [item.name, item.description || '—', date(item.created_at), item.is_active ? 'Active' : 'Inactive', 'Edit'] }));
-    view.stats = [[items.length, 'Total ' + key, key === 'projects' ? 'folder' : 'building'], [items.filter(item => item.is_active).length, 'Active ' + key, 'check']];
+    if (key === 'projects') view.stats = [[items.length, 'Total projects'], [items.filter(item => item.is_active).length, 'Active projects']];
   } else if (key === 'entries') {
     const params = new URLSearchParams();
     if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); }
@@ -151,12 +150,12 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     const toEntryRecord = item => { const entryRemarks = remarksByEntry.get(item.id) || []; return { id: item.id, userId: item.user_id, userRole: item.profiles?.role, avatarUrl: item.profiles?.profile_picture_url || '', clockInAt: item.clock_in_at, clockOutAt: item.clock_out_at, syncedLate: item.queued_clock_synced_late, scheduledEndTime: item.scheduled_end_time, scheduleType: item.schedule_type, overtimeApprovedSeconds: item.overtime_approved_seconds || 0, overtimeApprovedAt: item.overtime_approved_at, remarks: entryRemarks, cells: [item.profiles?.full_name || item.profiles?.email || 'Unknown', item.projects?.name || '—', time(item.clock_in_at), time(item.clock_out_at), item.duration_seconds ? duration(item.duration_seconds) : item.clock_out_at ? '—' : duration(liveWorkedSeconds(item)), item.overtime_approved_seconds ? duration(item.overtime_approved_seconds) : '—', entryRemarks.length ? `${entryRemarks.length} remark${entryRemarks.length === 1 ? '' : 's'}` : '—', 'Add remark'] }; };
     view.records = items.map(toEntryRecord);
     view.activeRecords = activeItems.map(toEntryRecord);
-    view.stats = [[duration(total), 'Tracked time', 'timer'], [view.activeRecords.length, 'Open entries', 'circle-alert'], [items.length, 'Time entries', 'check']];
+    view.stats = [[duration(total), 'Tracked time'], [view.activeRecords.length, 'Open entries'], [items.length, 'Time entries']];
   } else if (key === 'audit') {
     const params = new URLSearchParams(); if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); } if (filters.q) params.set('q', filters.q);
     const response = await liveRequest('/v1/audit-logs' + (params.size ? '?' + params : '')); const items = response.items || response; view.total = response.total ?? items.length;
     view.records = items.map(item => ({ id: item.id, cells: [time(item.created_at), item.profiles?.full_name || item.profiles?.email || 'System', auditAction(item.action), humanizeEnum(item.entity_type), item.description || '—', '#' + item.id] }));
-    view.stats = [[items.length, 'Recorded events', 'brick-wall-shield'], [items.filter(item => item.action === 'LOGIN').length, 'Sign-ins', 'key-round'], [items.filter(item => /REPORT/i.test(item.action)).length, 'Reports exported', 'download']];
+    view.stats = [[items.length, 'Recorded events'], [items.filter(item => item.action === 'LOGIN').length, 'Sign-ins'], [items.filter(item => /REPORT/i.test(item.action)).length, 'Reports exported']];
   }
 }
 
@@ -561,13 +560,20 @@ function openDeletedTimeEntriesModal(trigger) {
   openModal(modal.id); void render();
 }
 
+function renderSectionMetrics(metrics) {
+  const summary = document.getElementById('sectionStats');
+  if (!summary) return;
+  summary.innerHTML = metrics.map(([value, label]) => '<div><dt>' + esc(label) + '</dt><dd>' + esc(value) + '</dd></div>').join('');
+}
+
 // Paint interface copy without requesting records or trusting cached data.
 window.ACEPrepareAdminSection = function prepareAdminSection() {
   const key = document.body.dataset.adminView;
   const view = ADMIN_SECTION_CONFIG[key];
   if (!view) return;
   document.getElementById('sectionTitle').textContent = view.title;
-  document.getElementById('sectionDescription').textContent = view.description;
+  const description = document.getElementById('sectionDescription');
+  if (description) description.textContent = view.description;
   document.getElementById('sectionTableTitle').textContent = view.title;
   document.getElementById('sectionTableHead').innerHTML = '<tr>' + view.columns.map(column => '<th>' + esc(column) + '</th>').join('') + '</tr>';
   const tabGroups = {
@@ -581,7 +587,7 @@ window.ACEPrepareAdminSection = function prepareAdminSection() {
   const tabs = tabGroups[key] || [];
   let tabBar = document.getElementById('adminSectionTabs');
   if (tabs.length > 1) {
-    if (!tabBar) { tabBar = document.createElement('nav'); tabBar.id = 'adminSectionTabs'; tabBar.className = 'admin-section-tabs'; tabBar.setAttribute('aria-label', 'Related workspace pages'); document.querySelector('.admin-section-header').insertAdjacentElement('afterend', tabBar); }
+    if (!tabBar) { tabBar = document.createElement('nav'); tabBar.id = 'adminSectionTabs'; tabBar.className = 'admin-section-tabs'; tabBar.setAttribute('aria-label', 'Related workspace pages'); const toolbar = document.querySelector('.admin-page-toolbar'); if (toolbar) toolbar.prepend(tabBar); else document.querySelector('.admin-section-header').after(tabBar); }
     const activeHref = { users: 'users.html', invitations: 'invitations.html', projects: 'projects.html', entries: 'admin-time-entries.html' }[key];
     tabBar.innerHTML = tabs.map(([label, href]) => {
       const invitations = label === 'Invitations';
@@ -603,12 +609,11 @@ window.ACEPrepareAdminSection = function prepareAdminSection() {
   if (view.action) actionButton.innerHTML = icon(view.actionIcon) + view.action;
 
   const labels = {
-    users: ['Active users', 'Pending accounts'], invitations: ['Pending', 'Accepted', 'Expires today'],
-    departments: ['Total departments', 'Active departments'], projects: ['Total projects', 'Active projects'],
+    invitations: ['Pending', 'Accepted', 'Expires today'],
+    projects: ['Total projects', 'Active projects'],
     entries: ['Tracked time', 'Open entries', 'Time entries'], audit: ['Recorded events', 'Sign-ins', 'Reports exported']
   };
-  const statIcons = { users: ['check', 'circle-alert'], invitations: ['timer', 'check', 'circle-alert'], departments: ['building', 'check'], projects: ['folder', 'check'], entries: ['timer', 'circle-alert', 'check'], audit: ['brick-wall-shield', 'key-round', 'download'] };
-  document.getElementById('sectionStats').innerHTML = (labels[key] || []).map((label, index) => '<div class="stat-card"><div class="stat-icon">' + icon(statIcons[key][index]) + '</div><div class="stat-info"><div class="stat-number data-value-pending">—</div><div class="stat-label">' + esc(label) + '</div></div></div>').join('');
+  renderSectionMetrics((labels[key] || []).map(label => ['—', label]));
   if (key === 'users' && !document.querySelector('.admin-user-filters')) {
     const filters = document.createElement('div');
     filters.className = 'admin-user-filters';
@@ -659,7 +664,6 @@ async function renderAdminSection() {
   const view = { ...config, records: [], stats: [], total: 0 };
   try { await applyLiveData(key, view, serverPaged ? pageState : null, activeFilters); } catch (error) { showToast(error.message || 'Could not load live data.', 'error'); if (key === 'inquiries') { document.getElementById('sectionTableBody').innerHTML = emptyTable('Could not load inquiries', 'Please refresh to try again.', view.columns.length); return; } }
   document.title = view.title + ' · ACE Outsource Solutions';
-  document.getElementById('sectionTitle').textContent = view.title; document.getElementById('sectionDescription').textContent = view.description;
   window.ACEPrepareAdminSection();
   document.querySelectorAll('.admin-user-filters').forEach(node => node.remove());
   const actionButton = document.getElementById('sectionAction');
@@ -681,8 +685,7 @@ async function renderAdminSection() {
     toolbar.append(...(reviewLink ? [reviewLink] : []), deletedButton, actionButton);
     deletedButton.addEventListener('click', () => openDeletedTimeEntriesModal(deletedButton));
   }
-  const renderStats = () => { document.getElementById('sectionStats').innerHTML = view.stats.map(item => '<div class="stat-card"><div class="stat-icon">' + icon(item[2]) + '</div><div class="stat-info"><div class="stat-number">' + esc(item[0]) + '</div><div class="stat-label">' + esc(item[1]) + '</div></div></div>').join(''); };
-  renderStats();
+  renderSectionMetrics(view.stats);
   if (key === 'entries') renderActiveEntriesPanel(view.activeRecords);
   const tableTitle = document.getElementById('sectionTableTitle'); tableTitle.textContent = view.title;
   document.getElementById('sectionTableHead').innerHTML = '<tr>' + view.columns.map(column => '<th>' + esc(column) + '</th>').join('') + '</tr>';
@@ -888,7 +891,7 @@ async function renderAdminSection() {
     const table = body.closest('.table-container'); table?.classList.add('is-data-refreshing'); table?.setAttribute('aria-busy', 'true');
     try {
       await applyLiveData(key, view, pageState, activeFilters);
-      renderStats(); if (key === 'entries') renderActiveEntriesPanel(view.activeRecords); draw(view.records); setCount(view.records);
+      renderSectionMetrics(view.stats); if (key === 'entries') renderActiveEntriesPanel(view.activeRecords); draw(view.records); setCount(view.records);
     } catch (error) { showToast(error.message || 'Could not load this page.', 'error'); }
     finally { table?.classList.remove('is-data-refreshing'); table?.removeAttribute('aria-busy'); }
   };

@@ -8,6 +8,7 @@
     "start": "node backend/server/index.js",
     "seed:admin": "node scripts/seed-admin.js",
     "build": "node scripts/build-frontend.js",
+    "build:local": "node scripts/build-frontend.js --local-maps",
     "test": "node --test",
     "test:overtime-acl": "node --test scripts/overtime-acl.integration.mjs",
     "test:security": "node scripts/security-regression-check.js",
@@ -29,15 +30,19 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.1",
-    "nodemailer": "10.0.13",
+    "nodemailer": "10.5.0",
     "three": "0.180.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "overrides": {
-    "qs": "6.16.0",
-    "proxy-addr": "2.0.8"
+    "qs": "6.16.1",
+    "proxy-addr": "2.0.8",
+    "body-parser": "1.20.9",
+    "ip-address": "10.7.4"
   },
   "devDependencies": {
+    "@jridgewell/sourcemap-codec": "1.6.0",
+    "acorn": "8.18.0",
     "clean-css": "^5.3.3",
     "html-minifier-terser": "^7.2.0",
     "parse5": "^8.0.1",

@@ -1,63 +1,52 @@
 <!DOCTYPE html>
 <!-- Akio <3: Project page maintained by Akio Zaki Salomon. -->
-<html lang="en">
+<html lang="en" class="public-system-theme">
 <head>
-    <link rel="icon" type="image/png" href="assets/images/ace-logo.png">
+    <link rel="icon" type="image/png" href="/assets/images/ace-logo.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>Sign in · ACE Outsource Solutions</title>
-    <link rel="stylesheet" href="css/app.css?v=cache-bust-20260930-2">
+    <link rel="stylesheet" href="/css/app.css?v=cache-bust-20260930-2">
+    <link rel="stylesheet" href="/css/public.css">
 </head>
-<body class="login-view">
-
-    <!-- Main Content -->
-    <main class="main-content login-page login-experience">
-        <div class="login-container">
-            <div class="login-auth-topbar">
-                <a href="index.html"><img src="assets/icons/chevron-left.svg" alt="">Back to home</a>
-                <span aria-hidden="true"></span>
-                <button type="button" id="navHelpBtn">Need help?</button>
+<body class="public-page public-login">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <main class="public-width" id="main-content">
+        <section class="public-signin public-frame" aria-labelledby="signin-title">
+            <div class="public-signin-brand">
+                <a class="public-brand" href="/">
+                    <img src="/assets/images/ace-logo-hd-cropped.png" alt="">
+                    <span>ACE Outsource Solutions</span>
+                </a>
             </div>
-            <div class="login-card">
-                <div class="login-header">
-                    <a href="index.html" class="login-mobile-brand"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a>
-                    <span class="login-kicker">SECURE SIGN IN</span>
-                    <h1 class="login-title">Welcome back</h1>
-                    <p class="login-subtitle">Continue with the Google account approved for your ACE workspace.</p>
+            <div class="public-signin-grid">
+                <div class="public-signin-copy">
+                    <h1 id="signin-title">Welcome back.</h1>
+                    <p>Use your approved Google account to continue to ACE.</p>
                 </div>
-
-                <div class="login-body">
-                    <button type="button" class="btn btn-google btn-lg btn-block" id="googleLoginBtn">
-                        <img src="assets/icons/google.svg" alt="" aria-hidden="true">
-                        Continue with Google
+                <div class="public-signin-actions">
+                    <button type="button" class="public-google btn-google" id="googleLoginBtn">
+                        <img src="/assets/icons/google.svg" alt="">
+                        <span>Continue with Google</span>
+                        <img class="public-google-arrow" src="/assets/icons/chevron-right.svg" alt="">
                     </button>
-                    <p class="login-footer">Need workspace access? Contact your administrator for an invitation.</p>
+                    <p class="public-signin-note" id="googleLoginStatus" role="status"></p>
+                    <p class="public-signin-note">Need access? Ask your administrator for an invitation.</p>
                 </div>
             </div>
-
-            <!-- Login Info Side Panel -->
-            <div class="login-info-panel login-info-panel-minimal">
-                <a href="index.html" class="login-brand-logo"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a>
-                <div class="login-brand-copy">
-                    <span class="login-eyebrow">WORKFORCE OPERATIONS</span>
-                    <h2 class="info-title">Your workday,<br><span>in focus.</span></h2>
-                    <p class="info-description">Clock in, keep projects moving, and understand where every hour goes.</p>
-                    <div class="login-value-points" aria-label="ACE capabilities">
-                        <div><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"><span><strong>Time tracking</strong><small>Clear, accurate records</small></span></div>
-                        <div><img class="ui-icon" src="assets/icons/folder.svg" alt="" aria-hidden="true"><span><strong>Project context</strong><small>Work stays connected</small></span></div>
-                        <div><img class="ui-icon" src="assets/icons/chart-column-big.svg" alt="" aria-hidden="true"><span><strong>Clear reporting</strong><small>Progress at a glance</small></span></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </section>
+        <footer class="public-signin-footer">
+            <a class="public-help public-login-home" href="/">Back to home</a>
+            <button class="public-help" type="button" id="navHelpBtn">Need help?</button>
+        </footer>
     </main>
 
-    <!-- Help Modal -->
     <div id="helpModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">Help Center</h3>
-                <button class="modal-close" id="closeHelpModal">
+                <button class="modal-close" id="closeHelpModal" aria-label="Close">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
@@ -97,10 +86,10 @@
         <div class="spinner"></div>
     </div>
 
-    <script src="js/api-config.js?v=cache-bust-20260912-1"></script>
-    <script src="js/supabase.js"></script>
-    <script src="js/supabase-auth.js?v=cache-bust-20260930-1"></script>
-    <script src="js/sidebar.js?v=cache-bust-20260930-1"></script>
-    <script src="js/script.js?v=cache-bust-20260930-31"></script>
+    <script src="/js/api-config.js?v=cache-bust-20260912-1"></script>
+    <script src="/js/supabase.js"></script>
+    <script src="/js/supabase-auth.js?v=cache-bust-20260930-1"></script>
+    <script src="/js/sidebar.js?v=cache-bust-20260930-1"></script>
+    <script src="/js/script.js?v=cache-bust-20260930-31"></script>
 </body>
 </html>

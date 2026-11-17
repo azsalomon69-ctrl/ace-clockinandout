@@ -8,17 +8,14 @@
     <title>Dashboard · ACE Outsource Solutions</title>
 <link rel="stylesheet" href="css/app.css?v=cache-bust-20260930-2">
 </head>
-<body class="app-shell-pending has-employee-bottom-nav"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div><script src="js/initial-skeletons.js?v=20261015-1"></script>
+<body class="app-shell-pending has-employee-bottom-nav"><div class="app-shell-skeleton" aria-hidden="true"></div><script src="js/initial-skeletons.js?v=20261015-1"></script>
 
     <!-- Main Content -->
     <main class="main-content user-dashboard">
         <div class="dashboard-container">
             <header class="employee-dashboard-intro">
-                <div>
-                    <p class="employee-eyebrow">EMPLOYEE WORKSPACE</p>
-                    <h1>Good to see you, <span id="userName">there</span>.</h1>
-                </div>
-                <time class="employee-dashboard-date" id="currentDate" aria-live="polite">Monday, January 1, 2024</time>
+                <time class="employee-dashboard-date" id="currentDate" aria-live="polite"></time>
+                <h1>Good to see you, <span id="userName">there</span>.</h1>
             </header>
 
             <div class="employee-dashboard-hero-grid">
@@ -67,16 +64,16 @@
 
             <section class="employee-week-card" id="employeeWeekSummary" aria-labelledby="timeAtGlanceTitle">
                 <div class="employee-card-title"><span class="employee-card-icon"><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"></span><h2 id="timeAtGlanceTitle">Time this week</h2></div>
-                <div class="employee-week-metrics"><div><strong id="weekHours">—</strong><span>Completed hours</span></div><div><strong id="weekEntries">—</strong><span>Completed sessions</span></div></div>
                 <p id="employeeWeekState" class="employee-week-state" role="status">Loading time-entry history…</p>
                 <div class="employee-week-chart" id="employeeWeekChart" role="list" aria-label="Completed time by day this week" hidden></div>
+                <div class="employee-week-metrics"><div><strong id="weekHours">—</strong><span>Completed hours</span></div><div><strong id="weekEntries">—</strong><span>Completed sessions</span></div></div>
             </section>
             </div>
 
             <div class="employee-work-grid">
             <!-- Recent Activity -->
             <section class="recent-activity-section" id="employeeRecentActivity">
-                <div class="employee-section-heading"><div><p class="employee-section-kicker">TIME RECORDS</p><h2 class="section-title">Recent activity</h2></div><p>Your latest clock sessions.</p></div>
+                <div class="employee-section-heading"><div><h2 class="section-title">Recent activity</h2></div></div>
                 <div class="activity-list" id="recentActivity">
                     <!-- Recent time entries will be populated here -->
                 </div>
@@ -87,7 +84,7 @@
 
             <!-- Projects Section -->
             <section class="projects-section">
-                <div class="employee-section-heading"><div><p class="employee-section-kicker">ASSIGNED WORK</p><h2 class="section-title">My projects</h2></div><p>Available when starting a session.</p></div>
+                <div class="employee-section-heading"><div><h2 class="section-title">My projects</h2></div></div>
                 <div class="projects-grid" id="myProjects">
                     <!-- User's projects will be populated here -->
                 </div>
@@ -96,7 +93,7 @@
 
             <div class="employee-dashboard-support-grid">
                 <section class="employee-quick-actions" id="employeeQuickActions" aria-labelledby="quickActionsTitle">
-                    <div class="employee-section-heading"><div><p class="employee-section-kicker">SHORTCUTS</p><h2 class="section-title" id="quickActionsTitle">Quick actions</h2></div></div>
+                    <div class="employee-section-heading"><div><h2 class="section-title" id="quickActionsTitle">Quick actions</h2></div></div>
                     <nav class="employee-quick-action-list" aria-label="Employee quick actions">
                         <a href="time-entries.html"><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"><span><strong>View time entries</strong><small>Review your completed sessions</small></span><img class="employee-action-arrow" src="assets/icons/chevron-right.svg" alt="" aria-hidden="true"></a>
                         <a href="remarks.html"><img class="ui-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span><strong>View remarks</strong><small>Read notes from your administrator</small></span><img class="employee-action-arrow" src="assets/icons/chevron-right.svg" alt="" aria-hidden="true"></a>
@@ -104,7 +101,7 @@
                     </nav>
                 </section>
                 <section class="admin-remarks-section" aria-labelledby="dashboardRemarksTitle">
-                    <div class="employee-section-heading"><div><p class="employee-section-kicker">ADMINISTRATOR NOTES</p><h2 class="section-title" id="dashboardRemarksTitle">Remarks on your time entries</h2></div><p>Updates from your administrators.</p></div>
+                    <div class="employee-section-heading"><div><h2 class="section-title" id="dashboardRemarksTitle">Remarks on your time entries</h2></div></div>
                     <div class="remarks-list" id="dashboardRemarks"></div>
                 </section>
             </div>
@@ -195,30 +192,28 @@
     </div>
 
     <nav class="employee-bottom-nav" aria-label="Employee mobile navigation">
-        <a class="employee-bottom-nav-item is-active" href="user-dashboard.html" aria-current="page"><img class="shell-icon" src="assets/icons/layout-panel-top.svg" alt="" aria-hidden="true"><span>Dashboard</span></a>
+        <a class="employee-bottom-nav-item is-active" href="user-dashboard.html" aria-current="page"><img class="shell-icon" src="assets/icons/layout-panel-top.svg" alt="" aria-hidden="true"><span>Home</span></a>
         <a class="employee-bottom-nav-item" href="time-entries.html"><img class="shell-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"><span>My time</span></a>
         <button class="employee-bottom-nav-clock" type="button" data-mobile-clock-action aria-label="Open time actions"><img class="shell-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"></button>
         <a class="employee-bottom-nav-item" href="remarks.html"><img class="shell-icon" src="assets/icons/message-circle-more.svg" alt="" aria-hidden="true"><span>Remarks</span></a>
         <button class="employee-bottom-nav-item" type="button" data-bottom-nav-more aria-label="Open navigation" aria-expanded="false"><img class="shell-icon" src="assets/icons/menu.svg" alt="" aria-hidden="true"><span>More</span></button>
     </nav>
 
-    <dialog class="employee-clock-confirmation" id="employeeClockConfirmation" aria-labelledby="employeeClockConfirmationTitle">
+    <dialog class="employee-clock-confirmation" id="employeeClockConfirmation" aria-labelledby="employeeClockConfirmationTitle" aria-describedby="employeeClockConfirmationHint">
         <form method="dialog">
             <header class="employee-clock-confirmation-header">
-                <div>
-                    <div class="employee-clock-confirmation-mark" aria-hidden="true">
-                        ✓<div class="employee-clock-confetti"></div>
-                    </div>
-                    <h2 id="employeeClockConfirmationTitle"></h2>
-                </div>
                 <img class="employee-clock-confirmation-art" src="/assets/images/clock-confirmation.png" width="576" height="384" alt="">
+                <div class="employee-clock-confirmation-mark" aria-hidden="true">
+                    ✓<div class="employee-clock-confetti"></div>
+                </div>
+                <h2 id="employeeClockConfirmationTitle"></h2>
             </header>
             <div class="employee-clock-confirmation-body">
                 <div class="employee-clock-confirmation-receipt">
                     <span>Recorded time</span>
                     <time></time>
                 </div>
-                <p>You can safely close this tab.</p>
+                <p id="employeeClockConfirmationHint">You can safely close this tab.</p>
                 <button class="btn btn-primary" autofocus>Done</button>
             </div>
         </form>

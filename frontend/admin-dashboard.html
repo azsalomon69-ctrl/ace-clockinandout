@@ -8,7 +8,7 @@
     <title>Dashboard · ACE Outsource Solutions</title>
     <link rel="stylesheet" href="css/app.css?v=cache-bust-20260930-2">
 </head>
-<body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-stats"><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div><div class="shell-skeleton-stat"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div><script src="js/initial-skeletons.js?v=20261015-1"></script>
+<body class="app-shell-pending"><div class="app-shell-skeleton" aria-hidden="true"></div><script src="js/initial-skeletons.js?v=20261015-1"></script>
 
     <!-- Main Content -->
     <main class="main-content admin-dashboard">
@@ -17,19 +17,13 @@
             <!-- Dashboard Content -->
             <div class="dashboard-content">
                 <!-- Dashboard Header -->
-                <header class="dashboard-header" id="adminDashboardHeader">
-                    <div class="dashboard-header-copy"><p class="admin-section-kicker">WELCOME BACK</p><h1 class="dashboard-title">Admin Dashboard</h1><p>Review live work, handle staffing tasks, and follow up on recent time activity.</p></div>
-                    <time class="admin-dashboard-date" id="currentDate" aria-live="polite">Monday, January 1, 2024</time>
-                </header>
+                <h1 class="page-heading-accessible">Admin Dashboard</h1>
 
                 <section class="dashboard-overview" id="dashboardOverview" aria-label="Current workspace status">
                     <div class="dashboard-header-stats">
                     <div class="stat-card">
                         <div class="stat-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="9" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
-                                <path d="M3 21V19C3 16.7909 4.79086 15 7 15H11C13.2091 15 15 16.7909 15 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
+                            <img src="assets/icons/users.svg" class="ui-icon" alt="">
                         </div>
                         <div class="stat-info">
                             <div class="stat-number" id="clockedInUsers">0</div>
@@ -38,9 +32,7 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M4 20V10M10 20V4M16 20V12M22 20H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
+                            <img src="assets/icons/calendar-days.svg" class="ui-icon" alt="">
                         </div>
                         <div class="stat-info">
                             <div class="stat-number" id="todayEntries">0</div>
@@ -49,9 +41,7 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M5 3V21M5 17H20M9 13V17M14 8V17M19 5V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
+                            <img src="assets/icons/chart-column-big.svg" class="ui-icon" alt="">
                         </div>
                         <div class="stat-info">
                             <div class="stat-number" id="monthTrackedHours">0h 0m</div>
@@ -62,8 +52,10 @@
                 </section>
 
                 <!-- Quick Actions -->
-                <section class="dashboard-command-center" aria-labelledby="operationsTitle">
-                    <div class="dashboard-command-copy"><h2 id="operationsTitle">Quick actions</h2></div>
+                <section class="dashboard-command-center" id="adminDashboardHeader" aria-labelledby="operationsTitle">
+                    <div class="dashboard-command-copy"><h2 id="operationsTitle">Quick actions</h2>
+                        <time class="admin-quick-actions-date" id="currentDate" aria-live="polite"></time>
+                    </div>
                     <div class="quick-actions" id="dashboardQuickActions">
                     <button class="btn btn-primary" id="inviteUserBtn">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -94,19 +86,19 @@
                 <!-- Time analytics -->
                 <section class="dashboard-analytics dashboard-insights" aria-labelledby="analyticsTitle">
                     <div class="dashboard-insights-heading">
-                        <div><p class="admin-section-kicker">TIME ANALYTICS</p><h2 id="analyticsTitle">Work at a glance</h2></div>
+                        <h2 id="analyticsTitle">Work at a glance</h2>
                     </div>
                     <div class="analytics-grid dashboard-insights-grid">
                             <article class="analytics-card hours-trend-card" id="analyticsTimeEntriesCard">
                             <div class="analytics-card-header dashboard-chart-header">
-                                <div class="dashboard-chart-title"><span class="dashboard-chart-icon"><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"></span><span class="analytics-label">Time entries</span></div>
-                                <label class="chart-range-control" for="trackedTimeRange"><span class="chart-range-label">Time entries date range</span><select class="form-select" id="trackedTimeRange"><option value="week">This week</option><option value="month" selected>This month</option><option value="quarter">Last 3 months</option></select></label>
+                                <div class="dashboard-chart-title"><span class="dashboard-chart-icon"><img class="ui-icon" src="assets/icons/timer.svg" alt="" aria-hidden="true"></span><h3>Time entries</h3></div>
+                                <div class="chart-range-control"><select class="form-select" id="trackedTimeRange" aria-label="Time entries date range"><option value="week">This week</option><option value="month" selected>This month</option><option value="quarter">Last 3 months</option></select></div>
                             </div>
-                            <div class="chart-summary-strip" aria-live="polite"><p class="chart-summary-date" id="analyticsDetail">Entries recorded over time</p><div class="chart-summary-metrics"><span><strong id="analyticsEntryTotal">0</strong><small>completed entries</small></span><span><strong id="analyticsTotalHours">0h 0m</strong><small>tracked time</small></span><span><strong id="analyticsAverage">0</strong><small>average entries per day</small></span></div></div>
-                            <div class="hours-chart hours-line-chart" id="hoursChart" role="img" aria-label="Time entries over time"></div>
+                            <div class="hours-chart hours-bar-chart" id="hoursChart" role="img" aria-label="Time entries over time"></div>
+                            <div class="chart-summary-strip" aria-live="polite"><p class="chart-summary-date" id="analyticsDetail">Entries recorded over time</p><div class="chart-summary-metrics"><span><strong id="analyticsEntryTotal">0</strong><small>completed entries</small></span><span><strong id="analyticsTotalHours">0h 0m</strong><small>tracked time</small></span><span><strong id="analyticsAverage">0</strong><small>entries per day</small></span></div></div>
                         </article>
                         <article class="analytics-card project-allocation-card">
-                            <div class="analytics-card-header dashboard-chart-header"><div class="dashboard-chart-title"><span class="dashboard-chart-icon"><img class="ui-icon" src="assets/icons/chart-column-big.svg" alt="" aria-hidden="true"></span><div><span class="analytics-label">Project allocation</span><strong>Hours by project</strong><small class="analytics-detail" id="projectAllocationDetail">Completed work by project</small></div></div><label class="chart-range-control" for="projectHoursRange"><span class="chart-range-label">Project hours date range</span><select class="form-select" id="projectHoursRange"><option value="week">This week</option><option value="month" selected>This month</option><option value="quarter">Last 3 months</option></select></label></div>
+                            <div class="analytics-card-header dashboard-chart-header"><div class="dashboard-chart-title"><span class="dashboard-chart-icon"><img class="ui-icon" src="assets/icons/chart-column-big.svg" alt="" aria-hidden="true"></span><div><h3>Hours by project</h3><small class="analytics-detail" id="projectAllocationDetail">Completed work by project</small></div></div><div class="chart-range-control"><select class="form-select" id="projectHoursRange" aria-label="Project hours date range"><option value="week">This week</option><option value="month" selected>This month</option><option value="quarter">Last 3 months</option></select></div></div>
                             <div class="project-allocation" id="projectAllocationChart" role="list" aria-label="Tracked time by project"></div>
                         </article>
                         <article class="analytics-card time-leaderboard-card">
@@ -118,7 +110,7 @@
                 </section>
 
                 <!-- Recent Activity -->
-                <section class="dashboard-section" id="reviewAlertsSection" hidden><div class="dashboard-section-heading"><div><p class="admin-section-kicker">NEEDS REVIEW</p><h2 class="section-title">Time-entry alerts</h2><p>Open entries that may have missed a clock-out and shifts stopped by an administrator.</p></div><a class="btn btn-secondary btn-sm" href="admin-time-entries.html">Review entries</a></div><div id="reviewAlertsList" class="admin-remarks-list"></div></section>
+                <section class="dashboard-section" id="reviewAlertsSection"><div class="dashboard-section-heading"><div><p class="admin-section-kicker">NEEDS REVIEW</p><h2 class="section-title">Time-entry alerts</h2><p>Open entries that may have missed a clock-out and shifts stopped by an administrator.</p></div><a class="btn btn-secondary btn-sm" href="admin-time-entries.html">Review entries</a></div><div id="reviewAlertsList" class="admin-remarks-list" aria-live="polite"><p>Loading time-entry alerts…</p></div></section>
                 <div class="dashboard-section" id="adminRecentEntries">
                     <div class="dashboard-section-heading"><div><p class="admin-section-kicker">LIVE ACTIVITY</p><h2 class="section-title">Recent Time Entries</h2><p>Review the latest employee sessions and open a record for details or follow-up.</p></div><div class="dashboard-section-actions"><label class="chart-range-control" for="recentEntriesRange"><span class="sr-only">Recent time entries date range</span><select class="form-select" id="recentEntriesRange"><option value="today">Today</option><option value="week">This week</option><option value="month" selected>This month</option><option value="all">All activity</option></select></label><a class="btn btn-secondary btn-sm" href="admin-time-entries.html">View all entries</a></div></div>
                     <div class="table-container">

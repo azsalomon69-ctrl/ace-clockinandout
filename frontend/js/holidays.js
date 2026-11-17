@@ -388,8 +388,6 @@ window.addEventListener('ace:app-ready', () => {
             get('holidayManage').setAttribute('aria-pressed', String(value));
             get('holidayBrowse').setAttribute('aria-pressed', String(!value));
             get('holidayPageTitle').textContent = value ? 'Manage Holidays' : 'Santa Rosa Holiday Calendar';
-            get('holidayPageDescription').textContent = value ? 'Maintain Philippine holiday dates and their official references.'
-                : 'Philippine nationwide holidays and local holidays for the Santa Rosa, Laguna office.';
             render();
         }
         get('holidayBrowse').onclick = () => showManagement(false);
