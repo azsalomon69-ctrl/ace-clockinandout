@@ -9,23 +9,31 @@ function fixture(columns = 7, populated = false) {
   const classes = new Set();
   const value = { classList: { add: name => classes.add(name) } };
   const table = { children: populated ? [{}] : [], innerHTML: populated ? '<tr><td>Existing record</td></tr>' : '', closest: selector => selector === 'table' ? { querySelectorAll: () => Array(columns).fill({}) } : null };
-  const main = { dataset: {}, inert: false, setAttribute() {}, querySelectorAll: selector => selector === 'tbody' ? [table] : [value] };
-  const shell = { cleared: false, replaceChildren() { this.cleared = true; } };
-  const region = { children: [], innerHTML: '' };
+  const regionClasses = new Set();
+  const region = { id: 'hoursChart', children: [], innerHTML: '',
+    classList: { add: name => regionClasses.add(name), contains: name => regionClasses.has(name) },
+    setAttribute(name, value) { this[name] = value; } };
+  const main = { dataset: {}, inert: false, setAttribute() {},
+    querySelector: selector => selector === '#hoursChart' ? region : null,
+    querySelectorAll: selector => selector === 'tbody' ? [table] : [value] };
   const events = {};
-  const document = { readyState: 'loading', body: { classList: { add() {} } }, querySelector: selector => selector === 'main.main-content' ? main : shell, getElementById: id => id === 'hoursChart' ? region : null, addEventListener: (name, callback) => { events[name] = callback; } };
+  const document = { readyState: 'loading', body: { classList: { add() {} } }, querySelector: selector => selector === 'main.main-content' ? main : null, getElementById: id => id === 'hoursChart' ? region : null, addEventListener: (name, callback) => { events[name] = callback; } };
   const window = {};
   vm.runInNewContext(source, { document, window });
-  return { main, shell, table, classes, region, events, window };
+  return { main, table, classes, region, events, window };
 }
 test('prepares real data containers after parsing, without replacing the page layout', () => {
   const f = fixture();
-  assert.equal(f.shell.cleared, true);
   f.events.DOMContentLoaded();
-  assert.equal(f.shell.cleared, true);
   assert.equal(f.main.inert, true);
   assert.ok(f.classes.has('data-value-pending'));
-  assert.match(f.region.innerHTML, /Loading data/);
+  assert.equal(f.region['aria-busy'], 'true');
+  assert.equal((f.region.innerHTML.match(/--loading-height:/g) || []).length, 9);
+  for (const page of ['admin-dashboard', 'user-dashboard']) {
+    const html = readFileSync(new URL(page + '.html', frontend), 'utf8');
+    assert.match(html, /<div class="app-shell-skeleton" aria-hidden="true"><\/div>/);
+    assert.doesNotMatch(html, /shell-skeleton-main/);
+  }
   assert.equal(Object.hasOwn(f.main, 'innerHTML'), false);
   const before = f.table.innerHTML;
   f.window.ACERenderInitialSkeletons();

@@ -9,7 +9,7 @@ const resume = source.slice(source.indexOf('async function resumePublicSession()
 for (const page of ['index', 'login']) {
   test(`${page} loads authentication before the shared session check`, () => {
     const html = readFileSync(new URL(`../../frontend/${page}.html`, import.meta.url), 'utf8');
-    const scripts = [...html.matchAll(/<script\b[^>]*src="([^"?]+)/g)].map(match => match[1]);
+    const scripts = [...html.matchAll(/<script\b[^>]*src="([^"?]+)/g)].map(match => match[1].startsWith('/') ? match[1].slice(1) : match[1]);
     const startup = scripts.indexOf('js/script.js');
     const config = scripts.indexOf('js/api-config.js');
     const sdk = scripts.indexOf('js/supabase.js');

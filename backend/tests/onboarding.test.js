@@ -203,16 +203,15 @@ test('a collapsed desktop rail does not hide mobile admin dropdowns', () => {
   assert.match(styles, /@media \(max-width: 1180px\) \{[\s\S]*?\.shell-collapsed \.shell-nav-label \{ display: block; \}[\s\S]*?\.shell-collapsed \.shell-nav-group-toggle \{ display: flex; \}/, 'A saved desktop collapse preference must not hide mobile admin dropdown triggers');
 });
 
-test('dashboard analytics render smooth time lines and scaled project bars', () => {
+test('dashboard analytics render activity columns and scaled project bars', () => {
   const styles = readFileSync(new URL('../../frontend/css/app.css', import.meta.url), 'utf8');
-  assert.match(shellSource, /function smoothChartPath\(points\)/, 'Time-entry analytics should generate a smooth SVG path');
-  assert.match(shellSource, /<path class="line-chart-path" d="\$\{linePath\}"/, 'The time chart should use the generated smooth path instead of a polyline');
-  assert.match(shellSource, /const xGrid = points\.map\(point => `<line class="line-chart-gridline line-chart-gridline--vertical"/, 'The time chart should include vertical grid guides for each time bucket');
+  assert.match(shellSource, /<rect class="activity-column/);
+  assert.match(shellSource, /<path class="activity-gridline"/);
   assert.match(shellSource, /class="project-bar-chart"/, 'Project allocation should render as a chart container');
   assert.match(shellSource, /class="project-bar-fill" style="width:\$\{width\}%"/, 'Project values should scale each bar to the largest selected project');
   assert.match(styles, /\.admin-dashboard \.project-allocation-card \.project-allocation \{ display: grid; grid-template-columns: minmax\(0,1fr\);/, 'The allocation chart must span the full card width instead of inheriting a legacy two-column grid');
   assert.match(styles, /\.project-bar-track \{[\s\S]*?repeating-linear-gradient/, 'Project bars should show a shared grid scale');
-  assert.match(styles, /\.line-chart-gridline--vertical \{ stroke: #e7f0f2;/, 'Vertical chart guides should stay visually subtle');
+  assert.ok(styles.includes(".hours-bar-chart .activity-gridline { stroke: var(--ace-border)"));
 });
 
 test('admin dashboard keeps its compact operations hierarchy across screen sizes', () => {
