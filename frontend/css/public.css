@@ -443,6 +443,7 @@ html[data-theme="dark"] .public-page {
   background: var(--public-frame);
   color: var(--ace-text-primary);
 }
+.public-tour-page > .public-width { width: min(1320px, calc(100% - 48px)); }
 .public-tour-page .public-header { border-bottom: 1px solid var(--ace-border); }
 .public-tour-page .public-tour { padding-top: 14px; }
 .public-tour-page .public-tour-tabs {
@@ -468,10 +469,10 @@ html[data-theme="dark"] .public-page {
 .public-tour-page .public-tour-panel {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, .85fr) minmax(0, 2.35fr);
+  grid-template-columns: minmax(0, .78fr) minmax(0, 2.62fr);
   align-items: center;
-  gap: clamp(20px, 3vw, 40px);
-  padding: clamp(22px, 3.6vw, 51px);
+  gap: clamp(14px, 2.2vw, 28px);
+  padding: clamp(18px, 2.6vw, 36px);
   border: 1px solid #d7e4f3;
   border-radius: 23px;
   background: radial-gradient(ellipse at 79% 46%, #d8eaff 0, transparent 70%), #edf4fc;
@@ -501,6 +502,7 @@ html[data-theme="dark"] .public-page {
 .public-tour-page .public-phone { width: 27%; }
 @media (max-width: 760px) {
   :root.public-light-theme { scrollbar-gutter: auto; }
+  .public-tour-page > .public-width { width: calc(100% - 24px); }
   .public-tour-page .public-header { min-height: 70px; }
   .public-tour-page .public-brand > img { width: 42px; height: 42px; border-radius: 11px; }
   .public-tour-page .public-nav :is(.public-button, .public-help) { min-height: 42px; font-size: .8rem; }
@@ -534,7 +536,22 @@ html[data-theme="dark"] .public-page {
 .public-device-canvas:focus-visible { outline: 2px solid var(--ace-accent); outline-offset: -2px; border-radius: 10px; }
 @media (max-width: 760px) {
   .public-tour-page .public-tour-devices.has-device-scene { padding: 0; }
-  .public-tour-devices.shows-phone.has-device-scene { aspect-ratio: 1.42; }
+  .public-tour-devices.shows-phone.has-device-scene { aspect-ratio: 1.31; }
 }
 
+@media (scripting: enabled) {
+  .public-tour-page .public-tour-devices.is-device-loading { padding: 0; aspect-ratio: 1.65; }
+  .public-tour-devices.is-device-loading > :is(.public-laptop, .public-phone) { visibility: hidden; position: absolute; }
+  .public-tour-devices.is-device-loading::before {
+    content: "";
+    position: absolute;
+    inset: 13% 8%;
+    border-radius: 18px;
+    background: rgb(89 127 166 / 8%);
+    border: 1px solid rgb(89 127 166 / 12%);
+  }
+}
+@media (scripting: enabled) and (max-width: 760px) {
+  .public-tour-page .public-tour-devices.shows-phone.is-device-loading { aspect-ratio: 1.31; }
+}
 .public-device-credits { margin-inline-start: 1rem; color: var(--public-accent-text); }

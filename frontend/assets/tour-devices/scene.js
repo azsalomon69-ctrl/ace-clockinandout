@@ -58,14 +58,10 @@ async function deviceModel(name, image) {
     return device;
 }
 
-async function activate() {
-    if (!previews.length || typeof window.WebGL2RenderingContext !== 'function') return;
-    let renderer;
-    try {
-        renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    } catch {
-        return;
-    }
+export async function activate() {
+    if (!previews.length) return;
+    if (typeof window.WebGL2RenderingContext !== 'function') throw new Error('WebGL is unavailable');
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     const environment = new RoomEnvironment();
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -86,6 +82,7 @@ async function activate() {
     let active;
     let drag;
     let hover;
+    let releasedDevice;
     const tilt = new THREE.Vector2();
     let visible = false;
     let frame = 0;
@@ -98,10 +95,10 @@ async function activate() {
             const { x, y, z } = device.userData.halfSize;
             const rotation = device.rotation.clone();
             const isPhone = device === handset;
-            const pitches = device !== movable ? [rotation.x] : isPhone ? [-1.1, -.55, 0, .55, 1.1] : [-.5, -.25, 0, .25, .5];
+            const pitches = device !== movable ? [rotation.x] : isPhone ? [-1.1, -.55, 0, .55, 1.1] : [-.27, -.135, 0, .135, .27];
             const yaws = device !== movable ? [rotation.y] : isPhone
                 ? Array.from({ length: 16 }, (_, i) => i * Math.PI / 8)
-                : [-.65, -.325, 0, .325, .65];
+                : [-.45, -.225, 0, .225, .45];
             for (const pitch of pitches) {
                 for (const yaw of yaws) {
                     device.rotation.set(pitch, yaw, rotation.z);
@@ -120,7 +117,7 @@ async function activate() {
             }
             device.rotation.copy(rotation);
         }
-        const zoom = Math.min(1, .92 * camera.right / xExtent, .92 * camera.top / yExtent);
+        const zoom = Math.min(1, .98 * camera.right / xExtent, .98 * camera.top / yExtent);
         if (zoom !== camera.zoom) {
             camera.zoom = zoom;
             camera.updateProjectionMatrix();
@@ -133,7 +130,7 @@ async function activate() {
         const motion = !reducedMotion.matches;
         const phase = timestamp * .0017;
         let settling = false;
-        if (active.handset && drag?.device !== active.handset) {
+        if (active.handset) {
             active.handset.position.y = .04 + (motion ? Math.sin(phase) * .105 : 0);
         }
         for (const device of [active.movable]) {
@@ -160,7 +157,7 @@ async function activate() {
         const { clientWidth: width, clientHeight: height } = active.preview;
         if (!width || !height) return;
         const aspect = width / height;
-        const halfHeight = Math.max(2.22, 3.66 / aspect);
+        const halfHeight = 2.45;
         camera.left = -halfHeight * aspect;
         camera.right = halfHeight * aspect;
         camera.top = halfHeight;
@@ -215,13 +212,14 @@ async function activate() {
         if (preview === active?.preview) return;
         if (active) {
             resizeObserver.unobserve(active.preview);
-            active.preview.classList.remove('has-device-scene');
+            active.preview.classList.replace('has-device-scene', 'is-device-loading');
             const hint = active.preview.parentElement.querySelector('.public-device-hint');
             if (hint) hint.hidden = true;
             canvas.remove();
             active = undefined;
             drag = undefined;
             hover = undefined;
+            releasedDevice = undefined;
         }
         if (!preview) return;
         if (!scenes.has(preview)) scenes.set(preview, createScene(preview));
@@ -235,11 +233,19 @@ async function activate() {
             canvas.setAttribute('aria-label', deviceName + ' preview. Drag or use the arrow keys to rotate. Press Home to reset.');
             preview.append(canvas);
             preview.classList.add('has-device-scene');
+            preview.classList.remove('is-device-loading');
             const hint = preview.parentElement.querySelector('.public-device-hint');
             if (hint) hint.hidden = false;
             resizeObserver.observe(preview);
             resize();
+            renderer.render(active.scene, camera);
         } catch {
+            if (active?.preview === preview) {
+                resizeObserver.unobserve(preview);
+                canvas.remove();
+                active = undefined;
+            }
+            preview.classList.remove('is-device-loading', 'has-device-scene');
             scenes.delete(preview);
         }
     }
@@ -258,13 +264,14 @@ async function activate() {
         const { clamp } = THREE.MathUtils;
         return active.handset
             ? [clamp(pitch, -1.1, 1.1), yaw]
-            : [clamp(pitch, -.5, .5), clamp(yaw, -.65, .65)];
+            : [clamp(pitch, -.27, .27), clamp(yaw, -.45, .45)];
     }
     canvas.addEventListener('pointerdown', event => {
         if (!active || event.button !== 0) return;
         const device = hit(event);
         if (device !== active.movable) return;
         hover = undefined;
+        releasedDevice = undefined;
         drag = { device, id: event.pointerId, x: event.clientX, y: event.clientY };
         canvas.setPointerCapture(event.pointerId);
     });
@@ -278,7 +285,9 @@ async function activate() {
             drag.x = event.clientX;
             drag.y = event.clientY;
         } else if (event.pointerType === 'mouse' && !reducedMotion.matches) {
-            hover = hit(event) === active.movable ? active.movable : undefined;
+            const device = hit(event);
+            if (device !== releasedDevice) releasedDevice = undefined;
+            hover = device === active.movable && !releasedDevice ? device : undefined;
             tilt.set(-pointer.y * .16, pointer.x * .24);
         }
         requestRender();
@@ -286,12 +295,14 @@ async function activate() {
     function keepRotation() {
         if (!drag) return;
         drag.device.userData.rest.copy(drag.device.rotation);
+        releasedDevice = drag.device;
         drag = undefined;
         requestRender();
     }
     canvas.addEventListener('lostpointercapture', keepRotation);
     canvas.addEventListener('pointerleave', () => {
         hover = undefined;
+        releasedDevice = undefined;
         requestRender();
     });
     canvas.addEventListener('keydown', event => {
@@ -316,5 +327,3 @@ async function activate() {
     for (const preview of previews) state.observe(preview.closest('.public-tour-panel'), { attributeFilter: ['inert'] });
     showActive();
 }
-
-activate();

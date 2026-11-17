@@ -58,3 +58,7 @@ selectTourPanel(linkedPanel);
 const panelResize = new ResizeObserver(fitTourTrack);
 tourPanels.forEach(panel => panelResize.observe(panel));
 requestAnimationFrame(() => { tourTrack.scrollLeft = linkedPanel.offsetLeft; });
+
+import('/assets/tour-devices/scene.js?v=closer-preview').then(module => module.activate()).catch(() => {
+    document.querySelectorAll('.is-device-loading').forEach(preview => preview.classList.remove('is-device-loading'));
+});
