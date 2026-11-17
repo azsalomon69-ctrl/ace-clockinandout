@@ -2973,7 +2973,25 @@ function renderRickReply(container, text) {
         const tokens = value.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/[^\s)]+\)|(?:People|Work|Administration|Insights|Dashboard|Profile & settings)(?: → [\w &-]+)+)/g);
         tokens.forEach(token => {
             const link=token.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
-            if(link){const node=document.createElement('a');node.textContent=link[1];node.href=link[2];node.target='_blank';node.rel='noopener noreferrer';parent.append(node);}
+            if (link) {
+                let destination;
+                try {
+                    destination = new URL(link[2]);
+                } catch {
+                    parent.append(document.createTextNode(token));
+                    return;
+                }
+                if (destination.protocol !== 'https:' && destination.protocol !== 'http:') {
+                    parent.append(document.createTextNode(token));
+                    return;
+                }
+                const node = document.createElement('a');
+                node.append(document.createTextNode(link[1]));
+                node.href = destination.href;
+                node.target = '_blank';
+                node.rel = 'noopener noreferrer';
+                parent.append(node);
+            }
             else if(token.startsWith('**')&&token.endsWith('**')){const node=document.createElement('strong');node.textContent=token.slice(2,-2);parent.append(node);}
             else if(token.includes(' → ')){const node=document.createElement('strong');node.textContent=token;parent.append(node);}
             else parent.append(document.createTextNode(token));
