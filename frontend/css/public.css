@@ -569,61 +569,115 @@ html[data-theme="dark"] .public-page {
     z-index: 100000;
     inset: 0;
     display: grid;
-    align-content: center;
-    justify-items: center;
-    gap: 24px;
+    place-items: center;
+    overflow: hidden;
     background:
-      radial-gradient(ellipse at 50% 46%, #fafdff 0%, transparent 40%),
-      radial-gradient(ellipse at 15% 85%, #e1f0f2 0%, transparent 52%),
-      linear-gradient(145deg, #f4f7fc 15%, #e3edf8 100%);
+      radial-gradient(ellipse at 52% 40%, #fff 0%, transparent 38%),
+      radial-gradient(ellipse at 18% 85%, #c3e9ec 0%, transparent 52%),
+      radial-gradient(ellipse at 90% 14%, #d3ddfa 0%, transparent 50%),
+      #edf5fa;
+  }
+  .public-tour-loader-scene {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    place-items: center;
+    width: min(82vw, 600px);
+    aspect-ratio: 1.5;
+  }
+  .public-tour-loader-scene::before,
+  .public-tour-loader-scene::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+  }
+  .public-tour-loader-scene::before {
+    z-index: -1;
+    inset: -22% -18%;
+    background:
+      linear-gradient(#577fa522 1px, transparent 1px),
+      linear-gradient(90deg, #577fa522 1px, transparent 1px);
+    background-size: 35px 35px;
+    mask-image: radial-gradient(ellipse, #000 6%, transparent 68%);
+  }
+  .public-tour-loader-scene::after {
+    z-index: -1;
+    inset: 12% 15%;
+    border-radius: 50%;
+    background: linear-gradient(130deg, #77d9dc8a, #c0cdf790 80%);
+    filter: blur(38px);
+    transform: rotate(-18deg);
+  }
+  .public-tour-loader-orbit {
+    position: absolute;
+    width: 86%;
+    height: 57%;
+    border: 1px solid #6b9ec872;
+    border-radius: 50%;
+    box-shadow: 0 0 0 10px #eaffff34, inset 0 0 18px #fff8;
+    transform: rotate(-20deg);
+  }
+  .public-tour-loader-orbit:nth-child(2) {
+    width: 74%;
+    height: 48%;
+    border-color: #58b8bf72;
+    transform: rotate(18deg);
+  }
+  .public-tour-loader-orbit::after {
+    content: "";
+    position: absolute;
+    top: 10%;
+    right: 14%;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #43aab9;
+    box-shadow: 0 0 12px 4px #a6fbffb8;
+  }
+  .public-tour-loader-orbit:nth-child(2)::after {
+    inset: auto auto 12% 13%;
+    width: 5px;
+    height: 5px;
+    background: #8399e1;
   }
   .public-tour-loader-mark {
     position: relative;
     display: grid;
     place-items: center;
-    width: 106px;
-    height: 106px;
-    isolation: isolate;
+    width: clamp(98px, 21vw, 146px);
+    aspect-ratio: 1;
     border: 1px solid #fff;
-    border-radius: 28px;
-    background: linear-gradient(150deg, #fff 27%, #f2f8fc);
-    box-shadow: 0 16px 42px #24567921, 0 2px 8px #24567914;
-  }
-  .public-tour-loader-mark::before {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    inset: -17px;
-    border: 1px solid #92bace35;
-    border-radius: 40px;
-    box-shadow: 0 0 0 15px #ffffff5c;
+    border-radius: 29%;
+    background: linear-gradient(153deg, #fff 25%, #f4fbff 63%, #e6f3fa);
+    box-shadow: 0 0 0 9px #ffffff69, 0 24px 54px #315b8b39, inset 0 -2px 4px #bad2e873;
   }
   .public-tour-loader-mark img {
-    width: 74px;
-    height: 74px;
+    width: 75%;
+    height: auto;
     object-fit: contain;
   }
   .public-tour-loader-activity {
-    position: relative;
-    width: 82px;
+    position: absolute;
+    top: calc(50% + clamp(66px, 12vw, 97px));
+    width: clamp(64px, 15vw, 100px);
     height: 3px;
     overflow: hidden;
-    border-radius: 3px;
-    background: #c9ddeb;
+    border-radius: 5px;
+    background: #7ba7ba45;
   }
   .public-tour-loader-activity::after {
     content: "";
     position: absolute;
     inset-block: 0;
-    width: 32px;
+    width: 60%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #2075a4, #36b4bf);
-    animation: public-tour-loading 1.2s ease-in-out infinite alternate;
+    background: linear-gradient(90deg, transparent, #347dab 44%, #56cccf 72%, transparent);
+    animation: public-tour-loading 1.35s ease-in-out infinite;
   }
 }
-@keyframes public-tour-loading { from { transform: translateX(0); } to { transform: translateX(50px); } }
+@keyframes public-tour-loading { from { transform: translateX(-100%); } to { transform: translateX(170%); } }
 @media (prefers-reduced-motion: reduce) {
-  .public-tour-loader-activity::after { animation: none; inset-inline-start: 25px; }
+  .public-tour-loader-activity::after { animation: none; inset-inline-start: 20%; }
 }
 @media (min-width: 761px) {
   .public-tour-page .public-tour-panel:not(#tour-clock) {
