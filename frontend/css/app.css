@@ -18512,3 +18512,67 @@ html[data-theme="dark"] .admin-dashboard .project-allocation-card .project-alloc
 @media (max-height: 560px) {
   .shell-sidebar-review-description { display: none; }
 }
+
+/* Keep supporting copy available without reserving a row in every card header. */
+.card-tip-source[hidden], .card-tip-popup[hidden] { display: none!important; }
+.card-heading-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  min-width: 0;
+  text-align: start;
+}
+.card-heading-line > :is(h1, h2) {
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  text-align: start;
+}
+.dashboard-section-heading[data-card-tip-ready] > div:first-child { text-align: start; }
+.admin-dashboard .dashboard-section-heading[data-card-tip-ready] .section-title { text-align: start; }
+.admin-dashboard .dashboard-section > .dashboard-section-heading[data-card-tip-ready] {
+  padding-block: 13px;
+}
+.card-tip-button {
+  box-sizing: border-box;
+  flex: 0 0 24px;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ace-text-secondary);
+}
+.card-tip-button .ui-icon { width: 14px; height: 14px; }
+.card-tip-button:is(:hover, :focus-visible) {
+  background: var(--ace-accent-muted);
+  border-color: var(--ace-border);
+}
+.card-tip-button:focus-visible { outline: 2px solid var(--ace-accent); outline-offset: 2px; }
+html[data-theme="dark"] .card-tip-button img { filter: brightness(0) invert(1); }
+.card-tip-popup {
+  position: fixed;
+  inset: auto;
+  z-index: 8500;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(276px, calc(100vw - 16px));
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--ace-border-strong);
+  border-radius: 9px;
+  color: var(--ace-text-primary);
+  background: var(--ace-surface-modal);
+  box-shadow: var(--ace-shadow-md);
+  font: 500 .78rem/1.45 'Open Sans', Arial, sans-serif;
+  text-align: start;
+  white-space: normal;
+  pointer-events: none;
+}
+@media (pointer: coarse) {
+  .card-tip-button { width: 32px; height: 32px; flex-basis: 32px; }
+}

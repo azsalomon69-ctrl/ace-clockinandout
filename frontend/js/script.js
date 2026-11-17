@@ -1254,7 +1254,109 @@ function mountRelatedPageTabs() {
     }
 }
 
+// Move supporting copy into a shared help tip for compact workspace headers.
+const cardTipHeaders = [
+    '.dashboard-section-heading', '.admin-section-header', '.employee-section-heading',
+    '.schedule-card-heading', '.table-header', '.active-entries-heading-copy',
+    '.settings-header', '.reports-header', '.shell-sidebar-updates-panel'
+].join(',');
+let cardTipSequence = 0;
+let openCardTip;
+let pinnedCardTip;
+
+function closeCardTip() {
+    if (!openCardTip) return;
+    const { tip } = openCardTip;
+    openCardTip = null;
+    pinnedCardTip = null;
+    if (tip.matches(':popover-open')) tip.hidePopover();
+    tip.hidden = true;
+}
+
+function showCardTip(control) {
+    if (openCardTip?.button === control.button) return;
+    closeCardTip();
+    const { button, tip, description } = control;
+    tip.textContent = description.textContent.trim();
+    if (!tip.textContent) return;
+    tip.hidden = false;
+    if (tip.showPopover) tip.showPopover();
+    const anchor = button.getBoundingClientRect();
+    const width = tip.offsetWidth;
+    const left = Math.max(8, Math.min(anchor.left, document.documentElement.clientWidth - width - 8));
+    const top = anchor.bottom + tip.offsetHeight + 8 < window.innerHeight
+        ? anchor.bottom + 6 : Math.max(8, anchor.top - tip.offsetHeight - 6);
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+    openCardTip = control;
+}
+
+function initializeCardTips(root) {
+    const headers = new Set(root.querySelectorAll(cardTipHeaders));
+    const parentHeader = root.closest?.(cardTipHeaders);
+    if (parentHeader) headers.add(parentHeader);
+    headers.forEach(header => {
+        if (header.dataset.cardTipReady) return;
+        const heading = header.querySelector(':scope > h1, :scope > h2, :scope > div > h1, :scope > div > h2');
+        if (!heading) return;
+        const description = heading.nextElementSibling || (heading.parentElement !== header ? heading.parentElement.nextElementSibling : null);
+        if (!description?.matches('p:not([role]):not([aria-live])') || !description.textContent.trim()) return;
+
+        header.dataset.cardTipReady = 'true';
+        const titleRow = document.createElement('div');
+        titleRow.className = 'card-heading-line';
+        heading.before(titleRow);
+        titleRow.append(heading);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'card-tip-button';
+        button.setAttribute('aria-label', 'About ' + heading.textContent.trim());
+        button.innerHTML = suppliedIconMarkup('info', 'ui-icon');
+        if (!description.id) description.id = 'aceCardTip' + (++cardTipSequence);
+        button.setAttribute('aria-describedby', description.id);
+        description.hidden = true;
+        description.classList.add('card-tip-source');
+        titleRow.append(button);
+
+        const tip = document.createElement('span');
+        tip.className = 'card-tip-popup';
+        tip.setAttribute('aria-hidden', 'true');
+        tip.setAttribute('popover', 'manual');
+        tip.hidden = true;
+        titleRow.append(tip);
+        const control = { button, tip, description };
+        button.addEventListener('pointerenter', event => {
+            if (event.pointerType !== 'touch') showCardTip(control);
+        });
+        button.addEventListener('pointerleave', () => {
+            if (openCardTip === control && pinnedCardTip !== control && document.activeElement !== button) closeCardTip();
+        });
+        button.addEventListener('focus', () => showCardTip(control));
+        button.addEventListener('blur', () => {
+            if (openCardTip === control) closeCardTip();
+        });
+        button.addEventListener('click', () => {
+            if (pinnedCardTip === control) { closeCardTip(); return; }
+            showCardTip(control);
+            if (openCardTip === control) pinnedCardTip = control;
+        });
+    });
+}
+
+document.addEventListener('pointerdown', event => {
+    if (openCardTip && !openCardTip.button.contains(event.target)) closeCardTip();
+}, true);
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && openCardTip) {
+        event.preventDefault();
+        closeCardTip();
+    }
+});
+window.addEventListener('scroll', closeCardTip, { capture: true, passive: true });
+window.addEventListener('resize', closeCardTip);
+
 function initializeUXEnhancements() {
+    initializeCardTips(document);
     mountRelatedPageTabs();
     document.querySelectorAll('.modal').forEach(modal => {
         modal.setAttribute('role', 'dialog');
@@ -1283,7 +1385,13 @@ function initializeUXEnhancements() {
             mutations.forEach(mutation => mutation.addedNodes.forEach(node => {
                 if (node.nodeType === Node.ELEMENT_NODE) roots.add(node);
             }));
-            roots.forEach(root => applyTableLabels(root.closest?.('table') || root));
+            roots.forEach(root => {
+                applyTableLabels(root.closest?.('table') || root);
+                if (root.isConnected) initializeCardTips(root);
+            });
+            mutations.forEach(({ target }) => {
+                if (target.id === 'sectionDescription') initializeCardTips(target);
+            });
         });
         window.__aceTableLabelObserver.observe(document.body, { childList: true, subtree: true });
     }
