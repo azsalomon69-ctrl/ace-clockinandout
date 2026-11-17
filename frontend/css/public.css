@@ -673,95 +673,138 @@ html[data-theme="dark"] .public-page {
   }
 }
 .public-tour-page .public-screenshot-panel {
-  --preview-ink: #174d69;
-  --preview-glow: #468ab2;
-  --preview-wash: #deedf7;
-  --preview-rule: #c3d8e7;
-  grid-template-columns: minmax(0, 1fr);
-  gap: clamp(19px, 2.7vw, 36px);
-  padding: clamp(18px, 3vw, 44px);
-  background: linear-gradient(155deg, #fbfdff 35%, var(--preview-wash));
+  --preview-ink: #164a73;
+  --preview-stage: #c6ddf3;
+  --preview-surface: #eff6fc;
+  --preview-rule: #c9dce9;
+  --crop-x: -19%;
+  --crop-y: -18%;
+  grid-template-columns: minmax(200px, .85fr) minmax(0, 2.4fr);
+  grid-template-areas: "title screenshot" "features screenshot";
+  grid-template-rows: auto 1fr;
+  align-items: start;
+  column-gap: clamp(20px, 3vw, 46px);
+  row-gap: clamp(16px, 2vw, 30px);
+  min-height: 0;
+  padding: clamp(22px, 3.1vw, 46px);
+  background: linear-gradient(135deg, #fff 20%, var(--preview-surface));
 }
 .public-tour-page #tour-employee {
-  --preview-ink: #175b60;
-  --preview-glow: #399ca0;
-  --preview-wash: #dcefeb;
-  --preview-rule: #bad9d7;
+  --preview-ink: #145962;
+  --preview-stage: #b5dbd7;
+  --preview-surface: #eef7f5;
+  --preview-rule: #c7ded9;
+  --crop-x: -20%;
+  --crop-y: -21%;
 }
 .public-tour-page #tour-entries {
-  --preview-ink: #3b517c;
-  --preview-glow: #657cb9;
-  --preview-wash: #e5eaf8;
-  --preview-rule: #ccd7eb;
+  --preview-ink: #424978;
+  --preview-stage: #d0d7f3;
+  --preview-surface: #f2f4fb;
+  --preview-rule: #d4dbee;
+  --crop-x: -20%;
+  --crop-y: -19%;
 }
-.public-screenshot-panel .public-tour-caption { text-align: start; }
+.public-tour-page .public-screenshot-panel .public-tour-caption {
+  grid-area: title;
+  margin: 0;
+  text-align: start;
+}
 .public-screenshot-panel .public-tour-caption h2 {
-  max-width: none;
-  font-size: clamp(1.85rem, 4.4vw, 3.85rem);
+  max-width: 11ch;
+  color: var(--preview-ink);
+  font-size: clamp(2.2rem, 3.8vw, 3.65rem);
+  text-wrap: initial;
 }
 .public-screenshot-panel .public-tour-caption p {
-  max-width: 57ch;
-  margin: .55rem 0 0;
-  font-size: clamp(.88rem, 1.3vw, 1.03rem);
+  max-width: 34ch;
+  margin: .7rem 0 0;
+  font-size: clamp(.86rem, 1.3vw, 1.02rem);
 }
 .public-screenshot {
-  isolation: isolate;
+  grid-area: screenshot;
+  align-self: center;
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   margin: 0;
-  padding: clamp(9px, 2.65vw, 38px);
-  border: 1px solid #24485e40;
-  border-radius: clamp(13px, 1.8vw, 25px);
+  padding: clamp(12px, 2.5vw, 35px) clamp(12px, 2vw, 28px);
+  border: 1px solid var(--preview-rule);
+  border-radius: clamp(17px, 2.1vw, 28px);
   background:
-    radial-gradient(ellipse at 75% 0%, var(--preview-glow), transparent 70%),
-    linear-gradient(133deg, #142f3f, var(--preview-ink));
-  box-shadow: 0 16px 40px #284d7127;
+    radial-gradient(ellipse at 84% 15%, #fff 0%, transparent 55%),
+    linear-gradient(150deg, var(--preview-surface), var(--preview-stage));
 }
 .public-screenshot::before {
   content: "";
   position: absolute;
   z-index: -1;
-  inset: 0;
-  background:
-    linear-gradient(120deg, #fff2, transparent 48%),
-    repeating-linear-gradient(90deg, #e9f9ff13 0 1px, transparent 1px 56px);
+  width: 95%;
+  aspect-ratio: 1;
+  inset: 22% auto auto 44%;
+  border: 1px solid #ffffffab;
+  border-radius: 35%;
+  box-shadow: 0 0 0 18px #ffffff42, 0 0 0 36px #ffffff29;
+  transform: rotate(-24deg);
 }
-.public-screenshot img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid #f5fcffac;
-  border-radius: clamp(5px, 1vw, 13px);
-  box-shadow: 0 13px 34px #071e3d61;
+.public-screenshot-window {
+  overflow: hidden;
+  position: relative;
+  border: 1px solid #fff;
+  border-radius: clamp(8px, 1vw, 14px);
+  background: #f8fbfc;
+  box-shadow: 0 18px 35px #253e5744, 0 2px 5px #253e5729;
 }
+.public-screenshot img { display: block; width: 100%; height: auto; }
 .public-preview-features {
+  grid-area: features;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
   margin: 0;
-  border-block-start: 1px solid var(--preview-rule);
+  padding-inline-start: 12px;
+  border-inline-start: 2px solid var(--preview-rule);
 }
 .public-preview-features > div {
   position: relative;
-  --feature-inset: clamp(12px, 1.7vw, 20px);
-  padding: var(--feature-inset) var(--feature-inset) var(--feature-inset) calc(var(--feature-inset) + 50px);
+  padding: 11px 0 11px 40px;
 }
-.public-preview-features > div + div { border-inline-start: 1px solid var(--preview-rule); }
+.public-preview-features > div + div { border-block-start: 1px solid var(--preview-rule); }
 .public-preview-features img {
   position: absolute;
-  inset-block-start: var(--feature-inset);
-  inset-inline-start: var(--feature-inset);
+  inset: 10px auto auto 0;
   box-sizing: content-box;
-  padding: 8px;
+  width: 16px;
+  height: 16px;
+  padding: 6px;
   border: 1px solid var(--preview-rule);
-  border-radius: 10px;
-  background: #fff9;
+  border-radius: 8px;
+  background: #fff;
 }
-.public-preview-features dt { color: var(--preview-ink); font-size: .93rem; font-weight: 800; }
-.public-preview-features dd { margin: .22rem 0 0; color: var(--ace-text-secondary); font-size: .82rem; line-height: 1.47; }
-@media (max-width: 760px) {
-  .public-preview-features { grid-template-columns: minmax(0, 1fr); }
-  .public-preview-features > div { --feature-inset: 12px; padding-inline: 50px 0; }
-  .public-preview-features img { inset-inline-start: 0; }
-  .public-preview-features > div + div { border-inline-start: 0; border-block-start: 1px solid var(--preview-rule); }
+.public-preview-features dt { color: var(--preview-ink); font-size: .89rem; font-weight: 800; }
+.public-preview-features dd { margin: .25rem 0 0; color: var(--ace-text-secondary); font-size: .81rem; line-height: 1.48; }
+@media (max-width: 900px) {
+  .public-tour-page .public-screenshot-panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: "title" "screenshot" "features";
+    gap: 17px;
+  }
+  .public-screenshot-panel .public-tour-caption h2 {
+    max-width: 19ch;
+    font-size: clamp(1.95rem, 5.6vw, 3rem);
+  }
+}
+@media (max-width: 600px) {
+  .public-tour-page .public-screenshot-panel { padding: 20px 15px; }
+  .public-screenshot { padding: 9px; }
+  .public-screenshot-window { aspect-ratio: 1.23; }
+  .public-screenshot-window img {
+    position: absolute;
+    width: 210%;
+    max-width: none;
+    transform: translate(var(--crop-x), var(--crop-y));
+  }
+  .public-preview-features { padding-inline-start: 9px; }
+  .public-preview-features > div { padding-block: 9px; }
 }
 .public-device-credits { margin-inline-start: 1rem; color: var(--public-accent-text); }
