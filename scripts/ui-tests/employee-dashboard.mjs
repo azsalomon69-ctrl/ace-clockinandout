@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
+import { parse, parseFragment, serialize } from 'parse5';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve('frontend');
@@ -26,6 +27,26 @@ window.ACEAuth={request:async(url,options={})=>{
  return [];
 }};
 `;
+function prepareFixtureHtml(html) {
+ const document = parse(html);
+ function removeScripts(node) {
+  if (node.childNodes) {
+   node.childNodes = node.childNodes.filter(child => child.tagName !== 'script');
+   node.childNodes.forEach(removeScripts);
+  }
+  if (node.content) removeScripts(node.content);
+ }
+ removeScripts(document);
+ const body = document.childNodes.find(node => node.tagName === 'html')
+  .childNodes.find(node => node.tagName === 'body');
+ const scripts = parseFragment('<script src="/js/initial-skeletons.js"></script><script src="/fixture.js"></script><script src="/js/script.js"></script>');
+ for (const script of scripts.childNodes) {
+  script.parentNode = body;
+  body.childNodes.push(script);
+ }
+ return serialize(document);
+}
+
 const server = http.createServer(async(req,res)=>{
  try {
  const url=new URL(req.url,'http://localhost');
@@ -34,7 +55,7 @@ const server = http.createServer(async(req,res)=>{
  if(name==='fixture.js'){res.setHeader('Content-Type','text/javascript');return res.end(fixture);}
  const target=path.resolve(root,name); if(!target.startsWith(root+path.sep)) {res.writeHead(403);return res.end();}
  let data=await fs.readFile(target);
- if(name.endsWith('.html')) data=data.toString().replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace('</body>','<script src="/js/initial-skeletons.js"></script><script src="/fixture.js"></script><script src="/js/script.js"></script></body>');
+ if(name.endsWith('.html')) data=prepareFixtureHtml(data.toString());
  res.setHeader('Content-Type',name.endsWith('.css')?'text/css':name.endsWith('.js')?'text/javascript':name.endsWith('.svg')?'image/svg+xml':name.endsWith('.png')?'image/png':'text/html');res.end(data);
  }catch{res.writeHead(404);res.end('Not found');}
 });
