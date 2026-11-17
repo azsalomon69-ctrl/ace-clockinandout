@@ -199,23 +199,21 @@
         <button class="employee-bottom-nav-item" type="button" data-bottom-nav-more aria-label="Open navigation" aria-expanded="false"><img class="shell-icon" src="assets/icons/menu.svg" alt="" aria-hidden="true"><span>More</span></button>
     </nav>
 
-    <dialog class="employee-clock-confirmation" id="employeeClockConfirmation" aria-labelledby="employeeClockConfirmationTitle">
+    <dialog class="employee-clock-confirmation" id="employeeClockConfirmation" aria-labelledby="employeeClockConfirmationTitle" aria-describedby="employeeClockConfirmationHint">
         <form method="dialog">
             <header class="employee-clock-confirmation-header">
-                <div>
-                    <div class="employee-clock-confirmation-mark" aria-hidden="true">
-                        ✓<div class="employee-clock-confetti"></div>
-                    </div>
-                    <h2 id="employeeClockConfirmationTitle"></h2>
-                </div>
                 <img class="employee-clock-confirmation-art" src="/assets/images/clock-confirmation.png" width="576" height="384" alt="">
+                <div class="employee-clock-confirmation-mark" aria-hidden="true">
+                    ✓<div class="employee-clock-confetti"></div>
+                </div>
+                <h2 id="employeeClockConfirmationTitle"></h2>
             </header>
             <div class="employee-clock-confirmation-body">
                 <div class="employee-clock-confirmation-receipt">
                     <span>Recorded time</span>
                     <time></time>
                 </div>
-                <p>You can safely close this tab.</p>
+                <p id="employeeClockConfirmationHint">You can safely close this tab.</p>
                 <button class="btn btn-primary" autofocus>Done</button>
             </div>
         </form>

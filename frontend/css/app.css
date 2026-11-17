@@ -17321,58 +17321,64 @@ body.employee-boot-preview .app-shell-skeleton:has(.shell-startup-warmup) {
 }
 
 .employee-clock-confirmation {
-  box-sizing: border-box;
-  width: min(29rem, calc(100% - 1.5rem));
-  max-width: none;
+  width: min(25rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
   margin: auto;
   padding: 0;
-  border: 1px solid var(--ace-border, #c5dce2);
-  border-radius: 22px;
-  background: var(--ace-surface-raised, #fff);
-  color: var(--ace-text, #143740);
-  box-shadow: 0 24px 72px rgb(6 27 36 / 28%);
+  border: 1px solid var(--ace-border);
+  border-radius: 24px;
+  background: linear-gradient(170deg, var(--ace-surface), var(--ace-page-subtle));
+  color: var(--ace-text-primary);
+  box-shadow: inset 0 1px rgb(255 255 255 / 12%), 0 20px 52px rgb(0 0 0 / 28%);
 }
-.employee-clock-confirmation::backdrop { background: rgb(6 27 36 / 65%); }
+.employee-clock-confirmation::backdrop {
+  background: rgb(10 17 25 / 50%);
+  backdrop-filter: blur(5px);
+}
 .employee-clock-confirmation-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-  align-items: center;
-  gap: .25rem;
-  padding: 1.25rem clamp(1rem, 5vw, 1.75rem);
-  border-bottom: 1px solid var(--ace-border, #c5dce2);
+  justify-items: center;
+  gap: .65rem;
+  padding: 1rem 1rem 0;
+  text-align: center;
 }
 .employee-clock-confirmation-art {
   display: block;
-  width: 100%;
-  height: auto;
-  max-height: 11rem;
+  width: min(100%, 15rem);
+  height: clamp(5rem, 22dvh, 10rem);
   object-fit: contain;
-  transform: scale(1.13);
 }
 .employee-clock-confirmation-mark {
-  display: inline-grid;
+  display: grid;
   place-items: center;
-  width: 2.125rem;
-  height: 2.125rem;
-  margin-bottom: .7rem;
-  border-radius: 10px;
-  background: #d7f4ec;
-  color: #175a4b;
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 50%;
+  background: #d9f3e7;
+  color: #1a674c;
   font-weight: 800;
 }
-.employee-clock-confirmation h2 { margin: 0; font-size: clamp(1.45rem, 5.5vw, 2rem); line-height: 1.08; letter-spacing: -.04em; }
-.employee-clock-confirmation-body { padding: 1.15rem clamp(1rem, 5vw, 1.75rem) 1.5rem; }
-.employee-clock-confirmation-receipt {
-  padding: .75rem 1rem;
-  border: 1px solid var(--ace-border, #c5dce2);
-  border-inline-start: 3px solid var(--ace-accent, #007d8a);
-  border-radius: 10px;
-  background: var(--ace-page-bg, #f3f7f8);
+html[data-theme="dark"] .employee-clock-confirmation-mark { background: #1f453a; color: #a4ebc9; }
+.employee-clock-confirmation h2 {
+  margin: 0;
+  color: inherit;
+  font-size: clamp(1.25rem, 5vw, 1.65rem);
+  line-height: 1.16;
+  letter-spacing: -.035em;
+  text-wrap: balance;
 }
-.employee-clock-confirmation-receipt span { display: block; color: var(--ace-text-secondary, #43626c); font-size: .75rem; font-weight: 650; }
-.employee-clock-confirmation time { display: block; margin-top: .2rem; font-weight: 750; font-variant-numeric: tabular-nums; }
-.employee-clock-confirmation p { margin: .85rem 0; color: var(--ace-text-secondary, #43626c); font-size: .9rem; }
-.employee-clock-confirmation .btn { width: 100%; min-height: 44px; }
+.employee-clock-confirmation-body { padding: 1rem clamp(.875rem, 4vw, 1.375rem) 1.375rem; }
+.employee-clock-confirmation-receipt {
+  padding: .7rem 1rem;
+  border: 1px solid var(--ace-border);
+  border-radius: 14px;
+  background: var(--ace-surface);
+  text-align: center;
+}
+.employee-clock-confirmation-receipt span { display: block; color: var(--ace-text-secondary); font-size: .75rem; font-weight: 600; }
+.employee-clock-confirmation time { display: block; margin-top: .2rem; font-size: .93rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.employee-clock-confirmation p { margin: .65rem 0 1rem; color: var(--ace-text-secondary); font-size: .84rem; text-align: center; }
+.employee-clock-confirmation .btn { width: 100%; min-height: 44px; border-radius: 12px; }
 
 .time-entry-toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
 .time-entry-toolbar > .btn { min-height: 40px; white-space: nowrap; }
