@@ -6,7 +6,7 @@ import { setImmediate } from 'node:timers/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../../frontend/js/employee-clock-queue.js', import.meta.url), 'utf8');
+const source = readFileSync(process.env.ACE_TEST_CLOCK_BUNDLE || new URL('../../frontend/js/employee-clock-queue.js', import.meta.url), 'utf8');
 
 function harness() {
     const owner = 'employee-a';

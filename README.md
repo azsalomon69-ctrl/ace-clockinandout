@@ -141,7 +141,11 @@ The build validates its API URL, minifies HTML/CSS/JavaScript, bundles browser d
 
 ### Private JavaScript debugging artifacts
 
-Use the same API URL as the deployment and run `npm run build:local` to generate the production build plus `SEMANTIC_MAP.local.md` and full first-party JavaScript source maps in `.semantic-local/source-maps/`. The maps embed the original JavaScript. The Markdown guide lists the latest build; maps are retained by bundle hash so prior releases can still be debugged.
+Use the same API URL as the deployment and run `npm run build:local` to generate the production build plus `SEMANTIC_MAP.local.md` and full first-party JavaScript source maps under `%USERPROFILE%/OneDrive/Documents/obfuscation/`. Set `ACE_PRIVATE_MAP_DIR` to choose another private location outside any Git checkout. The maps embed the original JavaScript. The Markdown guide lists the latest build; maps are retained by bundle hash so prior releases can still be debugged.
+
+Production names are seeded deterministically. Set ACE_OBFUSCATION_SEED to choose a different seed and ACE_OBFUSCATION_NAMES to base36 or hex. Set ACE_OBFUSCATION_STRINGS, ACE_OBFUSCATION_PROPERTIES, or ACE_OBFUSCATION_BRANCHES to 0 to disable the corresponding optional pass. Use matching values for the production and local builds.
+
+The audit in the private guide lists all project JavaScript. The browser build includes classic scripts and the dynamically imported game module. The Express runtime and the separately deployed Render wake worker use their existing deployment commands.
 
 Use the bundle filename and generated position from the stack trace to find the matching map in the guide. In Chrome DevTools, right-click the deployed script in Sources, choose **Add source map**, and point it to the matching local map. Reproducing a deployed build requires its Git revision, lockfile dependencies, and API URL.
 
