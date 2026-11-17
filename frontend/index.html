@@ -12,9 +12,11 @@
     <link rel="stylesheet" href="/css/public.css">
 </head>
 <body class="public-page public-tour-page is-tour-starting">
-    <div class="public-tour-loader" role="status" aria-atomic="true">
-        <img src="/assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions" width="64" height="64">
-        <span>Loading the workspace preview…</span>
+    <div class="public-tour-loader" role="status" aria-label="Loading">
+        <div class="public-tour-loader-mark" aria-hidden="true">
+            <img src="/assets/images/ace-logo-hd-cropped.png" alt="" width="88" height="88" fetchpriority="high">
+        </div>
+        <div class="public-tour-loader-activity" aria-hidden="true"></div>
     </div>
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="public-header public-width">

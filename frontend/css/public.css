@@ -569,34 +569,61 @@ html[data-theme="dark"] .public-page {
     z-index: 100000;
     inset: 0;
     display: grid;
-    place-content: center;
+    align-content: center;
     justify-items: center;
-    gap: 16px;
-    background: var(--public-frame);
-    color: var(--ace-text-primary);
-    font-size: .9rem;
-    font-weight: 700;
+    gap: 24px;
+    background:
+      radial-gradient(ellipse at 50% 46%, #fafdff 0%, transparent 40%),
+      radial-gradient(ellipse at 15% 85%, #e1f0f2 0%, transparent 52%),
+      linear-gradient(145deg, #f4f7fc 15%, #e3edf8 100%);
   }
-  .public-tour-loader img {
-    padding: 6px;
-    border: 1px solid var(--ace-border);
-    border-radius: 15px;
-    background: #fff;
+  .public-tour-loader-mark {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 106px;
+    height: 106px;
+    isolation: isolate;
+    border: 1px solid #fff;
+    border-radius: 28px;
+    background: linear-gradient(150deg, #fff 27%, #f2f8fc);
+    box-shadow: 0 16px 42px #24567921, 0 2px 8px #24567914;
+  }
+  .public-tour-loader-mark::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -17px;
+    border: 1px solid #92bace35;
+    border-radius: 40px;
+    box-shadow: 0 0 0 15px #ffffff5c;
+  }
+  .public-tour-loader-mark img {
+    width: 74px;
+    height: 74px;
     object-fit: contain;
   }
-  .public-tour-loader::after {
+  .public-tour-loader-activity {
+    position: relative;
+    width: 82px;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: #c9ddeb;
+  }
+  .public-tour-loader-activity::after {
     content: "";
-    width: 24px;
-    height: 24px;
-    border: 2px solid var(--ace-border);
-    border-top-color: var(--ace-accent);
-    border-radius: 50%;
-    animation: public-tour-loading 1s linear infinite;
+    position: absolute;
+    inset-block: 0;
+    width: 32px;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #2075a4, #36b4bf);
+    animation: public-tour-loading 1.2s ease-in-out infinite alternate;
   }
 }
-@keyframes public-tour-loading { to { transform: rotate(360deg); } }
+@keyframes public-tour-loading { from { transform: translateX(0); } to { transform: translateX(50px); } }
 @media (prefers-reduced-motion: reduce) {
-  .public-tour-loader::after { animation: none; }
+  .public-tour-loader-activity::after { animation: none; inset-inline-start: 25px; }
 }
 @media (min-width: 761px) {
   .public-tour-page .public-tour-panel:not(#tour-clock) {
