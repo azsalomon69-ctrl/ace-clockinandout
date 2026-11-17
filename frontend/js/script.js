@@ -4649,7 +4649,8 @@ function updateEmployeeScheduleNotice(now = new Date()) {
 
 function loadUserDashboard() {
     updateEmployeeScheduleNotice();
-    const historyUnavailable = ['pending', 'loading', 'error'].includes(AppState.employeeHistoryStatus);
+    const historyLoading = ['pending', 'loading'].includes(AppState.employeeHistoryStatus);
+    const historyUnavailable = historyLoading || AppState.employeeHistoryStatus === 'error';
     const userEntriesForStats = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId && te.ClockOutAt);
     const now = new Date();
     const startOfWeek = new Date(now);
@@ -4664,17 +4665,24 @@ function loadUserDashboard() {
     };
     Object.entries(dashboardStats).forEach(([id, value]) => {
         const node = document.getElementById(id);
-        if (node) node.textContent = historyUnavailable ? '—' : value;
+        if (node) {
+            node.textContent = historyUnavailable ? '—' : value;
+            node.classList.toggle('data-value-pending', historyLoading);
+        }
     });
     const weekChart = document.getElementById('employeeWeekChart');
     const weekState = document.getElementById('employeeWeekState');
     const showChart = !historyUnavailable && completedWeekEntries.length > 0;
     if (weekState) {
-        weekState.hidden = showChart;
+        weekState.hidden = showChart || historyLoading;
         weekState.textContent = AppState.employeeHistoryStatus === 'error' ? 'Could not load weekly activity.'
             : historyUnavailable ? 'Loading time-entry history…' : 'Completed sessions will appear here.';
     }
-    if (weekChart) weekChart.hidden = !showChart;
+    if (weekChart) {
+        weekChart.hidden = !showChart && !historyLoading;
+        if (historyLoading) window.ACERenderLoadingRegion?.(weekChart);
+        else window.ACEClearLoadingRegion?.(weekChart);
+    }
     if (weekChart && showChart) {
         const dailySeconds = Array.from({ length: 7 }, (_, index) => {
             const day = new Date(startOfWeek);
@@ -4697,6 +4705,7 @@ function loadUserDashboard() {
     // Populate user projects
     const myProjects = document.getElementById('myProjects');
     if (myProjects) {
+        window.ACEClearLoadingRegion?.(myProjects);
         const userProjects = AppState.userProjects.filter(up => up.UserId === AppState.currentUser?.UserId);
         const projects = userProjects.map(up => AppState.projects.find(p => p.ProjectId === up.ProjectId)).filter(Boolean);
         
@@ -4713,12 +4722,14 @@ function loadUserDashboard() {
     
     // Populate recent activity
     const recentActivity = document.getElementById('recentActivity');
-    if (recentActivity && historyUnavailable) {
-        recentActivity.innerHTML = AppState.employeeHistoryStatus === 'error'
-            ? '<p role="status">Could not load time-entry history. You can still clock in or out.</p><button class="btn btn-outline" type="button" data-retry-employee-history>Retry history</button>'
-            : '<p role="status">Loading time-entry history…</p>';
+    if (recentActivity && historyLoading) {
+        window.ACERenderLoadingRegion?.(recentActivity);
+    } else if (recentActivity && historyUnavailable) {
+        window.ACEClearLoadingRegion?.(recentActivity);
+        recentActivity.innerHTML = '<p role="status">Could not load time-entry history. You can still clock in or out.</p><button class="btn btn-outline" type="button" data-retry-employee-history>Retry history</button>';
         recentActivity.querySelector('[data-retry-employee-history]')?.addEventListener('click', () => void loadEmployeeHistory());
     } else if (recentActivity) {
+        window.ACEClearLoadingRegion?.(recentActivity);
         const userEntries = AppState.timeEntries.filter(te => te.UserId === AppState.currentUser?.UserId).slice(0, 5);
         recentActivity.innerHTML = userEntries.length
             ? `<ol class="employee-activity-list">${userEntries.map(renderEmployeeActivityRow).join('')}</ol>`
@@ -4727,6 +4738,7 @@ function loadUserDashboard() {
 
     const dashboardRemarks = document.getElementById('dashboardRemarks');
     if (dashboardRemarks) {
+        window.ACEClearLoadingRegion?.(dashboardRemarks);
         const entryById = new Map(AppState.timeEntries.map(entry => [entry.TimeEntryId, entry]));
         const remarks = AppState.adminRemarks.slice(0, 5);
         dashboardRemarks.innerHTML = remarks.length ? remarks.map(remark => {
@@ -4743,6 +4755,7 @@ async function loadTimeLeaderboard(listId, rankId) {
     if (!list || !window.ACEAuth) return;
     try {
         const data = await window.ACEAuth.request('/v1/time-leaderboard');
+        window.ACEClearLoadingRegion?.(list);
         if (rank) rank.textContent = AppState.currentUser?.Role === 'ADMIN' ? 'Top ten by completed worked time.' : `Your team rank: #${data.my_rank} of ${data.total_people}`;
         list.innerHTML = data.leaders.length ? data.leaders.map((person, index) => {
             const initials = (person.full_name || '?').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
@@ -4752,6 +4765,7 @@ async function loadTimeLeaderboard(listId, rankId) {
             return `<li class="time-leaderboard-row${isMe ? ' is-current-user' : ''}"><b class="time-leaderboard-rank">${index + 1}</b><span class="time-leaderboard-avatar">${person.profile_picture_url ? `<img src="${escapeHtml(person.profile_picture_url)}" alt="">` : escapeHtml(initials)}</span>${profileName}<span>${formatDuration(person.tracked_seconds)}</span></li>`;
         }).join('') : `<li class="time-leaderboard-empty"><span>${suppliedIconMarkup('users')}</span><strong>No completed work sessions yet</strong><p>Team rankings will appear after people finish their first shifts.</p></li>`;
     } catch {
+        window.ACEClearLoadingRegion?.(list);
         if (rank) rank.textContent = 'Leaderboard is unavailable right now.';
         list.innerHTML = `<li class="time-leaderboard-empty"><span>${suppliedIconMarkup('circle-alert')}</span><strong>Rankings are unavailable</strong><p>Refresh the page and try again in a moment.</p></li>`;
     }
@@ -5007,6 +5021,8 @@ function renderAdminAnalytics() {
     const hoursChart = document.getElementById('hoursChart');
     const projectChart = document.getElementById('projectAllocationChart');
     if (!hoursChart || !projectChart) return;
+    window.ACEClearLoadingRegion?.(hoursChart);
+    window.ACEClearLoadingRegion?.(projectChart);
     const completed = employeeTimeEntries().filter(entry => entry.ClockOutAt);
     const trackedRange = document.getElementById('trackedTimeRange');
     const projectRange = document.getElementById('projectHoursRange');
@@ -5351,6 +5367,7 @@ function loadTimeEntries() {
 function loadRemarksPage() {
     const list = document.getElementById('remarksPageList');
     if (!list) return;
+    window.ACEClearLoadingRegion?.(list);
     const entryById = new Map(AppState.timeEntries.map(entry => [entry.TimeEntryId, entry]));
     const remarks = AppState.adminRemarks;
     const requestedRemarkId = new URLSearchParams(window.location.search).get('remark');
