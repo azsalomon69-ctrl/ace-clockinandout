@@ -16933,6 +16933,20 @@ html[data-theme="dark"] .entry-action-options .entry-danger { color: #ff94a7; }
  #employeeProfileContent .employee-history-header { gap: 16px; }
  #employeeProfileContent .employee-profile-card-head { flex-wrap: wrap; }
 }
+.profile-loading-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#employeeProfileContent .employee-profile-loading .employee-profile-avatar { border-radius: 50%; }
+#employeeProfileContent .employee-profile-loading .employee-profile-identity > div { width: min(48vw, 220px); }
+#employeeProfileContent .profile-loading-name > .data-loading-line { width: 88%; height: 23px; margin-block: 8px; }
+#employeeProfileContent .employee-profile-loading .profile-identity-meta .data-loading-line { width: 58px; height: 20px; border: 0; }
+#employeeProfileContent .employee-profile-loading .employee-profile-actions .data-loading-line,
+#employeeProfileContent .employee-profile-loading .profile-history-tools .data-loading-line { flex: none; width: clamp(82px, 26vw, 126px); height: 40px; border-radius: 8px; }
+#employeeProfileContent .employee-profile-loading .employee-profile-stats strong .data-loading-line { width: 66px; height: 20px; }
+#employeeProfileContent .employee-profile-loading .employee-profile-stats small .data-loading-line { width: 94px; height: 8px; }
+#employeeProfileContent .employee-profile-loading .employee-profile-chart span.data-loading-line { width: 60%; margin-inline: auto; }
+#employeeProfileContent .employee-profile-loading .employee-profile-chart em.data-loading-line { width: min(28px, 70%); height: var(--profile-loading-height); border-radius: 6px 6px 2px 2px; }
+#employeeProfileContent .employee-profile-loading .employee-profile-projects strong { min-width: 42px; }
+#employeeProfileContent .employee-profile-loading .employee-profile-projects i.data-loading-line { width: 100%; }
+
 /* Schedule setup: visible steps and a review before saving. */
 .schedule-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:0 0 20px; }
 .schedule-steps a { display:flex; align-items:center; gap:12px; padding:16px; border:1px solid var(--ace-border, #c9e1e8); border-radius:12px; color:var(--ace-text-primary, #173f4c); text-decoration:none; background:var(--ace-surface, #fff); }

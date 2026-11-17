@@ -49,10 +49,8 @@ window.ACERenderInitialSkeletons = function renderAceInitialSkeleton() {
       main.querySelector('#employeeWeekState').hidden = true;
     }
   });
-  ['employeeProfileContent', 'timeEntryDetailsContent'].forEach(id => {
-    const node = document.getElementById(id);
-    if (node && !node.children.length) node.innerHTML = '<p role="status">Loading ' + (id === 'employeeProfileContent' ? 'employee profile' : 'time entry') + '…</p>';
-  });
+  const entryDetails = document.getElementById('timeEntryDetailsContent');
+  if (entryDetails && !entryDetails.children.length) entryDetails.innerHTML = '<p role="status">Loading time entry…</p>';
   const date = document.getElementById('currentDate');
   if (date) date.textContent = new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date());
   // No controls may mutate data before authentication and event setup finish.

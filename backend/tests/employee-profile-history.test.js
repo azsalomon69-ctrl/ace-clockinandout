@@ -49,3 +49,17 @@ test('all-time history ignores previously selected custom dates', async () => {
   assert.match(f.nodes.get('employeeHistoryRows').innerHTML, /data-entry-id="entry-b"/);
   assert.equal(f.nodes.get('employeeHistoryDates').hidden, true);
 });
+
+test('the initial employee profile uses the same cards and history columns as the loaded profile', async () => {
+  const initial = readFileSync(new URL('../../frontend/employee-profile.html', import.meta.url), 'utf8');
+  const f = await setup();
+  const loaded = f.nodes.get('employeeProfileContent').innerHTML;
+  const headings = markup => [...markup.matchAll(/<th scope="col">([^<]+)<\/th>/g)].map(match => match[1]);
+  assert.deepEqual(headings(initial), headings(loaded));
+  for (const section of ['header', 'stats', 'chart', 'projects', 'entries']) {
+    assert.ok(initial.includes("employee-profile-" + section));
+    assert.ok(loaded.includes("employee-profile-" + section));
+  }
+  assert.equal((initial.match(/--profile-loading-height:/g) || []).length, 7);
+  assert.doesNotMatch(loaded, /employee-profile-loading/);
+});
