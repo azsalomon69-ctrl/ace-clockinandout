@@ -1,0 +1,11 @@
+iPhone 15 Pro Max Black by polyman Studio
+https://sketchfab.com/3d-models/apple-iphone-15-pro-max-black-df17520841214c1792fb8a44c6783ee7
+
+MacBook Pro M3 16 inch 2024 by Jack Baeten
+https://sketchfab.com/3d-models/macbook-pro-m3-16-inch-2024-8e34fc2b303144f78490007d91ff57c4
+
+Both models are licensed under Creative Commons Attribution 4.0 International:
+https://creativecommons.org/licenses/by/4.0/
+
+Adapted for ACE by converting the models for browser delivery, updating the display UVs,
+and replacing the display artwork with ACE workspace previews.
