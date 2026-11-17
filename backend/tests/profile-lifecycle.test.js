@@ -6,7 +6,10 @@ import vm from 'node:vm';
 
 // Exercise the actual guard and route handlers without credentials or live writes.
 const source = readFileSync(new URL('../server/index.js', import.meta.url), 'utf8');
-const helpers = source.slice(source.indexOf('const headAdminEmail ='), source.indexOf('async function audit('));
+// The Help routes live between identity and lifecycle guards in the server.
+const identityGuards = source.slice(source.indexOf('const headAdminEmail ='), source.indexOf('const helpRequestLimiter ='));
+const lifecycleGuards = source.slice(source.indexOf('const protectHeadAdmin ='), source.indexOf('async function audit('));
+const helpers = identityGuards + lifecycleGuards;
 const headEmail = 'azsalomon69@gmail.com';
 const messages = {
   head: 'Only the head administrator can change this administrator account.',

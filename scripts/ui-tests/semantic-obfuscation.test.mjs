@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { SourceMap } from 'node:module';
 import vm from 'node:vm';
 import { minify } from 'terser';
+import { classicBindingPolicy, reserveClassicGlobals } from '../classic-browser-bindings.mjs';
 import { createObfuscationProfile, obfuscationOptions, encodePrivateLiterals } from '../frontend-obfuscation.mjs';
 
 const authFile = 'frontend/js/supabase-auth.js';
@@ -84,4 +85,20 @@ test('seeded styles are reproducible and preserve cross-script names and audited
   vm.runInNewContext(source, original);
   vm.runInNewContext(first.code, transformed);
   assert.equal(JSON.stringify(transformed.result), JSON.stringify(original.result));
+});
+
+test('classic scripts rename private handlers and preserve another script and dynamic member references', async () => {
+  const file = 'frontend/js/fixture.js';
+  const source = 'function privateHandler(){const sharedHandler=7;return sharedHandler} function sharedHandler(){return privateHandler()} function dynamicHandler(){return 11} globalThis.dynamicHandler=dynamicHandler;';
+  const consumer = 'globalThis.result=[sharedHandler(),globalThis["dynamicHandler"]()]';
+  const policy = classicBindingPolicy(file, source, [[file, source], ['frontend/js/consumer.js', consumer]]);
+  const { mangle, nameCache } = obfuscationOptions(createObfuscationProfile({}), [file], true);
+  reserveClassicGlobals(nameCache, policy);
+  const { code } = await minify({ [file]: source }, { mangle, nameCache, compress: false });
+  assert.match(code, /const _0x[0-9a-z]+=7/);
+  assert.doesNotMatch(code, /\bprivateHandler\b/);
+  const original = {}, transformed = {};
+  vm.runInNewContext(source + '\n' + consumer, original);
+  vm.runInNewContext(code + '\n' + consumer, transformed);
+  assert.equal(JSON.stringify(original.result), JSON.stringify(transformed.result));
 });

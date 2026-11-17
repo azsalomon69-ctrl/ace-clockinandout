@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse } from 'acorn';
+import { classicBindingPolicy, reserveClassicGlobals, topLevelNames } from './classic-browser-bindings.mjs';
 import CleanCSS from 'clean-css';
 import { minify as minifyHtml } from 'html-minifier-terser';
 import { minify as minifyJs } from 'terser';
@@ -16,6 +18,8 @@ const frontend = path.join(root, 'frontend');
 const dist = path.join(root, 'dist');
 const profile = createObfuscationProfile();
 const bundledSources = new Map();
+const bindingAudit = [];
+const generatedGlobals = new Set();
 const privateMappings = process.argv.includes('--local-maps') ? await createPrivateMappings(profile) : null;
 const sourceHash = source => createHash('sha256').update(source).digest('hex').slice(0, 16);
 const filesIn = async directory => (await readdir(directory, { withFileTypes: true }))
@@ -31,9 +35,10 @@ try {
   throw new Error('ACE_API_URL or ACE_API_URL_FALLBACK must be a valid HTTP(S) URL.');
 }
 
-async function emitScript(sources, { toplevel = false, module = false, asset } = {}) {
+async function emitScript(sources, { toplevel = false, module = false, asset, policy } = {}) {
   const files = Object.keys(sources);
   const options = obfuscationOptions(profile, files, toplevel);
+  if (policy) reserveClassicGlobals(options.nameCache, policy);
   const minified = await minifyJs(sources, {
     module, compress: options.compress, mangle: options.mangle, nameCache: options.nameCache,
     format: { comments: false },
@@ -41,6 +46,22 @@ async function emitScript(sources, { toplevel = false, module = false, asset } =
   });
   const result = encodePrivateLiterals(minified, profile.encodeStrings && files.includes('frontend/js/supabase-auth.js'));
   if (!result.code) throw new Error("Could not minify " + Object.keys(sources).join(", "));
+  if (!module) {
+    const globals = topLevelNames(parse(result.code, { ecmaVersion: "latest" }));
+    for (const name of globals) {
+      if (!/^_0x[0-9a-z]+$/.test(name)) continue;
+      if (generatedGlobals.has(name)) throw new Error("Generated browser global collides across classic scripts: " + name);
+      generatedGlobals.add(name);
+    }
+    if (policy) {
+      for (const [name, status, reason] of policy) {
+        const generated = options.nameCache.vars?.props?.["$" + name];
+        if (status === "Eligible" && globals.has(name)) throw new Error("Private browser binding stayed readable: " + name);
+        const renamed = generated && generated !== name;
+        bindingAudit.push([files[0], name, renamed ? generated : "—", renamed ? "Renamed" : status, reason]);
+      }
+    }
+  }
   const hash = sourceHash(result.code);
   const target = asset || "assets/js/" + hash + ".js";
   await writeFile(path.join(dist, target), result.code);
@@ -73,9 +94,19 @@ async function buildScripts() {
   output.set('js/api-config.js', coreTarget);
   output.set('js/supabase-auth.js', coreTarget);
 
-  for (const file of (await filesIn(sourceDirectory)).filter(file => file.endsWith('.js') && !['api-config.js', 'supabase-auth.js'].includes(file))) {
-    const source = await readFile(path.join(sourceDirectory, file), 'utf8');
-    const target = await emitScript({ ["frontend/js/" + file]: source });
+  const scripts = (await filesIn(sourceDirectory)).filter(file => file.endsWith(".js"));
+  const consumers = await Promise.all([
+    ...scripts.map(file => "frontend/js/" + file),
+    ...(await filesIn(frontend)).filter(file => file.endsWith(".html")).map(file => "frontend/" + file),
+    "frontend/assets/whack-a-mole/scene.js"
+  ].map(async file => [file, await readFile(path.join(root, file), "utf8")]));
+  const sourceByFile = new Map(consumers);
+  for (const file of scripts) {
+    if (["api-config.js", "supabase-auth.js"].includes(file)) continue;
+    const location = "frontend/js/" + file;
+    const source = sourceByFile.get(location);
+    const policy = classicBindingPolicy(location, source, consumers);
+    const target = await emitScript({ [location]: source }, { toplevel: true, policy });
     output.set("js/" + file, target);
   }
   const gameAsset = "assets/whack-a-mole/scene.js";
@@ -148,5 +179,5 @@ await buildPages(assetMap);
 await cp(path.join(frontend, '_headers'), path.join(dist, '_headers'));
 const browserFiles = await discoverJavaScript(frontend, 'frontend/');
 auditJavaScript(browserFiles, bundledSources);
-if (privateMappings) await privateMappings.writeDocument(auditJavaScript(await discoverJavaScript(root), bundledSources));
+if (privateMappings) await privateMappings.writeDocument(auditJavaScript(await discoverJavaScript(root), bundledSources), bindingAudit);
 console.log(`Built ${dist} with ${assetMap.size} minified, hashed frontend assets and Cloudflare headers.`);
