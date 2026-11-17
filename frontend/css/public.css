@@ -528,10 +528,9 @@ html[data-theme="dark"] .public-page {
   display: block;
   width: 100%;
   height: 100%;
-  cursor: grab;
-  touch-action: pan-y;
 }
-.public-device-canvas:active { cursor: grabbing; }
+.public-device-canvas.is-interactive { cursor: grab; touch-action: pan-y; }
+.public-device-canvas.is-interactive:active { cursor: grabbing; }
 .public-device-canvas:focus-visible { outline: 2px solid var(--ace-accent); outline-offset: -2px; border-radius: 10px; }
 @media (max-width: 760px) {
   .public-tour-page .public-tour-devices.has-device-scene { padding: 0; }

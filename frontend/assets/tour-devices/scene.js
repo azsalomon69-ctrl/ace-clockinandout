@@ -53,6 +53,7 @@ async function deviceModel(name, image) {
     model.position.sub(center);
     const device = new THREE.Group();
     device.add(model);
+    device.userData.halfSize = size.clone().multiplyScalar(.5);
     device.scale.setScalar(isPhone ? 3.14 / size.y : 5.72 / size.x);
     return device;
 }
@@ -73,13 +74,14 @@ async function activate() {
     pmrem.dispose();
     const canvas = renderer.domElement;
     canvas.className = 'public-device-canvas';
-    canvas.tabIndex = 0;
-    canvas.setAttribute('aria-label', 'Interactive device preview. Drag a device or use the arrow keys to rotate the laptop. Hold Shift for the phone. Press Home to reset.');
+    canvas.setAttribute('role', 'img');
     const camera = new THREE.OrthographicCamera(-4, 4, 2.5, -2.5, .1, 30);
     camera.position.set(0, 1.28, 9);
     camera.lookAt(0, -.06, 0);
+    camera.updateMatrixWorld();
     const ray = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
+    const corner = new THREE.Vector3();
     const scenes = new Map();
     let active;
     let drag;
@@ -89,34 +91,56 @@ async function activate() {
     let frame = 0;
     let version = 0;
 
+    function fitDevices(devices) {
+        let xExtent = 0;
+        let yExtent = 0;
+        for (const device of devices) {
+            const { x, y, z } = device.userData.halfSize;
+            device.updateMatrixWorld(true);
+            for (const signX of [-1, 1]) {
+                for (const signY of [-1, 1]) {
+                    for (const signZ of [-1, 1]) {
+                        corner.set(x * signX, y * signY, z * signZ)
+                            .applyMatrix4(device.matrixWorld).applyMatrix4(camera.matrixWorldInverse);
+                        xExtent = Math.max(xExtent, Math.abs(corner.x));
+                        yExtent = Math.max(yExtent, Math.abs(corner.y));
+                    }
+                }
+            }
+        }
+        const zoom = Math.min(1, .92 * camera.right / xExtent, .92 * camera.top / yExtent);
+        if (zoom !== camera.zoom) {
+            camera.zoom = zoom;
+            camera.updateProjectionMatrix();
+        }
+    }
+
     function render(timestamp) {
         frame = 0;
         if (!active) return;
         const motion = !reducedMotion.matches;
         const phase = timestamp * .0017;
         let settling = false;
-        for (const device of active.devices) {
+        if (active.handset) {
+            active.handset.position.y = .04 + (motion ? Math.sin(phase) * .105 : 0);
+        }
+        for (const device of active.interactive ? active.devices : []) {
             if (device === drag?.device) continue;
             const rest = device.userData.rest;
-            const phone = device === active.handset;
-            const idle = phone && motion;
             const hovering = motion && device === hover;
             const x = rest.x + (hovering ? tilt.x : 0);
-            const y = rest.y + (hovering ? tilt.y : 0) + (idle ? Math.sin(phase) * .045 : 0);
-            const z = rest.z + (idle ? Math.sin(phase + .8) * .025 : 0);
+            const y = rest.y + (hovering ? tilt.y : 0);
             if (motion) {
                 device.rotation.x = THREE.MathUtils.lerp(device.rotation.x, x, .18);
                 device.rotation.y = THREE.MathUtils.lerp(device.rotation.y, y, .18);
-                device.rotation.z = THREE.MathUtils.lerp(device.rotation.z, z, .18);
-                settling ||= Math.abs(device.rotation.x - x) + Math.abs(device.rotation.y - y) +
-                    Math.abs(device.rotation.z - z) > .001;
+                settling ||= Math.abs(device.rotation.x - x) + Math.abs(device.rotation.y - y) > .001;
             } else {
                 device.rotation.copy(rest);
             }
-            if (phone) device.position.y = .04 + (idle ? Math.sin(phase) * .105 : 0);
         }
+        if (active.interactive) fitDevices(active.devices);
         renderer.render(active.scene, camera);
-        if (visible && (settling || (motion && active.handset && active.handset !== drag?.device))) requestRender();
+        if (visible && (settling || (motion && active.handset))) requestRender();
     }
     function requestRender() {
         if (!frame) frame = requestAnimationFrame(render);
@@ -133,6 +157,8 @@ async function activate() {
         camera.bottom = -halfHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(width, height, false);
+        if (active.handset) active.handset.position.y = .04;
+        fitDevices(active.devices);
         requestRender();
     }
     const resizeObserver = new ResizeObserver(resize);
@@ -163,12 +189,12 @@ async function activate() {
         const devices = [computer];
         if (handset) {
             handset.position.set(2.42, .04, 3.48);
-            handset.rotation.set(-.03, .16, -.055);
+            handset.quaternion.copy(camera.quaternion);
             scene.add(handset);
             devices.push(handset);
         }
         for (const device of devices) device.userData.rest = device.rotation.clone();
-        return { scene, devices, preview, handset };
+        return { scene, devices, preview, handset, interactive: !handset };
     }
 
     async function showActive() {
@@ -191,6 +217,12 @@ async function activate() {
             const next = await scenes.get(preview);
             if (call !== version) return;
             active = next;
+            canvas.classList.toggle('is-interactive', next.interactive);
+            if (next.interactive) canvas.tabIndex = 0;
+            else canvas.removeAttribute('tabindex');
+            canvas.setAttribute('aria-label', next.interactive
+                ? 'Laptop preview. Drag or use the arrow keys to rotate. Press Home to reset.'
+                : 'Laptop and front-facing iPhone showing the ACE employee workspace.');
             preview.append(canvas);
             preview.classList.add('has-device-scene');
             const hint = preview.parentElement.querySelector('.public-device-hint');
@@ -213,7 +245,7 @@ async function activate() {
         return part;
     }
     canvas.addEventListener('pointerdown', event => {
-        if (!active || event.button !== 0) return;
+        if (!active?.interactive || event.button !== 0) return;
         const device = hit(event);
         if (!device) return;
         hover = undefined;
@@ -221,7 +253,7 @@ async function activate() {
         canvas.setPointerCapture(event.pointerId);
     });
     canvas.addEventListener('pointermove', event => {
-        if (!active) return;
+        if (!active?.interactive) return;
         if (drag?.id === event.pointerId) {
             drag.device.rotation.y += (event.clientX - drag.x) * .015;
             drag.device.rotation.x = THREE.MathUtils.clamp(drag.device.rotation.x + (event.clientY - drag.y) * .012, -1.1, 1.1);
@@ -245,13 +277,11 @@ async function activate() {
         requestRender();
     });
     canvas.addEventListener('keydown', event => {
-        if (!active || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home'].includes(event.key)) return;
+        if (!active?.interactive || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home'].includes(event.key)) return;
         event.preventDefault();
-        const device = active.devices[event.shiftKey ? active.devices.length - 1 : 0];
+        const [device] = active.devices;
         if (event.key === 'Home') {
-            const [computer, handset] = active.devices;
-            computer.rotation.set(-.08, -.13, 0);
-            if (handset) handset.rotation.set(-.03, .16, -.055);
+            device.rotation.set(-.08, -.13, 0);
         } else {
             device.rotation.copy(device.userData.rest);
             if (event.key === 'ArrowLeft') device.rotation.y -= .2;
@@ -259,11 +289,7 @@ async function activate() {
             if (event.key === 'ArrowUp') device.rotation.x = Math.max(-1.1, device.rotation.x - .12);
             if (event.key === 'ArrowDown') device.rotation.x = Math.min(1.1, device.rotation.x + .12);
         }
-        if (event.key === 'Home') {
-            for (const item of active.devices) item.userData.rest.copy(item.rotation);
-        } else {
-            device.userData.rest.copy(device.rotation);
-        }
+        device.userData.rest.copy(device.rotation);
         requestRender();
     });
     const state = new MutationObserver(showActive);
