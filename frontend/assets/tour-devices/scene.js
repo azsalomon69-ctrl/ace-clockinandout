@@ -362,5 +362,5 @@ export async function activate() {
     });
     const state = new MutationObserver(showActive);
     for (const preview of previews) state.observe(preview.closest('.public-tour-panel'), { attributeFilter: ['inert'] });
-    showActive();
+    await showActive();
 }

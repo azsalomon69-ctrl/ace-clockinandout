@@ -558,32 +558,45 @@ html[data-theme="dark"] .public-page {
   aspect-ratio: 1.4;
 }
 
-.public-device-loader { display: none; }
+.public-tour-loader { display: none; }
 @media (scripting: enabled) {
-  .is-device-loading > .public-device-loader {
-    position: absolute;
+  .public-tour-page.is-tour-starting { overflow: hidden; }
+  .public-tour-page.is-tour-starting > :is(.skip-link, .public-header, .public-tour, .public-footer) {
+    visibility: hidden;
+  }
+  .public-tour-page.is-tour-starting > .public-tour-loader {
+    position: fixed;
+    z-index: 100000;
     inset: 0;
     display: grid;
     place-content: center;
     justify-items: center;
-    gap: 8px;
-    color: var(--public-accent-text);
-    font-size: .88rem;
+    gap: 16px;
+    background: var(--public-frame);
+    color: var(--ace-text-primary);
+    font-size: .9rem;
     font-weight: 700;
   }
-  .public-device-loader::before {
+  .public-tour-loader img {
+    padding: 6px;
+    border: 1px solid var(--ace-border);
+    border-radius: 15px;
+    background: #fff;
+    object-fit: contain;
+  }
+  .public-tour-loader::after {
     content: "";
-    width: 22px;
-    height: 22px;
-    border: 2px solid #b3c7dd;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--ace-border);
     border-top-color: var(--ace-accent);
     border-radius: 50%;
-    animation: public-device-loading 1s linear infinite;
+    animation: public-tour-loading 1s linear infinite;
   }
 }
-@keyframes public-device-loading { to { transform: rotate(360deg); } }
+@keyframes public-tour-loading { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .public-device-loader::before { animation: none; }
+  .public-tour-loader::after { animation: none; }
 }
 @media (min-width: 761px) {
   .public-tour-page .public-tour-panel:not(#tour-clock) {

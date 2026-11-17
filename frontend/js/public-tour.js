@@ -59,6 +59,21 @@ const panelResize = new ResizeObserver(fitTourTrack);
 tourPanels.forEach(panel => panelResize.observe(panel));
 requestAnimationFrame(() => { tourTrack.scrollLeft = linkedPanel.offsetLeft; });
 
-import('/assets/tour-devices/scene.js?v=edge-to-edge-iphone').then(module => module.activate()).catch(() => {
+const showStaticPreviews = () => {
     document.querySelectorAll('.is-device-loading').forEach(preview => preview.classList.remove('is-device-loading'));
+};
+
+let tourLoadTimeout;
+const tourLoadDeadline = new Promise(resolve => {
+    tourLoadTimeout = setTimeout(() => {
+        showStaticPreviews();
+        resolve();
+    }, 15000);
+});
+const tourSetup = import('/assets/tour-devices/scene.js?v=full-page-loader')
+    .then(module => module.activate())
+    .catch(showStaticPreviews);
+Promise.race([tourSetup, tourLoadDeadline]).finally(() => {
+    clearTimeout(tourLoadTimeout);
+    document.body.classList.remove('is-tour-starting');
 });
