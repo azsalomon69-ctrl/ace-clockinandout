@@ -609,6 +609,10 @@ html[data-theme="dark"] .public-page {
     transform: rotate(-18deg);
   }
   .public-tour-loader-orbit {
+    --orbit-flatten: .442;
+    --orbit-trail: #4caac466;
+    --orbit-head: #1782a6;
+    --orbit-duration: 2.35s;
     position: absolute;
     width: 86%;
     height: 57%;
@@ -618,6 +622,10 @@ html[data-theme="dark"] .public-page {
     transform: rotate(-20deg);
   }
   .public-tour-loader-orbit:nth-child(2) {
+    --orbit-flatten: .432;
+    --orbit-trail: #8295df70;
+    --orbit-head: #5b75ce;
+    --orbit-duration: 2.9s;
     width: 74%;
     height: 48%;
     border-color: #58b8bf72;
@@ -626,19 +634,18 @@ html[data-theme="dark"] .public-page {
   .public-tour-loader-orbit::after {
     content: "";
     position: absolute;
-    top: 10%;
-    right: 14%;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #43aab9;
-    box-shadow: 0 0 12px 4px #a6fbffb8;
+    top: 50%;
+    left: 50%;
+    width: calc(100% + 4px);
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    background: conic-gradient(transparent 0deg 264deg, var(--orbit-trail) 306deg, var(--orbit-head) 356deg, transparent 359deg);
+    mask-image: radial-gradient(circle closest-side, transparent calc(100% - 5px), #000 calc(100% - 4px), #000 calc(100% - 1px), transparent);
+    animation: public-tour-orbit var(--orbit-duration) linear infinite;
   }
   .public-tour-loader-orbit:nth-child(2)::after {
-    inset: auto auto 12% 13%;
-    width: 5px;
-    height: 5px;
-    background: #8399e1;
+    animation-direction: reverse;
+    animation-delay: -.72s;
   }
   .public-tour-loader-mark {
     position: relative;
@@ -656,28 +663,19 @@ html[data-theme="dark"] .public-page {
     height: auto;
     object-fit: contain;
   }
-  .public-tour-loader-activity {
-    position: absolute;
-    top: calc(50% + clamp(66px, 12vw, 97px));
-    width: clamp(64px, 15vw, 100px);
-    height: 3px;
-    overflow: hidden;
-    border-radius: 5px;
-    background: #7ba7ba45;
-  }
-  .public-tour-loader-activity::after {
-    content: "";
-    position: absolute;
-    inset-block: 0;
-    width: 60%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, transparent, #347dab 44%, #56cccf 72%, transparent);
-    animation: public-tour-loading 1.35s ease-in-out infinite;
-  }
 }
-@keyframes public-tour-loading { from { transform: translateX(-100%); } to { transform: translateX(170%); } }
+@keyframes public-tour-orbit {
+  from { transform: scaleY(var(--orbit-flatten)) rotate(0turn); }
+  to { transform: scaleY(var(--orbit-flatten)) rotate(1turn); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .public-tour-loader-activity::after { animation: none; inset-inline-start: 20%; }
+  .public-tour-loader-orbit::after {
+    animation: none;
+    transform: scaleY(var(--orbit-flatten)) rotate(.2turn);
+  }
+  .public-tour-loader-orbit:nth-child(2)::after {
+    transform: scaleY(var(--orbit-flatten)) rotate(.62turn);
+  }
 }
 @media (min-width: 761px) {
   .public-tour-page .public-tour-panel:not(#tour-clock) {
