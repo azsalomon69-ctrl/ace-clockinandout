@@ -35,8 +35,9 @@
             <section class="public-tour-panel" id="tour-clock" aria-labelledby="tour-clock-title">
                 <div class="public-tour-caption"><h1 id="tour-clock-title">Employee clock-in</h1><p>Start a shift and see your weekly time at a glance.</p>
                     <div class="public-tour-preview-links"><a href="/assets/images/tour-employee-desktop.png" target="_blank" rel="noopener">Open desktop preview</a><a href="/assets/images/tour-employee-phone.png" target="_blank" rel="noopener">Open phone preview</a></div>
+                    <p class="public-device-hint" hidden>Drag either device to rotate.</p>
                 </div>
-                <div class="public-tour-devices shows-phone">
+                <div data-tour-devices class="public-tour-devices shows-phone">
                     <div class="public-laptop"><img src="/assets/images/tour-employee-desktop.png" alt="ACE employee dashboard with shift controls and weekly time" width="1440" height="900" fetchpriority="high"></div>
                     <div class="public-phone"><img src="/assets/images/tour-employee-phone.png" alt="ACE mobile employee dashboard with Clock In and the Home dock" width="500" height="900"></div>
                 </div>
@@ -45,7 +46,7 @@
                 <div class="public-tour-caption"><h2 id="tour-employee-title">Employee time entries</h2><p>See recent shifts, clock-out notes, and feedback in one place.</p>
                     <div class="public-tour-preview-links"><a href="/assets/images/tour-employee-history.png" target="_blank" rel="noopener">Open desktop preview</a></div>
                 </div>
-                <div class="public-tour-devices">
+                <div data-tour-devices class="public-tour-devices">
                     <div class="public-laptop"><img src="/assets/images/tour-employee-history.png" alt="ACE employee time entry history with sample shifts" width="1440" height="900" loading="lazy"></div>
                 </div>
             </section>
@@ -53,7 +54,7 @@
                 <div class="public-tour-caption"><h2 id="tour-admin-title">Admin dashboard</h2><p>See who is clocked in and review time and project activity.</p>
                     <div class="public-tour-preview-links"><a href="/assets/images/tour-admin-dashboard.png" target="_blank" rel="noopener">Open desktop preview</a></div>
                 </div>
-                <div class="public-tour-devices">
+                <div data-tour-devices class="public-tour-devices">
                     <div class="public-laptop"><img src="/assets/images/tour-admin-dashboard.png" alt="ACE admin dashboard showing sample activity and hours by project" width="1440" height="900" loading="lazy"></div>
                 </div>
             </section>
@@ -61,13 +62,13 @@
                 <div class="public-tour-caption"><h2 id="tour-entries-title">Admin time entries</h2><p>Browse employee shifts and open the entries that need a closer look.</p>
                     <div class="public-tour-preview-links"><a href="/assets/images/tour-admin-entries.png" target="_blank" rel="noopener">Open desktop preview</a></div>
                 </div>
-                <div class="public-tour-devices">
+                <div data-tour-devices class="public-tour-devices">
                     <div class="public-laptop"><img src="/assets/images/tour-admin-entries.png" alt="ACE admin time entries table with sample shifts" width="1440" height="900" loading="lazy"></div>
                 </div>
             </section>
         </div>
     </main>
-    <footer class="public-footer public-width">© ACE Outsource Solutions 2026</footer>
+    <footer class="public-footer public-width">© ACE Outsource Solutions 2026 <a class="public-device-credits" href="/assets/tour-devices/credits.txt">3D model credits</a></footer>
 
     <div id="helpModal" class="modal">
         <div class="modal-content">
@@ -117,5 +118,6 @@
     <script src="/js/sidebar.js?v=cache-bust-20260930-1"></script>
     <script src="/js/script.js?v=cache-bust-20260930-31"></script>
     <script src="/js/public-tour.js" defer></script>
+    <script type="module" src="/assets/tour-devices/scene.js"></script>
 </body>
 </html>

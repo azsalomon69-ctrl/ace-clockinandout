@@ -70,6 +70,8 @@ async function emitScript(sources, { toplevel = false, module = false, asset, po
   return target;
 }
 
+const browserModuleAssets = ["assets/whack-a-mole/scene.js", "assets/tour-devices/scene.js"];
+
 async function buildScripts() {
   const output = new Map();
   const destination = path.join(dist, 'assets', 'js');
@@ -98,7 +100,7 @@ async function buildScripts() {
   const consumers = await Promise.all([
     ...scripts.map(file => "frontend/js/" + file),
     ...(await filesIn(frontend)).filter(file => file.endsWith(".html")).map(file => "frontend/" + file),
-    "frontend/assets/whack-a-mole/scene.js"
+    ...browserModuleAssets.map(asset => "frontend/" + asset)
   ].map(async file => [file, await readFile(path.join(root, file), "utf8")]));
   const sourceByFile = new Map(consumers);
   for (const file of scripts) {
@@ -109,9 +111,10 @@ async function buildScripts() {
     const target = await emitScript({ [location]: source }, { toplevel: true, policy });
     output.set("js/" + file, target);
   }
-  const gameAsset = "assets/whack-a-mole/scene.js";
-  const gameSource = await readFile(path.join(frontend, gameAsset), "utf8");
-  await emitScript({ ["frontend/" + gameAsset]: gameSource }, { module: true, asset: gameAsset });
+  for (const asset of browserModuleAssets) {
+    const source = await readFile(path.join(frontend, asset), "utf8");
+    await emitScript({ ["frontend/" + asset]: source }, { module: true, asset });
+  }
   return output;
 }
 
@@ -174,6 +177,12 @@ for (const file of ['three.module.min.js', 'three.core.min.js']) {
   await cp(path.join(root, 'node_modules', 'three', 'build', file), path.join(dist, 'vendor', 'three', file));
 }
 await cp(path.join(root, 'node_modules', 'three', 'LICENSE'), path.join(dist, 'vendor', 'three', 'LICENSE'));
+for (const addon of ['loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js', 'environments/RoomEnvironment.js']) {
+  const target = path.join(dist, 'vendor', 'three', addon);
+  await mkdir(path.dirname(target), { recursive: true });
+  const source = await readFile(path.join(root, 'node_modules', 'three', 'examples', 'jsm', addon), 'utf8');
+  await writeFile(target, source.replace("from 'three';", "from '../three.module.min.js';"));
+}
 const assetMap = new Map([...(await buildScripts()), ...(await buildStyles())]);
 await buildPages(assetMap);
 await cp(path.join(frontend, '_headers'), path.join(dist, '_headers'));

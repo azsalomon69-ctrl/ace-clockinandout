@@ -518,3 +518,24 @@ html[data-theme="dark"] .public-page {
   .public-tour-page .public-phone { width: clamp(148px, 52vw, 210px); margin: 0 auto; padding: 5px; border-radius: 17px; }
   .public-tour-page .public-phone img { border-radius: 11px; }
 }
+
+.public-tour-page .public-device-hint { font-size: .76rem; margin-top: .4rem; }
+.public-tour-devices.has-device-scene { padding: 0; min-height: 0; aspect-ratio: 1.65; background: radial-gradient(ellipse 62% 10% at 51% 84%, #52668228, transparent); }
+.public-tour-devices.has-device-scene > :is(.public-laptop, .public-phone) { visibility: hidden; position: absolute; }
+.public-device-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: pan-y;
+}
+.public-device-canvas:active { cursor: grabbing; }
+.public-device-canvas:focus-visible { outline: 2px solid var(--ace-accent); outline-offset: -2px; border-radius: 10px; }
+@media (max-width: 760px) {
+  .public-tour-page .public-tour-devices.has-device-scene { padding: 0; }
+  .public-tour-devices.shows-phone.has-device-scene { aspect-ratio: 1.42; }
+}
+
+.public-device-credits { margin-inline-start: 1rem; color: var(--public-accent-text); }
