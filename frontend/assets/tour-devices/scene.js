@@ -1,6 +1,5 @@
 import * as THREE from '/vendor/three/three.module.min.js';
 import { GLTFLoader } from '/vendor/three/loaders/GLTFLoader.js';
-import { RoomEnvironment } from '/vendor/three/environments/RoomEnvironment.js';
 
 const previews = [...document.querySelectorAll('[data-tour-devices]')];
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -45,6 +44,22 @@ async function deviceModel(name, image) {
     if (!display?.isMesh) throw new Error('Device display was not found');
     const isPhone = name === 'phone';
     if (isPhone) model.rotation.y = Math.PI;
+    const finishes = new Map();
+    model.traverse(part => {
+        if (!part.isMesh || part === display) return;
+        const finish = material => {
+            if (!material.isMeshStandardMaterial) return material;
+            if (!finishes.has(material)) {
+                const copy = material.clone();
+                copy.metalness = Math.min(copy.metalness, .55);
+                copy.roughness = Math.max(copy.roughness, .42);
+                copy.emissiveIntensity = Math.min(copy.emissiveIntensity, .2);
+                finishes.set(material, copy);
+            }
+            return finishes.get(material);
+        };
+        part.material = Array.isArray(part.material) ? part.material.map(finish) : finish(part.material);
+    });
     display.material = new THREE.MeshBasicMaterial({ map: displayTexture(image, isPhone), toneMapped: false });
 
     const bounds = new THREE.Box3().setFromObject(model);
@@ -63,11 +78,7 @@ export async function activate() {
     if (typeof window.WebGL2RenderingContext !== 'function') throw new Error('WebGL is unavailable');
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    const environment = new RoomEnvironment();
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    const reflections = pmrem.fromScene(environment, .06);
-    environment.dispose();
-    pmrem.dispose();
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     const canvas = renderer.domElement;
     canvas.className = 'public-device-canvas';
     canvas.setAttribute('role', 'img');
@@ -207,8 +218,10 @@ export async function activate() {
             mobile ? loader.loadAsync(mobile.src) : null
         ]);
         const scene = new THREE.Scene();
-        scene.environment = reflections.texture;
-        scene.environmentIntensity = 1.35;
+        scene.add(new THREE.HemisphereLight(0xffffff, 0xc3cbd8, 1.35));
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.65);
+        keyLight.position.set(-3, 6, 6);
+        scene.add(keyLight);
         const [computer, handset] = await Promise.all([
             deviceModel('laptop', desktopImage),
             mobileImage ? deviceModel('phone', mobileImage) : null

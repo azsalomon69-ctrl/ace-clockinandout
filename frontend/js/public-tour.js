@@ -11,7 +11,7 @@ function showStaticClockPreview() {
 }
 
 function loadClockPreview() {
-    clockPreview ??= import('/assets/tour-devices/scene.js?v=full-page-loader')
+    clockPreview ??= import('/assets/tour-devices/scene.js?v=device-lighting')
         .then(module => module.activate())
         .catch(showStaticClockPreview);
     return clockPreview;
