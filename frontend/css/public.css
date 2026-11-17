@@ -274,19 +274,29 @@ html[data-theme="dark"] .public-page {
 .public-signin-footer { display: flex; justify-content: space-between; gap: 8px; margin: 7px 4px 0; }
 .public-signin-footer .public-help { font-size: .76rem; }
 @media (max-width: 660px) {
-  .public-system-theme .public-login { background: var(--signin-card); }
+  :root.public-system-theme { --public-system-canvas: #fff; }
+  :root.public-system-theme .public-login { font-family: Roboto, Arial, sans-serif; }
+  .public-login .public-signin { --signin-card: var(--public-system-canvas); }
   .public-login > main { width: 100%; min-height: 100dvh; justify-content: flex-start; padding: 0; }
   .public-login .public-signin { min-height: 0; border-radius: 0; }
   .public-signin-brand { min-height: 53px; display: flex; align-items: center; padding: 8px 15px; }
-  .public-signin-brand .public-brand { gap: 11px; font-size: .875rem; font-weight: 600; }
-  .public-signin-brand .public-brand > img { width: 25px; height: 25px; }
-  .public-signin-grid { grid-template-columns: minmax(0, 1fr); gap: 30px; padding: 42px clamp(18px, 5.8vw, 30px) 20px; }
-  .public-signin-copy h1 { font-family: Roboto, system-ui, sans-serif; font-size: clamp(1.7rem, 7.8vw, 2rem); line-height: 1.2; font-weight: 450; letter-spacing: -.025em; }
-  .public-signin-copy > p { margin-top: 15px; line-height: 1.5; text-wrap: pretty; }
-  .public-login .public-google { min-height: 55px; border: solid var(--signin-line); border-width: 1px 0; border-radius: 0; padding-inline: 0; font-size: .96rem; font-weight: 650; }
+  .public-signin-brand .public-brand { gap: 11px; font-size: .875rem; font-weight: 500; }
+  .public-signin-brand .public-brand > img { width: 21px; height: 21px; }
+  .public-signin-grid { grid-template-columns: minmax(0, 1fr); gap: 34px; padding: 45px clamp(18px, 5.8vw, 30px) 20px; }
+  .public-signin-copy h1 { font-family: inherit; font-size: clamp(1.7rem, 8vw, 2rem); line-height: 1.2; font-weight: 400; letter-spacing: -.025em; }
+  .public-signin-copy > p { margin-top: 16px; font-size: 1rem; line-height: 1.5; }
+  .public-login .public-google { min-height: 55px; border: solid var(--signin-line); border-width: 1px 0; border-radius: 0; padding-inline: 0; font-size: 1rem; font-weight: 500; }
   .public-signin-note { margin-inline: 0; }
   .public-signin-footer { margin: auto 0 0; padding: 12px clamp(18px, 5.8vw, 30px) max(10px, env(safe-area-inset-bottom)); }
-  .public-signin-footer .public-help { padding-inline: 0; font-weight: 500; }
+  .public-signin-footer .public-help { padding-inline: 0; font-weight: 400; }
+}
+@media (max-width: 660px) and (prefers-color-scheme: dark) {
+  :root.public-system-theme {
+    --public-system-canvas: #0f0f0f;
+    --ace-text-primary: #e3e3e3;
+    --ace-text-secondary: #c4c7c5;
+    --ace-border: #444746;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .public-page .public-google { transition: none; }
