@@ -649,17 +649,15 @@ async function withStartupWarmup(operation) {
         return result;
     } catch (error) {
         if (error?.status === 401 || error?.status === 403) clearStartupWarmupNotice();
-        else showStartupConnectionError();
+        else if (document.querySelector('.shell-startup-warmup:not(.is-startup-complete)')) showStartupConnectionError();
         throw error;
     }
 }
 
 async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
-    // A successful config request can precede a usable workspace. Keep the
-    // loading screen visible until the live startup requests finish.
+    // Once the service responds, the workspace skeletons own data loading.
     const retryDelays = [1500, 2500, 4000, 6000, 8000];
     let startupDeadline = Date.now() + 300000;
-    let lastError;
     let serviceReady = false;
     for (let attempt = 0; ; attempt += 1) {
         if (Date.now() >= startupDeadline && document.body?.classList?.contains('employee-clock-reconnecting')) {
@@ -683,32 +681,29 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
                     reject(timeoutError);
                 }, remaining);
             });
-            warmupTimer = window.setTimeout(showStartupWarmupNotice, 3000);
-            const connect = async () => {
-                if (!serviceReady) {
-                    await window.ACEAuth?.checkService?.();
-                    serviceReady = true;
-                }
-                return operation();
-            };
-            const loaded = await Promise.race([connect(), deadline]);
-            return loaded;
+            if (!serviceReady) {
+                warmupTimer = window.setTimeout(showStartupWarmupNotice, 3000);
+                await Promise.race([window.ACEAuth?.checkService?.(), deadline]);
+                window.clearTimeout(warmupTimer);
+                serviceReady = true;
+                clearStartupWarmupNotice(true);
+            }
+            return await Promise.race([operation(), deadline]);
         } catch (error) {
-            lastError = error;
             const retryable = !error.status || error.status >= 500 || error.status === 429;
             const clockAvailable = document.body?.classList?.contains('employee-clock-reconnecting');
             if (!retryable || (Date.now() >= startupDeadline && !clockAvailable)) throw error;
-            showStartupWarmupNotice();
-            console.info(`Waiting for ACE services to wake up (attempt ${attempt + 1}).`);
-            const status = document.querySelector('.startup-warmup-status');
-            if (status) status.textContent = 'Still trying to connect. Keep this page open. You don’t need to refresh.';
+            if (!serviceReady) {
+                showStartupWarmupNotice();
+                const status = document.querySelector('.startup-warmup-status');
+                if (status) status.textContent = 'Still trying to connect. Keep this page open. You don’t need to refresh.';
+            }
             await pause(Math.min(retryDelays[attempt] || 10000, Math.max(0, startupDeadline - Date.now())));
         } finally {
             window.clearTimeout(deadlineTimer);
             window.clearTimeout(warmupTimer);
         }
     }
-    throw lastError;
 }
 
 let employeeClockPreview = false;
@@ -989,8 +984,8 @@ async function initApp() {
         if (await startPublicEmployeeBoot(loginNotice)) return;
         try { await withStartupWarmup(() => loadDatabaseWhenServiceIsReady(resumePublicSession)); }
         catch (error) {
-            if (error?.status !== 401 && error?.status !== 403) {
-                showStartupConnectionError();
+            if (error?.status !== 401 && error?.status !== 403 && !document.querySelector('.shell-startup-warmup:not(.is-startup-complete)')) {
+                showToast('ACE could not load your session. Please try signing in again.', 'error');
             }
         }
         return;
@@ -5847,14 +5842,14 @@ function hideSpinner() {
 const startApp = () => {
     initApp().catch(error => {
         console.error('Application startup failed.', error);
-        if (document.querySelector('.shell-startup-warmup')) { showStartupConnectionError(); return; }
+        if (document.querySelector('.shell-startup-warmup:not(.is-startup-complete)')) { showStartupConnectionError(); return; }
         clearStartupWarmupNotice();
         document.body.classList.remove('app-shell-pending');
         const shell = document.querySelector('.app-shell-skeleton');
         if (!shell) return;
         shell.classList.add('is-startup-error');
         shell.setAttribute('aria-hidden', 'false');
-        shell.innerHTML = '<main class="shell-skeleton-main"><section class="shell-startup-error" role="alert"><h1>Workspace could not load</h1><p>ACE did not finish connecting. Check your connection, then try again.</p><button class="btn btn-primary" type="button" data-startup-retry>Try again</button></section></main>';
+        shell.innerHTML = '<main class="shell-skeleton-main"><section class="shell-startup-error" role="alert"><h1>Workspace could not load</h1><p>ACE could not load the workspace data. Please try again.</p><button class="btn btn-primary" type="button" data-startup-retry>Try again</button></section></main>';
         shell.querySelector('[data-startup-retry]')?.addEventListener('click', () => window.location.reload());
     });
 };
