@@ -97,7 +97,8 @@ app.use((req, res, next) => {
 });
 
 morgan.token('request-id', req => req.requestId || '-');
-app.use(morgan(process.env.NODE_ENV === 'production' ? ':remote-addr :method :url :status :res[content-length] - :response-time ms request_id=:request-id' : 'dev request_id=:request-id', {
+morgan.token('request-path', req => req.path);
+app.use(morgan(process.env.NODE_ENV === 'production' ? ':remote-addr :method :request-path :status :res[content-length] - :response-time ms request_id=:request-id' : ':method :request-path :status :response-time ms request_id=:request-id', {
   skip: (_req, res) => process.env.NODE_ENV === 'production' && res.statusCode < 400
 }));
 // Render is a reverse-proxy deployment. Trusting its first proxy hop gives
