@@ -8,6 +8,14 @@ const loader = new THREE.ImageLoader();
 const modelLoader = new GLTFLoader();
 const models = new Map();
 
+// Imported GLB material names identify the rear camera parts.
+const cameraFinishes = new Map([
+    ['jlzuBkUzuJqgiAK', { color: 0x30343b, roughness: .5, metalness: .3 }], // Camera housing
+    ['PpwUTnTFZJXxCoE', { color: 0x0e1826, roughness: .28, metalness: .12 }], // Lens faces
+    ['yQQySPTfbEJufve', { color: 0x161b24, roughness: .45, metalness: .15 }], // Lens interiors
+    ['PaletteMaterial003', { color: 0x252b35, roughness: .58, metalness: .15, opacity: .28, transparent: true, depthWrite: false }]
+]);
+
 function displayTexture(image, isPhone) {
     const displayAspect = isPhone ? .462 : 1.545;
     const canvas = document.createElement('canvas');
@@ -50,7 +58,16 @@ async function deviceModel(name, image) {
         const finish = material => {
             if (!material.isMeshStandardMaterial) return material;
             if (!finishes.has(material)) {
+                const cameraFinish = isPhone && cameraFinishes.get(material.name);
+                if (cameraFinish) {
+                    finishes.set(material, new THREE.MeshStandardMaterial(cameraFinish));
+                    return finishes.get(material);
+                }
                 const copy = material.clone();
+                if (!isPhone) {
+                    // Give the chassis and bezel a black finish across GPU renderers.
+                    copy.color.setHex(copy.map ? 0x45474c : 0x25272c);
+                }
                 copy.metalness = Math.min(copy.metalness, .55);
                 copy.roughness = Math.max(copy.roughness, .42);
                 copy.emissiveIntensity = Math.min(copy.emissiveIntensity, .2);
