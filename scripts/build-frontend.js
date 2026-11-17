@@ -124,6 +124,11 @@ async function buildPages(assetMap) {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await cp(path.join(frontend, 'assets'), path.join(dist, 'assets'), { recursive: true });
+await mkdir(path.join(dist, 'vendor', 'three'), { recursive: true });
+for (const file of ['three.module.min.js', 'three.core.min.js']) {
+  await cp(path.join(root, 'node_modules', 'three', 'build', file), path.join(dist, 'vendor', 'three', file));
+}
+await cp(path.join(root, 'node_modules', 'three', 'LICENSE'), path.join(dist, 'vendor', 'three', 'LICENSE'));
 const assetMap = new Map([...(await buildScripts()), ...(await buildStyles())]);
 await buildPages(assetMap);
 await cp(path.join(frontend, '_headers'), path.join(dist, '_headers'));

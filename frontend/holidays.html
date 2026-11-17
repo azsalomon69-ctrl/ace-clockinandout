@@ -1,0 +1,132 @@
+<!doctype html>
+<!-- Akio <3: Project page maintained by Akio Zaki Salomon. -->
+<html lang="en">
+<head>
+    <link rel="icon" type="image/png" href="assets/images/ace-logo.png">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Philippine holidays · ACE Outsource Solutions</title>
+<link rel="stylesheet" href="css/app.css?v=cache-bust-20260930-2">
+    <link rel="stylesheet" href="css/holidays.css">
+</head>
+<body class="app-shell-pending">
+    <div class="app-shell-skeleton" aria-hidden="true"><main class="shell-skeleton-main"><div class="shell-skeleton-header"><div class="shell-skeleton-title"></div><div class="shell-skeleton-subtitle"></div></div><div class="shell-skeleton-panel"><div class="shell-skeleton-panel-title"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div><div class="shell-skeleton-row"></div></div></main></div><script src="js/initial-skeletons.js?v=20261015-1"></script>
+    <main class="main-content admin-section-page">
+        <div class="admin-section-wrap holiday-page">
+            <header class="admin-section-header holiday-header">
+                <div>
+                    <h1 id="holidayPageTitle">Santa Rosa Holiday Calendar</h1>
+                    <p id="holidayPageDescription">Philippine nationwide holidays and local holidays for the Santa Rosa, Laguna office.</p>
+                </div>
+            </header>
+            <nav id="holidayTabs" class="holiday-controls holiday-tabs" aria-label="Holiday workspace" hidden>
+                <button id="holidayBrowse" class="btn btn-secondary" type="button" aria-pressed="true">Calendar</button>
+                <button id="holidayManage" class="btn btn-secondary" type="button" aria-pressed="false">Manage holidays</button>
+            </nav>
+            <div class="holiday-filters">
+                <label>Year <input id="holidayYear" class="form-input" type="number" min="2000" max="2099"></label>
+                <label>Classification <select id="holidayClassification"><option value="">All classifications</option></select></label>
+                <label id="holidayScopeField" hidden>Coverage <select id="holidayScope"><option value="">All coverage</option><option value="national">Nationwide</option><option value="local">Local</option></select></label>
+                <label>Find a holiday <input id="holidaySearch" class="form-input" type="search" placeholder="Search by name"></label>
+                <label id="holidayVerificationField" hidden>Verification <select id="holidayVerification"><option value="">Any status</option><option value="verified">Verified</option><option value="pending">Pending verification</option><option value="archived">Archived</option></select></label>
+                <button id="holidayReset" type="button" class="btn btn-secondary">Clear filters</button>
+            </div>
+            <dl id="holidayStats" class="holiday-stats" aria-label="Holiday totals"></dl>
+            <p id="holidayLoadStatus" class="holiday-load-status" role="status"></p>
+            <div id="holidayBrowsePanel">
+            <ul class="holiday-legend" aria-label="Calendar legend">
+                <li data-kind="regular">Regular</li><li data-kind="special_non_working">Special non-working</li>
+                <li data-kind="special_working">Special working</li><li data-kind="local">Local</li>
+                <li data-kind="other_non_working">Other non-working</li><li data-kind="pending">Pending verification</li>
+            </ul>
+            <div class="holiday-layout">
+            <section class="holiday-calendar" aria-labelledby="holidayCalendarTitle">
+                <div class="holiday-toolbar">
+                    <h2 id="holidayCalendarTitle" aria-live="polite"></h2>
+                    <div class="holiday-controls">
+                        <button id="holidayPrevious" class="btn btn-secondary" type="button" aria-label="Previous month">‹</button>
+                        <button id="holidayToday" class="btn btn-secondary" type="button">Today</button>
+                        <button id="holidayFollowing" class="btn btn-secondary" type="button" aria-label="Next month">›</button>
+                        <button id="holidayView" class="btn btn-secondary" type="button" aria-pressed="false">Year view</button>
+                    </div>
+                </div>
+                <table class="holiday-grid" aria-labelledby="holidayCalendarTitle">
+                    <thead><tr>
+                        <th scope="col" abbr="Sunday">Sun</th><th scope="col" abbr="Monday">Mon</th><th scope="col" abbr="Tuesday">Tue</th><th scope="col" abbr="Wednesday">Wed</th><th scope="col" abbr="Thursday">Thu</th><th scope="col" abbr="Friday">Fri</th><th scope="col" abbr="Saturday">Sat</th>
+                    </tr></thead>
+                    <tbody id="holidayGrid"></tbody>
+                </table>
+                <div id="holidayYearGrid" class="holiday-year-grid" hidden></div>
+            </section>
+            <aside class="holiday-agenda" aria-label="Holiday agenda">
+                <section class="holiday-month-list" aria-labelledby="holidayAgendaTitle">
+                    <h2 id="holidayAgendaTitle">Holidays this month</h2>
+                    <p id="holidayStatus" role="status"></p>
+                    <ul id="holidayList"></ul>
+                </section>
+                <section class="holiday-month-list">
+                    <h2>Upcoming holidays</h2>
+                    <ul id="holidayUpcoming"></ul>
+                </section>
+            </aside>
+            </div>
+            </div>
+            <section class="holiday-month-list holiday-management" id="holidayManagement" hidden>
+                <div class="holiday-controls">
+                    <button id="holidayAdd" class="btn btn-primary" type="button">Add holiday</button>
+                    <button id="holidayExport" class="btn btn-secondary" type="button">Export Excel</button>
+                    <button id="holidayImportButton" class="btn btn-secondary" type="button">Import CSV or Excel</button>
+                    <input id="holidayImport" type="file" accept=".csv,.xlsx,.xls" hidden>
+                    <label>Sort <select id="holidaySort"><option value="date">Date</option><option value="name">Holiday name</option></select></label>
+                </div>
+                <p id="holidayManagementStatus" role="status"></p>
+                <div class="holiday-controls holiday-bulk" id="holidayBulk" hidden>
+                    <span id="holidaySelectedCount"></span>
+                    <button class="btn btn-secondary" type="button" data-holiday-bulk="archive">Archive</button>
+                    <button class="btn btn-secondary" type="button" data-holiday-bulk="restore">Restore</button>
+                    <button class="btn btn-secondary" type="button" data-holiday-bulk="verify">Verify</button>
+                </div>
+                <p id="holidayAdminEmpty" role="status"></p>
+                <table class="holiday-admin-table">
+                    <thead><tr><th><input id="holidaySelectAll" type="checkbox" aria-label="Select all matching holidays"></th><th scope="col">Date</th><th scope="col">Holiday</th><th scope="col">Classification</th><th scope="col">Coverage</th><th scope="col">Verification</th><th scope="col">Source</th><th scope="col">Actions</th></tr></thead>
+                    <tbody id="holidayAdminList"></tbody>
+                </table>
+            </section>
+            <dialog id="holidayDetails" class="holiday-dialog" aria-labelledby="holidayDetailsTitle">
+                <h2 id="holidayDetailsTitle"></h2><ul></ul>
+                <form method="dialog"><button class="btn btn-secondary">Close</button></form>
+            </dialog>
+            <dialog id="holidayEditor" class="holiday-dialog" aria-labelledby="holidayEditorTitle">
+                <form id="holidayEditorForm">
+                    <h2 id="holidayEditorTitle">Holiday details</h2>
+                    <fieldset class="holiday-filters"><legend>Holiday information</legend>
+                        <label>Name (required) <input class="form-input" name="holiday_name" required maxlength="160" placeholder="e.g. Bonifacio Day"></label>
+                        <label>Date <input class="form-input" name="holiday_date" type="date" required min="2000-01-01" max="2099-12-31"></label>
+                        <label>Classification <select name="classification" required></select></label>
+                        <label>Description <textarea class="form-input" name="description" maxlength="2000"></textarea></label>
+                    </fieldset>
+                    <fieldset class="holiday-filters"><legend>Geographic coverage</legend>
+                        <label>Scope <select name="geographic_scope"><option value="national">Nationwide</option><option value="region">Region</option><option value="province">Province</option><option value="city">City</option><option value="municipality">Municipality</option></select></label>
+                        <label id="holidayLocationField" hidden><span>Location</span><input class="form-input" name="location" maxlength="160"></label>
+                    </fieldset>
+                    <fieldset class="holiday-filters"><legend>Official reference</legend>
+                        <label>Verification <select name="verification_status"><option value="pending">Pending verification</option><option value="verified">Verified</option></select></label>
+                        <label>Source name <input class="form-input" name="source_name"></label>
+                        <label>Official source URL <input class="form-input" type="url" name="source_url"></label>
+                        <label>Proclamation number <input class="form-input" name="proclamation_number"></label>
+                    </fieldset>
+                    <p id="holidayEditorStatus" role="status"></p>
+                    <div class="holiday-controls"><button class="btn btn-primary" type="submit">Save holiday</button><button id="holidayCancel" class="btn btn-secondary" type="button">Cancel</button></div>
+                </form>
+            </dialog>
+        </div>
+    </main>
+    <div id="toastContainer" class="toast-container"></div>
+    <script src="js/api-config.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/supabase-auth.js?v=cache-bust-20260930-1"></script>
+    <script src="js/sidebar.js?v=cache-bust-20260930-1"></script>
+    <script src="js/onboarding-config.js?v=cache-bust-20260930-2"></script><script src="js/script.js?v=cache-bust-20260930-31"></script><script src="js/onboarding.js?v=cache-bust-20260930-5"></script>
+    <script src="js/holidays.js"></script>
+</body>
+</html>

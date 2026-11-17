@@ -30,10 +30,12 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.1",
     "nodemailer": "10.0.13",
+    "three": "0.180.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "overrides": {
-    "qs": "6.16.0"
+    "qs": "6.16.0",
+    "proxy-addr": "2.0.8"
   },
   "devDependencies": {
     "clean-css": "^5.3.3",

@@ -30,7 +30,7 @@ const AppState = {
 };
 window.AppState = AppState;
 
-const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
+const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), QueuedClockReviewsEnabled: Boolean(item.queued_clock_reviews_enabled), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
 // Render serves the real .html files, while these clean routes are resolved by
 // the Static Site rewrite rules. Keep every internal page link canonical.
 const cleanInternalRoute = value => {
@@ -55,7 +55,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else enableCleanInternalPageLinks();
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
-const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, ScheduleType: item.schedule_type, ScheduledEndTime: item.scheduled_end_time, OvertimeApprovedSeconds: item.overtime_approved_seconds || 0, OvertimeApprovedAt: item.overtime_approved_at, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
+const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, QueuedClockSyncedLate: item.queued_clock_synced_late === true, ScheduleType: item.schedule_type, ScheduledEndTime: item.scheduled_end_time, OvertimeApprovedSeconds: item.overtime_approved_seconds || 0, OvertimeApprovedAt: item.overtime_approved_at, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, SeenAt: item.seen_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
 const employeeTimeEntries = () => AppState.timeEntries.filter(entry => AppState.users.find(user => String(user.UserId) === String(entry.UserId))?.Role === 'USER');
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
@@ -385,8 +385,8 @@ async function loadDatabase() {
     return true;
 }
 
-async function loadCurrentEmployeeEntries(userId) {
-    const response = await window.ACEAuth.request('/v1/time-entries?mine=true&status=ACTIVE&page=1&pageSize=1');
+async function loadCurrentEmployeeEntries(userId, options) {
+    const response = await window.ACEAuth.request('/v1/time-entries?mine=true&status=ACTIVE&page=1&pageSize=1', options);
     const entries = response?.items;
     if (!Array.isArray(entries) || entries.length > 1 ||
         entries.some(entry => !entry?.id || entry.user_id !== userId || !entry.clock_in_at || entry.clock_out_at !== null)) {
@@ -436,6 +436,7 @@ async function refreshUserProjectAssignments() {
 const pause = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 const inactiveAccountMessage = 'Your account is not active. Contact your administrator or HR representative for an invitation.';
 function showStartupWarmupNotice() {
+    if (document.body?.classList?.contains('employee-clock-reconnecting')) return;
     const shell = document.querySelector('.app-shell-skeleton');
     const host = shell || document.body;
     if (!host || document.querySelector('.shell-startup-warmup')) return;
@@ -444,14 +445,24 @@ function showStartupWarmupNotice() {
     notice.className = 'shell-startup-warmup' + (shell ? '' : ' startup-warmup-fullpage');
     notice.setAttribute('aria-label', 'Service connection status');
     notice.innerHTML = '<div class="startup-brand"><img src="/assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"><span>ACE CLOCK IN / OUT</span></div><div class="startup-scene" aria-hidden="true"><div class="startup-scene-orbit"></div><div class="startup-float startup-float-time"><span>↗</span><div>Time<strong>tracking</strong></div></div><div class="startup-scene-clock"><span class="startup-clock-tick"></span><span class="startup-clock-index index-12">12</span><span class="startup-clock-index index-3">3</span><span class="startup-clock-index index-6">6</span><span class="startup-clock-index index-9">9</span><span class="startup-clock-signature">ACE</span><i></i><b></b><span class="startup-clock-second"></span><em></em><span class="startup-clock-caption">CLOCK IN / OUT</span></div><div class="startup-float startup-float-team"><span>✓</span><div>Employee<strong>workspace</strong></div></div><span class="startup-scene-spark spark-one">+</span><span class="startup-scene-spark spark-two">+</span><span class="startup-detail-line detail-line-one"></span><span class="startup-detail-line detail-line-two"></span></div><div class="startup-message"><p class="startup-eyebrow">PLEASE WAIT</p><div class="startup-warmup-heading"><strong data-warmup-title>Connecting<br><span>to ACE.</span></strong><p data-warmup-description>The server may be starting after inactivity. Please wait while we try to connect.</p></div><div class="startup-loading-track" aria-hidden="true"><span></span></div><p class="startup-warmup-status" role="status">Keep this page open. You don’t need to refresh. We’ll continue when ACE is ready.</p><button class="btn btn-primary" type="button" data-startup-refresh hidden>Try again</button></div>';
+    notice.innerHTML += '<section class="startup-mole" aria-label="Whack-a-Mole" hidden><div class="startup-mole-top"><h2>Whack-a-Mole</h2><button type="button" data-mole-exit>Exit game</button></div><div class="startup-mole-stats"><span>Score <strong data-mole-score>0</strong></span><span>Time left <strong data-mole-time>60s</strong></span></div><div class="startup-mole-board"></div><p role="status" data-mole-status>Tap the mole when it pops up.</p><button type="button" class="btn btn-primary" data-mole-replay hidden>Play again</button></section>';
+    const message = notice.querySelector('.startup-message');
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'btn startup-mole-play';
+    play.textContent = 'Play Whack-a-Mole';
+    message.append(play);
+    play.addEventListener('click', () => startStartupMole(notice, play));
     host.prepend(notice);
     notice.querySelector('[data-startup-refresh]').addEventListener('click', () => window.location.reload());
+    startStartupMole(notice, play, false);
 }
 
 function showStartupConnectionError() {
     showStartupWarmupNotice();
     const notice = document.querySelector('.shell-startup-warmup');
     if (!notice) return;
+    notice.stopMole?.();
     notice.classList.add('is-connection-error');
     notice.querySelector('[data-warmup-title]').textContent = 'Unable to connect';
     notice.querySelector('[data-warmup-description]').textContent = 'ACE is taking longer than expected. Check your internet connection, then try again.';
@@ -459,14 +470,170 @@ function showStartupConnectionError() {
     notice.querySelector('[data-startup-refresh]').hidden = false;
 }
 
-function clearStartupWarmupNotice() {
-    document.querySelector('.shell-startup-warmup')?.remove();
+function clearStartupWarmupNotice(fade = false) {
+    const notice = document.querySelector('.shell-startup-warmup');
+    if (!notice) return;
+    if (fade && notice.classList.contains?.('is-startup-complete')) return;
+    if (fade && notice.animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        notice.stopMole?.(true);
+        notice.inert = true;
+        notice.classList.add('startup-warmup-fullpage', 'is-startup-complete');
+        document.body.prepend(notice);
+        const animation = notice.animate([{ opacity: 1 }, { opacity: 0 }], {
+            duration: 260, easing: 'ease-out', fill: 'forwards'
+        });
+        const remove = () => {
+            notice.stopMole?.();
+            notice.remove();
+        };
+        void animation.finished.then(remove, remove);
+        return;
+    }
+    notice.stopMole?.();
+    notice.remove();
+}
+
+function startStartupMole(notice, play, focus = true) {
+    const game = notice.querySelector('.startup-mole');
+    const board = game.querySelector('.startup-mole-board');
+    const scoreText = game.querySelector('[data-mole-score]');
+    const timeText = game.querySelector('[data-mole-time]');
+    const status = game.querySelector('[data-mole-status]');
+    const replay = game.querySelector('[data-mole-replay]');
+    let score = 0;
+    let active = -1;
+    let previous = -1;
+    let timer;
+    let impactTimer;
+    let disposeScene;
+    let stopped = false;
+    let deadline = performance.now() + 60000;
+    const sounds = typeof Audio === 'function' ? [
+        new Audio('/assets/whack-a-mole/miss.ogg'),
+        new Audio('/assets/whack-a-mole/hit.ogg')
+    ] : [];
+    if (sounds.length) {
+        sounds[0].volume = .28;
+        sounds[1].volume = .9;
+    }
+    function playStrike(hit) {
+        const sound = sounds[Number(hit)];
+        if (!sound) return;
+        sound.currentTime = 0;
+        void sound.play().catch(() => {});
+    }
+    const holes = Array.from({ length: 9 }, (_, index) => {
+        const hole = document.createElement('button');
+        hole.type = 'button';
+        hole.setAttribute('aria-label', 'Hole ' + (index + 1));
+        hole.innerHTML = '<span class="startup-mole-burrow" aria-hidden="true"><span class="startup-mole-face"><i></i><b></b></span></span><span class="startup-mole-hammer" aria-hidden="true"></span><span class="startup-mole-impact" aria-hidden="true"></span><span class="startup-mole-point" aria-hidden="true">+1</span>';
+        hole.addEventListener('animationend', event => {
+            if (event.animationName === 'startup-mole-strike') hole.classList.remove('is-hit', 'is-miss', 'has-impact');
+        });
+        hole.addEventListener('click', () => {
+            if (performance.now() >= deadline) return;
+            const hit = active === index;
+            if (!hit) {
+                playStrike(false);
+                if (!hole.classList.contains('is-hit')) hole.classList.add('is-miss');
+                return;
+            }
+            hole.classList.add('is-hit');
+            hideMole();
+            impactTimer = window.setTimeout(() => {
+                playStrike(true);
+                scoreText.textContent = ++score;
+                status.textContent = 'WHACK! +1';
+                hole.classList.add('has-impact');
+            }, 84);
+            window.clearTimeout(timer);
+            timer = window.setTimeout(tick, Math.min(500, deadline - performance.now()));
+        });
+        return hole;
+    });
+    function hideMole() {
+        if (active < 0) return;
+        holes[active].classList.remove('has-mole');
+        holes[active].setAttribute('aria-label', 'Hole ' + (active + 1));
+        active = -1;
+    }
+    function tick() {
+        const remaining = deadline - performance.now();
+        timeText.textContent = Math.max(0, Math.ceil(remaining / 1000)) + 's';
+        hideMole();
+        if (remaining <= 0) {
+            status.textContent = 'Time’s up! Final score: ' + score + '.';
+            replay.hidden = false;
+            return;
+        }
+        const pick = Math.floor(Math.random() * (previous < 0 ? 9 : 8));
+        status.textContent = 'Tap the mole when it pops up.';
+        active = previous >= 0 && pick >= previous ? pick + 1 : pick;
+        previous = active;
+        holes[active].classList.add('has-mole');
+        holes[active].setAttribute('aria-label', 'Whack mole in hole ' + (active + 1));
+        timer = window.setTimeout(tick, Math.min(850, remaining));
+    }
+    notice.stopMole = (keepVisible = false) => {
+        window.clearTimeout(timer);
+        window.clearTimeout(impactTimer);
+        stopped = true;
+        for (const sound of sounds) sound.pause();
+        if (keepVisible) {
+            notice.getAnimations?.().forEach(animation => animation.pause());
+            return;
+        }
+        disposeScene?.();
+        board.classList?.remove('has-mole-scene');
+        board.classList?.remove('is-loading-mole-scene');
+        board.inert = false;
+        hideMole();
+        game.hidden = true;
+        notice.classList.remove('is-playing-mole');
+        play.hidden = false;
+    };
+    const exit = game.querySelector('[data-mole-exit]');
+    exit.onclick = () => {
+        notice.stopMole();
+        play.focus();
+    };
+    replay.onclick = () => {
+        notice.stopMole();
+        startStartupMole(notice, play);
+    };
+    replay.hidden = true;
+    scoreText.textContent = '0';
+    status.textContent = 'Tap the mole when it pops up.';
+    board.replaceChildren(...holes);
+    game.hidden = false;
+    play.hidden = true;
+    notice.classList.add('is-playing-mole');
+    if (focus) exit.focus();
+    if (window.WebGL2RenderingContext && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        board.classList.add('is-loading-mole-scene');
+        board.inert = true;
+        status.textContent = 'Loading the game…';
+        void import('/assets/whack-a-mole/scene.js').then(({ mountMoleScene }) => {
+            if (stopped) return;
+            disposeScene = mountMoleScene(board);
+            board.classList.add('has-mole-scene');
+        }).catch(() => {}).finally(() => {
+            if (stopped) return;
+            board.classList.remove('is-loading-mole-scene');
+            board.inert = false;
+            status.textContent = 'Tap the mole when it pops up.';
+            deadline = performance.now() + 60000;
+            tick();
+        });
+        return;
+    }
+    tick();
 }
 
 async function withStartupWarmup(operation) {
     try {
         const result = await operation();
-        clearStartupWarmupNotice();
+        clearStartupWarmupNotice(true);
         return result;
     } catch (error) {
         if (error?.status === 401 || error?.status === 403) clearStartupWarmupNotice();
@@ -476,13 +643,16 @@ async function withStartupWarmup(operation) {
 }
 
 async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
-    // Free Render services can sleep. Keep the page skeleton visible while the
-    // service wakes, and only reveal the application after a complete live load.
+    // A successful config request can precede a usable workspace. Keep the
+    // loading screen visible until the live startup requests finish.
     const retryDelays = [1500, 2500, 4000, 6000, 8000];
-    const startupDeadline = Date.now() + 300000;
+    let startupDeadline = Date.now() + 300000;
     let lastError;
     let serviceReady = false;
     for (let attempt = 0; ; attempt += 1) {
+        if (Date.now() >= startupDeadline && document.body?.classList?.contains('employee-clock-reconnecting')) {
+            startupDeadline = Date.now() + 300000;
+        }
         const remaining = startupDeadline - Date.now();
         if (remaining <= 0) {
             const timeoutError = new Error('ACE could not finish loading the workspace before the startup deadline.');
@@ -501,30 +671,25 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
                     reject(timeoutError);
                 }, remaining);
             });
+            warmupTimer = window.setTimeout(showStartupWarmupNotice, 3000);
             const connect = async () => {
                 if (!serviceReady) {
-                    warmupTimer = window.setTimeout(showStartupWarmupNotice, 3000);
-                    try {
-                        await window.ACEAuth?.checkService?.();
-                        serviceReady = true;
-                        clearStartupWarmupNotice();
-                    } finally {
-                        window.clearTimeout(warmupTimer);
-                    }
+                    await window.ACEAuth?.checkService?.();
+                    serviceReady = true;
                 }
                 return operation();
             };
             const loaded = await Promise.race([connect(), deadline]);
-            clearStartupWarmupNotice();
             return loaded;
         } catch (error) {
             lastError = error;
             const retryable = !error.status || error.status >= 500 || error.status === 429;
-            if (!retryable || Date.now() >= startupDeadline) throw error;
-            if (!serviceReady) showStartupWarmupNotice();
+            const clockAvailable = document.body?.classList?.contains('employee-clock-reconnecting');
+            if (!retryable || (Date.now() >= startupDeadline && !clockAvailable)) throw error;
+            showStartupWarmupNotice();
             console.info(`Waiting for ACE services to wake up (attempt ${attempt + 1}).`);
             const status = document.querySelector('.startup-warmup-status');
-            if (!serviceReady && status) status.textContent = 'Still trying to connect. Keep this page open; no refresh is needed.';
+            if (status) status.textContent = 'Still trying to connect. Keep this page open. You don’t need to refresh.';
             await pause(Math.min(retryDelays[attempt] || 10000, Math.max(0, startupDeadline - Date.now())));
         } finally {
             window.clearTimeout(deadlineTimer);
@@ -532,6 +697,180 @@ async function loadDatabaseWhenServiceIsReady(operation = loadDatabase) {
         }
     }
     throw lastError;
+}
+
+let employeeClockPreview = false;
+let employeeClockState;
+let clockModalsBound = false;
+let clockOutTarget;
+
+function initializeClockControls() {
+    for (const id of ['mainClockInBtn', 'clockInBtn']) document.getElementById(id)?.addEventListener('click', openClockInModal);
+    for (const id of ['mainClockOutBtn', 'clockOutBtn', 'sessionClockOutBtn']) document.getElementById(id)?.addEventListener('click', openClockOutModal);
+    document.getElementById('clockInForm')?.addEventListener('submit', handleClockIn);
+    document.getElementById('clockOutForm')?.addEventListener('submit', handleClockOut);
+}
+
+function showEmployeeClockConfirmation(receipt, previousReceipt) {
+    if (receipt?.state !== 'confirmed' || !receipt.entry ||
+        !['pending', 'needs_review'].includes(previousReceipt?.state) ||
+        previousReceipt.payload.actionId !== receipt.payload.actionId) return;
+    showRecordedEmployeeClockTime(receipt.payload.type, receipt.entry);
+}
+
+function showRecordedEmployeeClockTime(type, entry) {
+    const dialog = document.getElementById('employeeClockConfirmation');
+    if (!dialog) return false;
+    const clockIn = type === 'clock_in';
+    const recordedAt = clockIn ? entry.clock_in_at : entry.clock_out_at;
+    if (!recordedAt || !Number.isFinite(Date.parse(recordedAt))) return false;
+    const time = new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'medium'
+    }).format(new Date(recordedAt));
+    dialog.querySelector('h2').textContent = clockIn ? 'Clock-in confirmed' : 'Clock-out confirmed';
+    dialog.querySelector('time').dateTime = recordedAt;
+    dialog.querySelector('time').textContent = time + ' Manila time';
+    if (!dialog.open) {
+        const confetti = dialog.querySelector('.employee-clock-confetti');
+        if (confetti && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            const colors = ['#0ea5af', '#178467', '#f1b85a', '#557dd2'];
+            confetti.replaceChildren(...Array.from({ length: 16 }, (_, index) => {
+                const piece = document.createElement('span');
+                const angle = index * Math.PI / 8;
+                const distance = index % 2 ? 112 : 70;
+                piece.style.setProperty('--confetti-x', Math.round(Math.cos(angle) * distance) + 'px');
+                piece.style.setProperty('--confetti-y', Math.round(Math.sin(angle) * distance * .55) + 'px');
+                piece.style.setProperty('--confetti-color', colors[index % colors.length]);
+                return piece;
+            }));
+        }
+        dialog.showModal();
+    }
+    return true;
+}
+
+function renderEmployeeClockQueue(state) {
+    const previous = employeeClockState;
+    employeeClockState = state;
+    if (!state && !previous) return;
+    const shift = state?.shift;
+    AppState.currentSession = shift ? {
+        TimeEntryId: shift.id, ClockInAt: shift.startedAt, ProjectId: shift.projectId
+    } : null;
+    AppState.isClockedIn = Boolean(shift);
+    AppState.clockInTime = shift ? new Date(shift.startedAt) : null;
+    if (shift && !AppState.timerInterval) startTimer();
+    if (!shift) stopTimer();
+    if (state && !state.connected) AppState.projects = state.snapshot.projects;
+    const receipt = state?.receipt;
+    const rejectedDependency = state?.clockIn?.state === 'rejected' && state.clockOut?.state === 'pending';
+    if (state?.connected && receipt?.state === 'confirmed' && receipt.entry) {
+        const newlyConfirmed = previous?.connected && (previous.receipt?.state !== 'confirmed' ||
+            previous.receipt.payload.actionId !== receipt.payload.actionId);
+        if (newlyConfirmed) {
+            const saved = timeEntryRecord(receipt.entry);
+            AppState.timeEntries = [saved, ...AppState.timeEntries.filter(entry => entry.TimeEntryId !== saved.TimeEntryId)];
+            if (AppState.currentUser?.Role === 'USER') {
+                const verifiedShift = state.snapshot.shift;
+                saveEmployeeBootSnapshot(AppState.currentUser.UserId, verifiedShift ? { ClockInAt: verifiedShift.startedAt } : null);
+            }
+            loadPageSpecificData();
+        }
+    }
+    if (!state) {
+        closeModal('clockInModal');
+        closeModal('clockOutModal');
+        const note = document.getElementById('clockOutNote');
+        if (note) note.value = '';
+        clockOutTarget = null;
+    }
+    updateUI();
+    const status = document.getElementById('employeeClockQueueStatus');
+    if (!status) return;
+    if (!state) document.getElementById('employeeClockConfirmation')?.close();
+    showEmployeeClockConfirmation(receipt, previous?.receipt);
+    const tap = state?.clockOut?.payload || receipt?.payload;
+    const action = tap?.type === 'clock_out' ? 'Clock-out' : 'Clock-in';
+    const reconnect = document.getElementById('employeeClockReconnect');
+    reconnect.hidden = !state || state.connected || Boolean(receipt);
+    reconnect.textContent = reconnect.hidden ? '' : state.accepting
+        ? 'Reconnecting. You can still use the clock.'
+        : 'Reconnecting. Clock controls will return when ACE is online.';
+    let message = '';
+    let hint = '';
+    let tone = 'info';
+    if (!state || state.paused) {
+        message = state && !state.needsSignIn ? 'Clock unavailable' : 'Sign in to continue';
+        hint = state?.paused || 'Any saved clock actions stay on this device.';
+        tone = 'attention';
+    } else if (state.clockOut && state.clockIn?.state === 'needs_review') {
+        message = 'Clock-out saved on this device';
+        hint = 'ACE will send it after your clock-in is approved.';
+    } else if (rejectedDependency || (state.clockOut && state.clockIn?.state === 'not_submitted')) {
+        message = 'Clock-out needs help';
+        hint = 'Your clock-out is still saved here. Ask an administrator about your clock-in.';
+        if (state.clockIn.reason) hint += ' ' + state.clockIn.reason;
+        tone = 'attention';
+    } else if (receipt?.state === 'pending') {
+        message = action + ' saved on this device';
+        hint = 'ACE will send it automatically when it reconnects. ' +
+            (tap.type === 'clock_in' ? 'You can keep working.' : 'You don’t need to clock out again.');
+    } else if (receipt?.state === 'needs_review') {
+        message = receipt.code === 'ACTION_PAYLOAD_MISMATCH' ? action + ' needs help' : action + ' sent for review';
+        hint = receipt.code === 'ACTION_PAYLOAD_MISMATCH'
+            ? 'Ask an administrator to check this clock action.'
+            : 'An administrator needs to check this entry. You can check back here for a decision.';
+        tone = 'attention';
+    } else if (receipt?.state === 'not_submitted') {
+        message = action + ' could not be sent';
+        hint = 'It is still saved on this device. Ask an administrator for help.';
+        tone = 'attention';
+    } else if (receipt?.state === 'dismissed') {
+        message = 'Saved clock-out dismissed';
+    } else if (receipt?.state === 'rejected') {
+        message = action + ' was declined';
+        hint = receipt.code === 'SHIFT_NOT_OPEN'
+            ? 'Your shift is already closed. Check Recent activity for the recorded time.'
+            : 'Ask an administrator if you need help.';
+        tone = 'attention';
+    } else if (receipt?.state === 'confirmed') {
+        message = action + ' confirmed';
+        if (receipt.acceptedLate) hint = 'ACE received it later and kept your original time.';
+        tone = 'confirmed';
+    }
+    if (receipt?.reason) hint += (hint ? ' ' : '') + 'Admin note: ' + receipt.reason;
+    const panel = document.getElementById('employeeClockReceipt');
+    panel.hidden = !message;
+    panel.dataset.tone = tone;
+    if (status.textContent !== message) status.textContent = message;
+    const guidance = document.getElementById('employeeClockQueueHint');
+    guidance.hidden = !hint;
+    if (guidance.textContent !== hint) guidance.textContent = hint;
+    if (state?.clockOut) {
+        document.getElementById('currentShiftTitle').textContent = 'Shift ended on this device';
+        document.getElementById('currentShiftDescription').textContent = receipt?.state === 'needs_review'
+            ? 'Clock In will return after an administrator resolves the review.'
+            : 'Clock In will return after ACE confirms this clock-out.';
+    }
+    document.getElementById('dismissEmployeeClockOut').hidden = !rejectedDependency;
+    document.getElementById('refreshEmployeeClockReceipt').hidden = receipt?.state !== 'needs_review';
+    document.getElementById('employeeClockSignIn').hidden = Boolean(state && !state.needsSignIn);
+    const details = document.getElementById('employeeClockQueueDetails');
+    details.hidden = !tap || ['confirmed', 'rejected'].includes(receipt?.state);
+    details.textContent = details.hidden ? '' :
+        [tap.type === 'clock_in' ? 'Clock-in' : 'Clock-out', new Date(tap.tappedAt).toLocaleString(), tap.note].filter(Boolean).join(' · ');
+    const blocked = Boolean(!state || state.paused || (!state.connected && !state.accepting) || state.clockOut || ['not_submitted', 'rejected'].includes(state.clockIn?.state));
+    for (const id of ['mainClockInBtn', 'mainClockOutBtn']) document.getElementById(id).disabled = blocked;
+    const mobileAction = document.querySelector('[data-mobile-clock-action]');
+    if (mobileAction) mobileAction.disabled = blocked;
+}
+
+async function readEmployeeClockSnapshot(owner) {
+    const [active] = await loadCurrentEmployeeEntries(owner, { expectedUserId: owner });
+    const ids = new Set(AppState.userProjects.filter(item => item.UserId === owner && item.IsActive).map(item => item.ProjectId));
+    const projects = AppState.projects.filter(project => ids.has(project.ProjectId) && project.IsActive !== false)
+        .map(({ ProjectId, ProjectName }) => ({ ProjectId, ProjectName }));
+    return { projects, shift: active ? { id: active.id, startedAt: active.clock_in_at, projectId: active.project_id } : null };
 }
 
 const employeeBootSnapshotKey = 'ace_employee_boot_shift';
@@ -645,7 +984,35 @@ async function initApp() {
         return;
     }
 
-    await showEmployeeBootPreview();
+    const clockQueue = document.getElementById('employeeClockQueueStatus') ? window.ACEClockQueue : null;
+    if (clockQueue) {
+        clockQueue.setup(renderEmployeeClockQueue);
+        document.getElementById('refreshEmployeeClockReceipt').addEventListener('click', clockQueue.checkReceipt);
+        document.getElementById('dismissEmployeeClockOut').addEventListener('click', async () => {
+            if (!await window.ACEUI.confirm({
+                title: 'Dismiss this saved clock-out?',
+                message: 'ACE will keep the details on this device. The clock-out will stay out of attendance records. Ask an administrator about any correction you need.',
+                confirmLabel: 'Dismiss saved clock-out'
+            })) return;
+            try { await clockQueue.dismissBlockedClockOut(); }
+            catch (error) { showToast(error.message || 'Could not dismiss the saved clock-out.', 'error'); }
+        });
+        try {
+            if (await clockQueue.restore()) {
+                employeeClockPreview = true;
+                initializeClockControls();
+                initializeModals();
+                clockModalsBound = true;
+                clearInitialSkeletons();
+                document.body.classList.add('employee-clock-reconnecting');
+                document.body.classList.remove('app-shell-pending');
+                document.querySelector('.app-shell-skeleton')?.remove();
+                updateClock();
+            }
+        } catch (error) { console.info('Could not restore the saved shift.', error); }
+    }
+
+    if (!employeeClockPreview) await showEmployeeBootPreview();
 
     let earlyShellMounted = false;
     const mountVerifiedShell = () => {
@@ -673,7 +1040,11 @@ async function initApp() {
             window.location.replace('/login');
             return;
         }
-        throw error;
+        if (!employeeClockPreview) throw error;
+        window.removeEventListener('ace:verified-profile-ready', mountVerifiedShell);
+        const retry = document.getElementById('employeeClockReconnect');
+        if (!retry.hidden) retry.textContent = 'Still reconnecting. You can save your clock action here.';
+        return;
     }
     window.removeEventListener('ace:verified-profile-ready', mountVerifiedShell);
     if (loaded) {
@@ -687,8 +1058,22 @@ async function initApp() {
         }
         if (!shellMounted) throw new Error('The application navigation could not be initialized.');
         initializeNavigation();
-        initializeModals();
+        if (!clockModalsBound) initializeModals();
         initializeForms();
+        if (employeeClockState) {
+            if (AppState.currentUser?.Role === 'USER') clockQueue.refresh();
+            else clockQueue.clear();
+        }
+        if (clockQueue && AppState.currentUser?.Role === 'USER') {
+            const owner = AppState.currentUser.UserId;
+            void clockQueue.verified(owner, () => readEmployeeClockSnapshot(owner))
+                .then(status => {
+                    if (status !== 201) console.info('Queued clock actions are unavailable on this device. Setup status:', status);
+                })
+                .catch(error => console.info('Could not refresh the clock queue.', error));
+        }
+        employeeClockPreview = false;
+        document.body.classList.remove('employee-clock-reconnecting');
         updateUI();
         startClock();
         loadPageSpecificData();
@@ -1034,7 +1419,8 @@ function installPageFadeNavigation() {
     const navigateDashboardRoute = async (href, push = true) => {
         const destination = new URL(href, window.location.href);
         const requiresHistory = /\/(?:time-entries|remarks)(?:\.html)?\/?$/i.test(destination.pathname);
-        if (navigating || (requiresHistory && AppState.employeeHistoryStatus !== 'ready') ||
+        const employeeClockPage = /\/user-dashboard(?:\.html)?\/?$/i.test(destination.pathname);
+        if (navigating || employeeClockPage || (requiresHistory && AppState.employeeHistoryStatus !== 'ready') ||
             destination.origin !== window.location.origin || !document.body.classList.contains('has-app-shell')) {
             window.location.assign(destination.href);
             return;
@@ -1109,10 +1495,10 @@ function initializeAppShell() {
     // Render rewrites clean URLs to the deployed .html files. Normalize both
     // forms before selecting the application shell.
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
-    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chatbot-inquiry.html'];
-    const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'settings.html'];
+    const adminFiles = ['admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chatbot-inquiry.html', 'queued-clock-reviews.html'];
+    const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'holidays.html', 'settings.html'];
     const isSharedSettings = file === 'settings.html';
-    const isAdmin = adminFiles.includes(file) || (isSharedSettings && AppState.currentUser?.Role === 'ADMIN');
+    const isAdmin = adminFiles.includes(file) || ((isSharedSettings || file === 'holidays.html') && AppState.currentUser?.Role === 'ADMIN');
     const isEmployee = employeeFiles.includes(file) && !isAdmin;
     if (!isAdmin && !isEmployee) return true;
     if (AppState.currentUser && isAdmin && AppState.currentUser.Role !== 'ADMIN') {
@@ -1129,13 +1515,13 @@ function initializeAppShell() {
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
         ['People', [['users.html', 'users', 'Users'], ['deleted-users.html', 'folder', 'Archived users'], ['departments.html', 'building', 'Departments']]],
-        ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries']]],
+        ['Work', [['projects.html', 'folder', 'Projects'], ['schedule-flex.html', 'calendar', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['holidays.html', 'calendar', 'Holidays']]],
         ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'chart', 'Individual reports']]],
         ['Administration', [...(AppState.currentUser?.IsHeadAdmin ? [['chatbot-inquiry.html', 'remarks', 'Chatbot Inquiry']] : []), ['audit-logs.html', 'audit', 'Audit log'], ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['Work', [['time-entries.html', 'clock', 'My time entries'], ['remarks.html', 'remarks', 'Remarks']]],
+        ['Work', [['time-entries.html', 'clock', 'My time entries'], ['remarks.html', 'remarks', 'Remarks'], ['holidays.html', 'calendar', 'Holidays']]],
         ['Account', [['settings.html', 'settings', 'Settings']]]
     ];
     const groups = isAdmin ? adminGroups : employeeGroups;
@@ -1184,7 +1570,7 @@ function initializeAppShell() {
             employeeBottomNav.className = 'employee-bottom-nav';
             employeeBottomNav.setAttribute('aria-label', 'Employee mobile navigation');
             const navLink = ([href, iconName, label]) => `<a class="employee-bottom-nav-item${file === href ? ' is-active' : ''}" href="${href}"${file === href ? ' aria-current="page"' : ''}>${suppliedIconMarkup(iconName, 'shell-icon')}<span>${label}</span></a>`;
-            const moreIsActive = file === 'settings.html';
+            const moreIsActive = ['settings.html', 'holidays.html'].includes(file);
             employeeBottomNav.innerHTML = `${navLink(bottomNavItems[0])}${navLink(bottomNavItems[1])}<button class="employee-bottom-nav-clock" type="button" data-mobile-clock-action aria-label="Open time actions">${suppliedIconMarkup('timer', 'shell-icon')}</button>${navLink(bottomNavItems[2])}<button class="employee-bottom-nav-item${moreIsActive ? ' is-active' : ''}" type="button" data-bottom-nav-more aria-label="Open navigation" aria-expanded="false"${moreIsActive ? ' aria-current="page"' : ''}>${suppliedIconMarkup('menu', 'shell-icon')}<span>More</span></button>`;
             document.body.append(employeeBottomNav);
         }
@@ -1371,6 +1757,7 @@ function initializeAppShell() {
         ['Dashboard', 'Workspace · Clock in and clock out', 'user-dashboard.html', 'home start shift clock in clock out'],
         ['My time entries', 'Work · Review your shifts', 'time-entries.html', 'time entries history shifts filters'],
         ['Remarks', 'Work · Read administrator feedback', 'remarks.html', 'remarks feedback admin note'],
+        ['Holidays', 'Work · Philippine holiday calendar', 'holidays.html', 'holiday philippines calendar'],
         ['Profile & settings', 'Account · Profile, security, appearance', 'settings.html', 'settings profile password security appearance']
     ];
     const quickActionItems = isAdmin ? [
@@ -1608,7 +1995,7 @@ function updateEmployeeBottomNav() {
     const button = document.querySelector('[data-mobile-clock-action]');
     if (!button) return;
     button.setAttribute('aria-label', 'Open time actions');
-    button.innerHTML = suppliedIconMarkup('timer', 'shell-icon');
+    if (!button.firstElementChild) button.innerHTML = suppliedIconMarkup('timer', 'shell-icon');
 }
 
 function ensureMobileClockActionsModal() {
@@ -3038,20 +3425,7 @@ function initializeModals() {
         });
     }
 
-    // Clock in buttons
-    const clockInBtn = document.getElementById('mainClockInBtn');
-    if (clockInBtn) clockInBtn.addEventListener('click', openClockInModal);
-
-    const clockInBtnAlt = document.getElementById('clockInBtn');
-    if (clockInBtnAlt) clockInBtnAlt.addEventListener('click', openClockInModal);
-
-    // Clock out buttons
-    const clockOutBtn = document.getElementById('mainClockOutBtn');
-    if (clockOutBtn) clockOutBtn.addEventListener('click', openClockOutModal);
-
-    const sessionClockOutBtn = document.getElementById('sessionClockOutBtn');
-    if (sessionClockOutBtn) sessionClockOutBtn.addEventListener('click', openClockOutModal);
-
+    initializeClockControls();
 
     initializeHomePreview();
 
@@ -3073,9 +3447,6 @@ function initializeModals() {
             else window.location.href = cleanInternalRoute(href);
         });
     });
-
-    const clockOutBtnAlt = document.getElementById('clockOutBtn');
-    if (clockOutBtnAlt) clockOutBtnAlt.addEventListener('click', openClockOutModal);
 
     // Settings tabs
     const settingsTabs = document.querySelectorAll('.settings-tab');
@@ -3236,17 +3607,6 @@ function initializeForms() {
         generateReportForm.addEventListener('submit', handleGenerateReport);
     }
 
-    // Clock in form
-    const clockInForm = document.getElementById('clockInForm');
-    if (clockInForm) {
-        clockInForm.addEventListener('submit', handleClockIn);
-    }
-    // Clock out form
-    const clockOutForm = document.getElementById('clockOutForm');
-    if (clockOutForm) {
-        clockOutForm.addEventListener('submit', handleClockOut);
-    }
-
     // Profile form
     const profileForm = document.getElementById('profileForm');
     if (profileForm) {
@@ -3391,9 +3751,31 @@ async function performLogout() {
     }, 450);
 }
 
+function canOpenClockForm(action) {
+    if (navigator.onLine !== false || employeeClockState?.accepting) return true;
+    showToast('Reconnect to the internet and open your dashboard before you ' + action + '.', 'info');
+    return false;
+}
+
 async function openClockInModal() {
+    if (document.getElementById('mainClockInBtn')?.disabled) return;
+    if (!canOpenClockForm('clock in')) return;
     openModal('clockInModal');
     const projectSelect = document.getElementById('clockInProject');
+    if (employeeClockState?.accepting && projectSelect) {
+        const queueState = employeeClockState;
+        const projects = queueState.snapshot.projects;
+        projectSelect.replaceChildren(new Option('No project', ''), ...projects.map(project => new Option(project.ProjectName, project.ProjectId)));
+        if (queueState.connected && navigator.onLine !== false) {
+            void refreshUserProjectAssignments().then(() => {
+                if (employeeClockState === queueState && !projectSelect.value &&
+                    document.getElementById('clockInModal')?.classList.contains('active')) {
+                    populateProjectSelect('clockInProject');
+                }
+            }).catch(() => { /* The queued form can use its last verified projects. */ });
+        }
+        return;
+    }
     if (projectSelect) {
         projectSelect.disabled = true;
         projectSelect.innerHTML = '<option value="">Loading assigned projects…</option>';
@@ -3403,7 +3785,9 @@ async function openClockInModal() {
         // signed in. Refresh here so the next clock-in uses the live list.
         await refreshUserProjectAssignments();
     } catch (error) {
-        showToast(error.message || 'Could not refresh assigned projects. Showing the last available list.', 'warning');
+        if (navigator.onLine !== false && error.status && error.status < 500) {
+            showToast('Could not refresh assigned projects. Showing the last available list.', 'warning');
+        }
     } finally {
         populateProjectSelect('clockInProject');
         if (projectSelect) projectSelect.disabled = false;
@@ -3411,8 +3795,26 @@ async function openClockInModal() {
 }
 
 function openClockOutModal() {
+    if (document.getElementById('mainClockOutBtn')?.disabled || !AppState.currentSession) return;
+    if (!canOpenClockForm('clock out')) return;
+    clockOutTarget = employeeClockState?.shift;
     showClockOutSummary();
     openModal('clockOutModal');
+}
+
+async function saveEmployeeClockTap(type, input, submitButton, shift) {
+    const clockIn = type === 'clock_in';
+    const modal = clockIn ? 'clockInModal' : 'clockOutModal';
+    setActionBusy(submitButton, true, 'Saving…');
+    try {
+        const duplicate = await window.ACEClockQueue.save(type, input, shift);
+        if (!clockIn) document.getElementById('clockOutNote').value = '';
+        closeModal(modal);
+        if (duplicate) showToast('This clock action was already saved on this device.', 'info');
+    } catch (error) {
+        const label = clockIn ? 'Clock-in' : 'Clock-out';
+        showToast(label + ' wasn’t saved. ' + (error.message || 'Try again.'), 'error');
+    } finally { setActionBusy(submitButton, false); }
 }
 
 // Clock In/Out Handlers
@@ -3421,6 +3823,8 @@ async function handleClockIn(e) {
     const submitButton = e.currentTarget.querySelector('button[type="submit"]');
     if (submitButton?.disabled) return;
     const projectId = document.getElementById('clockInProject')?.value;
+    if (employeeClockState?.accepting) return saveEmployeeClockTap('clock_in', projectId, submitButton);
+    if (employeeClockPreview || document.getElementById('mainClockInBtn')?.disabled || !canOpenClockForm('clock in')) return;
     try {
         setActionBusy(submitButton, true, 'Clocking in…');
         const entry = await window.ACEAuth.request('/v1/time-entries/clock-in', { method: 'POST', body: JSON.stringify({ projectId: projectId || null }) });
@@ -3428,9 +3832,17 @@ async function handleClockIn(e) {
         AppState.timeEntries.unshift(AppState.currentSession);
         AppState.isClockedIn = true; AppState.clockInTime = new Date(AppState.currentSession.ClockInAt);
         closeModal('clockInModal'); startTimer(); updateUI(); loadPageSpecificData();
+        if (employeeClockState) void window.ACEClockQueue.refreshShift({
+            id: entry.id, startedAt: entry.clock_in_at, projectId: entry.project_id
+        }).catch(() => {});
         if (AppState.currentUser?.Role === 'USER') saveEmployeeBootSnapshot(AppState.currentUser.UserId, AppState.currentSession);
-        showToast('Clocked in successfully', 'success');
-    } catch (error) { showToast(error.message || 'Unable to clock in', 'error'); }
+        if (!showRecordedEmployeeClockTime('clock_in', entry)) showToast('Clocked in successfully', 'success');
+    } catch (error) {
+        const message = !error.status || error.status >= 500
+            ? 'ACE couldn’t confirm your clock-in. Reconnect and check your shift before trying again.'
+            : error.message || 'Unable to clock in';
+        showToast(message, 'error');
+    }
     finally { setActionBusy(submitButton, false); }
 }
 
@@ -3439,7 +3851,8 @@ async function handleClockOut(e) {
     const submitButton = e.currentTarget.querySelector('button[type="submit"]');
     if (submitButton?.disabled) return;
     const note = document.getElementById('clockOutNote')?.value;
-    if (!AppState.currentSession) return;
+    if (employeeClockState?.accepting || employeeClockState?.clockIn) return saveEmployeeClockTap('clock_out', note || '', submitButton, clockOutTarget);
+    if (employeeClockPreview || document.getElementById('mainClockOutBtn')?.disabled || !AppState.currentSession || !canOpenClockForm('clock out')) return;
     try {
         setActionBusy(submitButton, true, 'Clocking out…');
         const entry = await window.ACEAuth.request(`/v1/time-entries/${AppState.currentSession.TimeEntryId}/clock-out`, { method: 'POST', body: JSON.stringify({ note: note || '' }) });
@@ -3447,9 +3860,15 @@ async function handleClockOut(e) {
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
         AppState.isClockedIn = false; AppState.currentSession = null; AppState.clockInTime = null;
         stopTimer(); closeModal('clockOutModal'); updateUI(); loadPageSpecificData();
+        if (employeeClockState) void window.ACEClockQueue.refreshShift(null).catch(() => {});
         if (AppState.currentUser?.Role === 'USER') saveEmployeeBootSnapshot(AppState.currentUser.UserId, null);
-        showToast('Clocked out successfully', 'success');
-    } catch (error) { showToast(error.message || 'Unable to clock out', 'error'); }
+        if (!showRecordedEmployeeClockTime('clock_out', entry)) showToast('Clocked out successfully', 'success');
+    } catch (error) {
+        const message = !error.status || error.status >= 500
+            ? 'ACE couldn’t confirm your clock-out. Reconnect and check your shift before trying again.'
+            : error.message || 'Unable to clock out';
+        showToast(message, 'error');
+    }
     finally { setActionBusy(submitButton, false); }
 }
 
@@ -3677,7 +4096,7 @@ function renderGeneratedReport(report, options = {}) {
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}</td></tr>`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
+    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}${entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''}</td></tr>`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 
@@ -5038,7 +5457,7 @@ function reportWorkbookData(report) {
             user?.FullName || 'Unknown', project, reportDateTime(entry.ClockInAt),
             entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active',
             workedSeconds, formatDuration(workedSeconds),
-            entry.FinalNote || '', entry.ClockOutAt ? 'Completed' : 'Active'
+            entry.FinalNote || '', (entry.ClockOutAt ? 'Completed' : 'Active') + (entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : '')
         ]);
     });
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);

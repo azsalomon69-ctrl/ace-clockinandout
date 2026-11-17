@@ -62,3 +62,11 @@ test('D3: role timestamps, reset, and legacy snapshot stay independent', async (
   assert.equal(restored.tutorial_started_at, started);
   assert.deepEqual(backend.tables.profiles[0], legacy);
 });
+
+test('clock review navigation is advertised only to admins when the feature is enabled', async () => {
+  for (const [role, enabled, expected] of [['ADMIN', true, true], ['ADMIN', false, false], ['USER', true, false]]) {
+    const backend = tutorialBackend({ role, queuedClockEnabled: enabled });
+    const result = await backend.request('GET', '/v1/me');
+    assert.equal(result.body.profile.queued_clock_reviews_enabled, expected);
+  }
+});

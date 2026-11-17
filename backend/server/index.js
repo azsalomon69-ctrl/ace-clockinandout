@@ -600,23 +600,106 @@ app.get('/health', async (_, res) => {
 });
 
 app.get('/v1/auth/config', (_, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY }));
+
+const holidayClassifications = ['regular', 'special_non_working', 'special_working', 'other_non_working'];
+const holidayScopes = ['national', 'region', 'province', 'city', 'municipality'];
+const holidayDay = value => typeof value === 'string' && /^20\d{2}-\d{2}-\d{2}$/.test(value)
+  && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+
+function holidayRecord(input) {
+  const fields = ['holiday_name', 'holiday_date', 'classification', 'description', 'geographic_scope',
+    'location', 'source_name', 'source_url', 'proclamation_number', 'verification_status'];
+  if (!input || fields.some(field => input[field] != null && typeof input[field] !== 'string')) return null;
+  const row = Object.fromEntries(fields.map(field => [field, input[field]?.trim() || '']));
+  if (!row.holiday_name || !holidayDay(row.holiday_date) || !holidayClassifications.includes(row.classification)
+    || !holidayScopes.includes(row.geographic_scope) || !['verified', 'pending'].includes(row.verification_status)
+    || (row.geographic_scope === 'national') !== (row.location === '')
+    || (row.verification_status === 'verified' && (!row.source_name || !row.source_url))) return null;
+  if (row.source_url) {
+    try { if (new URL(row.source_url).protocol !== 'https:') return null; }
+    catch { return null; }
+  }
+  if (Object.values(row).some(value => value.length > 2000) || row.holiday_name.length > 160 || row.location.length > 160) return null;
+  return row;
+}
+
+app.get('/v1/holidays/ph/:year', authenticate, activeOnly, async (req, res, next) => { try {
+  const { year } = req.params;
+  if (!/^20\d{2}$/.test(year)) return fail(res, 400, 'Invalid holiday year');
+  let holidays = db.from('philippine_holidays').select('*').eq('year', Number(year));
+  if (req.profile.role !== 'ADMIN') {
+    holidays = holidays.is('archived_at', null).or(
+      'geographic_scope.eq.national,and(geographic_scope.eq.city,location.ilike."Santa Rosa, Laguna"),and(geographic_scope.eq.province,location.ilike.Laguna)'
+    );
+  }
+  return res.json(await query(holidays.order('holiday_date').order('holiday_name')));
+} catch (error) { return next(error); } });
+
+app.post('/v1/holidays/ph/bulk', authenticate, adminOnly, async (req, res, next) => { try {
+  const { ids, action } = req.body || {};
+  if (!Array.isArray(ids) || !ids.length || ids.length > 200 || !ids.every(isUuid)
+    || !['archive', 'restore', 'verify'].includes(action)) return fail(res, 400, 'Invalid holiday selection');
+  const now = new Date().toISOString();
+  const changes = action === 'verify' ? { verification_status: 'verified' } : { archived_at: action === 'archive' ? now : null };
+  let update = db.from('philippine_holidays').update({ ...changes, updated_at: now }).in('id', ids);
+  if (action === 'archive') update = update.is('archived_at', null);
+  if (action === 'restore') update = update.not('archived_at', 'is', null);
+  if (action === 'verify') update = update.is('archived_at', null).eq('verification_status', 'pending');
+  const rows = await query(update.select('id'));
+  return res.json({ count: rows.length });
+} catch (error) {
+  if (error.code === '23514') return fail(res, 400, 'Every verified holiday needs an official source name and URL');
+  return next(error);
+} });
+
+app.post('/v1/holidays/ph', authenticate, adminOnly, async (req, res, next) => { try {
+  const inputs = Array.isArray(req.body) ? req.body : [req.body];
+  if (!inputs.length || inputs.length > 200) return fail(res, 400, 'Submit between 1 and 200 holiday records');
+  const rows = inputs.map(holidayRecord);
+  const invalid = rows.indexOf(null);
+  if (invalid >= 0) return fail(res, 400, `Check the fields in holiday record ${invalid + 1}`);
+  await query(db.from('philippine_holidays').insert(rows));
+  return res.status(201).json({ count: rows.length });
+} catch (error) {
+  if (error.code === '23505') return fail(res, 409, 'A holiday in this submission already exists');
+  return next(error);
+} });
+
+app.patch('/v1/holidays/ph/:id', authenticate, adminOnly, async (req, res, next) => { try {
+  const row = holidayRecord(req.body);
+  if (!row) return fail(res, 400, 'Check the holiday fields');
+  const changed = await query(db.from('philippine_holidays').update({ ...row, updated_at: new Date().toISOString() })
+    .eq('id', req.params.id).select('id').maybeSingle());
+  return changed ? res.json(changed) : fail(res, 404, 'Holiday not found');
+} catch (error) {
+  if (error.code === '23505') return fail(res, 409, 'This holiday already exists');
+  return next(error);
+} });
+
+app.delete('/v1/holidays/ph/:id', authenticate, adminOnly, async (req, res, next) => { try {
+  const deleted = await query(db.from('philippine_holidays').delete().eq('id', req.params.id).select('id').maybeSingle());
+  return deleted ? res.json(deleted) : fail(res, 404, 'Holiday not found');
+} catch (error) { return next(error); } });
+
 // The browser needs to know which navigation and safeguards to show, but it
 // must never duplicate the protected account's email or make the permission
 // decision itself.  Keep the source of truth in the server environment.
 app.get('/v1/me', authenticate, async (req, res, next) => { try {
   // Tutorial storage is optional for startup. During a staged migration or a
   // tutorial-table outage, return the already authenticated legacy profile.
+  const profile = { ...req.profile, is_head_admin: isHeadAdmin(req),
+    queued_clock_reviews_enabled: req.profile.role === 'ADMIN' && process.env.ACE_QUEUED_CLOCK_ENABLED === 'true' };
   let progress;
   try {
     progress = await query(db.from('profile_tutorial_progress').select('tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').eq('profile_id', req.profile.id).eq('role', req.profile.role).maybeSingle());
   } catch (error) {
     console.warn('[onboarding] Tutorial progress unavailable; returning legacy profile', { code: error.code });
-    return res.json({ profile: { ...req.profile, is_head_admin: isHeadAdmin(req) } });
+    return res.json({ profile });
   }
-  res.json({ profile: { ...req.profile, ...(progress || {
+  res.json({ profile: { ...profile, ...(progress || {
     tutorial_status: 'NOT_STARTED', tutorial_step: 0, tutorial_version: 1,
     tutorial_started_at: null, tutorial_completed_at: null, tutorial_skipped_at: null
-  }), is_head_admin: isHeadAdmin(req) } });
+  }) } });
 } catch (error) { next(error); } });
 
 app.patch('/v1/me', authenticate, activeOnly, async (req, res, next) => { try {
@@ -1023,8 +1106,16 @@ function queuedClockPayload(body) {
     anchorId: anchorId?.toLowerCase() ?? null, anchorElapsedMs: anchorElapsedMs ?? null } };
 }
 
-app.post('/v1/time-entries/clock-sync/anchor', queuedClockEnabled, authenticate, employeeOnly, async (req, res, next) => {
+function queuedClockPilot(req, res, next) {
+  if (process.env.ACE_QUEUED_CLOCK_ALL_ACTIVE_EMPLOYEES === 'true') return next();
+  const users = String(process.env.ACE_QUEUED_CLOCK_PILOT_USER_IDS || '').toLowerCase().split(',').map(value => value.trim());
+  if (!users.includes(req.profile.id.toLowerCase())) return fail(res, 404, 'Queued clock actions are unavailable');
+  return next();
+}
+
+app.post('/v1/time-entries/clock-sync/anchor', queuedClockEnabled, authenticate, employeeOnly, queuedClockPilot, async (req, res, next) => {
   try {
+    if (process.env.ACE_QUEUED_CLOCK_PAUSED === 'true') return fail(res, 423, 'New queued taps are paused');
     if (!isUuid(req.authSessionId)) return fail(res, 401, 'Invalid or expired session');
     try {
       await sessionSecurity.authorizeVerifiedToken(req.authToken, req.profile.id);
@@ -1034,11 +1125,11 @@ app.post('/v1/time-entries/clock-sync/anchor', queuedClockEnabled, authenticate,
     }
     const anchor = await query(db.from('clock_sync_anchors')
       .insert({ user_id: req.profile.id, session_id: req.authSessionId }).select('id,server_at').single());
-    res.status(201).json({ anchorId: anchor.id, serverAt: anchor.server_at });
+    res.status(201).json({ anchorId: anchor.id, serverAt: anchor.server_at, queueLeaseSeconds: 86400 });
   } catch (error) { next(error); }
 });
 
-app.post('/v1/time-entries/clock-sync', queuedClockEnabled, authenticate, employeeOnly, async (req, res, next) => {
+app.post('/v1/time-entries/clock-sync', queuedClockEnabled, authenticate, employeeOnly, queuedClockPilot, async (req, res, next) => {
   try {
     const receivedAt = new Date().toISOString();
     if (!isUuid(req.authSessionId)) return fail(res, 401, 'Invalid or expired session');
@@ -1050,6 +1141,119 @@ app.post('/v1/time-entries/clock-sync', queuedClockEnabled, authenticate, employ
       p_user_agent: req.get('user-agent'), p_request_id: req.requestId
     }));
     res.status(result.status).json(result.body);
+  } catch (error) { next(error); }
+});
+
+app.get('/v1/time-entries/clock-sync/receipts/:id', queuedClockEnabled, authenticate, employeeOnly, queuedClockPilot, async (req, res, next) => {
+  try {
+    const owner = req.profile.id;
+    const [receipt, reviews] = await Promise.all([
+      query(db.from('queued_clock_actions').select('response,status_code,tapped_at,received_at').eq('user_id', owner).eq('action_id', req.params.id).maybeSingle()),
+      query(db.from('queued_clock_reviews').select('code,decision,decision_reason,decided_at,accepted_entry,bucket').eq('user_id', owner).eq('action_id', req.params.id))
+    ]);
+    if (!receipt) return fail(res, 404, 'No matching clock action received');
+    const mismatch = req.query.mismatch === '1';
+    const review = reviews.find(item => mismatch ? item.code === 'ACTION_PAYLOAD_MISMATCH' : item.code !== 'ACTION_PAYLOAD_MISMATCH');
+    if (mismatch && !review) return fail(res, 404, 'No matching clock review received');
+    const original = mismatch
+      ? { state: 'needs_review', code: review.code, bucket: review.bucket }
+      : receipt.response;
+    const outcome = !review?.decision ? original : {
+      state: review.decision === 'accepted' ? 'confirmed' : 'rejected',
+      code: review.code, reason: review.decision_reason, decidedAt: review.decided_at,
+      entry: review.accepted_entry,
+      acceptedLate: Date.parse(receipt.received_at) - Date.parse(receipt.tapped_at) > 600000
+    };
+    res.json({ outcome });
+  } catch (error) { next(error); }
+});
+
+const queuedReviewSelect = '*, employee:profiles!queued_clock_reviews_user_id_fkey(full_name,email), reviewer:profiles!queued_clock_reviews_decided_by_fkey(full_name,email)';
+const queuedReceiptFields = 'user_id,action_id,payload,tapped_at,received_at,clock_error_ms,device_category,status_code,response';
+
+app.get('/v1/queued-clock-reviews', queuedClockEnabled, authenticate, adminOnly, async (req, res, next) => {
+  try {
+    const paging = { ...pageParams(req), paged: true };
+    const bucket = req.query.bucket || 'timing';
+    if (!['timing', 'integrity', 'missing'].includes(bucket)) return fail(res, 400, 'Unknown review bucket');
+    let request = db.from('queued_clock_reviews').select(queuedReviewSelect, { count: 'exact' }).eq('bucket', bucket)
+      .order('opened_at', { ascending: false }).order('id');
+    request = req.query.resolved === 'true' ? request.not('decision', 'is', null) : request.is('decision', null);
+    res.json(await pagedResult(request, paging));
+  } catch (error) { next(error); }
+});
+
+app.get('/v1/queued-clock-reviews/metrics', queuedClockEnabled, authenticate, adminOnly, async (_req, res, next) => {
+  try { res.json(await query(db.rpc('queued_clock_weekly_metrics'))); }
+  catch (error) { next(error); }
+});
+
+app.get('/v1/queued-clock-reviews/:id', queuedClockEnabled, authenticate, adminOnly, async (req, res, next) => {
+  try {
+    const review = await query(db.from('queued_clock_reviews').select(queuedReviewSelect).eq('id', req.params.id).maybeSingle());
+    if (!review) return fail(res, 404, 'Review was not found');
+    const getReceipt = id => query(db.from('queued_clock_actions').select(queuedReceiptFields)
+      .eq('user_id', review.user_id).eq('action_id', id).maybeSingle());
+    const receipt = review.action_id ? await getReceipt(review.action_id) : null;
+    const payload = receipt?.payload;
+    let entryId = review.accepted_entry?.id || payload?.entryId || receipt?.response?.entry?.id;
+    if (!entryId && payload?.clockInActionId) {
+      const [dependency, accepted] = await Promise.all([
+        getReceipt(payload.clockInActionId),
+        query(db.from('queued_clock_reviews').select('accepted_entry').eq('user_id', review.user_id)
+          .eq('action_id', payload.clockInActionId).eq('decision', 'accepted').maybeSingle())
+      ]);
+      entryId = dependency?.response?.entry?.id || accepted?.accepted_entry?.id;
+    }
+    let shift = null;
+    const shifts = () => db.from('time_entries').select('id,clock_in_at,clock_out_at,deleted_at,final_note,stopped_by_at').eq('user_id', review.user_id);
+    if (entryId) shift = await query(shifts().eq('id', entryId).maybeSingle());
+    else if (payload?.type === 'clock_in') {
+      shift = await query(shifts().is('deleted_at', null).or(`clock_out_at.is.null,clock_out_at.gt.${receipt.tapped_at}`)
+        .order('clock_in_at', { ascending: false }).limit(1).maybeSingle());
+    }
+    let matchingReceipt = null;
+    if (review.bucket === 'missing') {
+      const { reportedAt, reportedActionId, type } = review.evidence;
+      const request = db.from('queued_clock_actions').select('action_id,tapped_at,received_at').eq('user_id', review.user_id);
+      if (reportedActionId) matchingReceipt = await query(request.eq('action_id', reportedActionId).maybeSingle());
+      else {
+        const reported = Date.parse(reportedAt);
+        matchingReceipt = await query(request.eq('payload->>type', type)
+          .gte('tapped_at', new Date(reported - 900000).toISOString()).lte('tapped_at', new Date(reported + 900000).toISOString())
+          .order('received_at').limit(1).maybeSingle());
+      }
+    }
+    res.json({ review, receipt, shift, matchingReceipt });
+  } catch (error) { next(error); }
+});
+
+app.post('/v1/queued-clock-reviews/missing', queuedClockEnabled, authenticate, adminOnly, async (req, res, next) => {
+  try {
+    const { userId, type, reportedAt } = req.body;
+    const actionId = optionalUuid(req.body.actionId);
+    const detail = requireText(req.body.detail, 'Report details', 1000);
+    if (!isUuid(userId) || actionId === undefined || !['clock_in', 'clock_out'].includes(type) ||
+        !isTimestamp(reportedAt) || !/(Z|[+-]\d\d:\d\d)$/.test(reportedAt)) return fail(res, 400, 'Supply an employee, action and report time');
+    const result = await query(db.rpc('open_missing_clock_review', {
+      p_actor: req.profile.id, p_user: userId, p_type: type, p_reported_at: reportedAt,
+      p_detail: detail, p_action_id: actionId, p_request_id: req.requestId
+    }));
+    if (result.error) return fail(res, result.status, result.error);
+    res.status(result.status).json(result.review);
+  } catch (error) { next(error); }
+});
+
+app.post('/v1/queued-clock-reviews/:id/decision', queuedClockEnabled, authenticate, adminOnly, async (req, res, next) => {
+  try {
+    const { decision } = req.body;
+    const reason = requireText(req.body.reason, 'Decision reason', 1000);
+    if (!['accepted', 'rejected'].includes(decision)) return fail(res, 400, 'Choose Accept or Reject');
+    const result = await query(db.rpc('resolve_queued_clock_review', {
+      p_actor: req.profile.id, p_id: req.params.id, p_decision: decision, p_reason: reason, p_request_id: req.requestId
+    }));
+    if (result.error) return fail(res, result.status, result.error);
+    res.status(result.status).json(result.review);
   } catch (error) { next(error); }
 });
 
