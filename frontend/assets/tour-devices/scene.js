@@ -6,6 +6,13 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const loader = new THREE.ImageLoader();
 
 const modelLoader = new GLTFLoader();
+modelLoader.register(parser => {
+    // Embedded GLB textures use blob URLs. Decode them through img-src,
+    // since ImageBitmapLoader fetches them under connect-src.
+    parser.textureLoader = new THREE.TextureLoader(parser.options.manager)
+        .setCrossOrigin(parser.options.crossOrigin);
+    return { name: 'ACE_embedded_texture_loader' };
+});
 const models = new Map();
 
 // Imported GLB material names identify the rear camera parts.
