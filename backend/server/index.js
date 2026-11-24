@@ -1441,11 +1441,12 @@ app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try
   const allowedReportTypes = ['DAILY', 'WEEKLY', 'MONTHLY', 'CUSTOM', 'TEAM_PERFORMANCE'];
   if (!allowedReportTypes.includes(reportType) || !isDate(dateFrom) || !isDate(dateTo) || dateFrom > dateTo) return fail(res, 400, 'A valid report type and date range are required');
   if (!filters || typeof filters !== 'object' || Array.isArray(filters)) return fail(res, 400, 'Report filters must be an object');
+  if (filters.exportMode !== undefined && !['ACTIVITY', 'DEFAULT'].includes(filters.exportMode)) return fail(res, 400, 'Invalid export content option');
   const projectId = optionalUuid(filters.projectId);
   const userId = optionalUuid(filters.userId);
   const departmentId = optionalUuid(filters.departmentId);
   if ([projectId, userId, departmentId].includes(undefined)) return fail(res, 400, 'Invalid report filter ID');
-  const safeFilters = { ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(departmentId ? { departmentId } : {}) };
+  const safeFilters = { ...(filters.exportMode ? { exportMode: filters.exportMode } : {}), ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(departmentId ? { departmentId } : {}) };
   let entries = db.from('time_entries').select(
     departmentId ? 'id, profiles!time_entries_user_id_fkey!inner(department_id)' : 'id',
     { count: 'exact', head: true }
@@ -1466,6 +1467,7 @@ app.post('/v1/time-entry-exports', authenticate, adminOnly, async (req, res, nex
   const format = ['PDF', 'XLSX', 'CSV'].includes(req.body.format) ? req.body.format : null;
   const { dateFrom, dateTo, filters = {} } = req.body;
   if (!format || !isDate(dateFrom) || !isDate(dateTo) || dateFrom > dateTo || !filters || typeof filters !== 'object' || Array.isArray(filters)) return fail(res, 400, 'Provide valid export details');
+  if (filters.exportMode !== undefined && !['ACTIVITY', 'DEFAULT'].includes(filters.exportMode)) return fail(res, 400, 'Invalid export content option');
   const projectId = optionalUuid(filters.projectId); const userId = optionalUuid(filters.userId);
   const status = filters.status || null;
   if ([projectId, userId].includes(undefined) || ![null, 'ACTIVE', 'COMPLETED'].includes(status)) return fail(res, 400, 'Invalid export filters');
@@ -1478,7 +1480,7 @@ app.post('/v1/time-entry-exports', authenticate, adminOnly, async (req, res, nex
   if (status === 'COMPLETED') entries = entries.not('clock_out_at', 'is', null);
   const { count, error } = await entries;
   if (error) throw error;
-  const safeFilters = { ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(status ? { status } : {}) };
+  const safeFilters = { ...(filters.exportMode ? { exportMode: filters.exportMode } : {}), ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(status ? { status } : {}) };
   const report = await query(db.from('reports').insert({ created_by_user_id: req.profile.id, report_type: 'CUSTOM', date_from: dateFrom, date_to: dateTo, filters: safeFilters, total_records: count || 0 }).select().single());
   await query(db.from('report_exports').insert({ report_id: report.id, exported_by_user_id: req.profile.id, file_name: `time-entries-${dateFrom}-to-${dateTo}.${format.toLowerCase()}`, file_type: format, file_url: null }));
   await query(db.from('audit_logs').insert({ user_id: req.profile.id, action: 'EXPORT_TIME_ENTRIES', entity_type: 'REPORT', entity_id: report.id, description: `Exported ${count || 0} time entries as ${format} for ${dateFrom} to ${dateTo}`, ip_address: req.ip, user_agent: req.get('user-agent'), request_id: req.requestId }));

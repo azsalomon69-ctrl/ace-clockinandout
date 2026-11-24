@@ -80,3 +80,32 @@ test('export rows use the accepted shift timestamps and show late sync separatel
   assert.equal(row[4], 36000);
   assert.match(row[7], /Confirmed · Synced late/);
 });
+
+test('saved reports retain the chosen export mode',async()=>{
+  for(const exportMode of ['ACTIVITY','DEFAULT']){
+    let handler,saved;
+    const builder={
+      select(){return this;},single(){return this;},is(){return this;},gte(){return this;},lt(){return this;},
+      insert(value){saved=value;return this;},
+      then(resolve){resolve({count:1,error:null});}
+    };
+    vm.runInNewContext(route,{
+      app:{post(_path,...handlers){handler=handlers.at(-1);}},authenticate(){},adminOnly(){},
+      isDate:()=>true,optionalUuid:()=>null,db:{from:()=>builder},
+      query:async()=>({id:'report',...saved}),audit:async()=>{},fail(){assert.fail('Valid mode rejected');}
+    });
+    const response={status(){return this;},json(value){this.body=value;}};
+    await handler({body:{dateFrom:'2026-11-01',dateTo:'2026-11-25',filters:{exportMode}},profile:{id:'admin'}},response,error=>{throw error;});
+    assert.equal(response.body.filters.exportMode,exportMode);
+  }
+});
+test('invalid saved-report export modes are rejected before accessing data',async()=>{
+  let handler,status;
+  vm.runInNewContext(route,{
+    app:{post(_path,...handlers){handler=handlers.at(-1);}},authenticate(){},adminOnly(){},
+    isDate:()=>true,optionalUuid:()=>null,db:{from(){assert.fail('Invalid mode accessed database');}},
+    fail(_response,code){status=code;}
+  });
+  await handler({body:{dateFrom:'2026-11-01',dateTo:'2026-11-25',filters:{exportMode:'INVALID'}},profile:{id:'admin'}},{},error=>{throw error;});
+  assert.equal(status,400);
+});

@@ -111,3 +111,30 @@ test('active shift export includes its elapsed total and the current activity',(
     assert.equal(rows[2][4],32400);
     assert.match(rows[1][8],/Draft report.*Review section two.*10800/);
 });
+
+test('default workbook excludes activity content and keeps the same shift totals',()=>{
+    const sandbox=context();
+    const activity=sandbox.reportWorkbookData({Filters:{exportMode:'ACTIVITY'}});
+    const normal=sandbox.reportWorkbookData({Filters:{exportMode:'DEFAULT'}});
+    assert.equal(activity[0].length,9);
+    assert.equal(normal[0].length,8);
+    assert.ok(normal.every(row=>row.length===8));
+    assert.equal(normal[1][4],activity[1][4]);
+    assert.equal(normal[2][4],activity[2][4]);
+    assert.ok(!JSON.stringify(normal).includes('Follow-ups'));
+    assert.ok(!JSON.stringify(normal).includes('Records'));
+});
+test('default PDF excludes activity rows while activity-based PDF includes them',()=>{
+    const sandbox=context();
+    const report={innerHTML:''};
+    sandbox.ensureGeneratedReportModal=()=>({dataset:{},querySelector:()=>report});
+    sandbox.openModal=()=>{};
+    const start=source.indexOf('function renderGeneratedReport(');
+    vm.runInContext(source.slice(start,source.indexOf('// Settings Handlers',start)),sandbox);
+    sandbox.renderGeneratedReport({Filters:{exportMode:'DEFAULT'}},{printOnly:true});
+    assert.ok(!report.innerHTML.includes('print-activity-row'));
+    assert.ok(!report.innerHTML.includes('Follow-ups'));
+    sandbox.renderGeneratedReport({Filters:{exportMode:'ACTIVITY'}},{printOnly:true});
+    assert.ok(report.innerHTML.includes('print-activity-row'));
+    assert.ok(report.innerHTML.includes('Follow-ups'));
+});

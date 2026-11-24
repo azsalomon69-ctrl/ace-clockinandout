@@ -3819,7 +3819,14 @@ function initializeForms() {
     // Generate report form
     const generateReportForm = document.getElementById('generateReportForm');
     if (generateReportForm) {
-        generateReportForm.addEventListener('submit', handleGenerateReport);
+        const generateButton = generateReportForm.querySelector('button[type="submit"]');
+        bindExportModeChoice(generateButton, mode => {
+            if (generateReportForm.reportValidity()) return handleGenerateReport({ preventDefault() {} }, mode);
+        });
+        generateReportForm.addEventListener('submit', event => {
+            event.preventDefault();
+            generateButton?.click();
+        });
     }
 
     // Profile form
@@ -3891,7 +3898,7 @@ function initializeSecondaryActions() {
         exportPdfBtn: 'PDF'
     };
     Object.entries(exportButtons).forEach(([id, type]) => {
-        document.getElementById(id)?.addEventListener('click', () => exportReport(null, type));
+        bindExportModeChoice(document.getElementById(id), mode => exportReport(null, type, mode));
     });
 }
 
@@ -4133,7 +4140,7 @@ function initializeActivityPopovers() {
     };
     document.addEventListener('pointerover', event => {
         if (event.pointerType !== 'mouse' || event.buttons) return;
-        const trigger = event.target.closest?.('.entry-activity-trigger');
+        const trigger = event.target.closest?.('.entry-activity-trigger,.export-mode-trigger');
         const popover = event.target.closest?.('.entry-activity-popover');
         if (popover) {
             window.clearTimeout(closingTimer);
@@ -4489,7 +4496,7 @@ async function handleInviteUser(e) {
     }
 }
 
-async function handleGenerateReport(e) {
+async function handleGenerateReport(e, exportMode = 'ACTIVITY') {
     e.preventDefault();
     
     const reportType = document.getElementById('reportType').value;
@@ -4510,6 +4517,7 @@ async function handleGenerateReport(e) {
     const exportFormat = document.getElementById('reportExportFormat')?.value === 'XLSX' ? 'XLSX' : 'PDF';
     
     const previewFilters = {
+        exportMode,
         departmentId: departmentId || null,
         projectId: projectId || null,
         userId: userId || null
@@ -4558,8 +4566,11 @@ function ensureGeneratedReportModal() {
     document.body.appendChild(modal);
     modal.querySelectorAll('.modal-close, .report-preview-close').forEach(button => button.addEventListener('click', () => closeModal('generatedReportModal')));
     modal.addEventListener('click', event => { if (event.target === modal) closeModal('generatedReportModal'); });
-    modal.querySelector('#printGeneratedReportBtn').addEventListener('click', printGeneratedReport);
-    modal.querySelector('#exportGeneratedReportExcelBtn').addEventListener('click', () => exportExcelReport(modal._report || modal.dataset.reportId || null));
+    bindExportModeChoice(modal.querySelector('#printGeneratedReportBtn'), mode => {
+        renderGeneratedReport({ ...modal._report, Filters: { ...modal._report?.Filters, exportMode: mode } }, { printOnly: true });
+        printGeneratedReport();
+    });
+    bindExportModeChoice(modal.querySelector('#exportGeneratedReportExcelBtn'), mode => exportExcelReport(modal._report || modal.dataset.reportId || null, mode));
     return modal;
 }
 
@@ -4588,7 +4599,7 @@ function renderGeneratedReport(report, options = {}) {
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
     const totalSeconds = entries.reduce((sum, entry) => sum + entryWorkedSeconds(entry), 0);
-    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.ClockOutAt ? formatDuration(entryWorkedSeconds(entry)) : formatClockDuration(entryWorkedSeconds(entry)) + ' · Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}${entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''}</td></tr>${entry.Activities?.length ? '<tr class="print-activity-row"><td colspan="7">' + (entry.Activities || []).map(activity => '<div class="print-activity-line"><span>' + escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') + '</span><span>' + escapeHtml([activity.description, activity.note, activity.completion_note].filter(Boolean).join(' · ')) + '</span><span>' + formatClockDuration(activityDurationSeconds(activity)) + (activity.ended_at ? '' : ' · Active') + '</span></div>').join('') + '</td></tr>' : ''}`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
+    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.ClockOutAt ? formatDuration(entryWorkedSeconds(entry)) : formatClockDuration(entryWorkedSeconds(entry)) + ' · Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}${entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''}</td></tr>${report.Filters?.exportMode !== 'DEFAULT' && entry.Activities?.length ? '<tr class="print-activity-row"><td colspan="7">' + (entry.Activities || []).map(activity => '<div class="print-activity-line"><span>' + escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') + '</span><span>' + escapeHtml([activity.description, activity.note, activity.completion_note].filter(Boolean).join(' · ')) + '</span><span>' + formatClockDuration(activityDurationSeconds(activity)) + (activity.ended_at ? '' : ' · Active') + '</span></div>').join('') + '</td></tr>' : ''}`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 
@@ -5233,16 +5244,16 @@ function ensureAnalyticsExportModal() {
     document.body.appendChild(modal);
     modal.querySelector('.modal-close').addEventListener('click', () => closeModal('analyticsExportModal'));
     modal.addEventListener('click', event => { if (event.target === modal) closeModal('analyticsExportModal'); });
-    modal.querySelectorAll('.analytics-export-choice').forEach(button => button.addEventListener('click', () => {
+    modal.querySelectorAll('.analytics-export-choice').forEach(button => bindExportModeChoice(button, mode => {
         closeModal('analyticsExportModal');
-        generateAdminAnalyticsReport(button.dataset.format);
+        generateAdminAnalyticsReport(button.dataset.format, mode);
     }));
     return modal;
 }
 function openAnalyticsExportModal() {
     openModal(ensureAnalyticsExportModal().id);
 }
-async function generateAdminAnalyticsReport(exportFormat = 'PDF') {
+async function generateAdminAnalyticsReport(exportFormat = 'PDF', exportMode = 'ACTIVITY') {
     const range = document.getElementById('dashboardRange');
     const from = document.getElementById('analyticsDateFrom')?.value;
     const to = document.getElementById('analyticsDateTo')?.value;
@@ -5252,7 +5263,7 @@ async function generateAdminAnalyticsReport(exportFormat = 'PDF') {
     }
     const filters = getAdminAnalyticsFilters();
     try {
-        const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType: 'TEAM_PERFORMANCE', dateFrom: toAnalyticsDateValue(filters.periodStart), dateTo: toAnalyticsDateValue(filters.periodEnd), filters: { departmentId: getAnalyticsDepartmentId() || null, projectId: getAnalyticsProjectId() || null, userId: getAnalyticsEmployeeId() || null } }) });
+        const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType: 'TEAM_PERFORMANCE', dateFrom: toAnalyticsDateValue(filters.periodStart), dateTo: toAnalyticsDateValue(filters.periodEnd), filters: { exportMode, departmentId: getAnalyticsDepartmentId() || null, projectId: getAnalyticsProjectId() || null, userId: getAnalyticsEmployeeId() || null } }) });
         const report = reportRecord(saved);
         AppState.reports.unshift(report);
         if (exportFormat === 'XLSX') {
@@ -5764,11 +5775,11 @@ async function loadReportsList() {
                 </tr>
             `;
         }).join('') : `<tr class="table-empty-row"><td colspan="6">${emptyState('No reports yet', 'Export filtered company time from Work → Time entries. Each export is saved here automatically.', 'Open time entries', 'admin-time-entries.html')}</td></tr>`;
-        reportsList.querySelectorAll('[data-report-action]').forEach(button => button.addEventListener('click', () => {
+        reportsList.querySelectorAll('[data-report-action]').forEach(button => {
             const reportId = button.dataset.reportId;
-            if (button.dataset.reportAction === 'export') exportReport(reportId, button.dataset.reportFormat);
-            else deleteReport(reportId);
-        }));
+            if (button.dataset.reportAction === 'export') bindExportModeChoice(button, mode => exportReport(reportId, button.dataset.reportFormat, mode));
+            else button.addEventListener('click', () => deleteReport(reportId));
+        });
         const pager = document.getElementById('reportsPagination'); const pages = Math.max(1, Math.ceil(reportsTotal / reportsPageSize)); if (pager) { pager.innerHTML = reportsTotal > reportsPageSize ? `<span>Showing ${(reportsPage - 1) * reportsPageSize + 1}–${Math.min(reportsPage * reportsPageSize, reportsTotal)} of ${reportsTotal}</span><button type="button" data-report-page="${reportsPage - 1}" ${reportsPage === 1 ? 'disabled' : ''}>Previous</button><button type="button" data-report-page="${reportsPage + 1}" ${reportsPage === pages ? 'disabled' : ''}>Next</button>` : ''; pager.querySelectorAll('[data-report-page]').forEach(button => button.addEventListener('click', () => { reportsPage = Number(button.dataset.reportPage); loadReportsList(); })); }
         const requestedReportId = new URLSearchParams(location.search).get('report');
         if (requestedReportId && !reportsList.dataset.searchTargetHandled) {
@@ -5969,22 +5980,56 @@ function loadExcelLibrary() {
 }
 function reportWorkbookData(report) {
     const entries = filterEntriesForReport(report);
-    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Clock-out note', 'Status', 'Project activity breakdown']];
+    const includeActivities = report.Filters?.exportMode !== 'DEFAULT';
+    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Clock-out note', 'Status']];
+    if (includeActivities) timeEntries[0].push('Project activity breakdown');
     entries.forEach(entry => {
         const user = AppState.users.find(item => item.UserId === entry.UserId);
         const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned';
         const workedSeconds = entryWorkedSeconds(entry);
-        timeEntries.push([
+        const row = [
             user?.FullName || 'Unknown', project, reportDateTime(entry.ClockInAt),
             entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active',
             workedSeconds, formatDuration(workedSeconds),
-            entry.FinalNote || '', (entry.ClockOutAt ? 'Completed' : 'Active') + (entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''), projectActivityText(entry)
-        ]);
+            entry.FinalNote || '', (entry.ClockOutAt ? 'Completed' : 'Active') + (entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : '')
+        ];
+        if (includeActivities) row.push(projectActivityText(entry));
+        timeEntries.push(row);
     });
     const totalSeconds = entries.reduce((sum, entry) => sum + entryWorkedSeconds(entry), 0);
-    timeEntries.push(['Total worked', '', '', '', totalSeconds, formatDuration(totalSeconds), '', '', '']);
+    const total = ['Total worked', '', '', '', totalSeconds, formatDuration(totalSeconds), '', ''];
+    if (includeActivities) total.push('');
+    timeEntries.push(total);
     return timeEntries;
 }
+function bindExportModeChoice(button, run) {
+    if (!button) return;
+    button._exportModeRun = run;
+    if (button.dataset.exportModesBound) return;
+    button.dataset.exportModesBound = 'true';
+    const id = 'export-mode-' + (++activityPopoverSequence);
+    button.classList.add('export-mode-trigger');
+    button.type = 'button';
+    button.setAttribute('popovertarget', id);
+    button.setAttribute('aria-haspopup', 'dialog');
+    const menu = document.createElement('div');
+    menu.id = id;
+    menu.className = 'entry-activity-popover export-mode-popover';
+    menu.setAttribute('popover', 'auto');
+    menu.setAttribute('role', 'dialog');
+    menu.setAttribute('aria-label', 'Export content');
+    menu.innerHTML = '<header><strong>Export content</strong></header><div class="export-mode-options"><button type="button" data-export-mode="ACTIVITY"><strong>Activity Based</strong><span>Activities, notes and time per activity</span></button><button type="button" data-export-mode="DEFAULT"><strong>Default Export</strong><span>Clock-in, clock-out and shift totals</span></button></div>';
+    button.after(menu);
+    menu.querySelectorAll('[data-export-mode]').forEach(option => option.addEventListener('click', async () => {
+        menu.hidePopover();
+        button.focus();
+        try { await button._exportModeRun(option.dataset.exportMode); }
+        catch (error) { showToast(error.message || 'Could not export this report.', 'error'); }
+    }));
+    initializeActivityPopovers();
+}
+if (typeof window !== 'undefined') window.ACEBindExportModes = bindExportModeChoice;
+
 function downloadTimeEntryCsv(report) {
     const escape = value => {
         const text = String(value ?? '');
@@ -5994,19 +6039,20 @@ function downloadTimeEntryCsv(report) {
     const blob = new Blob([reportWorkbookData(report).map(row => row.map(escape).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'ace-time-entries.csv';
+    link.download = 'ace-time-entries-' + (report.Filters?.exportMode === 'DEFAULT' ? 'default' : 'activity') + '.csv';
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(link.href);
 }
 
-async function exportExcelReport(reportId) {
+async function exportExcelReport(reportId, exportMode) {
     const selected = reportId && typeof reportId === 'object' ? reportId : reportId ? AppState.reports.find(report => String(report.ReportId) === String(reportId)) : null;
-    const report = selected || {
+    let report = selected || {
         ReportId: 'PREVIEW', CreatedByUserId: AppState.currentUser?.UserId || '', ReportType: 'CUSTOM',
         DateFrom: '', DateTo: '', Filters: {}, GeneratedAt: new Date().toISOString(), TotalRecords: AppState.timeEntries.length
     };
+    if (exportMode) report = { ...report, Filters: { ...report.Filters, exportMode } };
     try {
         const XLSX = await loadExcelLibrary();
         const timeEntries = reportWorkbookData(report);
@@ -6018,8 +6064,9 @@ async function exportExcelReport(reportId) {
         showToast('Excel report downloaded.', 'success');
     } catch (error) { showToast(error.message || 'Could not create the Excel report.', 'error'); }
 }
-function exportReport(reportId, fileType) {
-    const selected = reportId ? AppState.reports.find(report => report.ReportId === reportId) : null;
+function exportReport(reportId, fileType, exportMode = 'ACTIVITY') {
+    const original = reportId ? AppState.reports.find(report => report.ReportId === reportId) : null;
+    const selected = original ? { ...original, Filters: { ...original.Filters, exportMode } } : null;
     const reports = selected ? [selected] : AppState.reports;
     if (fileType === 'PDF') {
         const entries = AppState.timeEntries.filter(entry => entry.ClockInAt);
@@ -6030,7 +6077,7 @@ function exportReport(reportId, fileType) {
             ReportType: 'CUSTOM',
             DateFrom: timestamps.length ? new Date(Math.min(...timestamps)).toISOString().slice(0, 10) : '',
             DateTo: timestamps.length ? new Date(Math.max(...timestamps)).toISOString().slice(0, 10) : '',
-            Filters: {},
+            Filters: { exportMode },
             GeneratedAt: new Date().toISOString(),
             TotalRecords: entries.length
         };
@@ -6038,38 +6085,21 @@ function exportReport(reportId, fileType) {
         window.setTimeout(printGeneratedReport, 100);
         return;
     }
-    if (fileType === 'CSV') {
-        if (reportId) {
-            const selected = AppState.reports.find(report => String(report.ReportId) === String(reportId));
-            if (selected) return downloadTimeEntryCsv(selected);
-        }
-        const escape = value => `"${String(value ?? '').replaceAll('"', '""')}"`;
-        const rows = [['Report ID', 'Type', 'Date From', 'Date To', 'Generated At', 'Total Records'], ...reports.map(report => [report.ReportId, report.ReportType, report.DateFrom, report.DateTo, report.GeneratedAt, report.TotalRecords])];
-        const blob = new Blob([rows.map(row => row.map(escape).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `ace-report${reportId ? `-${reportId}` : 's'}-${new Date().toISOString().slice(0, 10)}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(link.href);
-        showToast('CSV export downloaded.', 'success');
-        return;
-    }
-    if (fileType === 'XLSX') { exportExcelReport(reportId); return; }
+    if (fileType === 'CSV') return downloadTimeEntryCsv(selected || { Filters: { exportMode } });
+    if (fileType === 'XLSX') { exportExcelReport(reportId, exportMode); return; }
     showToast(`${fileType} export is unavailable.`, 'warning');
 }
 window.ACEReportActions = {
-    preview({ dateFrom, dateTo, filters = {}, format = 'VIEW' }) {
-        const report = { ReportId: '', CreatedByUserId: AppState.currentUser?.UserId || '', ReportType: 'INDIVIDUAL', DateFrom: dateFrom, DateTo: dateTo, Filters: filters, GeneratedAt: new Date().toISOString(), TotalRecords: 0 };
+    preview({ dateFrom, dateTo, filters = {}, format = 'VIEW', exportMode }) {
+        const report = { ReportId: '', CreatedByUserId: AppState.currentUser?.UserId || '', ReportType: 'INDIVIDUAL', DateFrom: dateFrom, DateTo: dateTo, Filters: { ...filters, ...(exportMode ? { exportMode } : {}) }, GeneratedAt: new Date().toISOString(), TotalRecords: 0 };
         if (format === 'CSV') return downloadTimeEntryCsv(report);
         if (format === 'XLSX') return exportExcelReport(report);
         renderGeneratedReport(report);
         if (format === 'PDF') window.setTimeout(printGeneratedReport, 80);
         return report;
     },
-    async generate({ reportType = 'CUSTOM', dateFrom, dateTo, filters = {}, format = 'PDF' }) {
-        const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType, dateFrom, dateTo, filters }) });
+    async generate({ reportType = 'CUSTOM', dateFrom, dateTo, filters = {}, format = 'PDF', exportMode = 'ACTIVITY' }) {
+        const saved = await window.ACEAuth.request('/v1/reports', { method: 'POST', body: JSON.stringify({ reportType, dateFrom, dateTo, filters: { ...filters, exportMode } }) });
         const report = reportRecord(saved);
         AppState.reports.unshift(report);
         if (format === 'XLSX') {

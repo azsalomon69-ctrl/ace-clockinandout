@@ -17,7 +17,7 @@
       modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal.id));
       modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
     }
-    modal.querySelectorAll('.employee-report-format').forEach(button => { button.onclick = () => { closeModal(modal.id); onSelect(button.dataset.format); }; });
+    modal.querySelectorAll('.employee-report-format').forEach(button => window.ACEBindExportModes(button, mode => { closeModal(modal.id); onSelect(button.dataset.format, mode); }));
     openModal(modal.id);
   };
   const render = async () => {
@@ -135,9 +135,9 @@
           if (!historyFrom.value || !historyTo.value || historyFrom.value > historyTo.value) { showToast('Choose a valid custom start and end date first.', 'warning'); return; }
           start = new Date(`${historyFrom.value}T00:00:00`); end = new Date(`${historyTo.value}T00:00:00`); reportType = 'CUSTOM';
         }
-        openExportModal(async format => {
+        openExportModal(async (format, exportMode) => {
           try {
-            await window.ACEReportActions.generate({ userId: id, dateFrom: dateValue(start), dateTo: dateValue(end), reportType, filters: { userId: id }, format });
+            await window.ACEReportActions.generate({ userId: id, dateFrom: dateValue(start), dateTo: dateValue(end), reportType, filters: { userId: id }, format, exportMode });
           } catch (error) { showToast(error.message || 'Could not generate this employee report.', 'error'); }
         });
       });

@@ -52,10 +52,10 @@ const mountIndividualReports = async () => {
     DateTo: dates.to,
     Filters: { userId: employee.id }
   });
-  const run = (employee, format) => {
+  const run = (employee, format, exportMode) => {
     const dates = reportDates();
     if (!reportEntries(employee, dates).length) return showToast('There are no time entries for this employee in the selected date range.', 'warning');
-    window.ACEReportActions.preview({ dateFrom: dates.from, dateTo: dates.to, filters: { userId: employee.id }, format });
+    window.ACEReportActions.preview({ dateFrom: dates.from, dateTo: dates.to, filters: { userId: employee.id }, format, exportMode });
   };
   document.getElementById('individualReportForm').addEventListener('submit', event => {
     event.preventDefault(); const selected = input.value ? users.filter(user => employeeName(user) === input.value) : users;
@@ -67,7 +67,10 @@ const mountIndividualReports = async () => {
     const matchingEntries = prepared.reduce((total, item) => total + item.entries.length, 0);
     document.getElementById('individualReportCount').textContent = `${prepared.length} employee${prepared.length === 1 ? '' : 's'} · ${matchingEntries} matching time entr${matchingEntries === 1 ? 'y' : 'ies'}`;
     rows.innerHTML = prepared.map(({ employee, entries }, index) => `<tr><td><a class="admin-employee-profile-link" href="employee-profile.html?user=${encodeURIComponent(employee.id)}">${escapeHtml(employeeName(employee))}</a></td><td>${label}<small class="individual-report-entry-count">${entries.length} matching entr${entries.length === 1 ? 'y' : 'ies'}</small></td><td>${entries.length ? `<button class="btn btn-sm btn-outline" data-format="VIEW" data-row="${index}">Preview</button><button class="btn btn-sm btn-primary" data-format="PDF" data-row="${index}">Save as PDF</button><button class="btn btn-sm btn-outline" data-format="XLSX" data-row="${index}">Save Excel</button>` : '<span class="individual-report-empty">No entries in this range</span>'}</td></tr>`).join('');
-    rows.querySelectorAll('[data-format]').forEach(button => button.addEventListener('click', () => run(selected[Number(button.dataset.row)], button.dataset.format)));
+    rows.querySelectorAll('[data-format]').forEach(button => {
+      if (button.dataset.format === 'VIEW') button.addEventListener('click', () => run(selected[Number(button.dataset.row)], 'VIEW'));
+      else window.ACEBindExportModes(button, mode => run(selected[Number(button.dataset.row)], button.dataset.format, mode));
+    });
     showToast(`${selected.length} individual report${selected.length === 1 ? '' : 's'} ready.`, 'success');
   });
 };

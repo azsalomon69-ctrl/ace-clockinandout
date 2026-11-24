@@ -18739,3 +18739,11 @@ html[data-theme="dark"] .entry-activity-close { color: #b7d9fb; border-color: #3
 .current-activity-summary > span { font-size: .72rem; opacity: .8; }
 .current-activity-summary > strong { flex: 1; font-size: .85rem; overflow-wrap: anywhere; }
 .current-activity-summary > time { font-variant-numeric: tabular-nums; font-size: .85rem; }
+
+.export-mode-trigger { cursor: pointer; }
+.export-mode-popover { max-width: 310px; }
+.export-mode-options { display: grid; gap: 5px; padding: 8px; }
+.export-mode-options > button { display: grid; gap: 4px; width: 100%; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.export-mode-options > button:hover, .export-mode-options > button:focus-visible { background: color-mix(in srgb, #3c86c8 12%, transparent); border-color: #a9c9e8; outline: none; }
+.export-mode-options strong { font-size: .84rem; }
+.export-mode-options span { font-size: .73rem; opacity: .75; line-height: 1.4; }
