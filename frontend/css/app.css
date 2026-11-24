@@ -18510,3 +18510,17 @@ html[data-theme="dark"] .card-tip-button img { filter: brightness(0) invert(1); 
   flex-direction: column;
   gap: 10px;
 }
+
+.print-activity-row .entry-note-card {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 8px;
+}
+.print-activity-row .entry-note-card h3 { margin-top: 0; }
+.print-activity-row .remark-item { padding: 6px 0; }
+@media print {
+  .print-report-table tr:has(+ .print-activity-row) { break-after: avoid; }
+  .print-activity-row .entry-note-card { background: white; color: #173b46; }
+  .print-activity-row .entry-note-card :is(p, small, h3) { font-size: 7pt; color: #173b46; }
+}

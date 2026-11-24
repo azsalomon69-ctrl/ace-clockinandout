@@ -47,3 +47,18 @@ test('shift listing selects the original project relationship after final activi
     assert.match(server,/projects!time_entries_project_id_fkey\(name\)/);
     assert.doesNotMatch(server,/\*, projects\(name\), profiles!time_entries_user_id_fkey/);
 });
+
+test('PDF places every recorded activity directly under its parent shift',()=>{
+    const sandbox=context();
+    const report={innerHTML:''};
+    sandbox.ensureGeneratedReportModal=()=>({dataset:{},querySelector:()=>report});
+    sandbox.openModal=()=>{};
+    const begin=source.indexOf('function renderGeneratedReport(');
+    vm.runInContext(source.slice(begin,source.indexOf('// Settings Handlers',begin)),sandbox);
+    sandbox.renderGeneratedReport({}, {printOnly:true});
+    assert.match(report.innerHTML,/class="print-activity-row"/);
+    assert.match(report.innerHTML,/Follow-ups/);
+    assert.match(report.innerHTML,/Records/);
+    assert.ok(report.innerHTML.indexOf('Follow-ups')<report.innerHTML.indexOf('</tbody>'));
+    assert.ok(!report.innerHTML.includes('<img'));
+});
