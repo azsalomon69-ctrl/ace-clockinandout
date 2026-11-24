@@ -2031,7 +2031,7 @@ function initializeAppShell() {
         const person = AppState.users.find(userItem => String(userItem.UserId) === String(entry.UserId)) || AppState.currentUser;
         const project = AppState.projects.find(projectItem => String(projectItem.ProjectId) === String(entry.ProjectId));
         const personName = person?.FullName || 'Employee';
-        const projectName = project?.ProjectName || entry.ProjectName || 'No project';
+        const projectName = project?.ProjectName || project?.name || entry.ProjectName || 'No project';
         const status = entry.ClockOutAt ? 'Completed' : 'Active';
         const clockIn = new Date(entry.ClockInAt);
         const dateTerms = Number.isNaN(clockIn.getTime()) ? '' : [
@@ -4003,14 +4003,46 @@ function projectActivityText(entry) {
 }
 
 function projectActivityMarkup(entry) {
-    const activities = entry.Activities || [];
+    const activities = entry.Activities || entry.activities || [];
     if (!activities.length) return '';
-    return '<section class="entry-note-card"><h3>Project activities</h3><p>Included within this shift’s total time.</p>' +
-        activities.map(activity => '<article class="remark-item"><strong>' +
-            escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') + ' · ' + formatClockDuration(activity.duration_seconds) +
-            '</strong><p>' + escapeHtml(activity.description || '') + '</p><small>' +
-            escapeHtml(reportDateTime(activity.started_at) + ' – ' + reportDateTime(activity.ended_at)) +
-            '</small></article>').join('') + '</section>';
+    return '<section class="entry-activities"><h3>Activities</h3>' +
+        activities.map(activity => '<div class="entry-activity-line"><span>' +
+            escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') +
+            '</span><span>' + escapeHtml(activity.description || '') + '</span><time>' +
+            formatClockDuration(activity.duration_seconds) + '</time></div>').join('') + '</section>';
+}
+
+function activitySummaryMarkup(activities) {
+    if (!activities?.length) return '';
+    return '<details class="entry-activity-summary"><summary>' + activities.length +
+        ' activit' + (activities.length === 1 ? 'y' : 'ies') + '</summary>' +
+        projectActivityMarkup({ Activities: activities }) + '</details>';
+}
+
+function projectActivityTotals(entries, projects = AppState.projects) {
+    const totals = new Map();
+    for (const entry of entries) {
+        let remaining = Math.max(0, Number(entry.DurationSeconds ?? entry.duration_seconds) || 0);
+        for (const activity of entry.Activities || entry.activities || []) {
+            const seconds = Math.min(remaining, Math.max(0, Number(activity.duration_seconds) || 0));
+            const project = projects.find(item => (item.ProjectId || item.id) === activity.project_id);
+            const name = activity.project_id ? project?.ProjectName || project?.name || activity.project_name || 'No project' : 'No project';
+            totals.set(name, (totals.get(name) || 0) + seconds);
+            remaining -= seconds;
+        }
+        if (remaining > 0) {
+            const project = projects.find(item => (item.ProjectId || item.id) === (entry.ProjectId || entry.project_id));
+            const name = (entry.Activities || entry.activities)?.length ? 'No project' : project?.ProjectName || entry.ProjectName || 'No project';
+            totals.set(name, (totals.get(name) || 0) + remaining);
+        }
+    }
+    return totals;
+}
+
+if (typeof window !== 'undefined') {
+    window.ACEActivitySummary = activitySummaryMarkup;
+    window.ACEActivityText = projectActivityText;
+    window.ACEProjectActivityTotals = projectActivityTotals;
 }
 
 function openProjectActivityModal() {
@@ -5161,12 +5193,7 @@ function renderAdminAnalytics() {
         return time >= projectBounds.periodStart.getTime() && time <= projectBounds.periodEnd.getTime() && Number(entry.DurationSeconds) > 0;
     });
     const projectSeconds = projectEntries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    const projectTotals = new Map();
-    projectEntries.forEach(entry => {
-        const project = entry.ProjectId ? AppState.projects.find(item => item.ProjectId === entry.ProjectId) : null;
-        const name = project?.ProjectName || 'Unassigned';
-        projectTotals.set(name, (projectTotals.get(name) || 0) + Number(entry.DurationSeconds || 0));
-    });
+    const projectTotals = projectActivityTotals(projectEntries);
     const projects = [...projectTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
     const largestProject = Math.max(...projects.map(([, seconds]) => seconds), 1);
     const projectDetail = document.getElementById('projectAllocationDetail');
@@ -5303,7 +5330,7 @@ function loadAdminDashboard() {
             return `
                 <tr class="admin-recent-entry-row">
                     <td><span class="admin-entry-user"><span class="admin-entry-avatar">${user?.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml((user?.FullName || 'Unknown').trim().slice(0, 1).toUpperCase())}</span>${userLabel}</span></td>
-                    <td>${escapeHtml(project?.ProjectName || 'None')}</td>
+                    <td>${escapeHtml(project?.ProjectName || 'No project')}${activitySummaryMarkup(entry.Activities)}</td>
                     <td>${renderRecentEntryTime(clockIn, true)}</td>
                     <td>${clockOut ? renderRecentEntryTime(clockOut, clockOut.toDateString() !== clockIn.toDateString()) : '—'}</td>
                     <td class="admin-recent-duration">${duration}</td>

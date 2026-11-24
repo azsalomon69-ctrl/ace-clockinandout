@@ -73,3 +73,16 @@ test('legacy unallocated labels display as No project in exports',()=>{
     assert.doesNotMatch(sandbox.projectActivityText(legacy),/Unallocated/);
     assert.match(sandbox.projectActivityMarkup(legacy),/No project/);
 });
+
+test('admin project analytics split activities without double counting attendance',()=>{
+    const totals=context().projectActivityTotals([entry]);
+    assert.equal(totals.get('Support'),25200);
+    assert.equal(totals.get('Operations'),7200);
+    assert.equal([...totals.values()].reduce((sum,value)=>sum+value,0),32400);
+});
+test('admin summaries stay compact and encode employee activity descriptions',()=>{
+    const markup=context().activitySummaryMarkup(entry.Activities);
+    assert.match(markup,/<summary>3 activities<\/summary>/);
+    assert.match(markup,/Follow-ups/);
+    assert.ok(!markup.includes('<img'));
+});
