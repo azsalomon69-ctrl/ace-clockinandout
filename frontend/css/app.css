@@ -18733,3 +18733,9 @@ html[data-theme="dark"] .entry-activity-popover .entry-activity-line { backgroun
 html[data-theme="dark"] .entry-activity-popover .entry-activity-line > :first-child { color: #9cbddd; }
 html[data-theme="dark"] .entry-activity-popover .entry-activity-line time,
 html[data-theme="dark"] .entry-activity-close { color: #b7d9fb; border-color: #3b5b7e; background: #294360; box-shadow: none; }
+
+.current-activity-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0 0; padding: 10px 12px; border: 1px solid #ffffff35; border-radius: 10px; background: #ffffff12; }
+.current-activity-summary[hidden] { display: none; }
+.current-activity-summary > span { font-size: .72rem; opacity: .8; }
+.current-activity-summary > strong { flex: 1; font-size: .85rem; overflow-wrap: anywhere; }
+.current-activity-summary > time { font-variant-numeric: tabular-nums; font-size: .85rem; }

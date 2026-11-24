@@ -770,7 +770,7 @@ function renderEmployeeClockQueue(state) {
     if (!state && !previous) return;
     const shift = state?.shift;
     AppState.currentSession = shift ? {
-        TimeEntryId: shift.id, ClockInAt: shift.startedAt, ProjectId: shift.projectId
+        TimeEntryId: shift.id, ClockInAt: shift.startedAt, ProjectId: shift.projectId, Activities: shift.activities || []
     } : null;
     AppState.isClockedIn = Boolean(shift);
     AppState.clockInTime = shift ? new Date(shift.startedAt) : null;
@@ -886,7 +886,7 @@ async function readEmployeeClockSnapshot(owner) {
     const ids = new Set(AppState.userProjects.filter(item => item.UserId === owner && item.IsActive).map(item => item.ProjectId));
     const projects = AppState.projects.filter(project => ids.has(project.ProjectId) && project.IsActive !== false)
         .map(({ ProjectId, ProjectName }) => ({ ProjectId, ProjectName }));
-    return { projects, shift: active ? { id: active.id, startedAt: active.clock_in_at, projectId: active.project_id } : null };
+    return { projects, shift: active ? { id: active.id, startedAt: active.clock_in_at, projectId: active.project_id, activities: active.activities || [] } : null };
 }
 
 const employeeBootSnapshotKey = 'ace_employee_boot_shift';
@@ -2279,10 +2279,10 @@ function workspaceHelpEntries(isAdmin) {
     ] : [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. The Work section contains My time entries and Remarks.'],
         ['How do I clock in?', 'Open Dashboard → Clock in. If projects are assigned to you, choose one and confirm. If you have no assigned projects, No project is available. You do not need to enter a note at clock-in. If the button is unavailable, check whether you already have a running session.'],
-        ['How do I record an activity?', 'While clocked in, open Dashboard and choose Record activity above Clock Out. Describe the work you just completed (up to 50 characters) and save. The activity automatically uses the project chosen at clock-in. ACE records the time since clock-in or your last saved activity while your shift keeps running. Repeat whenever you finish another activity. You can record activities without a project assignment. Clock out to record the final block.'],
+        ['How do I record an activity?', 'While clocked in, open Dashboard and choose Record activity above Clock Out. Name the activity you are starting (up to 50 characters), optionally add a note, and save. It automatically uses your clock-in project while your shift keeps running. The button becomes Change activity. Use it to finish and time the current activity and start another. You can record activities without a project assignment. Clock out finishes the final activity. Time before the first activity remains visible as No activity recorded.'],
         ['Where can I see recorded activities?', 'Open a time entry to see its activity descriptions and durations inside the full shift total. Administrators can hover over the activity button or tap it to view the breakdown in time entries, active shifts, recent entries, and employee history. PDF, Excel, and CSV reports include saved activities. Project-hour charts split recorded project time without adding it again to shift totals.'],
-        ['How do I clock out?', 'Open Dashboard and choose Clock out. Describe the final activity and confirm. It automatically uses the project chosen at clock-in. ACE records the final activity block and ends the shift. The full shift duration includes all recorded activities.'],
-        ['What should I write in the clock-out note?', 'Describe the work completed since your last saved activity, or since clock-in if you have not recorded any activities. Keep the description within 50 characters. Clock out saves that final activity block and ends the shift. The activity is visible in entry details and reports.'],
+        ['How do I clock out?', 'Open Dashboard and choose Clock out. Add a final note and confirm. ACE finishes the current activity, keeps its name and note, and ends the shift. It uses your clock-in project. The full shift duration includes all recorded activities.'],
+        ['What should I write in the clock-out note?', 'Add a short completion note for your current activity. Keep it within 50 characters. Clock out closes the current activity without changing its name or starting another one. If no activity was started, the note describes the final shift block. The activity is visible in entry details and reports.'],
         ['Does ACE track breaks?', 'No. ACE records the full elapsed time from clock-in to clock-out. There are no Start Break or End Break controls.'],
         ['Why can I not clock in?', 'Check whether you already have an active work session. If you do, clock out before starting another one. Otherwise, verify that your account is active and you can open the dashboard. You can clock in without a project by selecting No project. If the button remains unavailable, contact an administrator and include any error message.'],
         ['Why can I not clock out?', 'Check that your work session is still active. If Clock out is unavailable or the action fails, avoid submitting it again. Keep the error message and tell an administrator when you actually finished work so they can verify and correct the record if needed.'],
@@ -2488,7 +2488,7 @@ function workspaceHelpEntries(isAdmin) {
     ],
     "How do I record an activity?": [
         "record activity", "save activity", "log activity", "log project hours", "record project work",
-        "record activities", "working on different projects", "split my shift", "track tasks"
+        "record activities", "working on different projects", "split my shift", "track tasks", "change activity", "start activity"
     ],
     "Where can I see recorded activities?": [
         "view activities", "activity breakdown", "activity popup", "activities in reports", "project activity history"
@@ -4024,7 +4024,40 @@ function projectActivityText(entry) {
     return (entry.Activities || []).map(activity =>
         [activity.project_id ? activity.project_name || 'No project' : 'No project', activity.description,
             reportDateTime(activity.started_at) + ' – ' + reportDateTime(activity.ended_at),
-            formatClockDuration(activity.duration_seconds)].join(' · ')).join('\n');
+            activity.note || '', activity.completion_note || '',
+            formatClockDuration(activityDurationSeconds(activity)) + (activity.ended_at ? '' : ' · In progress')].filter(Boolean).join(' · ')).join('\n');
+}
+
+function activityDurationSeconds(activity) {
+    if (activity.ended_at) return Math.max(0, Number(activity.duration_seconds) || 0);
+    const started = Date.parse(activity.started_at);
+    return Number.isFinite(started) ? Math.max(0, Math.floor((Date.now() - started) / 1000)) : 0;
+}
+
+function entryWorkedSeconds(entry) {
+    if (entry.ClockOutAt) return Math.max(0, Number(entry.DurationSeconds) || 0);
+    const start = Date.parse(entry.ClockInAt);
+    return Number.isFinite(start) ? Math.max(0, Math.floor((Date.now() - start) / 1000)) : 0;
+}
+
+function currentShiftActivity() {
+    const id = AppState.currentSession?.TimeEntryId;
+    const entry = AppState.timeEntries.find(item => item.TimeEntryId === id) || AppState.currentSession;
+    const activity = entry?.Activities?.at(-1);
+    return activity && !activity.ended_at ? activity : null;
+}
+
+function updateCurrentActivityDisplay() {
+    const activity = currentShiftActivity();
+    const button = document.getElementById('recordActivityBtn');
+    if (button) button.textContent = activity ? 'Change activity' : 'Record activity';
+    const summary = document.getElementById('currentActivitySummary');
+    if (!summary) return;
+    summary.hidden = !activity || !AppState.isClockedIn;
+    if (activity) {
+        summary.querySelector('strong').textContent = activity.description;
+        summary.querySelector('time').textContent = formatClockDuration(activityDurationSeconds(activity));
+    }
 }
 
 function projectActivityMarkup(entry) {
@@ -4033,8 +4066,8 @@ function projectActivityMarkup(entry) {
     return '<section class="entry-activities"><h3>Activities</h3>' +
         activities.map(activity => '<div class="entry-activity-line"><span>' +
             escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') +
-            '</span><span>' + escapeHtml(activity.description || '') + '</span><time>' +
-            formatClockDuration(activity.duration_seconds) + '</time></div>').join('') + '</section>';
+            '</span><span>' + escapeHtml([activity.description, activity.note, activity.completion_note].filter(Boolean).join(' · ')) + '</span><time' + (activity.ended_at ? '' : ' data-activity-start="' + escapeHtml(activity.started_at) + '"') + '>' +
+            formatClockDuration(activityDurationSeconds(activity)) + (activity.ended_at ? '' : ' · Active') + '</time></div>').join('') + '</section>';
 }
 
 let activityPopoverSequence = 0;
@@ -4073,6 +4106,23 @@ function initializeActivityPopovers() {
     }, true);
     document.addEventListener('toggle', event => {
         if (event.newState === 'open' && event.target.classList.contains('entry-activity-popover')) position(event.target);
+    }, true);
+    document.addEventListener('toggle', event => {
+        const popover = event.target;
+        if (!popover.classList.contains('entry-activity-popover')) return;
+        window.clearInterval(popover._activityTicker);
+        if (event.newState !== 'open') return;
+        const update = () => {
+            if (!popover.isConnected || !popover.matches(':popover-open')) {
+                window.clearInterval(popover._activityTicker);
+                return;
+            }
+            popover.querySelectorAll('time[data-activity-start]').forEach(time => {
+                time.textContent = formatClockDuration(activityDurationSeconds({ started_at: time.dataset.activityStart })) + ' · Active';
+            });
+        };
+        update();
+        if (popover.querySelector('time[data-activity-start]')) popover._activityTicker = window.setInterval(update, 1000);
     }, true);
     let openingTimer;
     let closingTimer;
@@ -4176,7 +4226,7 @@ function openProjectActivityModal() {
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
         modal.setAttribute('aria-labelledby', 'projectActivityTitle');
-        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body" novalidate><div class="form-group"><label class="form-label" for="activityDescription">Activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="Tell us what project work you did…"></textarea></div><p id="projectActivityError" class="form-error" role="alert" hidden></p><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
+        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body" novalidate><div class="form-group"><label class="form-label" for="activityDescription">New activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="What are you starting now?"></textarea></div><div class="form-group"><label class="form-label" for="activityNote">Note (optional)</label><textarea class="form-textarea" id="activityNote" maxlength="1000" rows="2" placeholder="Add details about this activity…"></textarea></div><p id="projectActivityError" class="form-error" role="alert" hidden></p><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
         document.body.appendChild(modal);
         modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal.id));
         modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
@@ -4185,18 +4235,18 @@ function openProjectActivityModal() {
             const button = event.currentTarget.querySelector('button[type="submit"]');
             if (button.disabled) return;
             const description = document.getElementById('activityDescription').value.trim();
-            const projectId = modal._projectId;
+            const note = document.getElementById('activityNote').value.trim();
             const errorMessage = modal.querySelector('#projectActivityError');
             errorMessage.hidden = true;
             if (!description || Array.from(description).length > 50) {
                 errorMessage.textContent = !description
-                    ? 'Describe the work you completed.'
+                    ? 'Enter the activity you are starting.'
                     : 'Keep the activity description within 50 characters.';
                 errorMessage.hidden = false;
                 document.getElementById('activityDescription').focus();
                 return;
             }
-            const payload = { projectId: projectId || null, description };
+            const payload = { description, note, expectedActivityId: modal._expectedActivityId };
             const fingerprint = JSON.stringify(payload);
             if (modal._fingerprint !== fingerprint) {
                 modal._fingerprint = fingerprint;
@@ -4209,10 +4259,17 @@ function openProjectActivityModal() {
                 });
                 const record = timeEntryRecord(saved);
                 AppState.timeEntries = [record, ...AppState.timeEntries.filter(item => item.TimeEntryId !== record.TimeEntryId)];
+                AppState.currentSession = record;
+                updateUI();
+                loadPageSpecificData();
+                if (employeeClockState) void window.ACEClockQueue.refreshShift({
+                    id: saved.id, startedAt: saved.clock_in_at, projectId: saved.project_id, activities: saved.activities
+                }).catch(() => {});
                 closeModal(modal.id);
                 document.getElementById('activityDescription').value = '';
+                document.getElementById('activityNote').value = '';
                 modal._fingerprint = null;
-                showToast('Activity recorded. Your shift is still running.', 'success');
+                showToast('Activity started. Your shift is still running.', 'success');
             } catch (error) {
                 errorMessage.textContent = error.message || 'Activity could not be confirmed. Retry to check it.';
                 errorMessage.hidden = false;
@@ -4221,7 +4278,9 @@ function openProjectActivityModal() {
         });
     }
     modal._entryId = entryId;
-    modal._projectId = shift?.projectId ?? AppState.currentSession?.ProjectId ?? AppState.timeEntries.find(entry => entry.TimeEntryId === entryId)?.ProjectId ?? null;
+    modal._expectedActivityId = currentShiftActivity()?.id || null;
+    modal.querySelector('#projectActivityTitle').textContent = modal._expectedActivityId ? 'Change activity' : 'Start activity';
+    modal.querySelector('button[type="submit"]').textContent = modal._expectedActivityId ? 'Change activity' : 'Start activity';
     modal.querySelector('#projectActivityError').hidden = true;
     openModal(modal.id);
 }
@@ -4344,6 +4403,7 @@ function stopTimer() {
 }
 
 function updateTimerDisplay() {
+    updateCurrentActivityDisplay();
     if (!AppState.isClockedIn || !AppState.clockInTime) return;
     
     const now = new Date();
@@ -4527,8 +4587,8 @@ function renderGeneratedReport(report, options = {}) {
     modal._report = report;
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
-    const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}${entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''}</td></tr>${entry.Activities?.length ? '<tr class="print-activity-row"><td colspan="7">' + (entry.Activities || []).map(activity => '<div class="print-activity-line"><span>' + escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') + '</span><span>' + escapeHtml(activity.description || '') + '</span><span>' + formatClockDuration(activity.duration_seconds) + '</span></div>').join('') + '</td></tr>' : ''}`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
+    const totalSeconds = entries.reduce((sum, entry) => sum + entryWorkedSeconds(entry), 0);
+    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.ClockOutAt ? formatDuration(entryWorkedSeconds(entry)) : formatClockDuration(entryWorkedSeconds(entry)) + ' · Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}${entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''}</td></tr>${entry.Activities?.length ? '<tr class="print-activity-row"><td colspan="7">' + (entry.Activities || []).map(activity => '<div class="print-activity-line"><span>' + escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') + '</span><span>' + escapeHtml([activity.description, activity.note, activity.completion_note].filter(Boolean).join(' · ')) + '</span><span>' + formatClockDuration(activityDurationSeconds(activity)) + (activity.ended_at ? '' : ' · Active') + '</span></div>').join('') + '</td></tr>' : ''}`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 
@@ -4609,6 +4669,7 @@ function updateUI() {
     const sessionProject = document.getElementById('sessionProjectName');
     if (statusPanel) statusPanel.dataset.state = AppState.isClockedIn ? 'active' : 'idle';
     const hasActiveShift = Boolean(AppState.isClockedIn && AppState.clockInTime);
+    updateCurrentActivityDisplay();
     const recordActivityButton = document.getElementById('recordActivityBtn');
     if (recordActivityButton) {
         recordActivityButton.hidden = !hasActiveShift;
@@ -5495,6 +5556,7 @@ function renderEmployeeActivityRow(entry) {
         <div class="activity-date">
             <strong>${escapeHtml(date)}</strong>
             <div class="activity-time">${range}</div>
+            ${activitySummaryMarkup(entry.Activities)}
             ${entry.StoppedByName ? `<small class="activity-time">Stopped by ${escapeHtml(entry.StoppedByName)}</small>` : ''}
         </div>
         <div class="activity-duration">${clockOut
@@ -5568,7 +5630,7 @@ function loadTimeEntries() {
                     <td>${formatAppTime(entry.ClockInAt)}</td>
                     <td>${clockOut ? formatAppTime(entry.ClockOutAt) : 'Active'}</td>
                     <td>${duration}</td>
-                    <td>${escapeHtml(project?.ProjectName || 'None')}</td>
+                    <td>${escapeHtml(project?.ProjectName || 'No project')}${activitySummaryMarkup(entry.Activities)}</td>
                     <td>${escapeHtml(entry.FinalNote || 'No clock-out note')}</td>
                     <td><span class="badge ${clockOut ? 'badge-success' : 'badge-warning'}">${clockOut ? 'Completed' : 'Active'}</span></td>
                     <td>${remarks.length ? remarks.map(remark => `<div class="time-entry-remark"><strong>${escapeHtml(remark.AdminName)}</strong><br>${escapeHtml(remark.Remark)}</div>`).join('') : '—'}</td>
@@ -5911,7 +5973,7 @@ function reportWorkbookData(report) {
     entries.forEach(entry => {
         const user = AppState.users.find(item => item.UserId === entry.UserId);
         const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned';
-        const workedSeconds = Number(entry.DurationSeconds || 0);
+        const workedSeconds = entryWorkedSeconds(entry);
         timeEntries.push([
             user?.FullName || 'Unknown', project, reportDateTime(entry.ClockInAt),
             entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active',
@@ -5919,7 +5981,7 @@ function reportWorkbookData(report) {
             entry.FinalNote || '', (entry.ClockOutAt ? 'Completed' : 'Active') + (entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''), projectActivityText(entry)
         ]);
     });
-    const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
+    const totalSeconds = entries.reduce((sum, entry) => sum + entryWorkedSeconds(entry), 0);
     timeEntries.push(['Total worked', '', '', '', totalSeconds, formatDuration(totalSeconds), '', '', '']);
     return timeEntries;
 }

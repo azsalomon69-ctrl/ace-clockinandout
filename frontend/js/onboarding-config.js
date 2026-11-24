@@ -4,10 +4,10 @@
 // tour must begin on that page even if the user launched it elsewhere.
 window.ACETutorialConfig = {
     USER: {
-        version: 12,
+        version: 13,
         steps: [
-            { page: 'user-dashboard.html', target: '#mainClockInBtn', alternateTargets: ['#mainClockOutBtn'], title: 'Start or finish your shift', body: 'Select Clock In to start tracking work. Choose an assigned project if you have one. No project is available when you have no active project assignments. When you finish, select Clock Out, describe your final activity (up to 50 characters), and confirm. The final activity uses your clock-in project automatically.', forcePage: false, navigation: { group: 'Workspace', label: 'Dashboard' } },
-            { page: 'user-dashboard.html', target: '#recordActivityBtn', alternateTargets: ['#employeeStatusPanel'], title: 'Record work during your shift', body: 'Once clocked in, choose Record activity above Clock Out. Describe the work you just completed. The activity uses the project chosen at clock-in automatically. Save to record the time since clock-in or your previous activity. Your shift keeps running. Repeat for each activity, then clock out to record the final block.' },
+            { page: 'user-dashboard.html', target: '#mainClockInBtn', alternateTargets: ['#mainClockOutBtn'], title: 'Start or finish your shift', body: 'Select Clock In to start tracking work. Choose an assigned project if you have one. No project is available when you have no active project assignments. When you finish, select Clock Out, add a final note (up to 50 characters), and confirm. This finishes the current activity and your shift while keeping the clock-in project.', forcePage: false, navigation: { group: 'Workspace', label: 'Dashboard' } },
+            { page: 'user-dashboard.html', target: '#recordActivityBtn', alternateTargets: ['#employeeStatusPanel'], title: 'Record work during your shift', body: 'Once clocked in, choose Record activity above Clock Out. Name the activity you are starting and optionally add a note. It uses your clock-in project. The button becomes Change activity. Changing closes and times the current activity, then starts the next. Clock out finishes the final activity. All activity durations stay inside the full shift total.' },
             { page: 'time-entries.html', target: '#timeEntriesList', title: 'Review your shifts', body: 'Use My time entries to check what was recorded for a shift. Each result shows your clock-in, clock-out, and worked time. Open its details to see recorded activities and durations within that shift. The list reflects the filters you apply.', navigation: { group: 'Work', label: 'My time entries' } },
             { page: 'time-entries.html', target: '#applyFiltersBtn', title: 'Find a past shift', body: 'Filter by date, project, or status to narrow your recorded time. Open View on a row for the clock-out note and full details.' },
             { page: 'remarks.html', target: '#remarksPageList', title: 'Read administrator remarks', body: 'Administrators can leave feedback on a time entry. Review related comments here whenever you see a remark notification.', navigation: { group: 'Work', label: 'Remarks' } },
@@ -20,7 +20,7 @@ window.ACETutorialConfig = {
         ]
     },
     ADMIN: {
-        version: 21,
+        version: 22,
         steps: [
             { page: 'admin-dashboard.html', target: '#adminDashboardHeader', title: 'Quick actions', body: 'Find common admin tasks and today’s date here.', navigation: { group: 'Workspace', label: 'Dashboard' } },
             { page: 'admin-dashboard.html', target: '#dashboardQuickActions', title: 'Use quick actions', body: 'These action buttons are the fastest way to invite a team member or open departments, projects, and schedules.' },

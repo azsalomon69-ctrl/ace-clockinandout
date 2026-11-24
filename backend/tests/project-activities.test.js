@@ -88,3 +88,26 @@ test('admin summaries stay compact and encode employee activity descriptions',()
     assert.match(markup,/Follow-ups/);
     assert.ok(!markup.includes('<img'));
 });
+
+test('running activity duration is calculated from its start and includes its note in exports',()=>{
+    const sandbox=context();
+    sandbox.Date=class extends Date { static now(){ return Date.parse('2026-11-24T03:00:00Z'); } };
+    const running={description:'Support tickets',note:'Follow up on urgent cases',started_at:'2026-11-24T00:00:00Z',ended_at:null,duration_seconds:0};
+    assert.equal(sandbox.activityDurationSeconds(running),10800);
+    const text=sandbox.projectActivityText({Activities:[running]});
+    assert.match(text,/Support tickets/);
+    assert.match(text,/Follow up on urgent cases/);
+    assert.match(text,/10800.*In progress/);
+    const markup=sandbox.projectActivityMarkup({Activities:[running]});
+    assert.match(markup,/data-activity-start=/);
+    assert.match(markup,/Follow up on urgent cases/);
+});
+test('active shift export includes its elapsed total and the current activity',()=>{
+    const sandbox=context();
+    sandbox.Date=class extends Date { static now(){ return Date.parse('2026-11-24T09:00:00Z'); } };
+    sandbox.filterEntriesForReport=()=>[{UserId:'employee',ClockInAt:'2026-11-24T00:00:00Z',Activities:[{description:'Draft report',note:'Review section two',started_at:'2026-11-24T06:00:00Z',ended_at:null}]}];
+    const rows=sandbox.reportWorkbookData({});
+    assert.equal(rows[1][4],32400);
+    assert.equal(rows[2][4],32400);
+    assert.match(rows[1][8],/Draft report.*Review section two.*10800/);
+});

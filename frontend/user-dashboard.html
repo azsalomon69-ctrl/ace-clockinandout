@@ -57,6 +57,7 @@
                             Clock Out
                         </button>
                 </div>
+                <p class="current-activity-summary" id="currentActivitySummary" hidden><span>Current activity</span><strong></strong><time></time></p>
                 <dl class="employee-session-facts" id="employeeSessionFacts" hidden>
                     <div><dt>Started</dt><dd id="sessionStartedAt">—</dd></div>
                     <div><dt>Project</dt><dd id="sessionProjectName">No project</dd></div>
@@ -164,8 +165,8 @@
                 </div>
                 <form id="clockOutForm" class="clock-out-form">
                     <div class="form-group">
-                        <label for="clockOutNote" class="form-label">Activity</label>
-                        <textarea id="clockOutNote" class="form-textarea" rows="3" maxlength="50" placeholder="Tell us what project work you did…" required></textarea>
+                        <label for="clockOutNote" class="form-label">Final note</label>
+                        <textarea id="clockOutNote" class="form-textarea" rows="3" maxlength="50" placeholder="Add a final note for this activity…" required></textarea>
                     </div>
                     <button type="submit" class="btn btn-danger btn-block">Clock Out</button>
                 </form>
