@@ -18503,3 +18503,10 @@ html[data-theme="dark"] .card-tip-button img { filter: brightness(0) invert(1); 
 @media (pointer: coarse) {
   .card-tip-button { width: 32px; height: 32px; flex-basis: 32px; }
 }
+
+/* Keep the activity checkpoint above the shift-ending action. */
+.user-dashboard .employee-status-panel .clock-actions:has(#recordActivityBtn:not([hidden])) {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

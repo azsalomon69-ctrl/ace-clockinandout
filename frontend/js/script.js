@@ -55,7 +55,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else enableCleanInternalPageLinks();
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
 const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
-const timeEntryRecord = item => ({ TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, QueuedClockSyncedLate: item.queued_clock_synced_late === true, ScheduleType: item.schedule_type, ScheduledEndTime: item.scheduled_end_time, OvertimeApprovedSeconds: item.overtime_approved_seconds || 0, OvertimeApprovedAt: item.overtime_approved_at, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
+const timeEntryRecord = item => ({ Activities: item.activities || [], TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, QueuedClockSyncedLate: item.queued_clock_synced_late === true, ScheduleType: item.schedule_type, ScheduledEndTime: item.scheduled_end_time, OvertimeApprovedSeconds: item.overtime_approved_seconds || 0, OvertimeApprovedAt: item.overtime_approved_at, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, SeenAt: item.seen_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
 const employeeTimeEntries = () => AppState.timeEntries.filter(entry => AppState.users.find(user => String(user.UserId) === String(entry.UserId))?.Role === 'USER');
 const reportRecord = item => ({ ReportId: item.id, CreatedByUserId: item.created_by_user_id, ReportType: item.report_type, DateFrom: item.date_from, DateTo: item.date_to, Filters: item.filters, GeneratedAt: item.generated_at, TotalRecords: item.total_records });
@@ -712,6 +712,7 @@ let clockModalsBound = false;
 let clockOutTarget;
 
 function initializeClockControls() {
+    document.getElementById('recordActivityBtn')?.addEventListener('click', openProjectActivityModal);
     for (const id of ['mainClockInBtn', 'clockInBtn']) document.getElementById(id)?.addEventListener('click', openClockInModal);
     for (const id of ['mainClockOutBtn', 'clockOutBtn', 'sessionClockOutBtn']) document.getElementById(id)?.addEventListener('click', openClockOutModal);
     document.getElementById('clockInForm')?.addEventListener('submit', handleClockIn);
@@ -3994,10 +3995,81 @@ async function openClockInModal() {
     }
 }
 
+function projectActivityText(entry) {
+    return (entry.Activities || []).map(activity =>
+        [activity.project_name || 'Unallocated', activity.description,
+            reportDateTime(activity.started_at) + ' – ' + reportDateTime(activity.ended_at),
+            formatClockDuration(activity.duration_seconds)].join(' · ')).join('\n');
+}
+
+function projectActivityMarkup(entry) {
+    const activities = entry.Activities || [];
+    if (!activities.length) return '';
+    return '<section class="entry-note-card"><h3>Project activities</h3><p>Included within this shift’s total time.</p>' +
+        activities.map(activity => '<article class="remark-item"><strong>' +
+            escapeHtml(activity.project_name || 'Unallocated') + ' · ' + formatClockDuration(activity.duration_seconds) +
+            '</strong><p>' + escapeHtml(activity.description || '') + '</p><small>' +
+            escapeHtml(reportDateTime(activity.started_at) + ' – ' + reportDateTime(activity.ended_at)) +
+            '</small></article>').join('') + '</section>';
+}
+
+function openProjectActivityModal() {
+    const shift = employeeClockState?.shift;
+    const entryId = shift?.id || AppState.currentSession?.TimeEntryId;
+    if (!entryId || employeeClockState?.clockOut || (employeeClockState && !employeeClockState.connected)) {
+        showToast('Connect to ACE and confirm your shift before recording activity.', 'info');
+        return;
+    }
+    let modal = document.getElementById('projectActivityModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'projectActivityModal';
+        modal.className = 'modal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-labelledby', 'projectActivityTitle');
+        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body"><p>Record the work since your last activity. Your shift keeps running.</p><div class="form-group"><label class="form-label" for="activityProject">Project</label><select class="form-select" id="activityProject" required></select></div><div class="form-group"><label class="form-label" for="activityDescription">Activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="Tell us what project work you did…"></textarea></div><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
+        document.body.appendChild(modal);
+        modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal.id));
+        modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
+        modal.querySelector('form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const button = event.currentTarget.querySelector('button[type="submit"]');
+            if (button.disabled) return;
+            const description = document.getElementById('activityDescription').value.trim();
+            const projectId = document.getElementById('activityProject').value;
+            if (!description || !projectId) return;
+            const payload = { projectId, description };
+            const fingerprint = JSON.stringify(payload);
+            if (modal._fingerprint !== fingerprint) {
+                modal._fingerprint = fingerprint;
+                modal._actionId = crypto.randomUUID();
+            }
+            try {
+                setActionBusy(button, true, 'Saving…');
+                const saved = await window.ACEAuth.request('/v1/time-entries/' + modal._entryId + '/activities', {
+                    method: 'POST', body: JSON.stringify({ ...payload, actionId: modal._actionId })
+                });
+                const record = timeEntryRecord(saved);
+                AppState.timeEntries = [record, ...AppState.timeEntries.filter(item => item.TimeEntryId !== record.TimeEntryId)];
+                closeModal(modal.id);
+                document.getElementById('activityDescription').value = '';
+                modal._fingerprint = null;
+                showToast('Activity recorded. Your shift is still running.', 'success');
+            } catch (error) { showToast(error.message || 'Activity could not be confirmed. Retry to check it.', 'error'); }
+            finally { setActionBusy(button, false); }
+        });
+    }
+    modal._entryId = entryId;
+    populateProjectSelect('activityProject');
+    openModal(modal.id);
+}
+
 function openClockOutModal() {
     if (document.getElementById('mainClockOutBtn')?.disabled || !AppState.currentSession) return;
     if (!canOpenClockForm('clock out')) return;
     clockOutTarget = employeeClockState?.shift;
+    populateProjectSelect('finalActivityProject');
     showClockOutSummary();
     openModal('clockOutModal');
 }
@@ -4007,7 +4079,7 @@ async function saveEmployeeClockTap(type, input, submitButton, shift) {
     const modal = clockIn ? 'clockInModal' : 'clockOutModal';
     setActionBusy(submitButton, true, 'Saving…');
     try {
-        const duplicate = await window.ACEClockQueue.save(type, input, shift);
+        const duplicate = await window.ACEClockQueue.save(type, input, shift, type === 'clock_out' ? document.getElementById('finalActivityProject')?.value : null);
         if (!clockIn) document.getElementById('clockOutNote').value = '';
         closeModal(modal);
         if (duplicate) showToast('This clock action was already saved on this device.', 'info');
@@ -4055,7 +4127,7 @@ async function handleClockOut(e) {
     if (employeeClockPreview || document.getElementById('mainClockOutBtn')?.disabled || !AppState.currentSession || !canOpenClockForm('clock out')) return;
     try {
         setActionBusy(submitButton, true, 'Clocking out…');
-        const entry = await window.ACEAuth.request(`/v1/time-entries/${AppState.currentSession.TimeEntryId}/clock-out`, { method: 'POST', body: JSON.stringify({ note: note || '' }) });
+        const entry = await window.ACEAuth.request(`/v1/time-entries/${AppState.currentSession.TimeEntryId}/clock-out`, { method: 'POST', body: JSON.stringify({ note: note || '', activityProjectId: document.getElementById('finalActivityProject')?.value || null }) });
         const saved = timeEntryRecord(entry);
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
         AppState.isClockedIn = false; AppState.currentSession = null; AppState.clockInTime = null;
@@ -4244,7 +4316,7 @@ function filterEntriesForReport(report) {
         const time = new Date(entry.ClockInAt).getTime();
         const user = AppState.users.find(item => item.UserId === entry.UserId);
         return time >= from && time <= to &&
-            matchesId(filters.projectId, entry.ProjectId) &&
+            (matchesId(filters.projectId, entry.ProjectId) || (entry.Activities || []).some(activity => matchesId(filters.projectId, activity.project_id))) &&
             matchesId(filters.userId, entry.UserId) &&
             matchesId(filters.departmentId, user?.DepartmentId) &&
             (!filters.status || (filters.status === 'COMPLETED' ? Boolean(entry.ClockOutAt) : !entry.ClockOutAt));
@@ -4297,6 +4369,10 @@ function renderGeneratedReport(report, options = {}) {
     const entries = filterEntriesForReport(report);
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
     reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}${entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''}</td></tr>`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
+    reportElement.innerHTML += entries.filter(entry => entry.Activities?.length).map(entry =>
+        '<section class="print-report-table"><h2>Project activities</h2><p>' +
+        escapeHtml(AppState.users.find(user => user.UserId === entry.UserId)?.FullName || entry.UserName || 'Employee') +
+        ' · ' + escapeHtml(reportDateTime(entry.ClockInAt)) + '</p>' + projectActivityMarkup(entry) + '</section>').join('');
     if (!options.printOnly) openModal('generatedReportModal');
 }
 
@@ -4377,6 +4453,11 @@ function updateUI() {
     const sessionProject = document.getElementById('sessionProjectName');
     if (statusPanel) statusPanel.dataset.state = AppState.isClockedIn ? 'active' : 'idle';
     const hasActiveShift = Boolean(AppState.isClockedIn && AppState.clockInTime);
+    const recordActivityButton = document.getElementById('recordActivityBtn');
+    if (recordActivityButton) {
+        recordActivityButton.hidden = !hasActiveShift;
+        recordActivityButton.disabled = Boolean(employeeClockPreview || employeeClockState?.clockOut || (employeeClockState && !employeeClockState.connected));
+    }
     if (sessionTimer) sessionTimer.hidden = !hasActiveShift;
     if (hasActiveShift) {
         if (shiftTitle) shiftTitle.textContent = 'Shift in progress';
@@ -4553,7 +4634,7 @@ function loadAdminTimeEntryDetails() {
     root.innerHTML = `<nav class="entry-breadcrumb" aria-label="Breadcrumb"><a href="admin-time-entries.html">Time entries</a><span aria-hidden="true">/</span><span>Session details</span></nav>
         <header class="entry-page-heading"><div><div class="entry-heading-label"><p class="admin-section-kicker">TIME ENTRY</p><span class="badge ${entry.ClockOutAt ? 'badge-success' : 'badge-warning'}">${entry.ClockOutAt ? 'Completed' : 'Active'}</span></div><h1>${escapeHtml(user?.FullName || entry.UserName || 'Employee')}</h1><p>Work session · ${dateTime(entry.ClockInAt)}</p></div><div class="entry-page-actions"><a class="btn btn-outline" href="employee-profile.html?user=${encodeURIComponent(entry.UserId)}">Employee profile</a>${canManage ? `<details class="entry-action-disclosure"><summary class="btn btn-outline">Entry actions ${suppliedIconMarkup('chevron-down')}</summary><div class="entry-action-options"><button data-entry-action="correct">${suppliedIconMarkup('square-pen')}Correct time</button>${canApprove ? `<button data-entry-action="approve">${suppliedIconMarkup('check')}Approve overtime</button>` : ''}${!entry.ClockOutAt ? `<button data-entry-action="stop" class="entry-danger">${suppliedIconMarkup('timer')}Stop clock-in</button>` : ''}<button data-entry-action="delete" class="entry-danger">${suppliedIconMarkup('trash')}Move to deleted</button></div></details>` : ''}</div></header>
         <div class="entry-detail-workspace"><div class="entry-session-column"><section class="entry-session-card" aria-labelledby="entrySessionTitle"><div class="entry-section-heading"><div><p class="admin-section-kicker">SESSION OVERVIEW</p><h2 id="entrySessionTitle">Time &amp; attendance</h2></div>${suppliedIconMarkup('timer')}</div><div class="entry-duration-highlight"><span>Worked time</span><strong>${worked}</strong><small>${entry.ClockOutAt ? 'Recorded for this session' : 'This session has not clocked out yet'}</small></div><dl class="entry-facts"><div><dt>Clock in</dt><dd>${dateTime(entry.ClockInAt)}</dd></div><div><dt>Clock out</dt><dd>${entry.ClockOutAt ? dateTime(entry.ClockOutAt) : 'Not clocked out'}</dd></div><div><dt>Project</dt><dd>${escapeHtml(project?.ProjectName || entry.ProjectName || 'Unassigned')}</dd></div><div><dt>Approved overtime</dt><dd>${formatDuration(Number(entry.OvertimeApprovedSeconds) || 0)}</dd></div></dl></section>
-        <section class="entry-note-card"><div class="entry-section-heading"><h2>Employee notes</h2>${suppliedIconMarkup('message-circle-more')}</div><h3>Clock-out note</h3><p>${escapeHtml(entry.FinalNote || (entry.ClockOutAt ? 'No note was added when this session ended.' : 'A clock-out note will appear here when the session ends.'))}</p>${entry.UserNote ? `<h3>Clock-in note</h3><p>${escapeHtml(entry.UserNote)}</p>` : ''}</section>
+        ${projectActivityMarkup(entry)}<section class="entry-note-card"><div class="entry-section-heading"><h2>Employee notes</h2>${suppliedIconMarkup('message-circle-more')}</div><h3>Clock-out note</h3><p>${escapeHtml(entry.FinalNote || (entry.ClockOutAt ? 'No note was added when this session ended.' : 'A clock-out note will appear here when the session ends.'))}</p>${entry.UserNote ? `<h3>Clock-in note</h3><p>${escapeHtml(entry.UserNote)}</p>` : ''}</section>
         ${entry.StoppedByName ? `<section class="entry-stop-notice"><strong>Stopped by an administrator</strong><p>${escapeHtml(entry.StoppedByName)} · ${dateTime(entry.StoppedByAt || entry.ClockOutAt)}</p></section>` : ''}</div>
         <section class="entry-feedback-card" aria-labelledby="entryFeedbackTitle"><div class="entry-section-heading"><div><p class="admin-section-kicker">ADMINISTRATOR NOTES</p><h2 id="entryFeedbackTitle">Feedback <span class="entry-feedback-count">${remarks.length}</span></h2></div>${suppliedIconMarkup('message-circle-more')}</div>${remarks.length ? `<div class="entry-feedback-timeline">${remarks.map(remark => `<article><div class="entry-feedback-author"><strong>${escapeHtml(remark.AdminName)}</strong><small>${dateTime(remark.CreatedAt)}</small></div><p>${escapeHtml(remark.Remark)}</p><span class="admin-remark-read-status ${remark.SeenAt ? 'is-seen' : 'is-unseen'}">${suppliedIconMarkup(remark.SeenAt ? 'check' : 'circle-alert')}${remark.SeenAt ? `Seen ${dateTime(remark.SeenAt)}` : 'Not seen yet'}</span></article>`).join('')}</div>` : `<div class="entry-feedback-empty">${suppliedIconMarkup('message-circle-more')}<strong>No feedback yet</strong><p>Add a note about this session to start the conversation.</p></div>`}${canManage ? `<form class="entry-feedback-form" id="entryDetailFeedbackForm"><div class="form-group"><label class="form-label" for="entryDetailFeedbackText">Add a remark</label><textarea class="form-textarea" id="entryDetailFeedbackText" rows="4" maxlength="2000" required aria-describedby="entryFeedbackHelp" placeholder="What should the employee know about this session?"></textarea><small id="entryFeedbackHelp">The employee will be notified when you post.</small></div><div class="form-actions"><button class="btn btn-primary" type="submit">${suppliedIconMarkup('message-circle-plus')}Post remark</button></div></form>` : ''}</section></div>`;
     acknowledgeAdminRemarks(remarks.map(remark => remark.RemarkId));
@@ -5528,7 +5609,9 @@ function populateProjectSelect(selectId) {
                 .map(item => String(item.ProjectId)));
             projects = projects.filter(project => assignedIds.has(String(project.ProjectId)));
         }
-        const placeholder = selectId.startsWith('filter') ? 'All projects' : 'No project';
+        const activity = ['activityProject', 'finalActivityProject'].includes(selectId);
+        if (activity) select.required = projects.length > 0;
+        const placeholder = selectId.startsWith('filter') ? 'All projects' : activity && projects.length ? 'Choose project' : 'No project';
         select.innerHTML = `<option value="">${placeholder}</option>` + projects.map(p => `<option value="${p.ProjectId}">${escapeHtml(p.ProjectName)}</option>`).join('');
     }
 }
@@ -5619,7 +5702,7 @@ function viewTimeEntry(entryId) {
                     <p><strong>Clock In:</strong> ${new Date(entry.ClockInAt).toLocaleString()}</p>
                     <p><strong>Clock Out:</strong> ${entry.ClockOutAt ? new Date(entry.ClockOutAt).toLocaleString() : 'Active'}</p>
                     <p><strong>Worked:</strong> ${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</p>
-                    <p><strong>Clock-out note:</strong> ${escapeHtml(entry.FinalNote || 'No clock-out note')}</p>
+                    <p><strong>Clock-out note:</strong> ${escapeHtml(entry.FinalNote || 'No clock-out note')}</p>${projectActivityMarkup(entry)}
                 </div>
             `;
         }
@@ -5667,7 +5750,7 @@ function loadExcelLibrary() {
 }
 function reportWorkbookData(report) {
     const entries = filterEntriesForReport(report);
-    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Clock-out note', 'Status']];
+    const timeEntries = [['Employee', 'Project', 'Clock in', 'Clock out', 'Worked seconds', 'Worked time', 'Clock-out note', 'Status', 'Project activity breakdown']];
     entries.forEach(entry => {
         const user = AppState.users.find(item => item.UserId === entry.UserId);
         const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned';
@@ -5676,13 +5759,29 @@ function reportWorkbookData(report) {
             user?.FullName || 'Unknown', project, reportDateTime(entry.ClockInAt),
             entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active',
             workedSeconds, formatDuration(workedSeconds),
-            entry.FinalNote || '', (entry.ClockOutAt ? 'Completed' : 'Active') + (entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : '')
+            entry.FinalNote || '', (entry.ClockOutAt ? 'Completed' : 'Active') + (entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''), projectActivityText(entry)
         ]);
     });
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    timeEntries.push(['Total worked', '', '', '', totalSeconds, formatDuration(totalSeconds), '', '']);
+    timeEntries.push(['Total worked', '', '', '', totalSeconds, formatDuration(totalSeconds), '', '', '']);
     return timeEntries;
 }
+function downloadTimeEntryCsv(report) {
+    const escape = value => {
+        const text = String(value ?? '');
+        const safe = /^[=+@\t\r-]/.test(text) ? "'" + text : text;
+        return '"' + safe.replaceAll('"', '""') + '"';
+    };
+    const blob = new Blob([reportWorkbookData(report).map(row => row.map(escape).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'ace-time-entries.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+}
+
 async function exportExcelReport(reportId) {
     const selected = reportId && typeof reportId === 'object' ? reportId : reportId ? AppState.reports.find(report => String(report.ReportId) === String(reportId)) : null;
     const report = selected || {
@@ -5721,6 +5820,10 @@ function exportReport(reportId, fileType) {
         return;
     }
     if (fileType === 'CSV') {
+        if (reportId) {
+            const selected = AppState.reports.find(report => String(report.ReportId) === String(reportId));
+            if (selected) return downloadTimeEntryCsv(selected);
+        }
         const escape = value => `"${String(value ?? '').replaceAll('"', '""')}"`;
         const rows = [['Report ID', 'Type', 'Date From', 'Date To', 'Generated At', 'Total Records'], ...reports.map(report => [report.ReportId, report.ReportType, report.DateFrom, report.DateTo, report.GeneratedAt, report.TotalRecords])];
         const blob = new Blob([rows.map(row => row.map(escape).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -5740,6 +5843,7 @@ function exportReport(reportId, fileType) {
 window.ACEReportActions = {
     preview({ dateFrom, dateTo, filters = {}, format = 'VIEW' }) {
         const report = { ReportId: '', CreatedByUserId: AppState.currentUser?.UserId || '', ReportType: 'INDIVIDUAL', DateFrom: dateFrom, DateTo: dateTo, Filters: filters, GeneratedAt: new Date().toISOString(), TotalRecords: 0 };
+        if (format === 'CSV') return downloadTimeEntryCsv(report);
         if (format === 'XLSX') return exportExcelReport(report);
         renderGeneratedReport(report);
         if (format === 'PDF') window.setTimeout(printGeneratedReport, 80);

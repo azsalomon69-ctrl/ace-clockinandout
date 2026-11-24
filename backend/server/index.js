@@ -1008,7 +1008,7 @@ const listTimeEntries = async (req, res, next) => { try {
   request = filters.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null);
   if (own) request = request.eq('user_id', req.profile.id);
   if (filters.userId) request = request.eq('user_id', filters.userId);
-  if (filters.projectId) request = request.eq('project_id', filters.projectId);
+  if (filters.projectId) request = request.or('project_id.eq.' + filters.projectId + ',activities.cs.' + JSON.stringify([{ project_id: filters.projectId }]));
   if (filters.status === 'ACTIVE') request = request.is('clock_out_at', null);
   if (filters.status === 'COMPLETED') request = request.not('clock_out_at', 'is', null);
   const matchingIds = async (table, field, value) => {
@@ -1091,17 +1091,19 @@ function queuedClockPayload(body) {
       || tappedAt.startsWith('0000') || !Number.isFinite(Date.parse(tappedAt))
       || new Date(tappedAt).toISOString() !== tappedAt) return null;
   const projectId = optionalUuid(body.projectId);
+  const activityProjectId = optionalUuid(body.activityProjectId);
   const entryId = optionalUuid(body.entryId);
   const clockInActionId = optionalUuid(body.clockInActionId);
   const anchorId = optionalUuid(body.anchorId);
-  if ([projectId, entryId, clockInActionId, anchorId].includes(undefined)) return null;
+  if ([projectId, activityProjectId, entryId, clockInActionId, anchorId].includes(undefined)) return null;
   if (anchorId ? (!Number.isInteger(anchorElapsedMs) || anchorElapsedMs < 0 || anchorElapsedMs > 900_000)
     : anchorElapsedMs != null) return null;
   const note = optionalText(body.note, 50);
   if (type === 'clock_out' && (!note || note.includes('\0') || projectId || Boolean(entryId) === Boolean(clockInActionId))) return null;
-  if (type === 'clock_in' && (entryId || clockInActionId || body.note != null)) return null;
+  if (type === 'clock_in' && (entryId || clockInActionId || activityProjectId || body.note != null)) return null;
   if (clockInActionId?.toLowerCase() === actionId.toLowerCase()) return null;
   return { actionId: actionId.toLowerCase(), payload: { type, tappedAt,
+    ...(activityProjectId ? { activityProjectId: activityProjectId.toLowerCase() } : {}),
     projectId: projectId?.toLowerCase() ?? null, entryId: entryId?.toLowerCase() ?? null,
     clockInActionId: clockInActionId?.toLowerCase() ?? null, note,
     anchorId: anchorId?.toLowerCase() ?? null, anchorElapsedMs: anchorElapsedMs ?? null } };
@@ -1298,8 +1300,43 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
   res.status(201).json(entry);
 } catch (error) { next(error); } });
 
+app.post('/v1/time-entries/:id/activities', authenticate, activeOnly, async (req, res, next) => {
+  try {
+    const { projectId, actionId } = req.body;
+    const description = requireText(req.body.description, 'Activity description', 50);
+    if (!isUuid(req.params.id) || !isUuid(projectId) || !isUuid(actionId)) return fail(res, 400, 'Choose a project and supply a valid activity ID');
+    const { data, error } = await db.rpc('record_project_activity', {
+      p_actor: req.profile.id, p_entry: req.params.id, p_project: projectId,
+      p_description: description, p_action: actionId
+    });
+    if (error) {
+      if (error.message.includes('ENTRY_NOT_FOUND')) return fail(res, 404, 'Time entry unavailable');
+      if (error.message.includes('PROJECT_NOT_ASSIGNED')) return fail(res, 403, 'Choose an assigned active project');
+      if (/ENTRY_ALREADY_CLOSED|ACTIVITY_TIME_CONFLICT|ACTIVITY_PAYLOAD_MISMATCH/.test(error.message)) return fail(res, 409, 'Refresh your shift before recording this activity');
+      throw error;
+    }
+    res.status(201).json(data);
+  } catch (error) { next(error); }
+});
+
 app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try {
   const note = requireText(req.body.note, 'A clock-out note', 50);
+  const activityProjectId = optionalUuid(req.body.activityProjectId);
+  if (activityProjectId === undefined) return fail(res, 400, 'Invalid activity project');
+  if (activityProjectId) {
+    const { data, error } = await db.rpc('clock_out_project_entry', {
+      p_actor: req.profile.id, p_entry: req.params.id, p_role: req.profile.role,
+      p_project: activityProjectId, p_note: note, p_now: new Date().toISOString(),
+      p_ip: req.ip, p_agent: req.get('user-agent')
+    });
+    if (error) {
+      if (error.message.includes('PROJECT_NOT_ASSIGNED')) return fail(res, 403, 'Choose an assigned active project');
+      if (/ENTRY_ALREADY_CLOSED|ACTIVITY_TIME_CONFLICT/.test(error.message)) return fail(res, 409, 'Refresh your shift before clocking out');
+      if (error.message.includes('NOT_FOUND_OR_FORBIDDEN')) return fail(res, 404, 'Time entry unavailable');
+      throw error;
+    }
+    return res.json(data);
+  }
   const { data: entry, error } = await db.rpc('clock_out_entry', {
     p_actor_user_id: req.profile.id, p_entry_id: req.params.id, p_actor_role: req.profile.role,
     p_final_note: note, p_now: new Date().toISOString(), p_ip_address: req.ip, p_user_agent: req.get('user-agent')
@@ -1411,7 +1448,7 @@ app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try
     departmentId ? 'id, profiles!time_entries_user_id_fkey!inner(department_id)' : 'id',
     { count: 'exact', head: true }
   ).is('deleted_at', null).gte('clock_in_at', `${dateFrom}T00:00:00+08:00`).lt('clock_in_at', new Date(new Date(`${dateTo}T00:00:00+08:00`).getTime() + 86400000).toISOString());
-  if (projectId) entries = entries.eq('project_id', projectId);
+  if (projectId) entries = entries.or('project_id.eq.' + projectId + ',activities.cs.' + JSON.stringify([{ project_id: projectId }]));
   if (userId) entries = entries.eq('user_id', userId);
   if (departmentId) entries = entries.eq('profiles.department_id', departmentId);
   const { count, error } = await entries;
@@ -1433,7 +1470,7 @@ app.post('/v1/time-entry-exports', authenticate, adminOnly, async (req, res, nex
   let entries = db.from('time_entries').select('id', { count: 'exact', head: true }).is('deleted_at', null)
     .gte('clock_in_at', `${dateFrom}T00:00:00+08:00`)
     .lt('clock_in_at', new Date(new Date(`${dateTo}T00:00:00+08:00`).getTime() + 86400000).toISOString());
-  if (projectId) entries = entries.eq('project_id', projectId);
+  if (projectId) entries = entries.or('project_id.eq.' + projectId + ',activities.cs.' + JSON.stringify([{ project_id: projectId }]));
   if (userId) entries = entries.eq('user_id', userId);
   if (status === 'ACTIVE') entries = entries.is('clock_out_at', null);
   if (status === 'COMPLETED') entries = entries.not('clock_out_at', 'is', null);

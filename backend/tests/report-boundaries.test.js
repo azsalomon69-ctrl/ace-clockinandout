@@ -73,7 +73,7 @@ test('export rows use the accepted shift timestamps and show late sync separatel
     }],
     reportDateTime: value => value, formatDuration: value => String(value)
   });
-  vm.runInContext(frontend.slice(begin, frontend.indexOf('async function exportExcelReport(', begin)), context);
+  vm.runInContext(frontend.slice(frontend.indexOf('function projectActivityText('), frontend.indexOf('function openProjectActivityModal(')) + '\n' + frontend.slice(begin, frontend.indexOf('async function exportExcelReport(', begin)), context);
   const [, row] = context.reportWorkbookData({});
   assert.equal(row[2], '2026-11-10T09:00:00.000Z');
   assert.equal(row[3], '2026-11-10T19:00:00.000Z');
