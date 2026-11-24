@@ -3997,7 +3997,7 @@ async function openClockInModal() {
 
 function projectActivityText(entry) {
     return (entry.Activities || []).map(activity =>
-        [activity.project_name || 'Unallocated', activity.description,
+        [activity.project_id ? activity.project_name || 'No project' : 'No project', activity.description,
             reportDateTime(activity.started_at) + ' – ' + reportDateTime(activity.ended_at),
             formatClockDuration(activity.duration_seconds)].join(' · ')).join('\n');
 }
@@ -4007,7 +4007,7 @@ function projectActivityMarkup(entry) {
     if (!activities.length) return '';
     return '<section class="entry-note-card"><h3>Project activities</h3><p>Included within this shift’s total time.</p>' +
         activities.map(activity => '<article class="remark-item"><strong>' +
-            escapeHtml(activity.project_name || 'Unallocated') + ' · ' + formatClockDuration(activity.duration_seconds) +
+            escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') + ' · ' + formatClockDuration(activity.duration_seconds) +
             '</strong><p>' + escapeHtml(activity.description || '') + '</p><small>' +
             escapeHtml(reportDateTime(activity.started_at) + ' – ' + reportDateTime(activity.ended_at)) +
             '</small></article>').join('') + '</section>';
@@ -4381,7 +4381,7 @@ function renderGeneratedReport(report, options = {}) {
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
     const totalSeconds = entries.reduce((sum, entry) => sum + Number(entry.DurationSeconds || 0), 0);
-    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}${entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''}</td></tr>${entry.Activities?.length ? '<tr class="print-activity-row"><td colspan="7">' + projectActivityMarkup(entry) + '</td></tr>' : ''}`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
+    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.DurationSeconds ? formatDuration(entry.DurationSeconds) : 'Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}${entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''}</td></tr>${entry.Activities?.length ? '<tr class="print-activity-row"><td colspan="7">' + (entry.Activities || []).map(activity => '<div class="print-activity-line"><span>' + escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') + '</span><span>' + escapeHtml(activity.description || '') + '</span><span>' + formatClockDuration(activity.duration_seconds) + '</span></div>').join('') + '</td></tr>' : ''}`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 

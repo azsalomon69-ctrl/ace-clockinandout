@@ -59,6 +59,17 @@ test('PDF places every recorded activity directly under its parent shift',()=>{
     assert.match(report.innerHTML,/class="print-activity-row"/);
     assert.match(report.innerHTML,/Follow-ups/);
     assert.match(report.innerHTML,/Records/);
+    assert.equal((report.innerHTML.match(/class="print-activity-line"/g)||[]).length,3);
+    assert.ok(!report.innerHTML.includes('entry-note-card'));
+    assert.ok(!report.innerHTML.includes('Included within'));
     assert.ok(report.innerHTML.indexOf('Follow-ups')<report.innerHTML.indexOf('</tbody>'));
     assert.ok(!report.innerHTML.includes('<img'));
+});
+
+test('legacy unallocated labels display as No project in exports',()=>{
+    const sandbox=context();
+    const legacy={Activities:[{project_id:null,project_name:'Unallocated',description:'Final task',duration_seconds:60,started_at:'08:00',ended_at:'08:01'}]};
+    assert.match(sandbox.projectActivityText(legacy),/No project/);
+    assert.doesNotMatch(sandbox.projectActivityText(legacy),/Unallocated/);
+    assert.match(sandbox.projectActivityMarkup(legacy),/No project/);
 });
