@@ -31,3 +31,22 @@ test('project refresh does not overwrite another signed-in account',async()=>{
     assert.equal(state.projects.length,0);
     assert.equal(state.userProjects.length,0);
 });
+
+test('clock-in offers only assigned projects while activity selection remains optional',()=>{
+  const select={innerHTML:'',required:false};
+  const state={currentUser:{UserId:'employee',Role:'USER'},projects:[{ProjectId:'one',ProjectName:'Support',IsActive:true}],userProjects:[{UserId:'employee',ProjectId:'one',IsActive:true}]};
+  const sandbox=vm.createContext({AppState:state,document:{getElementById:()=>select},escapeHtml:value=>value});
+  const start=source.indexOf('function populateProjectSelect(');
+  vm.runInContext(source.slice(start,source.indexOf('function populateUserSelect(',start)),sandbox);
+  sandbox.populateProjectSelect('clockInProject');
+  assert.ok(!select.innerHTML.includes('No project'));
+  assert.ok(select.innerHTML.includes('Support'));
+  assert.equal(select.required,true);
+  sandbox.populateProjectSelect('activityProject');
+  assert.ok(select.innerHTML.includes('No project'));
+  assert.equal(select.required,false);
+  state.userProjects=[];
+  sandbox.populateProjectSelect('clockInProject');
+  assert.ok(select.innerHTML.includes('No project'));
+  assert.equal(select.required,false);
+});

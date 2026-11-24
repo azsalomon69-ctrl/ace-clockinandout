@@ -2278,13 +2278,15 @@ function workspaceHelpEntries(isAdmin) {
         ['How do I get help without restarting the tutorial?', 'Type what you want to do in ACE Help—for example, “add a new employee” or “download a report.” I can explain the steps. If an answer does not cover your issue, describe what happens or send the question to the administrator.']
     ] : [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. The Work section contains My time entries and Remarks.'],
-        ['How do I clock in?', 'Open Dashboard → Clock in. Choose an assigned project, or No project if your work does not need one, then confirm. You do not need to enter a note at clock-in. If the button is unavailable, check whether you already have a running session.'],
-        ['How do I clock out?', 'Open Dashboard and choose Clock out. Review the session details, add the required clock-out note, and confirm the action.'],
-        ['What should I write in the clock-out note?', 'Enter a short, accurate note about the completed shift. The note is required at clock-out and is visible in your time-entry details and company reports. Do not add a new note at clock-in.'],
+        ['How do I clock in?', 'Open Dashboard → Clock in. If projects are assigned to you, choose one and confirm. If you have no assigned projects, No project is available. You do not need to enter a note at clock-in. If the button is unavailable, check whether you already have a running session.'],
+        ['How do I record an activity?', 'While clocked in, open Dashboard and choose Record activity above Clock Out. Describe the work you just completed (up to 50 characters), optionally select a project, and save. ACE records the time since clock-in or your last saved activity while your shift keeps running. Repeat whenever you finish another activity. You can record activities without a project assignment. Clock out to record the final block.'],
+        ['Where can I see recorded activities?', 'Open a time entry to see its activity descriptions and durations inside the full shift total. Administrators can hover over the activity button or tap it to view the breakdown in time entries, active shifts, recent entries, and employee history. PDF, Excel, and CSV reports include saved activities. Project-hour charts split recorded project time without adding it again to shift totals.'],
+        ['How do I clock out?', 'Open Dashboard and choose Clock out. Describe the final activity and optionally choose its project, then confirm. ACE records the final activity block and ends the shift. The full shift duration includes all recorded activities.'],
+        ['What should I write in the clock-out note?', 'Describe the work completed since your last saved activity, or since clock-in if you have not recorded any activities. Keep the description within 50 characters. Clock out saves that final activity block and ends the shift. The activity is visible in entry details and reports.'],
         ['Does ACE track breaks?', 'No. ACE records the full elapsed time from clock-in to clock-out. There are no Start Break or End Break controls.'],
         ['Why can I not clock in?', 'Check whether you already have an active work session. If you do, clock out before starting another one. Otherwise, verify that your account is active and you can open the dashboard. You can clock in without a project by selecting No project. If the button remains unavailable, contact an administrator and include any error message.'],
         ['Why can I not clock out?', 'Check that your work session is still active. If Clock out is unavailable or the action fails, avoid submitting it again. Keep the error message and tell an administrator when you actually finished work so they can verify and correct the record if needed.'],
-        ['How do I choose a project when clocking in?', 'In the Clock in form, select one of your assigned projects, or leave it as No project if your work does not need one. If a needed project is missing, ask an administrator to assign it through your user record.'],
+        ['How do I choose a project when clocking in?', 'In the Clock in form, choose one of your assigned projects. No project appears only when you have no active project assignments. If a needed project is missing, ask an administrator to assign it through your user record.'],
         ['Where are my previous shifts?', 'Open Work → My time entries. Use the date, project, and status filters, then select View to inspect a record.'],
         ['How do I filter my time entries?', 'Open Work → My time entries, set a date range, project, or status, then choose Apply filters. Choose Clear filters to start again.'],
         ['How do I move through my time entries?', 'Use the page controls below the list to move through older entries. Filters apply before the list is paged, so the results shown match your selected date, project, and status.'],
@@ -2306,7 +2308,7 @@ function workspaceHelpEntries(isAdmin) {
         ['I forgot to clock out', 'Tell an administrator when you actually finished work so they can correct the time entry. If your session is still active, let them know that too.']
     ];
     if (isAdmin) {
-        const sharedTitles = new Set(['How do I clock in?', 'How do I clock out?', 'What should I write in the clock-out note?', 'Does ACE track breaks?', 'Why can I not clock in?', 'Why can I not clock out?']);
+        const sharedTitles = new Set(['How do I record an activity?', 'Where can I see recorded activities?', 'How do I clock in?', 'How do I clock out?', 'What should I write in the clock-out note?', 'Does ACE track breaks?', 'Why can I not clock in?', 'Why can I not clock out?']);
         entries.push(...workspaceHelpEntries(false).filter(([title]) => sharedTitles.has(title)).map(([title, response]) => [title, response]));
         entries.push(['How do I change my password or security settings?', 'Open Administration → Settings, choose Security, update your password, and save. Use a unique password and keep it out of chat. If you think someone else has access to your account, notify the head administrator.']);
     }
@@ -2483,6 +2485,13 @@ function workspaceHelpEntries(isAdmin) {
         "help",
         "what can you do",
         "how to use this app"
+    ],
+    "How do I record an activity?": [
+        "record activity", "save activity", "log activity", "log project hours", "record project work",
+        "record activities", "working on different projects", "split my shift", "track tasks"
+    ],
+    "Where can I see recorded activities?": [
+        "view activities", "activity breakdown", "activity popup", "activities in reports", "project activity history"
     ],
     "How do I clock in?": [
         "clock in",
@@ -2830,7 +2839,7 @@ function createWorkspaceHelpConversation(entries) {
         const { match, alternatives } = fullResult || matchWorkspaceHelp(text, entries, true);
         if (match) return finish({ match, reply: match[1] });
         if (previous?.match?.[0] === 'How do I clock in?' && /^what if i (?:don'?t|do not) have (?:one|a project)$/.test(words)) {
-            return finish({ match: previous.match, related: true, reply: 'If you mean a project, choose No project in the Clock in form when your work does not need one.' });
+            return finish({ match: previous.match, related: true, reply: 'If you have no assigned projects, choose No project in Clock in. When you have active project assignments, choose one of them. Project selection remains optional when recording an activity.' });
         }
         const related = Boolean(previous && reference && !alternatives.length);
         if (related && previous.match) {
@@ -3974,13 +3983,20 @@ async function openClockInModal() {
     if (employeeClockState?.accepting && projectSelect) {
         const queueState = employeeClockState;
         const projects = queueState.snapshot.projects;
-        projectSelect.replaceChildren(new Option('No project', ''), ...projects.map(project => new Option(project.ProjectName, project.ProjectId)));
+        projectSelect.required = projects.length > 0;
+        const projectLabel = document.querySelector?.('label[for="clockInProject"]');
+        if (projectLabel) projectLabel.textContent = projects.length ? 'Project' : 'Project (optional)';
+        projectSelect.replaceChildren(...(projects.length ? [] : [new Option('No project', '')]), ...projects.map(project => new Option(project.ProjectName, project.ProjectId)));
+        projectSelect._aceSelectRefresh?.();
         if (queueState.connected && navigator.onLine !== false) {
             const owner = AppState.currentUser?.UserId;
             void refreshUserProjectAssignments().then(() => {
-                if (AppState.currentUser?.UserId === owner && !projectSelect.value &&
+                if (AppState.currentUser?.UserId === owner &&
                     document.getElementById('clockInModal')?.classList.contains('active')) {
+                    const selected = projectSelect.value;
                     populateProjectSelect('clockInProject');
+                    if ([...projectSelect.options].some(option => option.value === selected)) projectSelect.value = selected;
+                    projectSelect._aceSelectRefresh?.();
                 }
             }).catch(() => { /* The queued form can use its last verified projects. */ });
         }
@@ -5748,7 +5764,13 @@ function populateProjectSelect(selectId) {
         const activity = ['activityProject', 'finalActivityProject'].includes(selectId);
         if (activity) select.required = false;
         const placeholder = selectId.startsWith('filter') ? 'All projects' : 'No project';
-        select.innerHTML = `<option value="">${placeholder}</option>` + projects.map(p => `<option value="${p.ProjectId}">${escapeHtml(p.ProjectName)}</option>`).join('');
+        const requiresProject = selectId === 'clockInProject' && AppState.currentUser?.Role === 'USER' && projects.length > 0;
+        if (selectId === 'clockInProject') {
+            select.required = requiresProject;
+            const label = document.querySelector?.('label[for="clockInProject"]');
+            if (label) label.textContent = requiresProject ? 'Project' : 'Project (optional)';
+        }
+        select.innerHTML = (requiresProject ? '' : `<option value="">${placeholder}</option>`) + projects.map(p => `<option value="${p.ProjectId}">${escapeHtml(p.ProjectName)}</option>`).join('');
     }
 }
 
