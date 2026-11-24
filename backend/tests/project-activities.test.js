@@ -41,3 +41,9 @@ test('activity details encode employee text and preserve repeated projects',()=>
     assert.equal((markup.match(/Support/g)||[]).length,2);
     assert.equal(context().projectActivityMarkup({}),'');
 });
+
+test('shift listing selects the original project relationship after final activity adds a second foreign key',()=>{
+    const server=readFileSync(new URL('../server/index.js',import.meta.url),'utf8');
+    assert.match(server,/projects!time_entries_project_id_fkey\(name\)/);
+    assert.doesNotMatch(server,/\*, projects\(name\), profiles!time_entries_user_id_fkey/);
+});
