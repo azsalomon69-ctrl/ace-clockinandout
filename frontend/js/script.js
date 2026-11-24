@@ -2279,7 +2279,7 @@ function workspaceHelpEntries(isAdmin) {
     ] : [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. The Work section contains My time entries and Remarks.'],
         ['How do I clock in?', 'Open Dashboard → Clock in. If projects are assigned to you, choose one and confirm. If you have no assigned projects, No project is available. You do not need to enter a note at clock-in. If the button is unavailable, check whether you already have a running session.'],
-        ['How do I record an activity?', 'While clocked in, open Dashboard and choose Record activity above Clock Out. Name the activity you are starting (up to 50 characters), optionally add a note, and save. It automatically uses your clock-in project while your shift keeps running. The button becomes Change activity. Use it to finish and time the current activity and start another. You can record activities without a project assignment. Clock out finishes the final activity. Time before the first activity stays included in the full shift total.'],
+        ['How do I record an activity?', 'While clocked in, open Dashboard and choose Record activity above Clock Out. Describe the activity you are starting (up to 50 characters) and save. It automatically uses your clock-in project while your shift keeps running. The button becomes Change activity. Use it to finish and time the current activity and start another. You can record activities without a project assignment. Clock out finishes the final activity. Time before the first activity stays included in the full shift total.'],
         ['Where can I see recorded activities?', 'Open a time entry to see its activity descriptions and durations inside the full shift total. Administrators can hover over the activity button or tap it to view the breakdown in time entries, active shifts, recent entries, and employee history. PDF, Excel, and CSV reports include saved activities. Project-hour charts split recorded project time without adding it again to shift totals.'],
         ['How do I clock out?', 'Open Dashboard and choose Clock out. Add a final note and confirm. ACE finishes the current activity, keeps its name and note, and ends the shift. It uses your clock-in project. The full shift duration includes all recorded activities.'],
         ['What should I write in the clock-out note?', 'Add a short completion note for your current activity. Keep it within 50 characters. Clock out closes the current activity without changing its name or starting another one. If no activity was started, the note describes the final shift block. The activity is visible in entry details and reports.'],
@@ -4241,7 +4241,7 @@ function openProjectActivityModal() {
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
         modal.setAttribute('aria-labelledby', 'projectActivityTitle');
-        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body" novalidate><div class="form-group"><label class="form-label" for="activityDescription">New activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="What are you starting now?"></textarea></div><div class="form-group"><label class="form-label" for="activityNote">Note (optional)</label><textarea class="form-textarea" id="activityNote" maxlength="1000" rows="2" placeholder="Add details about this activity…"></textarea></div><p id="projectActivityError" class="form-error" role="alert" hidden></p><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
+        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body" novalidate><div class="form-group"><label class="form-label" for="activityDescription">New activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="What are you starting now?"></textarea></div><p id="projectActivityError" class="form-error" role="alert" hidden></p><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
         document.body.appendChild(modal);
         modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal.id));
         modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
@@ -4250,7 +4250,6 @@ function openProjectActivityModal() {
             const button = event.currentTarget.querySelector('button[type="submit"]');
             if (button.disabled) return;
             const description = document.getElementById('activityDescription').value.trim();
-            const note = document.getElementById('activityNote').value.trim();
             const errorMessage = modal.querySelector('#projectActivityError');
             errorMessage.hidden = true;
             if (!description || Array.from(description).length > 50) {
@@ -4261,7 +4260,7 @@ function openProjectActivityModal() {
                 document.getElementById('activityDescription').focus();
                 return;
             }
-            const payload = { description, note, expectedActivityId: modal._expectedActivityId };
+            const payload = { description, expectedActivityId: modal._expectedActivityId };
             const fingerprint = JSON.stringify(payload);
             if (modal._fingerprint !== fingerprint) {
                 modal._fingerprint = fingerprint;
@@ -4282,7 +4281,6 @@ function openProjectActivityModal() {
                 }).catch(() => {});
                 closeModal(modal.id);
                 document.getElementById('activityDescription').value = '';
-                document.getElementById('activityNote').value = '';
                 modal._fingerprint = null;
                 showToast('Activity started. Your shift is still running.', 'success');
             } catch (error) {
