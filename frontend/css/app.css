@@ -18636,3 +18636,100 @@ html[data-theme="dark"] .card-tip-button img { filter: brightness(0) invert(1); 
   border: 1px solid var(--ace-border);
 }
 .entry-activity-popover .entry-activity-line:last-child { border-bottom: 0; }
+
+/* Activity previews use the workspace blue accents. */
+.entry-activity-summary { margin-top: 10px; }
+.entry-activity-trigger {
+  gap: 10px;
+  min-height: 30px;
+  padding: 5px 11px;
+  color: #23578d;
+  border-color: #b9d1eb;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #f8fbff 0%, #e5effb 100%);
+  box-shadow: inset 0 1px 0 #fff, 0 2px 4px rgb(32 75 119 / 8%);
+}
+.entry-activity-trigger:hover,
+.entry-activity-trigger:focus-visible,
+.entry-activity-summary:has(+ .entry-activity-popover:popover-open) .entry-activity-trigger {
+  color: #164c85;
+  border-color: #6a9dd0;
+  background: linear-gradient(180deg, #edf5ff 0%, #d4e5f9 100%);
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 3px rgb(62 128 197 / 12%);
+}
+.entry-activity-trigger::after { color: #377cbe; opacity: 1; }
+.entry-activity-popover {
+  border-color: #adc8e5;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #fff 0%, #f4f8fe 100%);
+  color: #183d65;
+  box-shadow: 0 20px 50px rgb(26 63 105 / 22%), 0 3px 9px rgb(26 63 105 / 9%), inset 0 1px 0 #fff;
+  scrollbar-width: thin;
+  scrollbar-color: #3c86c8 #e8f1fb;
+  scrollbar-gutter: stable;
+}
+.entry-activity-popover::-webkit-scrollbar { width: 7px; }
+.entry-activity-popover::-webkit-scrollbar-track { background: #e8f1fb; border-radius: 8px; }
+.entry-activity-popover::-webkit-scrollbar-thumb { background: #3c86c8; border-radius: 8px; border: 1px solid #e8f1fb; }
+.entry-activity-popover::-webkit-scrollbar-thumb:hover { background: #2368a9; }
+.entry-activity-popover > header {
+  padding: 15px 14px 15px 18px;
+  border-bottom: 1px solid #c7dbef;
+  background: linear-gradient(120deg, #e9f3ff, #f7fbff);
+  box-shadow: 0 2px 8px rgb(29 72 118 / 4%);
+}
+.entry-activity-popover > header strong { color: #224f7e; letter-spacing: -.015em; }
+.entry-activity-close {
+  color: #4b7097;
+  border: 1px solid #cadced;
+  background: rgb(255 255 255 / 75%);
+}
+.entry-activity-close:hover { background: #dceafb; border-color: #9dbde0; }
+.entry-activity-popover .entry-activities { padding: 8px 12px 12px; }
+.entry-activity-popover .entry-activity-line {
+  position: relative;
+  margin-top: 6px;
+  padding: 11px 12px 11px 16px;
+  border: 1px solid #d8e4f1;
+  border-radius: 11px;
+  background: rgb(255 255 255 / 85%);
+  box-shadow: 0 2px 4px rgb(25 63 100 / 3%);
+}
+.entry-activity-popover .entry-activity-line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: #438bc8;
+}
+.entry-activity-popover .entry-activity-line > :first-child { color: #50769d; }
+.entry-activity-popover .entry-activity-line > :nth-child(2) { color: #1b3c5d; font-size: .81rem; }
+.entry-activity-popover .entry-activity-line time {
+  color: #2464a2;
+  border-color: #c2d8ef;
+  background: linear-gradient(180deg, #f1f7ff, #e1edfc);
+  box-shadow: inset 0 1px 0 #fff;
+}
+.entry-activity-popover .entry-activity-line:last-child { border-bottom: 1px solid #d8e4f1; }
+html[data-theme="dark"] .entry-activity-trigger {
+  color: #b8d9ff;
+  border-color: #395b82;
+  background: linear-gradient(180deg, #263d58, #1c2e45);
+  box-shadow: inset 0 1px 0 #ffffff0d;
+}
+html[data-theme="dark"] .entry-activity-popover {
+  color: #d2e4fa;
+  border-color: #3b5c80;
+  background: linear-gradient(145deg, #1c2c40, #142234);
+  scrollbar-color: #569bda #1c2e44;
+}
+html[data-theme="dark"] .entry-activity-popover > header { background: linear-gradient(120deg, #253f5c, #1e3046); border-color: #365271; }
+html[data-theme="dark"] .entry-activity-popover > header strong,
+html[data-theme="dark"] .entry-activity-popover .entry-activity-line > :nth-child(2) { color: #d7e8fc; }
+html[data-theme="dark"] .entry-activity-popover .entry-activity-line { background: #1d3046; border-color: #36506b; }
+html[data-theme="dark"] .entry-activity-popover .entry-activity-line > :first-child { color: #9cbddd; }
+html[data-theme="dark"] .entry-activity-popover .entry-activity-line time,
+html[data-theme="dark"] .entry-activity-close { color: #b7d9fb; border-color: #3b5b7e; background: #294360; box-shadow: none; }
