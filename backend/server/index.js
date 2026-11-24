@@ -1003,7 +1003,7 @@ const listTimeEntries = async (req, res, next) => { try {
   const filters = req.method === 'POST' ? (req.body || {}) : req.query;
   const search = req.method === 'POST' ? (req.body || {}) : {};
   const own = req.profile.role !== 'ADMIN' || filters.mine === 'true'; const page = Math.max(1, Number.parseInt(filters.page, 10) || 1); const pageSize = Math.min(100, Math.max(1, Number.parseInt(filters.pageSize, 10) || 25)); const paged = filters.page !== undefined;
-  let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email,role,profile_picture_url), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)', paged ? { count: 'exact' } : undefined).order('clock_in_at', { ascending: false });
+  let request = db.from('time_entries').select('*, projects!time_entries_project_id_fkey(name), profiles!time_entries_user_id_fkey(full_name,email,role,profile_picture_url), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)', paged ? { count: 'exact' } : undefined).order('clock_in_at', { ascending: false });
   request = filters.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null);
   if (own) request = request.eq('user_id', req.profile.id);
   if (filters.userId) request = request.eq('user_id', filters.userId);
