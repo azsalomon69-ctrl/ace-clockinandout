@@ -2279,7 +2279,7 @@ function workspaceHelpEntries(isAdmin) {
     ] : [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. The Work section contains My time entries and Remarks.'],
         ['How do I clock in?', 'Open Dashboard → Clock in. If projects are assigned to you, choose one and confirm. If you have no assigned projects, No project is available. You do not need to enter a note at clock-in. If the button is unavailable, check whether you already have a running session.'],
-        ['How do I record an activity?', 'While clocked in, open Dashboard and choose Record activity above Clock Out. Name the activity you are starting (up to 50 characters), optionally add a note, and save. It automatically uses your clock-in project while your shift keeps running. The button becomes Change activity. Use it to finish and time the current activity and start another. You can record activities without a project assignment. Clock out finishes the final activity. Time before the first activity remains visible as No activity recorded.'],
+        ['How do I record an activity?', 'While clocked in, open Dashboard and choose Record activity above Clock Out. Name the activity you are starting (up to 50 characters), optionally add a note, and save. It automatically uses your clock-in project while your shift keeps running. The button becomes Change activity. Use it to finish and time the current activity and start another. You can record activities without a project assignment. Clock out finishes the final activity. Time before the first activity stays included in the full shift total.'],
         ['Where can I see recorded activities?', 'Open a time entry to see its activity descriptions and durations inside the full shift total. Administrators can hover over the activity button or tap it to view the breakdown in time entries, active shifts, recent entries, and employee history. PDF, Excel, and CSV reports include saved activities. Project-hour charts split recorded project time without adding it again to shift totals.'],
         ['How do I clock out?', 'Open Dashboard and choose Clock out. Add a final note and confirm. ACE finishes the current activity, keeps its name and note, and ends the shift. It uses your clock-in project. The full shift duration includes all recorded activities.'],
         ['What should I write in the clock-out note?', 'Add a short completion note for your current activity. Keep it within 50 characters. Clock out closes the current activity without changing its name or starting another one. If no activity was started, the note describes the final shift block. The activity is visible in entry details and reports.'],
@@ -4028,11 +4028,18 @@ async function openClockInModal() {
 }
 
 function projectActivityText(entry) {
-    return (entry.Activities || []).map(activity =>
+    return recordedActivities(entry.Activities || entry.activities).map(activity =>
         [activity.project_id ? activity.project_name || 'No project' : 'No project', activity.description,
             reportDateTime(activity.started_at) + ' – ' + reportDateTime(activity.ended_at),
             activity.note || '', activity.completion_note || '',
             formatClockDuration(activityDurationSeconds(activity)) + (activity.ended_at ? '' : ' · In progress')].filter(Boolean).join(' · ')).join('\n');
+}
+
+function recordedActivities(activities) {
+    return (activities || []).filter(activity =>
+        activity.unrecorded !== true &&
+        String(activity.description || '').trim() !== '' &&
+        String(activity.description).trim() !== 'No activity recorded');
 }
 
 function activityDurationSeconds(activity) {
@@ -4068,7 +4075,7 @@ function updateCurrentActivityDisplay() {
 }
 
 function projectActivityMarkup(entry) {
-    const activities = entry.Activities || entry.activities || [];
+    const activities = recordedActivities(entry.Activities || entry.activities);
     if (!activities.length) return '';
     return '<section class="entry-activities"><h3>Activities</h3>' +
         activities.map(activity => '<div class="entry-activity-line"><span>' +
@@ -4080,7 +4087,8 @@ function projectActivityMarkup(entry) {
 let activityPopoverSequence = 0;
 
 function activitySummaryMarkup(activities) {
-    if (!activities?.length) return '';
+    activities = recordedActivities(activities);
+    if (!activities.length) return '';
     const id = 'entry-activities-' + (++activityPopoverSequence);
     return '<span class="entry-activity-summary"><button type="button" class="entry-activity-trigger" popovertarget="' +
         id + '" aria-label="View ' + activities.length + ' activities">' + activities.length +
@@ -4599,7 +4607,7 @@ function renderGeneratedReport(report, options = {}) {
     const reportElement = modal.querySelector('#printableReport');
     const entries = filterEntriesForReport(report);
     const totalSeconds = entries.reduce((sum, entry) => sum + entryWorkedSeconds(entry), 0);
-    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.ClockOutAt ? formatDuration(entryWorkedSeconds(entry)) : formatClockDuration(entryWorkedSeconds(entry)) + ' · Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}${entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''}</td></tr>${report.Filters?.exportMode !== 'DEFAULT' && entry.Activities?.length ? '<tr class="print-activity-row"><td colspan="7">' + (entry.Activities || []).map(activity => '<div class="print-activity-line"><span>' + escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') + '</span><span>' + escapeHtml([activity.description, activity.note, activity.completion_note].filter(Boolean).join(' · ')) + '</span><span>' + formatClockDuration(activityDurationSeconds(activity)) + (activity.ended_at ? '' : ' · Active') + '</span></div>').join('') + '</td></tr>' : ''}`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
+    reportElement.innerHTML = `<section class="print-report-table"><h2>Time entry details</h2><p><strong>Total worked:</strong> ${formatDuration(totalSeconds)}</p><table><thead><tr><th>Employee</th><th>Project</th><th>Clock in</th><th>Clock out</th><th>Worked</th><th>Clock-out note</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(entry => { const user = AppState.users.find(item => item.UserId === entry.UserId); const project = entry.ProjectName || AppState.projects.find(item => item.ProjectId === entry.ProjectId)?.ProjectName || 'Unassigned'; return `<tr><td>${escapeHtml(user?.FullName || 'Unknown')}</td><td>${escapeHtml(project)}</td><td>${reportDateTime(entry.ClockInAt)}</td><td>${entry.ClockOutAt ? reportDateTime(entry.ClockOutAt) : 'Active'}</td><td>${entry.ClockOutAt ? formatDuration(entryWorkedSeconds(entry)) : formatClockDuration(entryWorkedSeconds(entry)) + ' · Active'}</td><td>${escapeHtml(entry.FinalNote || '—')}</td><td>${entry.ClockOutAt ? 'Completed' : 'Active'}${entry.QueuedClockSyncedLate ? ' · Confirmed · Synced late' : ''}</td></tr>${report.Filters?.exportMode !== 'DEFAULT' && recordedActivities(entry.Activities).length ? '<tr class="print-activity-row"><td colspan="7">' + recordedActivities(entry.Activities).map(activity => '<div class="print-activity-line"><span>' + escapeHtml(activity.project_id ? activity.project_name || 'No project' : 'No project') + '</span><span>' + escapeHtml([activity.description, activity.note, activity.completion_note].filter(Boolean).join(' · ')) + '</span><span>' + formatClockDuration(activityDurationSeconds(activity)) + (activity.ended_at ? '' : ' · Active') + '</span></div>').join('') + '</td></tr>' : ''}`; }).join('') : '<tr><td colspan="7">No entries match this report.</td></tr>'}</tbody></table></section>`;
     if (!options.printOnly) openModal('generatedReportModal');
 }
 

@@ -138,3 +138,20 @@ test('default PDF excludes activity rows while activity-based PDF includes them'
     assert.ok(report.innerHTML.includes('print-activity-row'));
     assert.ok(report.innerHTML.includes('Follow-ups'));
 });
+
+test('automatic unrecorded blocks are hidden from counts, details and exports without altering attendance',()=>{
+    const sandbox=context();
+    const gap={description:'No activity recorded',project_name:'Support',project_id:'one',duration_seconds:22,started_at:'08:00',ended_at:'08:00:22'};
+    const named={description:'Support tickets',project_name:'Support',project_id:'one',duration_seconds:54,started_at:'08:00:22',ended_at:'08:01:16'};
+    const data={UserId:'employee',ClockInAt:'2026-11-24T00:00:00Z',ClockOutAt:'2026-11-24T00:01:16Z',DurationSeconds:76,Activities:[gap,named]};
+    sandbox.filterEntriesForReport=()=>[data];
+    assert.match(sandbox.activitySummaryMarkup(data.Activities),/1 activity/);
+    assert.ok(!sandbox.projectActivityMarkup(data).includes('No activity recorded'));
+    assert.ok(!sandbox.projectActivityText(data).includes('No activity recorded'));
+    assert.equal(sandbox.activitySummaryMarkup([gap]),'');
+    const rows=sandbox.reportWorkbookData({Filters:{exportMode:'ACTIVITY'}});
+    assert.equal(rows[1][4],76);
+    assert.equal(rows[2][4],76);
+    assert.ok(!JSON.stringify(rows).includes('No activity recorded'));
+    assert.equal(data.Activities.length,2);
+});
