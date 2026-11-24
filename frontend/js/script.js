@@ -4058,6 +4058,59 @@ function initializeActivityPopovers() {
     document.addEventListener('toggle', event => {
         if (event.newState === 'open' && event.target.classList.contains('entry-activity-popover')) position(event.target);
     }, true);
+    let openingTimer;
+    let closingTimer;
+    let hoveredPopover;
+    const cancelTimers = () => {
+        window.clearTimeout(openingTimer);
+        window.clearTimeout(closingTimer);
+    };
+    document.addEventListener('pointerover', event => {
+        if (event.pointerType !== 'mouse' || event.buttons) return;
+        const trigger = event.target.closest?.('.entry-activity-trigger');
+        const popover = event.target.closest?.('.entry-activity-popover');
+        if (popover) {
+            window.clearTimeout(closingTimer);
+            return;
+        }
+        if (!trigger || trigger.contains(event.relatedTarget)) return;
+        cancelTimers();
+        openingTimer = window.setTimeout(() => {
+            const target = document.getElementById(trigger.getAttribute('popovertarget'));
+            if (!target || !trigger.isConnected || target.matches(':popover-open')) return;
+            hoveredPopover = target;
+            target.showPopover();
+        }, 140);
+    });
+    document.addEventListener('pointerout', event => {
+        if (event.pointerType !== 'mouse') return;
+        const trigger = event.target.closest?.('.entry-activity-trigger');
+        const popover = event.target.closest?.('.entry-activity-popover');
+        if (!trigger && !popover) return;
+        if (event.relatedTarget && (trigger?.contains(event.relatedTarget) || popover?.contains(event.relatedTarget))) return;
+        window.clearTimeout(openingTimer);
+        window.clearTimeout(closingTimer);
+        closingTimer = window.setTimeout(() => {
+            if (!hoveredPopover?.matches(':popover-open')) return;
+            if (hoveredPopover.matches(':hover') || hoveredPopover.contains(document.activeElement)) return;
+            hoveredPopover.hidePopover();
+            hoveredPopover = undefined;
+        }, 240);
+    });
+    document.addEventListener('click', event => {
+        const trigger = event.target.closest?.('.entry-activity-trigger');
+        if (trigger && hoveredPopover?.id === trigger.getAttribute('popovertarget') && hoveredPopover.matches(':popover-open')) {
+            event.preventDefault();
+            cancelTimers();
+            hoveredPopover = undefined;
+        }
+    });
+    document.addEventListener('beforetoggle', event => {
+        if (event.newState === 'closed' && event.target === hoveredPopover) {
+            cancelTimers();
+            hoveredPopover = undefined;
+        }
+    }, true);
     const close = () => document.querySelectorAll('.entry-activity-popover:popover-open').forEach(popover => popover.hidePopover());
     window.addEventListener('resize', close);
     document.addEventListener('scroll', event => {
