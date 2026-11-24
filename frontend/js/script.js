@@ -2279,9 +2279,9 @@ function workspaceHelpEntries(isAdmin) {
     ] : [
         ['How do I use the sidebar?', 'Use the arrow on the sidebar edge to collapse or expand it. On a phone, use the menu button in the top bar. The Work section contains My time entries and Remarks.'],
         ['How do I clock in?', 'Open Dashboard → Clock in. If projects are assigned to you, choose one and confirm. If you have no assigned projects, No project is available. You do not need to enter a note at clock-in. If the button is unavailable, check whether you already have a running session.'],
-        ['How do I record an activity?', 'While clocked in, open Dashboard and choose Record activity above Clock Out. Describe the work you just completed (up to 50 characters), optionally select a project, and save. ACE records the time since clock-in or your last saved activity while your shift keeps running. Repeat whenever you finish another activity. You can record activities without a project assignment. Clock out to record the final block.'],
+        ['How do I record an activity?', 'While clocked in, open Dashboard and choose Record activity above Clock Out. Describe the work you just completed (up to 50 characters) and save. The activity automatically uses the project chosen at clock-in. ACE records the time since clock-in or your last saved activity while your shift keeps running. Repeat whenever you finish another activity. You can record activities without a project assignment. Clock out to record the final block.'],
         ['Where can I see recorded activities?', 'Open a time entry to see its activity descriptions and durations inside the full shift total. Administrators can hover over the activity button or tap it to view the breakdown in time entries, active shifts, recent entries, and employee history. PDF, Excel, and CSV reports include saved activities. Project-hour charts split recorded project time without adding it again to shift totals.'],
-        ['How do I clock out?', 'Open Dashboard and choose Clock out. Describe the final activity and optionally choose its project, then confirm. ACE records the final activity block and ends the shift. The full shift duration includes all recorded activities.'],
+        ['How do I clock out?', 'Open Dashboard and choose Clock out. Describe the final activity and confirm. It automatically uses the project chosen at clock-in. ACE records the final activity block and ends the shift. The full shift duration includes all recorded activities.'],
         ['What should I write in the clock-out note?', 'Describe the work completed since your last saved activity, or since clock-in if you have not recorded any activities. Keep the description within 50 characters. Clock out saves that final activity block and ends the shift. The activity is visible in entry details and reports.'],
         ['Does ACE track breaks?', 'No. ACE records the full elapsed time from clock-in to clock-out. There are no Start Break or End Break controls.'],
         ['Why can I not clock in?', 'Check whether you already have an active work session. If you do, clock out before starting another one. Otherwise, verify that your account is active and you can open the dashboard. You can clock in without a project by selecting No project. If the button remains unavailable, contact an administrator and include any error message.'],
@@ -2839,7 +2839,7 @@ function createWorkspaceHelpConversation(entries) {
         const { match, alternatives } = fullResult || matchWorkspaceHelp(text, entries, true);
         if (match) return finish({ match, reply: match[1] });
         if (previous?.match?.[0] === 'How do I clock in?' && /^what if i (?:don'?t|do not) have (?:one|a project)$/.test(words)) {
-            return finish({ match: previous.match, related: true, reply: 'If you have no assigned projects, choose No project in Clock in. When you have active project assignments, choose one of them. Project selection remains optional when recording an activity.' });
+            return finish({ match: previous.match, related: true, reply: 'If you have no assigned projects, choose No project in Clock in. When you have active project assignments, choose one of them. Recorded activities automatically use your clock-in project.' });
         }
         const related = Boolean(previous && reference && !alternatives.length);
         if (related && previous.match) {
@@ -4176,7 +4176,7 @@ function openProjectActivityModal() {
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
         modal.setAttribute('aria-labelledby', 'projectActivityTitle');
-        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body" novalidate><p>Record the work since your last activity. Your shift keeps running.</p><div class="form-group"><label class="form-label" for="activityProject">Project (optional)</label><select class="form-select" id="activityProject" required></select></div><div class="form-group"><label class="form-label" for="activityDescription">Activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="Tell us what project work you did…"></textarea></div><p id="projectActivityError" class="form-error" role="alert" hidden></p><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
+        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body" novalidate><div class="form-group"><label class="form-label" for="activityDescription">Activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="Tell us what project work you did…"></textarea></div><p id="projectActivityError" class="form-error" role="alert" hidden></p><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
         document.body.appendChild(modal);
         modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal.id));
         modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
@@ -4185,7 +4185,7 @@ function openProjectActivityModal() {
             const button = event.currentTarget.querySelector('button[type="submit"]');
             if (button.disabled) return;
             const description = document.getElementById('activityDescription').value.trim();
-            const projectId = document.getElementById('activityProject').value;
+            const projectId = modal._projectId;
             const errorMessage = modal.querySelector('#projectActivityError');
             errorMessage.hidden = true;
             if (!description || Array.from(description).length > 50) {
@@ -4221,8 +4221,8 @@ function openProjectActivityModal() {
         });
     }
     modal._entryId = entryId;
+    modal._projectId = shift?.projectId ?? AppState.currentSession?.ProjectId ?? AppState.timeEntries.find(entry => entry.TimeEntryId === entryId)?.ProjectId ?? null;
     modal.querySelector('#projectActivityError').hidden = true;
-    populateProjectSelect('activityProject');
     openModal(modal.id);
 }
 
@@ -4230,7 +4230,6 @@ function openClockOutModal() {
     if (document.getElementById('mainClockOutBtn')?.disabled || !AppState.currentSession) return;
     if (!canOpenClockForm('clock out')) return;
     clockOutTarget = employeeClockState?.shift;
-    populateProjectSelect('finalActivityProject');
     showClockOutSummary();
     openModal('clockOutModal');
 }
@@ -4240,7 +4239,7 @@ async function saveEmployeeClockTap(type, input, submitButton, shift) {
     const modal = clockIn ? 'clockInModal' : 'clockOutModal';
     setActionBusy(submitButton, true, 'Saving…');
     try {
-        const duplicate = await window.ACEClockQueue.save(type, input, shift, type === 'clock_out' ? document.getElementById('finalActivityProject')?.value : null);
+        const duplicate = await window.ACEClockQueue.save(type, input, shift, type === 'clock_out' ? shift?.projectId ?? AppState.currentSession?.ProjectId ?? null : null);
         if (!clockIn) document.getElementById('clockOutNote').value = '';
         closeModal(modal);
         if (duplicate) showToast('This clock action was already saved on this device.', 'info');
@@ -4288,7 +4287,7 @@ async function handleClockOut(e) {
     if (employeeClockPreview || document.getElementById('mainClockOutBtn')?.disabled || !AppState.currentSession || !canOpenClockForm('clock out')) return;
     try {
         setActionBusy(submitButton, true, 'Clocking out…');
-        const entry = await window.ACEAuth.request(`/v1/time-entries/${AppState.currentSession.TimeEntryId}/clock-out`, { method: 'POST', body: JSON.stringify({ note: note || '', activityProjectId: document.getElementById('finalActivityProject')?.value || null }) });
+        const entry = await window.ACEAuth.request(`/v1/time-entries/${AppState.currentSession.TimeEntryId}/clock-out`, { method: 'POST', body: JSON.stringify({ note: note || '', activityProjectId: AppState.currentSession.ProjectId || null }) });
         const saved = timeEntryRecord(entry);
         AppState.timeEntries = AppState.timeEntries.map(item => item.TimeEntryId === saved.TimeEntryId ? saved : item);
         AppState.isClockedIn = false; AppState.currentSession = null; AppState.clockInTime = null;
