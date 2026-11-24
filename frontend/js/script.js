@@ -425,7 +425,13 @@ async function loadEmployeeHistory() {
 }
 
 async function refreshUserProjectAssignments() {
-    const userProjects = await window.ACEAuth.request('/v1/user-projects');
+    const owner = AppState.currentUser?.UserId;
+    const [userProjects, projects] = await Promise.all([
+        window.ACEAuth.request('/v1/user-projects'),
+        window.ACEAuth.request('/v1/projects')
+    ]);
+    if (AppState.currentUser?.UserId !== owner) return;
+    AppState.projects = projects.map(projectRecord);
     AppState.userProjects = userProjects.map(item => ({
         UserId: item.user_id,
         ProjectId: item.project_id,
@@ -875,6 +881,7 @@ function renderEmployeeClockQueue(state) {
 }
 
 async function readEmployeeClockSnapshot(owner) {
+    await refreshUserProjectAssignments();
     const [active] = await loadCurrentEmployeeEntries(owner, { expectedUserId: owner });
     const ids = new Set(AppState.userProjects.filter(item => item.UserId === owner && item.IsActive).map(item => item.ProjectId));
     const projects = AppState.projects.filter(project => ids.has(project.ProjectId) && project.IsActive !== false)
@@ -3969,8 +3976,9 @@ async function openClockInModal() {
         const projects = queueState.snapshot.projects;
         projectSelect.replaceChildren(new Option('No project', ''), ...projects.map(project => new Option(project.ProjectName, project.ProjectId)));
         if (queueState.connected && navigator.onLine !== false) {
+            const owner = AppState.currentUser?.UserId;
             void refreshUserProjectAssignments().then(() => {
-                if (employeeClockState === queueState && !projectSelect.value &&
+                if (AppState.currentUser?.UserId === owner && !projectSelect.value &&
                     document.getElementById('clockInModal')?.classList.contains('active')) {
                     populateProjectSelect('clockInProject');
                 }
