@@ -82,7 +82,9 @@ test('admin project analytics split activities without double counting attendanc
 });
 test('admin summaries stay compact and encode employee activity descriptions',()=>{
     const markup=context().activitySummaryMarkup(entry.Activities);
-    assert.match(markup,/<summary>3 activities<\/summary>/);
+    assert.match(markup,/popovertarget=/);
+    assert.match(markup,/popover="auto"/);
+    assert.doesNotMatch(markup,/<details/);
     assert.match(markup,/Follow-ups/);
     assert.ok(!markup.includes('<img'));
 });

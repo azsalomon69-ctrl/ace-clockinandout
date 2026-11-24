@@ -188,6 +188,7 @@ function enhanceSelectControl(select) {
 }
 
 function initializeSelectControls(root = document) {
+    initializeActivityPopovers();
     root.querySelectorAll?.('select.form-select:not(.ace-native-select)').forEach(enhanceSelectControl);
     if (aceSelectObserver) return;
     document.addEventListener('pointerdown', event => { if (!event.target.closest('.ace-select,.ace-select-menu')) closeAceSelectMenus(); });
@@ -4012,11 +4013,48 @@ function projectActivityMarkup(entry) {
             formatClockDuration(activity.duration_seconds) + '</time></div>').join('') + '</section>';
 }
 
+let activityPopoverSequence = 0;
+
 function activitySummaryMarkup(activities) {
     if (!activities?.length) return '';
-    return '<details class="entry-activity-summary"><summary>' + activities.length +
-        ' activit' + (activities.length === 1 ? 'y' : 'ies') + '</summary>' +
-        projectActivityMarkup({ Activities: activities }) + '</details>';
+    const id = 'entry-activities-' + (++activityPopoverSequence);
+    return '<span class="entry-activity-summary"><button type="button" class="entry-activity-trigger" popovertarget="' +
+        id + '" aria-label="View ' + activities.length + ' activities">' + activities.length +
+        ' activit' + (activities.length === 1 ? 'y' : 'ies') + '</button></span>' +
+        '<div id="' + id + '" class="entry-activity-popover" popover="auto" role="dialog" aria-label="Recorded activities">' +
+        '<header><strong>Recorded activities</strong><button type="button" class="entry-activity-close" popovertarget="' +
+        id + '" popovertargetaction="hide" aria-label="Close activities">×</button></header>' +
+        projectActivityMarkup({ Activities: activities }) + '</div>';
+}
+
+function initializeActivityPopovers() {
+    if (document.documentElement.dataset.activityPopoversBound) return;
+    document.documentElement.dataset.activityPopoversBound = 'true';
+    const position = popover => {
+        const trigger = document.querySelector('[popovertarget="' + popover.id + '"]:not([popovertargetaction])');
+        if (!trigger) return;
+        const anchor = trigger.getBoundingClientRect();
+        const width = Math.min(440, window.innerWidth - 24);
+        const availableBelow = window.innerHeight - anchor.bottom - 20;
+        const availableAbove = anchor.top - 20;
+        const below = availableBelow >= Math.min(popover.scrollHeight || 280, 320) || availableBelow >= availableAbove;
+        const available = Math.max(80, below ? availableBelow : availableAbove);
+        popover.style.width = width + 'px';
+        popover.style.maxHeight = Math.min(360, available) + 'px';
+        popover.style.left = Math.max(12, Math.min(anchor.left, window.innerWidth - width - 12)) + 'px';
+        popover.style.top = (below ? anchor.bottom + 8 : Math.max(12, anchor.top - popover.getBoundingClientRect().height - 8)) + 'px';
+    };
+    document.addEventListener('beforetoggle', event => {
+        if (event.newState === 'open' && event.target.classList.contains('entry-activity-popover')) position(event.target);
+    }, true);
+    document.addEventListener('toggle', event => {
+        if (event.newState === 'open' && event.target.classList.contains('entry-activity-popover')) position(event.target);
+    }, true);
+    const close = () => document.querySelectorAll('.entry-activity-popover:popover-open').forEach(popover => popover.hidePopover());
+    window.addEventListener('resize', close);
+    document.addEventListener('scroll', event => {
+        if (!event.target.closest?.('.entry-activity-popover')) close();
+    }, true);
 }
 
 function projectActivityTotals(entries, projects = AppState.projects) {

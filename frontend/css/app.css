@@ -18529,7 +18529,37 @@ html[data-theme="dark"] .card-tip-button img { filter: brightness(0) invert(1); 
 }
 
 .entry-activity-summary { margin-top: 5px; font-size: .78rem; }
-.entry-activity-summary > summary { color: var(--ace-text-secondary); cursor: pointer; }
+.entry-activity-trigger {
+  padding: 3px 7px;
+  border: 1px solid var(--ace-border);
+  border-radius: 7px;
+  background: var(--ace-surface);
+  color: var(--ace-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.entry-activity-trigger:hover, .entry-activity-trigger:focus-visible { color: var(--ace-text-primary); border-color: currentColor; }
+.entry-activity-popover {
+  position: fixed;
+  inset: auto;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--ace-border);
+  border-radius: 14px;
+  background: var(--ace-surface, #fff);
+  color: var(--ace-text-primary, #173b46);
+  box-shadow: 0 12px 35px rgb(15 42 55 / 18%);
+}
+.entry-activity-popover:popover-open { animation: activity-popover-enter 140ms ease-out; }
+.entry-activity-popover > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; font-size: .85rem; }
+.entry-activity-close { width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: inherit; font-size: 20px; cursor: pointer; }
+.entry-activity-close:hover { background: var(--ace-border); }
+.entry-activity-popover .entry-activities > h3 { display: none; }
+@keyframes activity-popover-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .entry-activity-popover:popover-open { animation: none; } }
 .entry-activities { margin-top: 8px; }
 .entry-activities h3 { margin: 0 0 6px; font-size: .85rem; }
 .entry-activity-line { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,2fr) auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--ace-border); font-size: .78rem; overflow-wrap: anywhere; }
