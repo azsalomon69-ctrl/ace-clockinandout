@@ -4028,7 +4028,7 @@ function openProjectActivityModal() {
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
         modal.setAttribute('aria-labelledby', 'projectActivityTitle');
-        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body"><p>Record the work since your last activity. Your shift keeps running.</p><div class="form-group"><label class="form-label" for="activityProject">Project</label><select class="form-select" id="activityProject" required></select></div><div class="form-group"><label class="form-label" for="activityDescription">Activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="Tell us what project work you did…"></textarea></div><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
+        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body" novalidate><p>Record the work since your last activity. Your shift keeps running.</p><div class="form-group"><label class="form-label" for="activityProject">Project</label><select class="form-select" id="activityProject" required></select></div><div class="form-group"><label class="form-label" for="activityDescription">Activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="Tell us what project work you did…"></textarea></div><p id="projectActivityError" class="form-error" role="alert" hidden></p><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
         document.body.appendChild(modal);
         modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal.id));
         modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
@@ -4038,7 +4038,19 @@ function openProjectActivityModal() {
             if (button.disabled) return;
             const description = document.getElementById('activityDescription').value.trim();
             const projectId = document.getElementById('activityProject').value;
-            if (!description || !projectId) return;
+            const errorMessage = modal.querySelector('#projectActivityError');
+            errorMessage.hidden = true;
+            if (!projectId || !description || Array.from(description).length > 50) {
+                errorMessage.textContent = !projectId
+                    ? document.getElementById('activityProject').options.length > 1
+                        ? 'Choose the project you worked on.'
+                        : 'No assigned projects are available. Ask an administrator to assign a project, then reopen this form.'
+                    : !description ? 'Describe the work you completed.' : 'Keep the activity description within 50 characters.';
+                errorMessage.hidden = false;
+                if (!projectId) document.getElementById('activityProject').nextElementSibling?.querySelector('button')?.focus();
+                else document.getElementById('activityDescription').focus();
+                return;
+            }
             const payload = { projectId, description };
             const fingerprint = JSON.stringify(payload);
             if (modal._fingerprint !== fingerprint) {
@@ -4056,11 +4068,15 @@ function openProjectActivityModal() {
                 document.getElementById('activityDescription').value = '';
                 modal._fingerprint = null;
                 showToast('Activity recorded. Your shift is still running.', 'success');
-            } catch (error) { showToast(error.message || 'Activity could not be confirmed. Retry to check it.', 'error'); }
+            } catch (error) {
+                errorMessage.textContent = error.message || 'Activity could not be confirmed. Retry to check it.';
+                errorMessage.hidden = false;
+            }
             finally { setActionBusy(button, false); }
         });
     }
     modal._entryId = entryId;
+    modal.querySelector('#projectActivityError').hidden = true;
     populateProjectSelect('activityProject');
     openModal(modal.id);
 }
