@@ -4106,6 +4106,7 @@ function initializeActivityPopovers() {
         }
     });
     document.addEventListener('beforetoggle', event => {
+        if (event.target.classList.contains('entry-activity-popover')) window.clearTimeout(openingTimer);
         if (event.newState === 'closed' && event.target === hoveredPopover) {
             cancelTimers();
             hoveredPopover = undefined;
