@@ -1302,9 +1302,10 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
 
 app.post('/v1/time-entries/:id/activities', authenticate, activeOnly, async (req, res, next) => {
   try {
-    const { projectId, actionId } = req.body;
+    const { actionId } = req.body;
+    const projectId = optionalUuid(req.body.projectId);
     const description = requireText(req.body.description, 'Activity description', 50);
-    if (!isUuid(req.params.id) || !isUuid(projectId) || !isUuid(actionId)) return fail(res, 400, 'Choose a project and supply a valid activity ID');
+    if (!isUuid(req.params.id) || projectId === undefined || !isUuid(actionId)) return fail(res, 400, 'Supply valid activity and project IDs');
     const { data, error } = await db.rpc('record_project_activity', {
       p_actor: req.profile.id, p_entry: req.params.id, p_project: projectId,
       p_description: description, p_action: actionId

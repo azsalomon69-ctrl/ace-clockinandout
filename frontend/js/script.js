@@ -4028,7 +4028,7 @@ function openProjectActivityModal() {
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
         modal.setAttribute('aria-labelledby', 'projectActivityTitle');
-        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body" novalidate><p>Record the work since your last activity. Your shift keeps running.</p><div class="form-group"><label class="form-label" for="activityProject">Project</label><select class="form-select" id="activityProject" required></select></div><div class="form-group"><label class="form-label" for="activityDescription">Activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="Tell us what project work you did…"></textarea></div><p id="projectActivityError" class="form-error" role="alert" hidden></p><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
+        modal.innerHTML = '<div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="projectActivityTitle">Record activity</h3><button type="button" class="modal-close" aria-label="Close">×</button></div><form id="projectActivityForm" class="modal-body" novalidate><p>Record the work since your last activity. Your shift keeps running.</p><div class="form-group"><label class="form-label" for="activityProject">Project (optional)</label><select class="form-select" id="activityProject" required></select></div><div class="form-group"><label class="form-label" for="activityDescription">Activity</label><textarea class="form-textarea" id="activityDescription" maxlength="50" required placeholder="Tell us what project work you did…"></textarea></div><p id="projectActivityError" class="form-error" role="alert" hidden></p><div class="form-actions"><button class="btn btn-primary" type="submit">Save activity</button></div></form></div>';
         document.body.appendChild(modal);
         modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal.id));
         modal.addEventListener('click', event => { if (event.target === modal) closeModal(modal.id); });
@@ -4040,18 +4040,15 @@ function openProjectActivityModal() {
             const projectId = document.getElementById('activityProject').value;
             const errorMessage = modal.querySelector('#projectActivityError');
             errorMessage.hidden = true;
-            if (!projectId || !description || Array.from(description).length > 50) {
-                errorMessage.textContent = !projectId
-                    ? document.getElementById('activityProject').options.length > 1
-                        ? 'Choose the project you worked on.'
-                        : 'No assigned projects are available. Ask an administrator to assign a project, then reopen this form.'
-                    : !description ? 'Describe the work you completed.' : 'Keep the activity description within 50 characters.';
+            if (!description || Array.from(description).length > 50) {
+                errorMessage.textContent = !description
+                    ? 'Describe the work you completed.'
+                    : 'Keep the activity description within 50 characters.';
                 errorMessage.hidden = false;
-                if (!projectId) document.getElementById('activityProject').nextElementSibling?.querySelector('button')?.focus();
-                else document.getElementById('activityDescription').focus();
+                document.getElementById('activityDescription').focus();
                 return;
             }
-            const payload = { projectId, description };
+            const payload = { projectId: projectId || null, description };
             const fingerprint = JSON.stringify(payload);
             if (modal._fingerprint !== fingerprint) {
                 modal._fingerprint = fingerprint;
@@ -5626,8 +5623,8 @@ function populateProjectSelect(selectId) {
             projects = projects.filter(project => assignedIds.has(String(project.ProjectId)));
         }
         const activity = ['activityProject', 'finalActivityProject'].includes(selectId);
-        if (activity) select.required = projects.length > 0;
-        const placeholder = selectId.startsWith('filter') ? 'All projects' : activity && projects.length ? 'Choose project' : 'No project';
+        if (activity) select.required = false;
+        const placeholder = selectId.startsWith('filter') ? 'All projects' : 'No project';
         select.innerHTML = `<option value="">${placeholder}</option>` + projects.map(p => `<option value="${p.ProjectId}">${escapeHtml(p.ProjectName)}</option>`).join('');
     }
 }
