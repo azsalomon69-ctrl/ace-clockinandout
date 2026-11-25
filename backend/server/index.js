@@ -310,10 +310,19 @@ Invitation for ${email}`,
   };
 };
 
+const invitationSender = () => {
+  const configured = (process.env.GMAIL_FROM?.trim() || process.env.SMTP_FROM || smtpUser || '').trim();
+  const address = configured.match(/<([^<>]+)>$/)?.[1].trim() || configured;
+  if (/[\r\n]/.test(configured) || !/^[^<>\s@,;]+@[^<>\s@,;]+\.[^<>\s@,;]+$/.test(address)) {
+    throw new Error('Invalid invitation sender address');
+  }
+  return `"ACE Outsource" <${address}>`;
+};
+
 const sendInvitationEmail = async ({ email, role, invitedBy }) => {
   if (!gmailConfigured && !mailTransport) return false;
   const message = {
-    from: process.env.GMAIL_FROM?.trim() || process.env.SMTP_FROM || smtpUser,
+    from: invitationSender(),
     to: email,
     ...buildInvitationEmail({ email, role, invitedBy })
   };
