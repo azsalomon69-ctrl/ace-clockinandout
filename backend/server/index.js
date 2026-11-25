@@ -97,7 +97,8 @@ app.use((req, res, next) => {
 });
 
 morgan.token('request-id', req => req.requestId || '-');
-app.use(morgan(process.env.NODE_ENV === 'production' ? ':remote-addr :method :url :status :res[content-length] - :response-time ms request_id=:request-id' : 'dev request_id=:request-id', {
+morgan.token('request-path', req => req.path);
+app.use(morgan(process.env.NODE_ENV === 'production' ? ':remote-addr :method :request-path :status :res[content-length] - :response-time ms request_id=:request-id' : ':method :request-path :status :response-time ms request_id=:request-id', {
   skip: (_req, res) => process.env.NODE_ENV === 'production' && res.statusCode < 400
 }));
 // Render is a reverse-proxy deployment. Trusting its first proxy hop gives
@@ -1003,11 +1004,11 @@ const listTimeEntries = async (req, res, next) => { try {
   const filters = req.method === 'POST' ? (req.body || {}) : req.query;
   const search = req.method === 'POST' ? (req.body || {}) : {};
   const own = req.profile.role !== 'ADMIN' || filters.mine === 'true'; const page = Math.max(1, Number.parseInt(filters.page, 10) || 1); const pageSize = Math.min(100, Math.max(1, Number.parseInt(filters.pageSize, 10) || 25)); const paged = filters.page !== undefined;
-  let request = db.from('time_entries').select('*, projects(name), profiles!time_entries_user_id_fkey(full_name,email,role,profile_picture_url), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)', paged ? { count: 'exact' } : undefined).order('clock_in_at', { ascending: false });
+  let request = db.from('time_entries').select('*, projects!time_entries_project_id_fkey(name), profiles!time_entries_user_id_fkey(full_name,email,role,profile_picture_url), stopped_by:profiles!time_entries_stopped_by_user_id_fkey(full_name,email)', paged ? { count: 'exact' } : undefined).order('clock_in_at', { ascending: false });
   request = filters.removed === 'true' && req.profile.role === 'ADMIN' ? request.not('deleted_at', 'is', null) : request.is('deleted_at', null);
   if (own) request = request.eq('user_id', req.profile.id);
   if (filters.userId) request = request.eq('user_id', filters.userId);
-  if (filters.projectId) request = request.eq('project_id', filters.projectId);
+  if (filters.projectId) request = request.or('project_id.eq.' + filters.projectId + ',activities.cs.' + JSON.stringify([{ project_id: filters.projectId }]));
   if (filters.status === 'ACTIVE') request = request.is('clock_out_at', null);
   if (filters.status === 'COMPLETED') request = request.not('clock_out_at', 'is', null);
   const matchingIds = async (table, field, value) => {
@@ -1090,17 +1091,19 @@ function queuedClockPayload(body) {
       || tappedAt.startsWith('0000') || !Number.isFinite(Date.parse(tappedAt))
       || new Date(tappedAt).toISOString() !== tappedAt) return null;
   const projectId = optionalUuid(body.projectId);
+  const activityProjectId = optionalUuid(body.activityProjectId);
   const entryId = optionalUuid(body.entryId);
   const clockInActionId = optionalUuid(body.clockInActionId);
   const anchorId = optionalUuid(body.anchorId);
-  if ([projectId, entryId, clockInActionId, anchorId].includes(undefined)) return null;
+  if ([projectId, activityProjectId, entryId, clockInActionId, anchorId].includes(undefined)) return null;
   if (anchorId ? (!Number.isInteger(anchorElapsedMs) || anchorElapsedMs < 0 || anchorElapsedMs > 900_000)
     : anchorElapsedMs != null) return null;
   const note = optionalText(body.note, 50);
   if (type === 'clock_out' && (!note || note.includes('\0') || projectId || Boolean(entryId) === Boolean(clockInActionId))) return null;
-  if (type === 'clock_in' && (entryId || clockInActionId || body.note != null)) return null;
+  if (type === 'clock_in' && (entryId || clockInActionId || activityProjectId || body.note != null)) return null;
   if (clockInActionId?.toLowerCase() === actionId.toLowerCase()) return null;
   return { actionId: actionId.toLowerCase(), payload: { type, tappedAt,
+    ...(activityProjectId ? { activityProjectId: activityProjectId.toLowerCase() } : {}),
     projectId: projectId?.toLowerCase() ?? null, entryId: entryId?.toLowerCase() ?? null,
     clockInActionId: clockInActionId?.toLowerCase() ?? null, note,
     anchorId: anchorId?.toLowerCase() ?? null, anchorElapsedMs: anchorElapsedMs ?? null } };
@@ -1257,6 +1260,31 @@ app.post('/v1/queued-clock-reviews/:id/decision', queuedClockEnabled, authentica
   } catch (error) { next(error); }
 });
 
+app.post('/v1/time-entries/manual', authenticate, adminOnly, async (req, res, next) => { try {
+  const { userId, actionId, clockInAt, clockOutAt } = req.body;
+  const projectId = optionalUuid(req.body.projectId);
+  const reason = requireText(req.body.reason, 'A correction reason', 500);
+  if (!isUuid(userId) || !isUuid(actionId) || projectId === undefined ||
+      !isTimestamp(clockInAt) || !isTimestamp(clockOutAt) ||
+      !/(Z|[+-]\d\d:\d\d)$/.test(clockInAt) || !/(Z|[+-]\d\d:\d\d)$/.test(clockOutAt)) return fail(res, 400, 'Choose an employee and valid clock-in and clock-out times');
+  const start = new Date(clockInAt), end = new Date(clockOutAt);
+  if (end <= start || end > new Date()) return fail(res, 400, 'Clock-out must be after clock-in and cannot be in the future');
+  const { data, error } = await db.rpc('admin_add_time_entry', {
+    p_actor: req.profile.id, p_employee: userId, p_entry: actionId,
+    p_clock_in: start.toISOString(), p_clock_out: end.toISOString(), p_project: projectId,
+    p_reason: reason, p_ip: req.ip, p_agent: req.get('user-agent'), p_request: req.requestId
+  });
+  if (error) {
+    if (error.message.includes('ADMIN_REQUIRED')) return fail(res, 403, 'Administrator access required');
+    if (error.message.includes('EMPLOYEE_NOT_FOUND')) return fail(res, 404, 'Employee is unavailable');
+    if (error.message.includes('PROJECT_UNAVAILABLE')) return fail(res, 400, 'Choose an active project');
+    if (/TIME_ENTRY_OVERLAP|MANUAL_ENTRY_CONFLICT/.test(error.message)) return fail(res, 409, 'This time overlaps an existing entry. Review the employee history before saving');
+    if (error.message.includes('INVALID_MANUAL_ENTRY')) return fail(res, 400, 'Check the times and correction reason');
+    throw error;
+  }
+  res.status(201).json(data);
+} catch (error) { next(error); } });
+
 app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
   const projectId = optionalUuid(req.body.projectId);
   if (projectId === undefined) return fail(res, 400, 'Invalid project ID');
@@ -1297,8 +1325,45 @@ app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res,
   res.status(201).json(entry);
 } catch (error) { next(error); } });
 
+app.post('/v1/time-entries/:id/activities', authenticate, activeOnly, async (req, res, next) => {
+  try {
+    const { actionId } = req.body;
+    const note = optionalText(req.body.note, 1000);
+    const expectedActivityId = optionalUuid(req.body.expectedActivityId);
+    const description = requireText(req.body.description, 'Activity description', 50);
+    if (!isUuid(req.params.id) || note === undefined || expectedActivityId === undefined || !isUuid(actionId)) return fail(res, 400, 'Supply valid activity and project IDs');
+    const { data, error } = await db.rpc('change_project_activity', {
+      p_actor: req.profile.id, p_entry: req.params.id,
+      p_description: description, p_note: note, p_action: actionId, p_expected_activity: expectedActivityId
+    });
+    if (error) {
+      if (error.message.includes('ENTRY_NOT_FOUND')) return fail(res, 404, 'Time entry unavailable');
+      if (error.message.includes('PROJECT_NOT_ASSIGNED')) return fail(res, 403, 'Choose an assigned active project');
+      if (/ENTRY_ALREADY_CLOSED|ACTIVITY_TIME_CONFLICT|ACTIVITY_PAYLOAD_MISMATCH|ACTIVITY_CHANGED/.test(error.message)) return fail(res, 409, 'Refresh your shift before recording this activity');
+      throw error;
+    }
+    res.status(201).json(data);
+  } catch (error) { next(error); }
+});
+
 app.post('/v1/time-entries/:id/clock-out', authenticate, activeOnly, async (req, res, next) => { try {
   const note = requireText(req.body.note, 'A clock-out note', 50);
+  const activityProjectId = optionalUuid(req.body.activityProjectId);
+  if (activityProjectId === undefined) return fail(res, 400, 'Invalid activity project');
+  if (activityProjectId) {
+    const { data, error } = await db.rpc('clock_out_project_entry', {
+      p_actor: req.profile.id, p_entry: req.params.id, p_role: req.profile.role,
+      p_project: activityProjectId, p_note: note, p_now: new Date().toISOString(),
+      p_ip: req.ip, p_agent: req.get('user-agent')
+    });
+    if (error) {
+      if (error.message.includes('PROJECT_NOT_ASSIGNED')) return fail(res, 403, 'Choose an assigned active project');
+      if (/ENTRY_ALREADY_CLOSED|ACTIVITY_TIME_CONFLICT/.test(error.message)) return fail(res, 409, 'Refresh your shift before clocking out');
+      if (error.message.includes('NOT_FOUND_OR_FORBIDDEN')) return fail(res, 404, 'Time entry unavailable');
+      throw error;
+    }
+    return res.json(data);
+  }
   const { data: entry, error } = await db.rpc('clock_out_entry', {
     p_actor_user_id: req.profile.id, p_entry_id: req.params.id, p_actor_role: req.profile.role,
     p_final_note: note, p_now: new Date().toISOString(), p_ip_address: req.ip, p_user_agent: req.get('user-agent')
@@ -1401,16 +1466,17 @@ app.post('/v1/reports', authenticate, adminOnly, async (req, res, next) => { try
   const allowedReportTypes = ['DAILY', 'WEEKLY', 'MONTHLY', 'CUSTOM', 'TEAM_PERFORMANCE'];
   if (!allowedReportTypes.includes(reportType) || !isDate(dateFrom) || !isDate(dateTo) || dateFrom > dateTo) return fail(res, 400, 'A valid report type and date range are required');
   if (!filters || typeof filters !== 'object' || Array.isArray(filters)) return fail(res, 400, 'Report filters must be an object');
+  if (filters.exportMode !== undefined && !['ACTIVITY', 'DEFAULT'].includes(filters.exportMode)) return fail(res, 400, 'Invalid export content option');
   const projectId = optionalUuid(filters.projectId);
   const userId = optionalUuid(filters.userId);
   const departmentId = optionalUuid(filters.departmentId);
   if ([projectId, userId, departmentId].includes(undefined)) return fail(res, 400, 'Invalid report filter ID');
-  const safeFilters = { ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(departmentId ? { departmentId } : {}) };
+  const safeFilters = { ...(filters.exportMode ? { exportMode: filters.exportMode } : {}), ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(departmentId ? { departmentId } : {}) };
   let entries = db.from('time_entries').select(
     departmentId ? 'id, profiles!time_entries_user_id_fkey!inner(department_id)' : 'id',
     { count: 'exact', head: true }
   ).is('deleted_at', null).gte('clock_in_at', `${dateFrom}T00:00:00+08:00`).lt('clock_in_at', new Date(new Date(`${dateTo}T00:00:00+08:00`).getTime() + 86400000).toISOString());
-  if (projectId) entries = entries.eq('project_id', projectId);
+  if (projectId) entries = entries.or('project_id.eq.' + projectId + ',activities.cs.' + JSON.stringify([{ project_id: projectId }]));
   if (userId) entries = entries.eq('user_id', userId);
   if (departmentId) entries = entries.eq('profiles.department_id', departmentId);
   const { count, error } = await entries;
@@ -1426,19 +1492,20 @@ app.post('/v1/time-entry-exports', authenticate, adminOnly, async (req, res, nex
   const format = ['PDF', 'XLSX', 'CSV'].includes(req.body.format) ? req.body.format : null;
   const { dateFrom, dateTo, filters = {} } = req.body;
   if (!format || !isDate(dateFrom) || !isDate(dateTo) || dateFrom > dateTo || !filters || typeof filters !== 'object' || Array.isArray(filters)) return fail(res, 400, 'Provide valid export details');
+  if (filters.exportMode !== undefined && !['ACTIVITY', 'DEFAULT'].includes(filters.exportMode)) return fail(res, 400, 'Invalid export content option');
   const projectId = optionalUuid(filters.projectId); const userId = optionalUuid(filters.userId);
   const status = filters.status || null;
   if ([projectId, userId].includes(undefined) || ![null, 'ACTIVE', 'COMPLETED'].includes(status)) return fail(res, 400, 'Invalid export filters');
   let entries = db.from('time_entries').select('id', { count: 'exact', head: true }).is('deleted_at', null)
     .gte('clock_in_at', `${dateFrom}T00:00:00+08:00`)
     .lt('clock_in_at', new Date(new Date(`${dateTo}T00:00:00+08:00`).getTime() + 86400000).toISOString());
-  if (projectId) entries = entries.eq('project_id', projectId);
+  if (projectId) entries = entries.or('project_id.eq.' + projectId + ',activities.cs.' + JSON.stringify([{ project_id: projectId }]));
   if (userId) entries = entries.eq('user_id', userId);
   if (status === 'ACTIVE') entries = entries.is('clock_out_at', null);
   if (status === 'COMPLETED') entries = entries.not('clock_out_at', 'is', null);
   const { count, error } = await entries;
   if (error) throw error;
-  const safeFilters = { ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(status ? { status } : {}) };
+  const safeFilters = { ...(filters.exportMode ? { exportMode: filters.exportMode } : {}), ...(projectId ? { projectId } : {}), ...(userId ? { userId } : {}), ...(status ? { status } : {}) };
   const report = await query(db.from('reports').insert({ created_by_user_id: req.profile.id, report_type: 'CUSTOM', date_from: dateFrom, date_to: dateTo, filters: safeFilters, total_records: count || 0 }).select().single());
   await query(db.from('report_exports').insert({ report_id: report.id, exported_by_user_id: req.profile.id, file_name: `time-entries-${dateFrom}-to-${dateTo}.${format.toLowerCase()}`, file_type: format, file_url: null }));
   await query(db.from('audit_logs').insert({ user_id: req.profile.id, action: 'EXPORT_TIME_ENTRIES', entity_type: 'REPORT', entity_id: report.id, description: `Exported ${count || 0} time entries as ${format} for ${dateFrom} to ${dateTo}`, ip_address: req.ip, user_agent: req.get('user-agent'), request_id: req.requestId }));
@@ -1462,6 +1529,7 @@ app.use((error, _, res, __) => {
   if (error?.type === 'entity.too.large') return fail(res, 413, 'Request body is too large');
   if (error?.status && error.expose) return fail(res, error.status, error.message);
   if (error?.code === '23505') return fail(res, 409, 'A record with that value already exists');
+  if (error?.code === 'P0001' && error?.message === 'TIME_ENTRY_OVERLAP') return fail(res, 409, 'This time overlaps an administrator-added entry. Review the employee history');
   if (error?.code === '23503') return fail(res, 409, 'This record is connected to company history and must remain archived');
   fail(res, 500, 'Unexpected server error');
 });

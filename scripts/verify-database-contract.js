@@ -25,11 +25,13 @@ async function requireRpc(name, args) {
 await requireQuery('profiles columns', db.from('profiles').select('id,profile_picture_url,profile_picture_public_id,permanently_deleted_at,tutorial_status,tutorial_step,tutorial_version').limit(1));
 await requireQuery('D3 role tutorial progress', db.from('profile_tutorial_progress').select('profile_id,role,tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').limit(1));
 await requireQuery('project assignments table', db.from('user_projects').select('user_id,project_id,assigned_at').limit(1));
+await requireQuery('project activity columns', db.from('time_entries').select('id,activities,final_activity_project_id').limit(1));
 await requireQuery('time entry schedule columns', db.from('time_entries').select('id,duration_seconds,deleted_at,schedule_id,schedule_type,scheduled_start_time,scheduled_end_time,target_seconds,scheduled_weekdays').limit(1));
 await requireQuery('admin remark notification column', db.from('admin_remarks').select('id,seen_at').limit(1));
 await requireQuery('audit log table', db.from('audit_logs').select('id,user_id,action,entity_type,entity_id,description,request_id,created_at').limit(1));
 
 const absentId = '00000000-0000-4000-8000-000000000000';
+await requireRpc('change_project_activity', { p_actor: absentId, p_entry: absentId, p_description: 'contract check', p_note: null, p_action: absentId, p_expected_activity: null });
 await requireRpc('compute_schedule_compliance', { p_entry_id: absentId });
 await requireRpc('clock_out_entry', { p_actor_user_id: absentId, p_entry_id: absentId, p_actor_role: 'USER', p_final_note: 'contract check' });
 await requireRpc('admin_stop_entry', { p_entry_id: absentId, p_actor_user_id: absentId });

@@ -48,6 +48,7 @@
                             </svg>
                             Clock In
                         </button>
+                        <button class="btn btn-outline btn-lg" id="recordActivityBtn" type="button" hidden>Record activity</button>
                         <button class="btn btn-danger btn-lg" id="mainClockOutBtn" type="button" style="display: none;">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
@@ -56,6 +57,7 @@
                             Clock Out
                         </button>
                 </div>
+                <p class="current-activity-summary" id="currentActivitySummary" hidden><span>Current activity</span><strong></strong><time></time></p>
                 <dl class="employee-session-facts" id="employeeSessionFacts" hidden>
                     <div><dt>Started</dt><dd id="sessionStartedAt">—</dd></div>
                     <div><dt>Project</dt><dd id="sessionProjectName">No project</dd></div>
@@ -163,8 +165,8 @@
                 </div>
                 <form id="clockOutForm" class="clock-out-form">
                     <div class="form-group">
-                        <label for="clockOutNote" class="form-label">Final Note</label>
-                        <textarea id="clockOutNote" class="form-textarea" rows="3" maxlength="50" placeholder="Add a final note for this session (50 characters max)" required></textarea>
+                        <label for="clockOutNote" class="form-label">Final note</label>
+                        <textarea id="clockOutNote" class="form-textarea" rows="3" maxlength="50" placeholder="Add a final note for this activity…" required></textarea>
                     </div>
                     <button type="submit" class="btn btn-danger btn-block">Clock Out</button>
                 </form>

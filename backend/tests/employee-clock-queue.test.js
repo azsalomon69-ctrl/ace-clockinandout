@@ -367,7 +367,7 @@ test('an offline clock-in form uses saved project choices without a network warn
     });
     vm.runInContext(modal, context);
     await context.openClockInModal();
-    assert.deepEqual(options.map(option => option.value), ['', 'support']);
+    assert.deepEqual(options.map(option => option.value), ['support']);
     assert.equal(projectSelect.disabled, false);
 });
 

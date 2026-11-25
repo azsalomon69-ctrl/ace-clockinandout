@@ -152,3 +152,21 @@ test('#12/#13: searches require POST; GET listing, paging and ownership remain i
   }
   assert.deepEqual((await invoke('get', 'USER', {})).result, [{ id: 'entry' }]);
 });
+
+test('request logging omits query strings in development and production', () => {
+  for (const NODE_ENV of ['development', 'production']) {
+    const tokens = new Map();
+    let format;
+    const morgan = value => { format = value; };
+    morgan.token = (name, callback) => tokens.set(name, callback);
+    vm.runInNewContext(slice(server, "morgan.token('request-id'", '// Render is a reverse-proxy'), {
+      morgan, app: { use() {} }, process: { env: { NODE_ENV } }
+    });
+    assert.match(format, /:request-path/);
+    assert.doesNotMatch(format, /:url\b/);
+    assert.equal(tokens.get('request-path')({
+      path: '/v1/time-entries',
+      originalUrl: '/v1/time-entries?q=private%40example.test'
+    }), '/v1/time-entries');
+  }
+});

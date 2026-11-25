@@ -148,8 +148,8 @@ test('Looking for deleted records is distinct from changing or deleting a record
 });
 
 test('Role catalogs retain their sizes and continue to select role-specific instructions', () => {
-  assert.equal(context.workspaceHelpEntries(false).length, 27);
-  assert.equal(context.workspaceHelpEntries(true).length, 36);
+  assert.equal(context.workspaceHelpEntries(false).length, 29);
+  assert.equal(context.workspaceHelpEntries(true).length, 38);
   const employee = conversation(false), admin = conversation(true);
   for (const [input, expected] of [
     ['invite staff', 'How do I invite someone?'],
@@ -299,4 +299,15 @@ test('Employee answers contain no administrator navigation paths', () => {
     assert.doesNotMatch(reply, /People →|Administration →|Insights →/);
   }
   assert.match(frontend, /mountWorkspaceHelp\(AppState\.currentUser\?\.Role === 'ADMIN'\)/);
+});
+
+test('Rick explains activity checkpoints and final clock-out blocks for both roles',()=>{
+  for(const admin of [false,true]){
+    const answer=conversation(admin)('how do I record an activity');
+    assert.equal(answer.match?.[0],'How do I record an activity?');
+    assert.match(answer.reply,/shift keeps running/i);
+    assert.match(answer.reply,/without a project assignment/i);
+    const history=conversation(admin)('activity breakdown');
+    assert.equal(history.match?.[0],'Where can I see recorded activities?');
+  }
 });

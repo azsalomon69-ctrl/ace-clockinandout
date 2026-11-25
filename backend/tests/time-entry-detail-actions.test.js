@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../../frontend/js/script.js', import.meta.url), 'utf8');
-const renderer = source.slice(source.indexOf('function loadAdminTimeEntryDetails()'), source.indexOf('function loadUserDashboard()'));
+const activityHelpers = source.slice(source.indexOf('function projectActivityText('), source.indexOf('function openProjectActivityModal('));
+const renderer = activityHelpers + '\n' + source.slice(source.indexOf('function loadAdminTimeEntryDetails()'), source.indexOf('function loadUserDashboard()'));
 function render(entry, approved = false) {
   const calls = [];
   const buttons = ['stop', 'approve', 'delete', 'correct', 'remark'].map(action => ({ dataset: { entryAction: action }, addEventListener(event, handler) { this.handler = handler; } }));

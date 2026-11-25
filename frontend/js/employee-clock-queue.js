@@ -209,7 +209,7 @@ window.ACEClockQueue = (() => {
         heartbeatWall = wall;
     }, 2000);
 
-    async function save(type, input, shift) {
+    async function save(type, input, shift, activityProjectId) {
         const owner = account;
         if (!canCapture(current) && owner && !paused) throw new Error('New queued taps are paused. Try again when ACE connects.');
         if (!owner || paused) throw new Error(paused || 'Sign back in to continue.');
@@ -227,6 +227,7 @@ window.ACEClockQueue = (() => {
         else {
             if (!shift) throw new Error('Open the clock-out form again.');
             payload.note = input.trim();
+            if (activityProjectId) payload.activityProjectId = activityProjectId;
             if (!payload.note || Array.from(payload.note).length > 50 || payload.note.includes(String.fromCharCode(0))) {
                 throw new Error('Enter a clock-out note of 1–50 characters.');
             }
