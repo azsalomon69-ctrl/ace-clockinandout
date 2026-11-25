@@ -1260,6 +1260,31 @@ app.post('/v1/queued-clock-reviews/:id/decision', queuedClockEnabled, authentica
   } catch (error) { next(error); }
 });
 
+app.post('/v1/time-entries/manual', authenticate, adminOnly, async (req, res, next) => { try {
+  const { userId, actionId, clockInAt, clockOutAt } = req.body;
+  const projectId = optionalUuid(req.body.projectId);
+  const reason = requireText(req.body.reason, 'A correction reason', 500);
+  if (!isUuid(userId) || !isUuid(actionId) || projectId === undefined ||
+      !isTimestamp(clockInAt) || !isTimestamp(clockOutAt) ||
+      !/(Z|[+-]\d\d:\d\d)$/.test(clockInAt) || !/(Z|[+-]\d\d:\d\d)$/.test(clockOutAt)) return fail(res, 400, 'Choose an employee and valid clock-in and clock-out times');
+  const start = new Date(clockInAt), end = new Date(clockOutAt);
+  if (end <= start || end > new Date()) return fail(res, 400, 'Clock-out must be after clock-in and cannot be in the future');
+  const { data, error } = await db.rpc('admin_add_time_entry', {
+    p_actor: req.profile.id, p_employee: userId, p_entry: actionId,
+    p_clock_in: start.toISOString(), p_clock_out: end.toISOString(), p_project: projectId,
+    p_reason: reason, p_ip: req.ip, p_agent: req.get('user-agent'), p_request: req.requestId
+  });
+  if (error) {
+    if (error.message.includes('ADMIN_REQUIRED')) return fail(res, 403, 'Administrator access required');
+    if (error.message.includes('EMPLOYEE_NOT_FOUND')) return fail(res, 404, 'Employee is unavailable');
+    if (error.message.includes('PROJECT_UNAVAILABLE')) return fail(res, 400, 'Choose an active project');
+    if (/TIME_ENTRY_OVERLAP|MANUAL_ENTRY_CONFLICT/.test(error.message)) return fail(res, 409, 'This time overlaps an existing entry. Review the employee history before saving');
+    if (error.message.includes('INVALID_MANUAL_ENTRY')) return fail(res, 400, 'Check the times and correction reason');
+    throw error;
+  }
+  res.status(201).json(data);
+} catch (error) { next(error); } });
+
 app.post('/v1/time-entries/clock-in', authenticate, activeOnly, async (req, res, next) => { try {
   const projectId = optionalUuid(req.body.projectId);
   if (projectId === undefined) return fail(res, 400, 'Invalid project ID');
@@ -1504,6 +1529,7 @@ app.use((error, _, res, __) => {
   if (error?.type === 'entity.too.large') return fail(res, 413, 'Request body is too large');
   if (error?.status && error.expose) return fail(res, error.status, error.message);
   if (error?.code === '23505') return fail(res, 409, 'A record with that value already exists');
+  if (error?.code === 'P0001' && error?.message === 'TIME_ENTRY_OVERLAP') return fail(res, 409, 'This time overlaps an administrator-added entry. Review the employee history');
   if (error?.code === '23503') return fail(res, 409, 'This record is connected to company history and must remain archived');
   fail(res, 500, 'Unexpected server error');
 });

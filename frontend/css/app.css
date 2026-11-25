@@ -18751,3 +18751,12 @@ html[data-theme="dark"] .entry-activity-close { color: #b7d9fb; border-color: #3
 .export-mode-options > button:hover, .export-mode-options > button:focus-visible { background: color-mix(in srgb, #3c86c8 12%, transparent); border-color: #a9c9e8; outline: none; }
 .export-mode-options strong { font-size: .84rem; }
 .export-mode-options span { font-size: .73rem; opacity: .75; line-height: 1.4; }
+
+.manual-entry-content { width: min(100%, 620px); }
+.manual-entry-kicker { margin: 0 0 5px; font-size: .68rem; font-weight: 700; letter-spacing: .1em; color: var(--ace-text-secondary, #567080); }
+.manual-entry-zone { margin: 0 0 16px; font-size: .78rem; color: var(--ace-text-secondary, #567080); }
+.manual-entry-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.manual-entry-times .form-input { min-width: 0; width: 100%; }
+.manual-entry-duration { display: block; margin: 0 0 20px; padding: 12px 14px; border-left: 3px solid #2699b4; border-radius: 8px; background: color-mix(in srgb, #2699b4 10%, transparent); font-size: .88rem; font-weight: 600; }
+.manual-entry-badge { display: block; margin-top: 6px; font-size: .7rem; color: var(--ace-text-secondary, #567080); }
+@media (max-width: 540px) { .manual-entry-times { grid-template-columns: 1fr; gap: 0; } }
