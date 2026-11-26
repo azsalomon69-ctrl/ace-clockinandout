@@ -299,7 +299,7 @@ function modal(view, primary, record) {
   const cancelInvitation = !primary && key === 'invitations' && /^view$/i.test(label);
   const deleteRecord = !primary && (key === 'departments' || key === 'projects' || key === 'entries');
   const fields = remark ? [['Administrator remark', 'textarea', 'Add a clear internal remark for this time entry']]
-    : primary && ['users', 'invitations'].includes(key) ? [['Work email', 'email', 'name@example.com'], ['Role', 'select', 'USER']]
+    : primary && ['users', 'invitations'].includes(key) ? [['Work email', 'email', 'name@example.com'], ['Role', 'select', 'USER'], ['Department', 'select', '']]
         : (primary || edit) && key === 'departments' ? [['Department name', 'text', 'e.g. Client Services'], ['Description', 'textarea', 'What does this department handle?'], ...(edit ? [['Add employee (optional)', 'user-search', 'Search by employee name or email'], ['Schedule for selected employees (optional)', 'select', '']] : [])]
         : primary && key === 'projects' ? [['Project name', 'text', 'e.g. Customer Portal'], ['Description', 'textarea', 'Describe the project scope']]
           : manage ? [['Role', 'select', 'USER'], ['Department', 'select', ''], ['Project assignment', 'select', ''], ['Schedule assignment', 'select', '']] : review ? [['Approval', 'select', 'ACTIVE']] : [];
@@ -426,7 +426,7 @@ function modal(view, primary, record) {
     try {
       const first = document.getElementById('adminField0').value;
       let invitation;
-      if (primary && ['users', 'invitations'].includes(key)) invitation = await liveRequest('/v1/invitations', { method: 'POST', body: JSON.stringify({ email: first, role: document.getElementById('adminField1').value }) });
+      if (primary && ['users', 'invitations'].includes(key)) invitation = await liveRequest('/v1/invitations', { method: 'POST', body: JSON.stringify({ email: first, role: document.getElementById('adminField1').value, departmentId: document.getElementById('adminField2').value || null }) });
       else if (key === 'departments') {
         const userIds = (document.getElementById('adminField2Selected')?.value || '').split(',').filter(Boolean);
         const department = await liveRequest(edit ? '/v1/departments/' + record.id : '/v1/departments', { method: edit ? 'PATCH' : 'POST', body: JSON.stringify({ name: first, description: document.getElementById('adminField1').value }) });
