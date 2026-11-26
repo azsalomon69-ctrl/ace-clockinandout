@@ -3,3 +3,42 @@
 .client-page .client-header,.client-page .client-content{width:100%;min-width:0;box-sizing:border-box}.client-heading>div{min-width:0}.client-heading>.btn{flex-shrink:0}.client-filters .form-input,.client-filters .form-select{width:100%;min-width:0;box-sizing:border-box}.client-table-panel,.client-table-scroll{min-width:0;max-width:100%}.client-page .client-header,.client-page .client-content,.client-page dialog{font-family:Inter,"Segoe UI",Arial,sans-serif}
 .client-page *{box-sizing:border-box}.client-page button,.client-page input,.client-page select{font:inherit}.client-page .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:10px 16px;border:1px solid #c8ddea;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;line-height:20px;text-decoration:none;white-space:nowrap}.client-page .btn-outline{color:#176184;background:white}.client-page .btn-primary{color:white;background:#096d94;border-color:#096d94}.client-page button:disabled{opacity:.45;cursor:default}.client-page button:focus-visible,.client-page input:focus-visible,.client-page select:focus-visible{outline:3px solid #27c4e3;outline-offset:2px}.client-page .form-input,.client-page .form-select{min-height:42px;padding:10px 12px;border:1px solid #c8ddea;border-radius:8px;background:white;color:#16314d;font-size:13px}.client-heading>div{flex:1}.client-heading>.btn,.client-pagination>.btn{width:auto;flex:0 0 auto}
 @media(max-width:600px){.client-heading{display:block}.client-heading>.btn{margin-top:8px}.client-stats strong{font-size:24px}.client-table-scroll table,.client-table-scroll tbody{display:block;white-space:normal}.client-table-scroll thead{display:none}.client-table-scroll tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px;padding:18px;border-top:1px solid #e3edf4}.client-table-scroll td{padding:0;border:0;white-space:normal;overflow-wrap:anywhere;line-height:1.5}.client-table-scroll td[data-label]::before{content:attr(data-label);display:block;margin-bottom:6px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#647d92}.client-table-scroll td[colspan]{grid-column:1/-1}}
+
+/* Client attendance states and page hierarchy. */
+.client-page{background:#f5f8fc}
+.client-page .client-header{max-width:1160px;padding:20px 24px;border-bottom:1px solid #dfe7f0}
+.client-page .client-brand{font-size:17px;font-weight:600}
+.client-page .client-brand small{font-size:12px;letter-spacing:0;color:#65788c}
+.client-page .client-content{max-width:1160px;padding:32px 24px 56px}
+.client-page .client-heading{align-items:center;gap:24px}
+.client-title-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.client-page .client-heading h1{margin:0;font-size:30px;line-height:1.2;letter-spacing:-.8px;font-weight:650}
+.client-page .client-heading p{margin:10px 0 0;font-size:14px;line-height:1.6;color:#61758b}
+.client-readonly{display:inline-block;border:1px solid #d9e5f0;background:#eaf2f9;color:#506b85;border-radius:5px;padding:4px 7px;font-size:10px;font-weight:600;letter-spacing:.2px}
+.client-page .client-status{min-height:20px;margin:12px 0 22px;color:#748397;font-size:12px}
+.client-state{position:relative;overflow:hidden;background:white;border:1px solid #dce6ef;border-radius:14px;box-shadow:0 6px 24px #18385404}
+.client-state::before{content:"";display:block;width:80px;height:3px;background:#20b9e1;margin:0 auto}
+.client-state-main{max-width:590px;padding:52px 32px 40px;margin:0 auto;text-align:center}
+.client-state-icon{display:flex;align-items:center;justify-content:center;width:76px;height:76px;margin:0 auto 24px;border:1px solid #d8eaf8;border-radius:20px;background:#f0f8ff;box-shadow:0 0 0 8px #f8fbfe}
+.client-state-icon img,.client-empty-icon img{opacity:.8}
+.client-state h2{margin:0 0 12px;font-size:24px;line-height:1.25;font-weight:600;letter-spacing:-.5px;color:#15344f}
+.client-state-main>p{max-width:440px;margin:0 auto;color:#657a90;font-size:14px;line-height:1.8}
+.client-state-main>.btn{margin-top:24px}
+.client-state footer{display:flex;justify-content:center;gap:8px 24px;flex-wrap:wrap;border-top:1px solid #e8eef5;padding:18px 24px;background:#fafcfe;color:#667b91;font-size:12px;line-height:1.7;text-align:center}
+.client-state-preview{max-width:500px;margin:0 auto 36px;padding:0 28px}
+.client-skeleton-label{height:9px;width:26%;margin-bottom:16px;border-radius:4px;background:#e9eff5}
+.client-skeleton-row{height:12px;background:#eef3f8;border-radius:4px;margin:12px 0}
+.client-skeleton-row:nth-child(3){width:82%}.client-skeleton-row:nth-child(4){width:65%}
+.client-state[aria-busy="true"] .client-state-icon{animation:client-state-pulse 1.4s ease-in-out infinite}
+.client-result-empty{padding:46px 24px 44px;border-top:1px solid #e6edf5;text-align:center}
+.client-empty-icon{width:54px;height:54px;border-radius:15px;background:#eff7fd;display:flex;align-items:center;justify-content:center;margin:0 auto 18px}
+.client-result-empty h3{margin:0 0 10px;font-size:18px;font-weight:600;letter-spacing:-.25px;color:#173650}
+.client-result-empty p{max-width:390px;margin:0 auto;font-size:14px;line-height:1.8;color:#6a7d92}
+.client-result-empty>.btn{margin-top:20px}
+.client-result-loading{padding:28px 24px}.client-result-loading div{height:15px;border-radius:4px;background:#edf3f8;margin:14px 0}.client-result-loading div:nth-child(2){width:85%}.client-result-loading div:nth-child(3){width:70%}
+.client-page .client-tabs{margin-top:8px}.client-page .client-table-head{padding:20px 22px}.client-page .client-table-head small{font-size:12px;line-height:1.6}.client-page .client-stats strong{font-weight:600}
+@keyframes client-state-pulse{50%{opacity:.45}}
+@media(prefers-reduced-motion:reduce){.client-state[aria-busy="true"] .client-state-icon{animation:none}}
+@media(max-width:600px){
+ .client-page .client-header{padding:16px}.client-page .client-content{padding:26px 16px 40px}.client-page .client-heading{display:flex;align-items:flex-start;gap:14px}.client-page .client-heading h1{font-size:26px}.client-page .client-heading>.btn{margin:0;padding:8px 12px;min-height:38px}.client-title-row{gap:9px}.client-page .client-heading p{font-size:13px;line-height:1.7}.client-page .client-status{margin:12px 0 18px;font-size:11px}.client-state-main{padding:40px 24px 32px}.client-state h2{font-size:21px}.client-state-main>p{font-size:13px}.client-state footer{padding:16px 22px;display:grid;gap:5px;font-size:11px}.client-state-icon{width:68px;height:68px;margin-bottom:22px}.client-result-empty{padding:36px 22px}.client-result-empty p{font-size:13px}.client-page .client-table-head{padding:18px}.client-page .client-table-head small{font-size:11px}
+}
