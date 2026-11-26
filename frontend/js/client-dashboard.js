@@ -49,6 +49,7 @@
         $('clientResults').setAttribute('aria-busy', String(loading));
         $('clientResultLoading').hidden = true;
         if (loading) {
+            window.ACEClientDates?.close();
             const labels = $('clientView').value === 'employees' ? ['Employee','Projects','Shifts','Working now','Worked'] : ['Employee','Project','Clock in','Clock out','Worked','Activities'];
             $('clientTableHead').innerHTML = '<tr>' + labels.map(label => '<th>' + label + '</th>').join('') + '</tr>';
             $('clientRows').innerHTML = Array.from({length:skeletonRowCount}, () => '<tr class="client-skeleton-table-row" aria-hidden="true">' + labels.map((label,i) => '<td data-label="' + label + '"><span class="client-skeleton-cell' + (i===0 ? ' client-skeleton-person' : '') + '"></span></td>').join('') + '</tr>').join('');
@@ -222,9 +223,9 @@
         if (preset === 'week') from.setUTCDate(from.getUTCDate() - from.getUTCDay());
         if (preset === 'month') from.setUTCDate(1);
         if (preset === 'last-month') { from.setUTCDate(1); from.setUTCMonth(from.getUTCMonth() - 1); to.setUTCDate(0); }
-        $('clientFrom').value = from.toISOString().slice(0,10); $('clientTo').value = to.toISOString().slice(0,10);
+        $('clientFrom').value = from.toISOString().slice(0,10); $('clientTo').value = to.toISOString().slice(0,10); window.ACEClientDates?.refresh();
     });
-    for (const id of ['clientFrom','clientTo']) $(id).addEventListener('change', () => { $('clientPeriod').value = 'custom'; });
+    for (const id of ['clientFrom','clientTo']) $(id).addEventListener('change', () => { $('clientPeriod').value = 'custom'; $('clientPeriod')._aceSelectRefresh?.(); });
     $('clientFrom').value = day().slice(0, 8) + '01'; $('clientTo').value = day();
     $('clientFilters').addEventListener('submit', e => { e.preventDefault(); $('clientProjectPicker').open = false; page = 1; void refresh(); });
     $('clientRefresh').addEventListener('click', () => void refresh());
@@ -237,7 +238,7 @@
     });
     $('clientEmptyAction').addEventListener('click', () => {
         if (mode === 'ACTIVE') { $('clientHistory').click(); return; }
-        selectedProjects = []; $('clientEmployee').value = ''; $('clientPeriod').value = 'month'; $('clientFrom').value = day().slice(0, 8) + '01'; $('clientTo').value = day(); page = 1; void refresh();
+        selectedProjects = []; $('clientEmployee').value = ''; $('clientPeriod').value = 'month'; $('clientPeriod')._aceSelectRefresh?.(); $('clientFrom').value = day().slice(0, 8) + '01'; $('clientTo').value = day(); window.ACEClientDates?.refresh(); page = 1; void refresh();
     });
     $('clientPrevious').addEventListener('click', () => { if (page > 1) { page--; void refresh(); } });
     $('clientNext').addEventListener('click', () => { if (page * 25 < total) { page++; void refresh(); } });
