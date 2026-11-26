@@ -15,7 +15,7 @@
         return '<span class="client-cell-date">' + escape(date.toLocaleDateString('en-GB', { timeZone: 'Asia/Manila', day: '2-digit', month: 'short', year: 'numeric' })) + '</span><span class="client-cell-time">' + escape(date.toLocaleTimeString('en-GB', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit' })) + '</span>';
     };
     const day = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
-    let selectedProjects = [], projectsList = [];
+    let selectedProjects = [], projectsList = [], skeletonRowCount = 3;
     let mode = 'ACTIVE', page = 1, total = 0, rows = [], generation = 0, busy = false, hasAccess = false;
 
     const filters = () => ({ from: $('clientFrom').value, to: $('clientTo').value, status: mode, projectIds: selectedProjects.length ? selectedProjects : undefined, employeeId: $('clientEmployee').value || undefined, view: $('clientView').value || 'shifts', page });
@@ -29,6 +29,8 @@
         exportEnabled(false);
     };
     function showState(kind, description) {
+        if (kind === 'loading') { $('clientState').hidden = true; $('clientWorkspace').hidden = false; setResultsLoading(true); return; }
+        setResultsLoading(false); $('clientRows').replaceChildren();
         $('clientWorkspace').hidden = true;
         $('clientState').hidden = false;
         $('clientState').setAttribute('aria-busy', String(kind === 'loading'));
@@ -41,16 +43,23 @@
         $('clientStateIcon').src = kind === 'error' ? 'assets/icons/circle-alert.svg' : 'assets/icons/users.svg';
     }
     function setResultsLoading(loading) {
+        $('clientWorkspace').classList.toggle('client-is-loading', loading);
+        $('clientWorkspace').inert = loading;
+        $('clientWorkspace').setAttribute('aria-busy', String(loading));
         $('clientResults').setAttribute('aria-busy', String(loading));
-        $('clientResultLoading').hidden = !loading;
+        $('clientResultLoading').hidden = true;
         if (loading) {
-            $('clientTableScroll').hidden = $('clientResultEmpty').hidden = $('clientPagination').hidden = true;
+            const labels = $('clientView').value === 'employees' ? ['Employee','Projects','Shifts','Working now','Worked'] : ['Employee','Project','Clock in','Clock out','Worked','Activities'];
+            $('clientTableHead').innerHTML = '<tr>' + labels.map(label => '<th>' + label + '</th>').join('') + '</tr>';
+            $('clientRows').innerHTML = Array.from({length:skeletonRowCount}, () => '<tr class="client-skeleton-table-row" aria-hidden="true">' + labels.map((label,i) => '<td data-label="' + label + '"><span class="client-skeleton-cell' + (i===0 ? ' client-skeleton-person' : '') + '"></span></td>').join('') + '</tr>').join('');
+            $('clientTableScroll').hidden = false; $('clientResultEmpty').hidden = true; $('clientPagination').hidden = false;
+            $('clientPrevious').disabled = $('clientNext').disabled = true;
             exportEnabled(false);
         }
     }
     const employeeName = row => '<button type="button" class="client-employee-link" data-employee="' + escape(row.user_id) + '">' + escape(row.employee_name || 'Employee') + '</button>';
     function renderResults(data) {
-        rows = data.items; total = data.total;
+        rows = data.items; total = data.total; skeletonRowCount = Math.min(10, Math.max(1, rows.length || 3));
         $('clientEmployees').textContent = data.employees;
         $('clientShifts').textContent = data.shifts ?? total;
         $('clientActive').textContent = data.active;

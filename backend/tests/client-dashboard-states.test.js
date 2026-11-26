@@ -27,7 +27,7 @@ test('revoking access clears prior records and disables exports',async()=>{
  const h=harness({projects:[{id:'a',name:'Project A',is_active:true}],data:{items:[{id:'entry',employee_name:'Employee',project_name:'Project A',clock_in_at:'2026-11-27T00:00Z',clock_out_at:null,worked_seconds:60,activities:[]}],total:1,employees:1,active:1,worked_seconds:60}});await settle();assert.ok(h.elements.get('clientRows').innerHTML.includes('Employee'));assert.equal(h.elements.get('clientCsv').disabled,false);h.state.projects=[];h.elements.get('clientRefresh').click();await settle();assert.equal(h.elements.get('clientRows').innerHTML,'');assert.equal(h.elements.get('clientCsv').disabled,true);assert.equal(h.elements.get('clientWorkspace').hidden,true);
 });
 test('loading does not show false zero statistics or enable exports',async()=>{
- let release;const wait=new Promise(r=>release=r);const h=harness({wait});await settle();assert.equal(h.elements.get('clientStateTitle').textContent,'Loading attendance');assert.equal(h.elements.get('clientEmployees').textContent,'—');assert.equal(h.elements.get('clientCsv').disabled,true);release();await settle();
+ let release;const wait=new Promise(r=>release=r);const h=harness({wait});await settle();assert.equal(h.elements.get('clientState').hidden,true);assert.equal(h.elements.get('clientWorkspace').hidden,false);assert.equal(h.elements.get('clientWorkspace').inert,true);assert.ok(h.elements.get('clientRows').innerHTML.includes('client-skeleton-table-row'));assert.equal(h.elements.get('clientEmployees').textContent,'—');assert.equal(h.elements.get('clientCsv').disabled,true);release();await settle();
 });
 
 test('account details and access help work without requiring employee access',async()=>{
