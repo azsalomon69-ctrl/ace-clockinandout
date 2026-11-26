@@ -4,6 +4,11 @@
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const hours = seconds => Math.floor(Math.max(0, seconds) / 3600) + 'h ' + Math.floor(Math.max(0, seconds) % 3600 / 60) + 'm';
     const time = value => value ? new Date(value).toLocaleString('en-GB', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' }) : 'In progress';
+    const displayTime = value => {
+        if (!value) return '<span class="client-live"><i aria-hidden="true"></i>In progress</span>';
+        const date = new Date(value);
+        return '<span class="client-cell-date">' + escape(date.toLocaleDateString('en-GB', { timeZone: 'Asia/Manila', day: '2-digit', month: 'short', year: 'numeric' })) + '</span><span class="client-cell-time">' + escape(date.toLocaleTimeString('en-GB', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit' })) + '</span>';
+    };
     const day = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
     let mode = 'ACTIVE', page = 1, total = 0, rows = [], generation = 0, busy = false, hasAccess = false;
 
@@ -42,7 +47,7 @@
         $('clientShifts').textContent = total;
         $('clientActive').textContent = data.active;
         $('clientWorked').textContent = hours(data.worked_seconds);
-        $('clientRows').innerHTML = rows.map((r, i) => '<tr><td data-label="Employee"><strong>' + escape(r.employee_name || 'Employee') + '</strong></td><td data-label="Project">' + escape(r.project_name) + '</td><td data-label="Clock in">' + escape(time(r.clock_in_at)) + '</td><td data-label="Clock out">' + escape(time(r.clock_out_at)) + '</td><td data-label="Worked">' + hours(r.worked_seconds) + '</td><td data-label="Activities">' + (r.activities.length ? '<button class="entry-activity-trigger" type="button" data-activities="' + i + '">' + r.activities.length + ' activit' + (r.activities.length === 1 ? 'y' : 'ies') + '</button>' : '—') + '</td></tr>').join('');
+        $('clientRows').innerHTML = rows.map((r, i) => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + escape((r.employee_name || 'Employee').trim().split(/\s+/).map(part => Array.from(part)[0]).slice(0, 2).join('')) + '</span><strong>' + escape(r.employee_name || 'Employee') + '</strong></div></td><td data-label="Project"><span class="client-project-tag">' + escape(r.project_name) + '</span></td><td data-label="Clock in">' + displayTime(r.clock_in_at) + '</td><td data-label="Clock out">' + displayTime(r.clock_out_at) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td><td data-label="Activities">' + (r.activities.length ? '<button class="entry-activity-trigger" type="button" data-activities="' + i + '">' + r.activities.length + ' activit' + (r.activities.length === 1 ? 'y' : 'ies') + '</button>' : '—') + '</td></tr>').join('');
         $('clientTableScroll').hidden = !rows.length;
         $('clientPagination').hidden = !rows.length;
         $('clientResultEmpty').hidden = Boolean(rows.length);

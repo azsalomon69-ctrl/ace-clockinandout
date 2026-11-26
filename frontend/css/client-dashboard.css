@@ -89,3 +89,76 @@ body.client-page{display:block;min-height:100vh}
 .client-page .client-stats span{font-size:12px;line-height:1.4}
 .client-page .client-stats strong{font-size:21px;line-height:1.2;margin-top:6px}
 @media(max-width:600px){.client-page .client-stats{gap:8px;margin:14px 0}.client-page .client-stats article{padding:10px 12px}.client-page .client-stats strong{font-size:20px;margin-top:4px}}
+
+/* Attendance workspace: compact metrics, a unified toolbar and scannable records. */
+.client-page .client-content{padding-top:26px;max-width:1240px}
+.client-page .client-header{max-width:1240px;padding-top:16px;padding-bottom:16px}
+.client-page .client-heading h1{font-size:28px;font-weight:600;letter-spacing:-.9px}
+.client-page .client-heading p{font-size:13px;margin-top:7px}
+.client-page .client-readonly{background:transparent;font-size:10px;color:var(--ace-text-tertiary);border-radius:4px}
+.client-page #clientRefresh{min-height:34px;padding:6px 11px;font-size:11px;background:var(--ace-surface);box-shadow:var(--ace-shadow-xs)}
+.client-page #clientRefresh>span{font-size:19px;line-height:1}
+.client-page .client-status{min-height:16px;font-size:10px;margin:8px 0 16px}
+.client-page .client-status:empty{display:none}
+.client-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:14px 0;border-bottom:1px solid var(--ace-border);margin-top:8px}
+.client-page .client-tabs{display:flex;gap:3px;align-self:flex-end;margin:0;padding:3px;border:1px solid var(--ace-border);border-radius:7px;background:var(--ace-surface-raised)}
+.client-page .client-tabs button{min-height:32px;padding:6px 14px;font-size:12px;border:0;border-radius:4px;transition:background .15s,color .15s}
+.client-page .client-tabs button.is-active{background:var(--ace-surface-input);color:var(--ace-text-primary);box-shadow:var(--ace-shadow-xs)}
+.client-page .client-tabs button:hover:not(.is-active){background:var(--ace-nav-hover)}
+.client-page .client-filters{gap:8px;justify-content:flex-end}
+.client-page .client-filters label{font-size:10px;gap:5px;min-width:130px;color:var(--ace-text-tertiary)}
+.client-page .client-filters .form-input,.client-page .client-filters .form-select{min-height:34px;padding:6px 10px;border-color:var(--ace-border);border-radius:6px;font-size:12px;box-shadow:none}
+.client-page .client-filters .btn{min-height:34px;padding:6px 13px;font-size:11px;border-radius:6px}
+.client-page .client-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}
+.client-page .client-stats article{display:flex;align-items:center;gap:12px;padding:11px 13px;min-width:0;border-radius:8px;background:var(--ace-surface);box-shadow:var(--ace-shadow-xs);transition:border-color .16s,box-shadow .16s}
+.client-page .client-stats article:hover{border-color:var(--ace-border-strong);box-shadow:var(--ace-shadow-sm)}
+.client-page .client-stats article>div{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex:1;min-width:0}
+.client-page .client-stats article>div>span{font-size:11px;line-height:1.4;color:var(--ace-text-secondary)}
+.client-page .client-stats strong{font-size:21px;line-height:1.2;letter-spacing:-.6px;margin:0;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.client-page .client-stats .client-kpi-icon{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:7px;background:var(--ace-accent-muted)}
+.client-kpi-icon img{width:17px;height:17px}
+.client-page .client-kpi-shifts .client-kpi-icon{background:#efedf7}.client-page .client-kpi-hours .client-kpi-icon{background:#e6f2f3}.client-page .client-kpi-active .client-kpi-icon{background:#e8f2ec}
+.client-page .client-table-panel{border-radius:10px;box-shadow:var(--ace-shadow-xs);background:var(--ace-surface)}
+.client-page .client-table-head{padding:17px 20px;align-items:center;flex-direction:row}
+.client-page .client-table-head h2{font-size:15px;font-weight:600;letter-spacing:-.25px;margin:0 0 5px}
+.client-page .client-table-head small{font-size:10px;color:var(--ace-text-tertiary)}
+.client-page .client-export-actions{gap:6px;width:auto}
+.client-page .client-export-actions .btn{min-height:30px;padding:4px 10px;border-color:var(--ace-border);border-radius:5px;font-size:10px;background:var(--ace-surface-input)}
+.client-page .client-table-panel th{font-size:9px;letter-spacing:.65px;padding:10px 16px;background:var(--ace-surface-raised);border-top:1px solid var(--ace-border);border-bottom:1px solid var(--ace-border);font-weight:600}
+.client-page .client-table-panel td{padding:13px 16px;font-size:12px;vertical-align:middle;background:transparent;line-height:1.5}
+.client-page .client-table-panel tbody tr{background:var(--ace-surface);transition:background .15s}
+.client-page .client-table-panel tbody tr:hover{background:var(--ace-accent-muted)}
+.client-person{display:flex;gap:10px;align-items:center;white-space:normal;min-width:130px}
+.client-person strong{font-size:12px;font-weight:600;color:var(--ace-text-primary)}
+.client-person-avatar{display:grid;place-items:center;width:29px;height:29px;flex:0 0 29px;border:1px solid var(--ace-border);border-radius:50%;font-size:9px;font-weight:600;color:var(--ace-accent);background:var(--ace-accent-muted)}
+.client-project-tag{display:inline-block;max-width:180px;white-space:normal;border:1px solid var(--ace-border);border-radius:5px;padding:3px 7px;font-size:10px;color:var(--ace-text-secondary);background:var(--ace-surface-input)}
+.client-cell-date,.client-cell-time{display:block;font-variant-numeric:tabular-nums}.client-cell-date{font-size:11px;color:var(--ace-text-secondary)}.client-cell-time{font-size:11px;color:var(--ace-text-tertiary);margin-top:2px}
+.client-live{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:var(--ace-text-secondary)}.client-live i{width:5px;height:5px;border-radius:50%;background:#389b76}
+.client-duration{font-size:12px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ace-text-primary)}
+.client-page .entry-activity-trigger{font-size:10px;padding:5px 9px;min-height:27px;border-radius:5px;box-shadow:none}
+.client-page .client-pagination{padding:11px 16px;font-size:10px;color:var(--ace-text-tertiary)}
+.client-page .client-pagination .btn{min-height:29px;padding:4px 10px;border-color:var(--ace-border);border-radius:5px;font-size:10px;background:var(--ace-surface-input)}
+.client-page .client-result-empty{padding:34px 24px 36px;background:var(--ace-surface);border-top:1px solid var(--ace-border)}
+.client-empty-art{display:flex;align-items:center;justify-content:center;gap:14px;margin:0 auto 17px}
+.client-page .client-empty-icon{position:relative;margin:0;width:48px;height:48px;border:1px solid var(--ace-border);border-radius:12px;box-shadow:var(--ace-shadow-sm);background:var(--ace-accent-muted);transform:rotate(-5deg)}
+.client-page .client-empty-icon img{transform:rotate(5deg);width:23px;height:23px}
+.client-empty-mark{width:42px;height:1px;background:var(--ace-border)}
+.client-page .client-result-empty h3{font-size:17px;letter-spacing:-.35px;margin-bottom:8px}
+.client-page .client-result-empty p{font-size:12px;line-height:1.7;max-width:355px}
+.client-page .client-result-empty>.btn{margin-top:18px;font-size:11px;min-height:33px;padding:6px 13px;border-color:var(--ace-border);box-shadow:var(--ace-shadow-xs)}
+html[data-theme="dark"] .client-page .client-kpi-icon{background:var(--ace-accent-muted)}
+html[data-theme="dark"] .client-page .client-kpi-icon img{filter:brightness(0) invert(.8)}
+@media(min-width:601px) and (max-width:1000px){.client-toolbar{align-items:stretch;flex-direction:column;gap:12px}.client-page .client-tabs{align-self:flex-start}.client-page .client-filters{justify-content:flex-start}.client-page .client-stats article>div{display:block}.client-page .client-stats strong{display:block;font-size:20px;margin-top:3px}}
+@media(max-width:600px){
+ .client-page .client-content{padding:20px 14px 36px}.client-page .client-heading h1{font-size:23px;letter-spacing:-.6px}.client-page .client-heading p{font-size:12px;line-height:1.6}.client-title-row{gap:7px}.client-page .client-readonly{font-size:9px;padding:3px 5px}
+ .client-toolbar{display:block;padding:12px 0;margin-top:6px}.client-page .client-tabs{display:inline-flex;margin-bottom:14px}.client-page .client-tabs button{padding:6px 15px;font-size:11px}.client-page .client-filters{display:grid;grid-template-columns:1fr 1fr;gap:10px 8px}.client-page .client-filters label{min-width:0}.client-page .client-filters label:first-child{grid-column:1/-1}.client-page .client-filters .btn{justify-self:start;min-width:78px}
+ .client-page .client-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.client-page .client-stats article{padding:10px;gap:8px}.client-page .client-stats .client-kpi-icon{width:26px;height:26px;flex-basis:26px;border-radius:6px}.client-kpi-icon img{width:15px;height:15px}.client-page .client-stats article>div{display:block}.client-page .client-stats article>div>span{font-size:10px}.client-page .client-stats strong{display:block;font-size:19px;margin-top:2px}
+ .client-page .client-table-head{padding:14px;align-items:flex-start;flex-direction:column;gap:12px}.client-page .client-table-head small{font-size:9px}.client-page .client-export-actions{width:auto}.client-page .client-table-scroll tr{padding:15px 14px;gap:13px 12px}.client-page .client-table-panel td{padding:0;font-size:11px}.client-page .client-table-scroll td[data-label]::before{font-size:8px;letter-spacing:.6px;margin-bottom:5px}.client-person{min-width:0;gap:7px}.client-person strong{font-size:11px}.client-person-avatar{width:25px;height:25px;flex-basis:25px;font-size:8px}.client-project-tag{font-size:10px}.client-page .client-result-empty{padding:30px 18px}.client-page .client-pagination{padding:10px 12px}
+}
+@media(prefers-reduced-motion:reduce){.client-page .client-stats article,.client-page .client-tabs button,.client-page .client-table-panel tbody tr{transition:none}}
+/* Keep shared global form/table effects from flattening the client surface hierarchy. */
+.client-page .client-filters .form-select,.client-page .client-filters .form-input{background:var(--ace-surface-input)!important;background-image:none!important;color:var(--ace-text-primary)!important;box-shadow:none!important}
+html[data-theme="dark"] .client-page .client-table-panel tbody tr{background:var(--ace-surface)!important}
+html[data-theme="dark"] .client-page .client-table-panel tbody tr:hover{background:var(--ace-accent-muted)!important}
+html[data-theme="dark"] .client-page .client-table-panel td{background:transparent!important}
+.client-page .client-filters .btn{width:auto}
