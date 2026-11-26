@@ -62,7 +62,7 @@
         }
         const current = ++generation;
         busy = true; $('clientRefresh').disabled = true;
-        $('clientMessage').textContent = 'Updating…';
+        $('clientMessage').textContent = '';
         clear();
         if (hasAccess && !$('clientWorkspace').hidden) setResultsLoading(true);
         else showState('loading');
