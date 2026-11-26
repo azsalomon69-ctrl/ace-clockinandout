@@ -27,7 +27,7 @@ test('revoked or forged project access blocks searches and exports without revea
 });
 test('exports are freshly authorized and generate real Excel and safe CSV',async()=>{
  const data={total:1,items:[{employee_name:'=HYPERLINK("bad")',project_name:'Project A',clock_in_at:'2026-11-01T00:00:00Z',clock_out_at:'2026-11-01T01:00:00Z',worked_seconds:3600,activities:[{description:'@payload',duration_seconds:3600,ended_at:'2026-11-01T01:00:00Z'}]}]};
- for(const format of ['CSV','XLSX']){const h=harness(data);const res=await h.invoke('POST /v1/client/attendance/export',{...filter,format});assert.equal(h.calls[0].name,'client_attendance');assert.equal(h.calls[0].args.p_actor,actor);assert.ok(h.calls.some(c=>c.audit));
+ for(const format of ['CSV','XLSX']){const h=harness(data);const res=await h.invoke('POST /v1/client/attendance/export',{...filter,format});assert.equal(h.calls[0].name,'client_attendance_v2');assert.equal(h.calls[0].args.p_actor,actor);assert.ok(h.calls.some(c=>c.audit));
  if(format==='CSV')assert.ok(res.body.includes("'=HYPERLINK"));else{const book=XLSX.read(res.body,{type:'buffer'});const rows=XLSX.utils.sheet_to_json(book.Sheets.Attendance,{header:1});assert.equal(rows[1][0],"'=HYPERLINK(\"bad\")");assert.equal(rows[1][4],3600);assert.ok(!book.Sheets.Attendance.A2.f);}}
  assert.equal(safeSpreadsheetText('\t=1+1'),"'\t=1+1");
 });
@@ -41,10 +41,23 @@ test('client legacy route allowlist denies mutation and unrelated API access',()
  }
 });
 
-test('attendance photos are limited to employees in authorized results',async()=>{
+test('attendance photos remain part of the authorized RPC result',async()=>{
  const employee='00000000-0000-4000-8000-000000000499';
- const h=harness({items:[{user_id:employee}],total:1},null,[{id:employee,profile_picture_url:'https://example.test/current.jpg',email:'private@example.test'}]);
- const r=await h.invoke('POST /v1/client/attendance/search',{...filter,userId:'other'});
- assert.equal(r.body.items[0].employee_picture_url,'https://example.test/current.jpg');
- const query=h.calls.find(c=>c.table);assert.deepEqual(query.ids,[employee]);assert.equal(query.columns,'id,profile_picture_url');assert.equal(query.column,'id');assert.equal(r.body.items[0].email,undefined);
+ const h=harness({items:[{user_id:employee,employee_picture_url:'https://example.test/current.jpg'}],total:1});
+ const r=await h.invoke('POST /v1/client/attendance/search',filter);
+ assert.equal(r.body.items[0].employee_picture_url,'https://example.test/current.jpg');assert.ok(!h.calls.some(c=>c.table));
+});
+test('employee and view filters are validated and passed to authorized searches',async()=>{
+ assert.equal(clientFilters({...filter,employeeId:'invalid'}),null);assert.equal(clientFilters({...filter,view:'raw'}),null);
+ const h=harness();await h.invoke('POST /v1/client/attendance/search',{...filter,employeeId:actor,view:'employees',projectIds:[project,project]});
+ assert.equal(h.calls[0].args.p_employee,actor);assert.equal(h.calls[0].args.p_view,'employees');assert.deepEqual(h.calls[0].args.p_projects,[project]);
+});
+test('employee summary exports contain whole-result totals and safe text',async()=>{
+ for(const format of ['CSV','XLSX']){
+ const h=harness({total:1,items:[{employee_name:'=Unsafe',project_names:['Project A','Project B'],shifts:7,active:1,worked_seconds:7200}]});
+ const r=await h.invoke('POST /v1/client/attendance/export',{...filter,view:'employees',employeeId:actor,format});
+ assert.equal(h.calls[0].args.p_view,'employees');assert.equal(h.calls[0].args.p_employee,actor);
+ if(format==='CSV'){assert.ok(r.body.includes('Working now'));assert.ok(r.body.includes("'=Unsafe"));assert.ok(r.body.includes('7200'));}
+ else {const book=XLSX.read(r.body,{type:'buffer'}),rows=XLSX.utils.sheet_to_json(book.Sheets.Attendance,{header:1});assert.equal(rows[1][2],7);assert.equal(rows[1][4],7200);assert.equal(rows[1][0],"'=Unsafe");}
+ }
 });

@@ -3,7 +3,6 @@
     const $ = id => document.getElementById(id);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const hours = seconds => Math.floor(Math.max(0, seconds) / 3600) + 'h ' + Math.floor(Math.max(0, seconds) % 3600 / 60) + 'm';
-    const time = value => value ? new Date(value).toLocaleString('en-GB', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' }) : 'In progress';
     const employeeAvatar = row => {
         const initials = escape((row.employee_name || 'Employee').trim().split(/\s+/).map(part => Array.from(part)[0]).slice(0, 2).join(''));
         let url; try { url = new URL(row.employee_picture_url); } catch { return initials; }
@@ -15,9 +14,10 @@
         return '<span class="client-cell-date">' + escape(date.toLocaleDateString('en-GB', { timeZone: 'Asia/Manila', day: '2-digit', month: 'short', year: 'numeric' })) + '</span><span class="client-cell-time">' + escape(date.toLocaleTimeString('en-GB', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit' })) + '</span>';
     };
     const day = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+    let selectedProjects = [], projectsList = [];
     let mode = 'ACTIVE', page = 1, total = 0, rows = [], generation = 0, busy = false, hasAccess = false;
 
-    const filters = () => ({ from: $('clientFrom').value, to: $('clientTo').value, status: mode, projectIds: $('clientProject').value ? [$('clientProject').value] : undefined, page });
+    const filters = () => ({ from: $('clientFrom').value, to: $('clientTo').value, status: mode, projectIds: selectedProjects.length ? selectedProjects : undefined, employeeId: $('clientEmployee').value || undefined, view: $('clientView').value || 'shifts', page });
     const exportEnabled = enabled => { $('clientCsv').disabled = $('clientExcel').disabled = !enabled; };
     const clear = () => {
         rows = []; total = 0;
@@ -49,10 +49,12 @@
     function renderResults(data) {
         rows = data.items; total = data.total;
         $('clientEmployees').textContent = data.employees;
-        $('clientShifts').textContent = total;
+        $('clientShifts').textContent = data.shifts ?? total;
         $('clientActive').textContent = data.active;
         $('clientWorked').textContent = hours(data.worked_seconds);
-        $('clientRows').innerHTML = rows.map((r, i) => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span><strong>' + escape(r.employee_name || 'Employee') + '</strong></div></td><td data-label="Project"><span class="client-project-tag">' + escape(r.project_name) + '</span></td><td data-label="Clock in">' + displayTime(r.clock_in_at) + '</td><td data-label="Clock out">' + displayTime(r.clock_out_at) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td><td data-label="Activities">' + (r.activities.length ? '<button class="entry-activity-trigger" type="button" data-activities="' + i + '">' + r.activities.length + ' activit' + (r.activities.length === 1 ? 'y' : 'ies') + '</button>' : '—') + '</td></tr>').join('');
+        const summary = $('clientView').value === 'employees';
+        $('clientTableHead').innerHTML = '<tr>' + (summary ? ['Employee','Projects','Shifts','Working now','Worked'] : ['Employee','Project','Clock in','Clock out','Worked','Activities']).map(label => '<th>' + label + '</th>').join('') + '</tr>';
+        $('clientRows').innerHTML = summary ? rows.map(r => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span><strong>' + escape(r.employee_name || 'Employee') + '</strong></div></td><td data-label="Projects"><span class="client-project-tag">' + escape((r.project_names || []).join(', ')) + '</span></td><td data-label="Shifts">' + Number(r.shifts) + '</td><td data-label="Working now">' + Number(r.active) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td></tr>').join('') : rows.map((r, i) => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span><strong>' + escape(r.employee_name || 'Employee') + '</strong></div></td><td data-label="Project"><span class="client-project-tag">' + escape(r.project_name) + '</span></td><td data-label="Clock in">' + displayTime(r.clock_in_at) + '</td><td data-label="Clock out">' + displayTime(r.clock_out_at) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td><td data-label="Activities">' + (r.activities.length ? '<button class="entry-activity-trigger" type="button" data-activities="' + i + '">' + r.activities.length + ' activit' + (r.activities.length === 1 ? 'y' : 'ies') + '</button>' : '—') + '</td></tr>').join('');
         $('clientTableScroll').hidden = !rows.length;
         $('clientPagination').hidden = !rows.length;
         $('clientResultEmpty').hidden = Boolean(rows.length);
@@ -80,9 +82,9 @@
         try {
             const projects = await window.ACEAuth.request('/v1/client/projects');
             if (current !== generation) return;
-            const selected = $('clientProject').value;
-            $('clientProject').innerHTML = '<option value="">All my projects</option>' + projects.map(p => '<option value="' + escape(p.id) + '">' + escape(p.name) + (p.is_active ? '' : ' · inactive') + '</option>').join('');
-            if (projects.some(p => p.id === selected)) $('clientProject').value = selected;
+            projectsList = projects;
+            selectedProjects = selectedProjects.filter(id => projects.some(p => p.id === id));
+            renderProjectChoices();
             hasAccess = projects.length > 0;
             if (!hasAccess) { showState('no-access'); $('clientMessage').textContent = ''; return; }
             const data = await window.ACEAuth.request('/v1/client/attendance/search', { method: 'POST', body: JSON.stringify(filters()) });
@@ -91,6 +93,9 @@
             $('clientState').hidden = true;
             $('clientWorkspace').hidden = false;
             setResultsLoading(false);
+            const employee = $('clientEmployee').value;
+            $('clientEmployee').innerHTML = '<option value="">All employees</option>' + (data.employee_options || []).map(e => '<option value="' + escape(e.id) + '">' + escape(e.name || 'Employee') + '</option>').join('');
+            $('clientEmployee').value = employee;
             renderResults(data);
             $('clientMessage').textContent = 'Last updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch (error) {
@@ -118,8 +123,33 @@
             $('clientMessage').textContent = '';
         } finally { if (total > 0) button.disabled = false; }
     }
+    function renderProjectChoices() {
+        $('clientProjectLabel').textContent = selectedProjects.length ? selectedProjects.length + ' project' + (selectedProjects.length === 1 ? '' : 's') : 'All my projects';
+        $('clientProjectChoices').innerHTML = projectsList.map(p => '<label><input type="checkbox" value="' + escape(p.id) + '"' + (selectedProjects.includes(p.id) ? ' checked' : '') + '><span>' + escape(p.name) + (p.is_active ? '' : ' · inactive') + '</span></label>').join('');
+    }
+    $('clientProjectChoices').addEventListener('change', e => {
+        if (e.target.type !== 'checkbox') return;
+        selectedProjects = e.target.checked ? [...new Set([...selectedProjects, e.target.value])] : selectedProjects.filter(id => id !== e.target.value);
+        $('clientEmployee').value = ''; renderProjectChoices();
+    });
+    $('clientProjectsDone').addEventListener('click', () => { $('clientProjectPicker').open = false; $('clientProjectLabel').focus(); });
+    document.addEventListener('click', e => { if (!$('clientProjectPicker').contains(e.target)) $('clientProjectPicker').open = false; });
+    $('clientProjectPicker').addEventListener('keydown', e => { if (e.key === 'Escape') { $('clientProjectPicker').open = false; $('clientProjectLabel').focus(); } });
+    $('clientAllProjects').addEventListener('click', () => { selectedProjects = []; $('clientEmployee').value = ''; renderProjectChoices(); });
+    $('clientView').addEventListener('change', () => { page = 1; void refresh(); });
+    $('clientPeriod').addEventListener('change', () => {
+        const now = new Date(day() + 'T00:00:00Z'), from = new Date(now), to = new Date(now);
+        const preset = $('clientPeriod').value;
+        if (preset === 'custom') return;
+        if (preset === 'yesterday') { from.setUTCDate(from.getUTCDate() - 1); to.setUTCDate(to.getUTCDate() - 1); }
+        if (preset === 'week') from.setUTCDate(from.getUTCDate() - from.getUTCDay());
+        if (preset === 'month') from.setUTCDate(1);
+        if (preset === 'last-month') { from.setUTCDate(1); from.setUTCMonth(from.getUTCMonth() - 1); to.setUTCDate(0); }
+        $('clientFrom').value = from.toISOString().slice(0,10); $('clientTo').value = to.toISOString().slice(0,10);
+    });
+    for (const id of ['clientFrom','clientTo']) $(id).addEventListener('change', () => { $('clientPeriod').value = 'custom'; });
     $('clientFrom').value = day().slice(0, 8) + '01'; $('clientTo').value = day();
-    $('clientFilters').addEventListener('submit', e => { e.preventDefault(); page = 1; void refresh(); });
+    $('clientFilters').addEventListener('submit', e => { e.preventDefault(); $('clientProjectPicker').open = false; page = 1; void refresh(); });
     $('clientRefresh').addEventListener('click', () => void refresh());
     $('clientStateAction').addEventListener('click', () => void refresh());
     for (const [id, value] of [['clientNow', 'ACTIVE'], ['clientHistory', null]]) $(id).addEventListener('click', () => {
@@ -130,7 +160,7 @@
     });
     $('clientEmptyAction').addEventListener('click', () => {
         if (mode === 'ACTIVE') { $('clientHistory').click(); return; }
-        $('clientProject').value = ''; $('clientFrom').value = day().slice(0, 8) + '01'; $('clientTo').value = day(); page = 1; void refresh();
+        selectedProjects = []; $('clientEmployee').value = ''; $('clientPeriod').value = 'month'; $('clientFrom').value = day().slice(0, 8) + '01'; $('clientTo').value = day(); page = 1; void refresh();
     });
     $('clientPrevious').addEventListener('click', () => { if (page > 1) { page--; void refresh(); } });
     $('clientNext').addEventListener('click', () => { if (page * 25 < total) { page++; void refresh(); } });

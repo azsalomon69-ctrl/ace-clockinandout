@@ -2,12 +2,14 @@ import * as XLSX from 'xlsx';
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const day = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value;
 export function clientFilters(body = {}, exporting = false) {
+ if(body.employeeId!=null&&!uuid(body.employeeId))return null;
+ if(body.view!==undefined&&!['shifts','employees'].includes(body.view))return null;
  const projects=body.projectIds === undefined ? null : body.projectIds;
  if(projects!==null&&(!Array.isArray(projects)||projects.length>100||projects.some(id=>!uuid(id))))return null;
  if(!day(body.from)||!day(body.to)||body.to<body.from||(Date.parse(body.to)-Date.parse(body.from))/86400000>366)return null;
  const status=body.status||null,page=body.page??1;
  if(![null,'ACTIVE','COMPLETED'].includes(status)||!Number.isInteger(page)||page<1||page>100000)return null;
- return {p_projects:projects===null?null:[...new Set(projects)],p_from:body.from,p_to:body.to,p_status:status,p_page:exporting?1:page,p_size:exporting?10000:25};
+ return {p_projects:projects===null?null:[...new Set(projects)],p_from:body.from,p_to:body.to,p_status:status,p_page:exporting?1:page,p_size:exporting?10000:25,p_employee:body.employeeId||null,p_view:body.view||'shifts'};
 }
 export const safeSpreadsheetText = value => /^[\s\u0000-\u001f]*[=+\-@]/.test(String(value??'')) ? "'"+value : String(value??'');
 export function registerClientRoutes(app,{db,authenticate,adminOnly,fail,audit}) {
@@ -19,7 +21,7 @@ export function registerClientRoutes(app,{db,authenticate,adminOnly,fail,audit})
   throw error;
  };
  const freshRead=async(req,args)=>{
-  const {data,error}=await db.rpc('client_attendance',{p_actor:req.profile.id,...args});
+  const {data,error}=await db.rpc('client_attendance_v2',{p_actor:req.profile.id,...args});
   if(error)throw error;
   return data;
  };
@@ -30,13 +32,6 @@ export function registerClientRoutes(app,{db,authenticate,adminOnly,fail,audit})
  app.post('/v1/client/attendance/search',authenticate,async(req,res,next)=>{try{
   const args=clientFilters(req.body);if(!args)return fail(res,400,'Choose valid projects, dates and page');
   const data=await freshRead(req,args);
-  const ids=[...new Set(data.items.map(row=>row.user_id).filter(Boolean))];
-  if(ids.length){
-   const {data:profiles,error}=await db.from('profiles').select('id,profile_picture_url').in('id',ids);
-   if(error)throw error;
-   const photos=new Map(profiles.map(profile=>[profile.id,profile.profile_picture_url]));
-   data.items=data.items.map(row=>({...row,employee_picture_url:photos.get(row.user_id)||null}));
-  }
   res.set('Cache-Control','no-store').json(data);
  }catch(e){try{errors(res,e);}catch(error){next(error);}}});
  app.post('/v1/client/attendance/export',authenticate,async(req,res,next)=>{try{
@@ -44,9 +39,10 @@ export function registerClientRoutes(app,{db,authenticate,adminOnly,fail,audit})
   if(!args||!['CSV','XLSX'].includes(format))return fail(res,400,'Choose CSV or Excel and valid filters');
   const data=await freshRead(req,args);
   if(data.total>10000)return fail(res,422,'Narrow the date range before exporting more than 10,000 shifts');
-  const rows=[['Employee','Project','Clock in (Philippine time)','Clock out (Philippine time)','Worked seconds','Status','Recorded activities']];
+  const summary=args.p_view==='employees';
+  const rows=summary?[['Employee','Projects','Shifts','Working now','Worked seconds']]:[['Employee','Project','Clock in (Philippine time)','Clock out (Philippine time)','Worked seconds','Status','Recorded activities']];
   const time=value=>value?new Date(value).toLocaleString('en-GB',{timeZone:'Asia/Manila',hour12:false}):'';
-  for(const row of data.items)rows.push([safeSpreadsheetText(row.employee_name),safeSpreadsheetText(row.project_name),time(row.clock_in_at),time(row.clock_out_at),row.worked_seconds,row.clock_out_at?'Completed':'Active',safeSpreadsheetText(row.activities.map(a=>a.description+' ('+(a.ended_at?Number(a.duration_seconds)||0:Math.max(0,Math.floor((Date.now()-Date.parse(a.started_at))/1000)))+' seconds)').join('; '))]);
+  for(const row of data.items)if(summary)rows.push([safeSpreadsheetText(row.employee_name),safeSpreadsheetText((row.project_names||[]).join('; ')),row.shifts,row.active,row.worked_seconds]);else rows.push([safeSpreadsheetText(row.employee_name),safeSpreadsheetText(row.project_name),time(row.clock_in_at),time(row.clock_out_at),row.worked_seconds,row.clock_out_at?'Completed':'Active',safeSpreadsheetText(row.activities.map(a=>a.description+' ('+(a.ended_at?Number(a.duration_seconds)||0:Math.max(0,Math.floor((Date.now()-Date.parse(a.started_at))/1000)))+' seconds)').join('; '))]);
   await audit(req,'CLIENT_EXPORT','REPORT',null,`Exported ${data.total} authorized shifts as ${format}`);
   res.set('Cache-Control','no-store').attachment('client-attendance.'+format.toLowerCase());
   if(format==='CSV')return res.type('text/csv').send('\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\r\n'));

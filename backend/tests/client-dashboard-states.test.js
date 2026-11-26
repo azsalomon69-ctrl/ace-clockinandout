@@ -46,3 +46,16 @@ test('client resolves system mode through the app data-theme attribute and migra
  const system=harness({preferences:{theme:'system'},systemDark:true});await settle();assert.equal(system.root.dataset.themePreference,'system');assert.equal(system.root.dataset.theme,'dark');
  const legacy=harness({legacyTheme:'dark'});await settle();assert.equal(legacy.root.dataset.theme,'dark');assert.equal(JSON.parse(legacy.storage.get('ace_appearance_preferences')).theme,'dark');assert.equal(legacy.storage.has('ace_client_appearance'),false);
 });
+
+test('date shortcuts use Philippine calendar dates and allow custom dates',async()=>{
+ const h=harness();await settle();const period=h.elements.get('clientPeriod'),from=h.elements.get('clientFrom'),to=h.elements.get('clientTo');
+ const today=new Date(Date.now()+8*3600000).toISOString().slice(0,10);
+ period.value='today';period.handlers.change();assert.equal(from.value,today);assert.equal(to.value,today);
+ period.value='last-month';period.handlers.change();assert.equal(from.value.slice(8),'01');assert.ok(to.value<today);assert.ok(from.value<=to.value);
+ from.handlers.change();assert.equal(period.value,'custom');
+});
+test('employee totals render server aggregates rather than summing the current page',async()=>{
+ const h=harness({projects:[{id:'p',name:'Support',is_active:true}],data:{items:[{user_id:'u',employee_name:'Alex Reyes',project_names:['Support','Operations'],shifts:50,active:1,worked_seconds:180000}],total:1,shifts:50,employees:1,active:1,worked_seconds:180000,employee_options:[{id:'u',name:'Alex Reyes'}]}});await settle();
+ h.elements.get('clientView').value='employees';h.elements.get('clientView').handlers.change();await settle();
+ assert.equal(h.elements.get('clientShifts').textContent,50);assert.ok(h.elements.get('clientRows').innerHTML.includes('50h 0m'));assert.ok(h.elements.get('clientTableHead').innerHTML.includes('Shifts'));
+});
