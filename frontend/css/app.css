@@ -18807,3 +18807,16 @@ html[data-theme="dark"] [data-admin-view="projects"] .project-management-table t
 html[data-theme="dark"] [data-admin-view="projects"] .project-management-table tbody tr:hover{background:var(--ace-accent-muted)!important}
 html[data-theme="dark"] [data-admin-view="projects"] .project-management-table td{background:transparent!important}
 html[data-theme="dark"] [data-admin-view="projects"] .table-search,html[data-theme="dark"] .project-list-filters .ace-select-trigger{background:var(--ace-surface-input)!important;color:var(--ace-text-primary)!important;box-shadow:none!important}
+/* Keep project actions in view on short screens; only form fields scroll. */
+#projectManagementModal{padding:16px;overflow:hidden;align-items:center}
+#projectManagementModal .project-management-dialog{display:flex;flex-direction:column;max-height:calc(100dvh - 32px);min-height:0;overflow:hidden;margin:0}
+#projectManagementModal .modal-header{flex:0 0 auto;min-width:0;gap:12px}
+#projectManagementModal .modal-title{min-width:0;overflow-wrap:anywhere;white-space:normal;line-height:1.35}
+#projectManagementModal .modal-close{flex:0 0 auto}
+#projectManagementModal .modal-body{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+#projectManagementModal .modal-body:has(#projectLifecycleForm){display:flex;flex-direction:column;padding:0;overflow:hidden}
+#projectLifecycleForm{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;max-height:100%;margin:0}
+#projectLifecycleForm .project-form-scroll{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:20px 24px;scroll-padding-block:16px;scrollbar-color:var(--ace-accent) var(--ace-surface-raised);scrollbar-width:thin}
+#projectLifecycleForm>.form-actions{flex:0 0 auto;margin:0;padding:13px 24px;border-top:1px solid var(--ace-border);background:var(--ace-surface-modal);display:flex;justify-content:flex-end;gap:8px}
+#projectLifecycleForm>.form-actions .btn{width:auto;min-height:38px;min-width:88px}
+@media(max-width:600px){#projectManagementModal{padding:10px}#projectManagementModal .project-management-dialog{width:100%;max-height:calc(100dvh - 20px)}#projectLifecycleForm .project-form-scroll{padding:18px}#projectLifecycleForm>.form-actions{padding:12px 18px}#projectManagementModal .modal-header{padding:16px 18px}}
