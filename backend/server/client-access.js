@@ -29,7 +29,15 @@ export function registerClientRoutes(app,{db,authenticate,adminOnly,fail,audit})
  }catch(e){next(e);}});
  app.post('/v1/client/attendance/search',authenticate,async(req,res,next)=>{try{
   const args=clientFilters(req.body);if(!args)return fail(res,400,'Choose valid projects, dates and page');
-  res.set('Cache-Control','no-store').json(await freshRead(req,args));
+  const data=await freshRead(req,args);
+  const ids=[...new Set(data.items.map(row=>row.user_id).filter(Boolean))];
+  if(ids.length){
+   const {data:profiles,error}=await db.from('profiles').select('id,profile_picture_url').in('id',ids);
+   if(error)throw error;
+   const photos=new Map(profiles.map(profile=>[profile.id,profile.profile_picture_url]));
+   data.items=data.items.map(row=>({...row,employee_picture_url:photos.get(row.user_id)||null}));
+  }
+  res.set('Cache-Control','no-store').json(data);
  }catch(e){try{errors(res,e);}catch(error){next(error);}}});
  app.post('/v1/client/attendance/export',authenticate,async(req,res,next)=>{try{
   const args=clientFilters(req.body,true);const format=req.body.format;

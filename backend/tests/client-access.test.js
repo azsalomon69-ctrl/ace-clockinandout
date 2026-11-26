@@ -6,8 +6,8 @@ import * as XLSX from 'xlsx';
 import { clientFilters, safeSpreadsheetText, registerClientRoutes } from '../server/client-access.js';
 const actor='00000000-0000-4000-8000-000000000402',project='00000000-0000-4000-8000-000000000411';
 const filter={from:'2026-11-01',to:'2026-11-30'};
-function harness(result={items:[],total:0},error=null){const handlers=new Map(),calls=[];const authenticate=()=>{},adminOnly=()=>{};
- registerClientRoutes({get:(path,...args)=>handlers.set('GET '+path,args),post:(path,...args)=>handlers.set('POST '+path,args),put:(path,...args)=>handlers.set('PUT '+path,args)},{authenticate,adminOnly,fail:(res,code,error)=>res.status(code).json({error}),audit:async(...args)=>calls.push({audit:args}),db:{rpc:async(name,args)=>{calls.push({name,args});return {data:result,error};}}});
+function harness(result={items:[],total:0},error=null,profiles=[]){const handlers=new Map(),calls=[];const authenticate=()=>{},adminOnly=()=>{};
+ registerClientRoutes({get:(path,...args)=>handlers.set('GET '+path,args),post:(path,...args)=>handlers.set('POST '+path,args),put:(path,...args)=>handlers.set('PUT '+path,args)},{authenticate,adminOnly,fail:(res,code,error)=>res.status(code).json({error}),audit:async(...args)=>calls.push({audit:args}),db:{from:table=>({select:columns=>({in:async(column,ids)=>{calls.push({table,columns,column,ids});return {data:profiles,error:null};}})}),rpc:async(name,args)=>{calls.push({name,args});return {data:result,error};}}});
  const invoke=async(path,body={})=>{const res={code:200,headers:{},status(code){this.code=code;return this;},json(body){this.body=body;return this;},set(key,value){this.headers[key]=value;return this;},attachment(name){this.file=name;return this;},type(type){this.mime=type;return this;},send(body){this.body=body;return this;},end(){return this;}};await handlers.get(path).at(-1)({body,profile:{id:actor,role:'CLIENT'},params:{id:actor},requestId:'request'},res,e=>{throw e;});return res;};return {handlers,calls,invoke,adminOnly,authenticate};}
 test('client filters reject malformed dates, forged IDs and unbounded queries',()=>{
  for(const bad of [{...filter,from:'2026-02-30'},{...filter,to:'2028-01-01'},{...filter,projectIds:['bad']},{...filter,page:1.5},{...filter,status:'DELETED'},{...filter,projectIds:'all'}])assert.equal(clientFilters(bad),null);
@@ -39,4 +39,12 @@ test('client legacy route allowlist denies mutation and unrelated API access',()
  for(const [method,path,allow]of [['GET','/v1/me',true],['POST','/v1/client/attendance/export',true],['GET','/v1/users',false],['GET','/v1/projects',false],['GET','/v1/time-entries',false],['POST','/v1/time-entries/clock-in',false],['POST','/v1/time-entries/manual',false],['PATCH','/v1/me',false],['POST','/v1/invitations',false]]){
  let allowed=false,status;vm.runInNewContext('(function(){'+code+'})();',{req:{profile:{role:'CLIENT'},method,path},res:{},next:()=>{allowed=true;},fail:(_r,s)=>{status=s;}});assert.equal(allowed,allow,method+path);if(!allow)assert.equal(status,403);
  }
+});
+
+test('attendance photos are limited to employees in authorized results',async()=>{
+ const employee='00000000-0000-4000-8000-000000000499';
+ const h=harness({items:[{user_id:employee}],total:1},null,[{id:employee,profile_picture_url:'https://example.test/current.jpg',email:'private@example.test'}]);
+ const r=await h.invoke('POST /v1/client/attendance/search',{...filter,userId:'other'});
+ assert.equal(r.body.items[0].employee_picture_url,'https://example.test/current.jpg');
+ const query=h.calls.find(c=>c.table);assert.deepEqual(query.ids,[employee]);assert.equal(query.columns,'id,profile_picture_url');assert.equal(query.column,'id');assert.equal(r.body.items[0].email,undefined);
 });
