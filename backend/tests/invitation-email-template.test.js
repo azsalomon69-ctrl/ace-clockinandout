@@ -43,12 +43,12 @@ test('client onboarding explains scoped read-only access without employee clock-
  const mail=template()({email:'client@example.test',role:'CLIENT',invitedBy:'Admin'});
  assert.equal(mail.subject,'ACE Clock In Out invitation - Client');
  assert.ok(mail.html.includes('CLIENT INVITATION'));
- assert.ok(mail.html.includes('Your client access<br>is ready.'));
- assert.ok(mail.html.includes('Your access at a glance'));
+ assert.ok(mail.html.includes('ACE Clock<br>client invitation.'));
+ assert.ok(mail.html.includes('What you can view'));
  assert.ok(mail.html.includes('Open client dashboard'));
- assert.ok(mail.html.includes('Read-only access'));
+ assert.ok(mail.html.includes('You cannot edit attendance'));
  assert.ok(mail.html.includes('CSV and Excel'));
- assert.ok(mail.html.includes('after your first sign-in'));
+ assert.ok(mail.html.includes('contact your administrator'));
  assert.ok(!mail.html.includes('Start your first shift'));
  assert.ok(!mail.text.includes('Clock in, record'));
  assert.ok(mail.text.includes('you cannot change attendance'));
