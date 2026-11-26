@@ -3,31 +3,41 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Attendance · ACE Clock</title>
+  <title>Employee attendance · ACE Clock</title>
   <link rel="icon" href="assets/images/ace-logo.png">
   <link rel="stylesheet" href="css/client-dashboard.css">
 </head>
 <body class="client-page">
   <header class="client-header">
     <a class="client-brand" href="client-dashboard.html"><img src="assets/images/ace-logo.png" alt="ACE" width="44" height="44"><span>ACE Clock<small>Client account</small></span></a>
-    <div class="client-account"><span id="clientName"></span><button class="btn btn-outline" id="clientSignOut" type="button">Sign out</button></div>
+    <div class="client-account">
+      <button class="client-account-trigger" id="clientAccountButton" type="button" popovertarget="clientAccountMenu" aria-expanded="false" aria-controls="clientAccountMenu" aria-label="Open account options">
+        <span class="client-account-avatar" id="clientAvatar" aria-hidden="true">A</span><span class="client-account-label"><strong id="clientName">Account</strong><small>Client</small></span><img src="assets/icons/chevron-down.svg" width="16" height="16" alt="">
+      </button>
+      <section class="client-account-menu" id="clientAccountMenu" popover aria-label="Account options">
+        <div class="client-menu-identity"><strong id="clientMenuName">Your account</strong><span id="clientMenuEmail"></span><small>Client · Read-only access</small></div>
+        <button id="clientAccountDetails" type="button"><img src="assets/icons/user-pen.svg" width="18" height="18" alt=""><span>Account details<small>Profile and appearance</small></span></button>
+        <button id="clientAccountHelp" type="button"><img src="assets/icons/circle-alert.svg" width="18" height="18" alt=""><span>Access help<small>About employee access</small></span></button>
+        <button id="clientSignOut" class="client-signout" type="button"><img src="assets/icons/log-out.svg" width="18" height="18" alt=""><span>Sign out</span></button>
+      </section>
+    </div>
   </header>
   <main class="client-content">
     <div class="client-heading">
-      <div><div class="client-title-row"><h1>Attendance</h1><span class="client-readonly">Read only</span></div><p>Employee hours and activities for your assigned projects.</p></div>
+      <div><div class="client-title-row"><h1>Employee attendance</h1><span class="client-readonly">Read only</span></div><p>Working hours and activities for employees you have access to.</p></div>
       <button class="btn btn-outline" id="clientRefresh" type="button">Refresh</button>
     </div>
     <p id="clientMessage" class="client-status" role="status" aria-live="polite"></p>
 
     <section class="client-state" id="clientState" aria-labelledby="clientStateTitle" aria-busy="true">
       <div class="client-state-main">
-        <div class="client-state-icon"><img id="clientStateIcon" src="assets/icons/folder.svg" alt="" width="34" height="34"></div>
+        <div class="client-state-icon"><img id="clientStateIcon" src="assets/icons/users.svg" alt="" width="34" height="34"></div>
         <h2 id="clientStateTitle">Loading attendance</h2>
-        <p id="clientStateDescription">Checking your assigned projects.</p>
+        <p id="clientStateDescription">Checking your attendance access.</p>
         <button class="btn btn-primary" id="clientStateAction" type="button" hidden>Check again</button>
       </div>
       <div id="clientStateSkeleton" class="client-state-preview" aria-hidden="true"><div class="client-skeleton-label"></div><div class="client-skeleton-row"></div><div class="client-skeleton-row"></div><div class="client-skeleton-row"></div></div>
-      <footer id="clientStateHelp" hidden><span>Project access is managed by your administrator.</span><span>Once assigned, attendance will appear here.</span></footer>
+      <footer id="clientStateHelp" hidden><span>Employee access is managed by your administrator.</span><span>Attendance can be viewed but not edited.</span></footer>
     </section>
 
     <section id="clientWorkspace" hidden>
@@ -48,6 +58,13 @@
       </section>
     </section>
   </main>
+  <dialog id="clientAccountDialog" class="client-account-dialog" aria-labelledby="clientAccountTitle">
+    <header><div><p class="client-dialog-label">CLIENT ACCOUNT</p><h2 id="clientAccountTitle">Account details</h2></div><button class="btn btn-outline" id="clientCloseAccount" type="button" autofocus>Close</button></header>
+    <dl class="client-account-fields"><div><dt>Name</dt><dd id="clientProfileName">—</dd></div><div><dt>Google account</dt><dd id="clientProfileEmail">—</dd></div><div><dt>Role</dt><dd>Client · Read only</dd></div><div><dt>Attendance access</dt><dd>Employees in projects assigned by your administrator</dd></div></dl>
+    <section class="client-appearance"><label for="clientAppearance">Appearance</label><p>Choose how this dashboard looks on this device.</p><select id="clientAppearance" class="form-select"><option value="system">Use device setting</option><option value="light">Light</option><option value="dark">Dark</option></select></section>
+    <p class="client-account-note">Contact your administrator to change your account details or employee access.</p>
+  </dialog>
+  <dialog id="clientHelpDialog" aria-labelledby="clientHelpTitle"><header><h2 id="clientHelpTitle">Employee access</h2><button class="btn btn-outline" id="clientCloseHelp" type="button" autofocus>Close</button></header><p class="client-help-copy">Your administrator decides which employees’ attendance you can view by assigning project access. If an employee is missing, ask your administrator to check those assignments.</p><p class="client-help-copy">You can view hours, activities and reports for assigned projects. You cannot edit attendance or manage employee accounts.</p></dialog>
   <dialog id="clientActivityDialog"><header><h2>Recorded activities</h2><button class="btn btn-outline" id="clientCloseActivities" type="button" autofocus>Close</button></header><div id="clientActivityList"></div></dialog>
   <script src="js/api-config.js"></script><script src="js/supabase.js"></script><script src="js/supabase-auth.js"></script><script src="js/client-dashboard.js"></script>
 </body>

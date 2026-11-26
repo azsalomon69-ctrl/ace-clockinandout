@@ -22,10 +22,10 @@
         $('clientStateSkeleton').hidden = kind !== 'loading';
         $('clientStateHelp').hidden = kind !== 'no-access';
         $('clientStateAction').hidden = kind === 'loading';
-        $('clientStateTitle').textContent = kind === 'loading' ? 'Loading attendance' : kind === 'no-access' ? 'No projects assigned' : 'Attendance unavailable';
-        $('clientStateDescription').textContent = description || (kind === 'loading' ? 'Checking your assigned projects.' : 'Ask your administrator to assign projects to your client account. You can then view their employees’ hours and activities here.');
+        $('clientStateTitle').textContent = kind === 'loading' ? 'Loading attendance' : kind === 'no-access' ? 'No employees to display' : 'Attendance unavailable';
+        $('clientStateDescription').textContent = description || (kind === 'loading' ? 'Checking your attendance access.' : 'Your administrator hasn’t granted access to employee attendance yet. Once access is added, their hours and activities will appear here.');
         $('clientStateAction').textContent = kind === 'no-access' ? 'Check again' : 'Try again';
-        $('clientStateIcon').src = kind === 'error' ? 'assets/icons/circle-alert.svg' : 'assets/icons/folder.svg';
+        $('clientStateIcon').src = kind === 'error' ? 'assets/icons/circle-alert.svg' : 'assets/icons/users.svg';
     }
     function setResultsLoading(loading) {
         $('clientResults').setAttribute('aria-busy', String(loading));
@@ -85,7 +85,7 @@
         } catch (error) {
             if (current !== generation) return;
             clear();
-            showState('error', error.status === 403 ? 'Your project access may have changed. Contact your administrator or try again.' : 'We couldn’t load your attendance. Check your connection and try again.');
+            showState('error', error.status === 403 ? 'Your attendance access may have changed. Contact your administrator or try again.' : 'We couldn’t load your attendance. Check your connection and try again.');
             $('clientMessage').textContent = '';
         } finally {
             if (current === generation) { busy = false; $('clientRefresh').disabled = false; }
@@ -131,6 +131,43 @@
         $('clientActivityDialog').showModal();
     });
     $('clientCloseActivities').addEventListener('click', () => $('clientActivityDialog').close());
+    const accountButton = $('clientAccountButton');
+    const accountMenu = $('clientAccountMenu');
+    const closeAccountMenu = () => { if (accountMenu.matches(':popover-open')) accountMenu.hidePopover(); };
+    accountMenu.addEventListener('beforetoggle', event => {
+        const opening = event.newState === 'open';
+        accountButton.setAttribute('aria-expanded', String(opening));
+        if (opening) {
+            const bounds = accountButton.getBoundingClientRect();
+            const width = Math.min(300, window.innerWidth - 32);
+            accountMenu.style.width = width + 'px';
+            accountMenu.style.left = Math.max(16, Math.min(bounds.right - width, window.innerWidth - width - 16)) + 'px';
+            accountMenu.style.top = bounds.bottom + 10 + 'px';
+        }
+    });
+    accountMenu.addEventListener('keydown', event => {
+        if (event.key === 'Escape') { event.preventDefault(); closeAccountMenu(); accountButton.focus(); }
+    });
+    window.addEventListener('resize', closeAccountMenu);
+    window.addEventListener('scroll', closeAccountMenu, { passive: true });
+    $('clientAccountDetails').addEventListener('click', () => { closeAccountMenu(); $('clientAccountDialog').showModal(); });
+    $('clientCloseAccount').addEventListener('click', () => { $('clientAccountDialog').close(); accountButton.focus(); });
+    $('clientAccountHelp').addEventListener('click', () => { closeAccountMenu(); $('clientHelpDialog').showModal(); });
+    $('clientCloseHelp').addEventListener('click', () => { $('clientHelpDialog').close(); accountButton.focus(); });
+    $('clientAccountDialog').addEventListener('close', () => accountButton.focus());
+    $('clientHelpDialog').addEventListener('close', () => accountButton.focus());
+    const deviceTheme = window.matchMedia?.('(prefers-color-scheme: dark)');
+    let appearance = 'system';
+    try { const stored = localStorage.getItem('ace_client_appearance'); if (['light', 'dark', 'system'].includes(stored)) appearance = stored; } catch { /* Device storage may be unavailable. */ }
+    const applyAppearance = () => { document.documentElement.dataset.clientTheme = appearance === 'system' ? (deviceTheme?.matches ? 'dark' : 'light') : appearance; };
+    $('clientAppearance').value = appearance;
+    applyAppearance();
+    deviceTheme?.addEventListener('change', applyAppearance);
+    $('clientAppearance').addEventListener('change', () => {
+        appearance = $('clientAppearance').value;
+        applyAppearance();
+        try { localStorage.setItem('ace_client_appearance', appearance); } catch { /* The selected theme still works for this session. */ }
+    });
     $('clientSignOut').addEventListener('click', async () => {
         try { await window.ACEAuth.request('/v1/auth/session-end', { method: 'POST' }); await (await window.ACEAuth.client()).auth.signOut(); localStorage.removeItem('ace_current_user'); sessionStorage.removeItem('ace_login_audited'); window.location.replace('/login'); }
         catch (e) { $('clientMessage').textContent = 'Couldn’t sign out. Please try again.'; }
@@ -140,10 +177,14 @@
             const { profile } = await window.ACEAuth.request('/v1/me');
             if (profile.role !== 'CLIENT') { window.location.replace(profile.role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard'); return; }
             if (profile.status !== 'ACTIVE') { showState('error', 'Your account is not active. Contact your administrator.'); return; }
-            $('clientName').textContent = profile.full_name || 'Client';
+            const name = profile.full_name || 'Client';
+            $('clientName').textContent = $('clientMenuName').textContent = $('clientProfileName').textContent = name;
+            $('clientMenuEmail').textContent = $('clientProfileEmail').textContent = profile.email || 'Email not available';
+            $('clientAvatar').textContent = name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+            accountButton.setAttribute('aria-label', 'Account options for ' + name);
             await refresh();
             window.setInterval(() => { if (!document.hidden && !busy) void refresh(); }, 60000);
             window.addEventListener('focus', () => { if (!busy) void refresh(); });
-        } catch (e) { showState('error', 'Sign in again to view your assigned projects.'); }
+        } catch (e) { showState('error', 'Sign in again to view employee attendance.'); }
     })();
 })();
