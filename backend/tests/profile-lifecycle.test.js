@@ -109,6 +109,7 @@ function harness(route, { actor = profile('actor'), target = profile('target', {
   }
   let handler;
   const context = vm.createContext({
+    profileCache: { delete() {} },
     process: { env: { HEAD_ADMIN_EMAIL: headEmail } },
     app: { [route.method]: (_path, ...handlers) => { handler = handlers.at(-1); } },
     authenticate() {}, adminOnly() {}, sensitiveActionLimiter() {}, db, query,

@@ -1,5 +1,6 @@
 // Akio <3: Project source maintained by Akio Zaki Salomon.
 import 'dotenv/config';
+import { registerClientRoutes } from './client-access.js';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -239,19 +240,21 @@ const buildInvitationEmail = ({ email, role, invitedBy }) => {
   const recipient = htmlEscape(email);
   const inviterName = invitedBy || 'an ACE administrator';
   const inviter = htmlEscape(inviterName);
-  const roleName = role === 'ADMIN' ? 'Administrator' : 'Employee';
-  const roleDetails = role === 'ADMIN'
+  const roleName = role === 'CLIENT' ? 'Client' : role === 'ADMIN' ? 'Administrator' : 'Employee';
+  const roleDetails = role === 'CLIENT'
+    ? 'You can view attendance, recorded activities, and exports for the projects assigned to you. This access is read-only.'
+    : role === 'ADMIN'
     ? 'You will be able to manage people, work records, reports, and workspace settings.'
     : 'You will be able to clock in, clock out, review your time, and stay up to date with your work.';
   const loginUrl = `${applicationUrl}/login`;
-  const preheader = `You have been invited to ACE Clock In/Out as an ${roleName}.`;
+  const preheader = `You have been invited to ACE Clock In/Out with ${roleName.toLowerCase()} access.`;
   return {
     // Keep the visible subject deliberately plain ASCII across Gmail, Outlook,
     // and clients that display malformed UTF-8 headers literally.
     subject: `ACE Clock In Out invitation - ${roleName}`,
     text: `Your workspace is ready.
 
-${inviterName} has invited you to ACE Clock as an ${roleName.toLowerCase()}.
+${inviterName} has invited you to ACE Clock with ${roleName.toLowerCase()} access.
 
 Your Google account: ${email}
 Use this exact account when signing in with Google.
@@ -260,10 +263,10 @@ Open ACE Clock: ${loginUrl}
 
 ${roleDetails}
 
-${role === 'ADMIN' ? 'Set up your workspace' : 'Before your first shift'}:
+${role === 'CLIENT' ? 'Access your projects' : role === 'ADMIN' ? 'Set up your workspace' : 'Before your first shift'}:
 01. Sign in with Google using the account listed above.
-02. Complete your profile in Profile & settings.
-03. ${role === 'ADMIN' ? 'Open your admin workspace to manage people, time entries, and reports.' : 'Start your first shift: clock in, record your activities, and clock out.'}
+02. ${role === 'CLIENT' ? 'Ask your administrator to share the projects you need.' : 'Complete your profile in Profile & settings.'}
+03. ${role === 'CLIENT' ? 'Open your client dashboard to view your assigned projects.' : role === 'ADMIN' ? 'Open your admin workspace to manage people, time entries, and reports.' : 'Start your first shift: clock in, record your activities, and clock out.'}
 
 No new password is needed. If you have trouble signing in, contact your administrator or HR representative.
 
@@ -296,11 +299,11 @@ Invitation for ${email}`,
 <!--[if mso]><v:roundrect href="${loginUrl}" style="height:52px;v-text-anchor:middle;width:240px" arcsize="12%" strokecolor="#0678a3" fillcolor="#0678a3"><w:anchorlock/><center style="color:#ffffff;font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;font-size:15px;font-weight:bold">Open ACE Clock &#8594;</center></v:roundrect><![endif]-->
 <!--[if !mso]><!--><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;width:240px;max-width:100%"><tr><td align="center" bgcolor="#0678a3" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;background-color:#0678a3;border-radius:6px"><a href="${loginUrl}" target="_blank" style="display:block;border:1px solid #0678a3;border-radius:6px;padding:14px 22px;font-size:15px;line-height:22px;font-weight:600;letter-spacing:-.1px;font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;color:#ffffff;text-decoration:none;text-align:center">Open ACE Clock &nbsp;&#8594;</a></td></tr></table><!--<![endif]-->
 <p class="email-muted" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:11px 0 0;color:#6b8084;font-size:14px;line-height:22px">Continue with Google. No new password needed.</p></td></tr>
-<tr><td class="email-pad" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;padding:0 36px 28px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="email-rule" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;border-top:1px solid #dce7ef;padding-top:24px"><h2 class="email-title" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:0 0 19px;color:#102d50;font-size:18px;line-height:25px">${role === 'ADMIN' ? 'Set up your workspace' : 'Before your first shift'}</h2>
+<tr><td class="email-pad" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;padding:0 36px 28px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="email-rule" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;border-top:1px solid #dce7ef;padding-top:24px"><h2 class="email-title" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:0 0 19px;color:#102d50;font-size:18px;line-height:25px">${role === 'CLIENT' ? 'Access your projects' : role === 'ADMIN' ? 'Set up your workspace' : 'Before your first shift'}</h2>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
 <tr><td width="34" valign="top" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;width:34px"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td class="email-step" align="center" bgcolor="#e7f7fc" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;width:28px;height:28px;line-height:28px;background-color:#e7f7fc;color:#0678a3;font-size:11px;font-weight:600;border-radius:50%">01</td></tr><tr><td align="center" height="28" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;height:28px"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td class="email-rule" height="22" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;height:22px;border-left:1px solid #cde4f0"></td></tr></table></td></tr></table></td><td valign="top" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;padding:3px 0 18px 10px"><p class="email-title" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:0;color:#173c60;font-size:15px;line-height:22px;font-weight:600">Sign in with Google</p><p class="email-copy" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:3px 0 0;color:#627a7f;font-size:14px;line-height:22px">Choose the Google account listed above.</p></td></tr>
-<tr><td width="34" valign="top"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td class="email-step" align="center" bgcolor="#e7f7fc" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;width:28px;height:28px;line-height:28px;background-color:#e7f7fc;color:#0678a3;font-size:11px;font-weight:600;border-radius:50%">02</td></tr><tr><td align="center" height="28" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;height:28px"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td class="email-rule" height="22" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;height:22px;border-left:1px solid #cde4f0"></td></tr></table></td></tr></table></td><td valign="top" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;padding:3px 0 18px 10px"><p class="email-title" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:0;color:#173c60;font-size:15px;line-height:22px;font-weight:600">Complete your profile</p><p class="email-copy" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:3px 0 0;color:#627a7f;font-size:14px;line-height:22px">Review your details in Profile &amp; settings.</p></td></tr>
-<tr><td width="34" valign="top"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td class="email-step" align="center" bgcolor="#e7f7fc" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;width:28px;height:28px;line-height:28px;background-color:#e7f7fc;color:#0678a3;font-size:11px;font-weight:600;border-radius:50%">03</td></tr></table></td><td valign="top" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;padding:3px 0 0 10px"><p class="email-title" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:0;color:#173c60;font-size:15px;line-height:22px;font-weight:600">${role === 'ADMIN' ? 'Open your admin workspace' : 'Start your first shift'}</p><p class="email-copy" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:3px 0 0;color:#627a7f;font-size:14px;line-height:22px">${role === 'ADMIN' ? 'Manage people, time entries, and reports.' : 'Clock in, record your activities, and clock out.'}</p></td></tr>
+<tr><td width="34" valign="top"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td class="email-step" align="center" bgcolor="#e7f7fc" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;width:28px;height:28px;line-height:28px;background-color:#e7f7fc;color:#0678a3;font-size:11px;font-weight:600;border-radius:50%">02</td></tr><tr><td align="center" height="28" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;height:28px"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td class="email-rule" height="22" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;height:22px;border-left:1px solid #cde4f0"></td></tr></table></td></tr></table></td><td valign="top" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;padding:3px 0 18px 10px"><p class="email-title" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:0;color:#173c60;font-size:15px;line-height:22px;font-weight:600">${role === 'CLIENT' ? 'Confirm your project access' : 'Complete your profile'}</p><p class="email-copy" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:3px 0 0;color:#627a7f;font-size:14px;line-height:22px">${role === 'CLIENT' ? 'Your administrator controls which projects you can view.' : 'Review your details in Profile &amp; settings.'}</p></td></tr>
+<tr><td width="34" valign="top"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td class="email-step" align="center" bgcolor="#e7f7fc" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;width:28px;height:28px;line-height:28px;background-color:#e7f7fc;color:#0678a3;font-size:11px;font-weight:600;border-radius:50%">03</td></tr></table></td><td valign="top" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;padding:3px 0 0 10px"><p class="email-title" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:0;color:#173c60;font-size:15px;line-height:22px;font-weight:600">${role === 'CLIENT' ? 'Open your client dashboard' : role === 'ADMIN' ? 'Open your admin workspace' : 'Start your first shift'}</p><p class="email-copy" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:3px 0 0;color:#627a7f;font-size:14px;line-height:22px">${role === 'CLIENT' ? 'View attendance and exports for your assigned projects.' : role === 'ADMIN' ? 'Manage people, time entries, and reports.' : 'Clock in, record your activities, and clock out.'}</p></td></tr>
 </table></td></tr></table></td></tr>
 <tr><td class="email-pad email-footer email-rule" bgcolor="#f7fbff" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;padding:18px 36px;background-color:#f7fbff;border-top:1px solid #dce7ef"><p class="email-copy" style="font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;margin:0;color:#5e767c;font-size:14px;line-height:22px"><strong class="email-title" style="font-weight:600;font-family:'Inter', 'Segoe UI', Helvetica, Arial, sans-serif;color:#234968">Need help?</strong> Contact your administrator or HR representative if you have trouble signing in.</p></td></tr>
 </table></td></tr>
@@ -501,6 +504,10 @@ async function authenticate(req, res, next) {
     req.authTokenCacheKey = tokenKey;
     req.authSessionId = jwt.decode(token)?.session_id;
   } catch (error) { return respondToAuthFailure(req, res, error); }
+  if (req.profile.role === 'CLIENT' && ![
+    'GET /v1/me', 'POST /v1/auth/session-start', 'POST /v1/auth/session-end',
+    'GET /v1/client/projects', 'POST /v1/client/attendance/search', 'POST /v1/client/attendance/export'
+  ].includes(req.method + ' ' + req.path)) return fail(res, 403, 'Client access is read-only and limited to assigned projects');
   return next();
 }
 
@@ -802,6 +809,8 @@ app.post('/v1/auth/session-end', authenticate, async (req, res, next) => { try {
   res.status(204).end();
 } catch (error) { next(error); } });
 
+registerClientRoutes(app, { db, authenticate, adminOnly, fail, audit });
+
 app.get('/v1/departments', authenticate, activeOnly, async (req, res, next) => { try { const paging = pageParams(req); const load = () => { let request = db.from('departments').select('*', paging.paged ? { count: 'exact' } : undefined).order('name'); if (req.query.q) request = request.or(`name.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%,description.ilike.%${String(req.query.q).replace(/[,()]/g, ' ')}%`); return pagedResult(request, paging); }; res.json(!paging.paged && !req.query.q ? await cached(referenceDataCache, 'departments', referenceDataTtlMs, load) : await load()); } catch (error) { next(error); } });
 app.post('/v1/departments', authenticate, adminOnly, async (req, res, next) => { try { const name = requireText(req.body.name, 'Department name'); const description = optionalText(req.body.description, 1000); if (description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); const item = await query(db.from('departments').insert({ name, description }).select().single()); clearReferenceData('departments'); await audit(req, 'CREATE', 'DEPARTMENT', item.id, `Created department ${item.name}`); res.status(201).json(item); } catch (error) { next(error); } });
 app.patch('/v1/departments/:id', authenticate, adminOnly, async (req, res, next) => { try { const changes = {}; if (req.body.name !== undefined) changes.name = requireText(req.body.name, 'Department name'); if (req.body.description !== undefined) { changes.description = optionalText(req.body.description, 1000); if (changes.description === undefined) return fail(res, 400, 'Description must be text up to 1000 characters'); } if (!Object.keys(changes).length) return fail(res, 400, 'No editable department fields supplied'); const item = await query(db.from('departments').update(changes).eq('id', req.params.id).select().single()); clearReferenceData('departments'); await audit(req, 'UPDATE', 'DEPARTMENT', item.id, `Updated department ${item.name}`); res.json(item); } catch (error) { next(error); } });
@@ -867,7 +876,7 @@ app.get('/v1/users', authenticate, adminOnly, async (req, res, next) => { try {
   let request = db.from('profiles').select('*, departments(name)', paged ? { count: 'exact' } : undefined).order('created_at', { ascending: false });
   request = req.query.removed === 'true' ? request.eq('status', 'DENIED') : request.neq('status', 'DENIED');
   request = request.is('permanently_deleted_at', null);
-  if (req.query.role === 'ADMIN' || req.query.role === 'USER') request = request.eq('role', req.query.role);
+  if (['ADMIN', 'USER', 'CLIENT'].includes(req.query.role)) request = request.eq('role', req.query.role);
   if (req.query.departmentId) request = request.eq('department_id', req.query.departmentId);
   if (req.query.projectId) {
     const projectId = String(req.query.projectId);
@@ -913,14 +922,19 @@ app.patch('/v1/users/:id/approval', authenticate, adminOnly, async (req, res, ne
 } catch (error) { next(error); } });
 
 app.patch('/v1/users/:id/role', authenticate, adminOnly, async (req, res, next) => { try {
-  const role = req.body.role === 'ADMIN' ? 'ADMIN' : req.body.role === 'USER' ? 'USER' : null;
-  if (!role) return fail(res, 400, 'Role must be ADMIN or USER');
+  const role = ['ADMIN', 'USER', 'CLIENT'].includes(req.body.role) ? req.body.role : null;
+  if (!role) return fail(res, 400, 'Role must be ADMIN, USER or CLIENT');
   const target = await query(db.from('profiles').select('*').eq('id', req.params.id).single());
   if (!await guardProfileLifecycle(req, res, target, { role }, { operation: 'role' })) return;
+  if (role === 'CLIENT' && target.role !== 'CLIENT') {
+    const active = await query(db.from('time_entries').select('id').eq('user_id', target.id).is('clock_out_at', null).is('deleted_at', null).maybeSingle());
+    if (active) return fail(res, 409, 'Stop this account’s active shift before changing it to Client');
+  }
   const profile = await query(db.rpc('change_user_role_with_audit', {
     p_target_user_id: target.id, p_actor_user_id: req.profile.id,
     p_role: role, p_request_id: req.requestId
   }));
+  profileCache.delete(target.id);
   res.json(profile);
 } catch (error) { next(error); } });
 
@@ -971,7 +985,7 @@ app.delete('/v1/users/:id/permanent', authenticate, adminOnly, async (req, res, 
 
 app.post('/v1/invitations', sensitiveActionLimiter, authenticate, adminOnly, async (req, res, next) => { try {
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-  const role = req.body.role === 'ADMIN' ? 'ADMIN' : 'USER';
+  const role = ['ADMIN', 'USER', 'CLIENT'].includes(req.body.role) ? req.body.role : 'USER';
   if (!email || email.length > 254 || !emailPattern.test(email)) return fail(res, 400, 'A valid email is required');
   if (!isAllowedCompanyEmail(email)) return fail(res, 400, 'Use an approved company email address.');
   const departmentId = optionalUuid(req.body.departmentId);

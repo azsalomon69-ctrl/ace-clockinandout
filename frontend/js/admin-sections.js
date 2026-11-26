@@ -101,7 +101,7 @@ async function applyLiveData(key, view, pageState = null, filters = {}) {
     view.records = items.map(item => {
       const assignedProjects = projectsByUser.get(String(item.id)) || [];
       const projectLabel = item.role === 'USER' ? (assignedProjects.join(', ') || 'Unassigned') : '—';
-      return { id: item.id, email: item.email, isHeadAdmin: Boolean(item.is_head_admin), avatarUrl: item.profile_picture_url || '', cells: [item.full_name || 'Unnamed user', item.email, item.role === 'ADMIN' ? 'Admin' : 'Employee', projectLabel, item.departments?.name || '—', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
+      return { id: item.id, email: item.email, isHeadAdmin: Boolean(item.is_head_admin), avatarUrl: item.profile_picture_url || '', cells: [item.full_name || 'Unnamed user', item.email, item.role === 'CLIENT' ? 'Client' : item.role === 'ADMIN' ? 'Admin' : 'Employee', projectLabel, item.departments?.name || '—', item.status[0] + item.status.slice(1).toLowerCase(), item.status === 'PENDING' ? 'Review' : 'Manage'] };
     });
   } else if (key === 'invitations') {
     const params = new URLSearchParams(); if (pageState) { params.set('page', pageState.page); params.set('pageSize', pageState.size); } if (filters.q) params.set('q', filters.q);
@@ -201,7 +201,7 @@ function formField(label, type, placeholder, value, index) {
   }
   if (type === 'select') {
     const state = typeof AppState === 'undefined' ? null : AppState;
-    const options = label === 'Role' ? '<option value="USER"' + (value === 'Admin' ? '' : ' selected') + '>Employee</option><option value="ADMIN"' + (value === 'Admin' ? ' selected' : '') + '>Admin</option>'
+    const options = label === 'Role' ? [['USER','Employee'],['ADMIN','Admin'],['CLIENT','Client']].map(([role,label]) => '<option value="' + role + '"' + ((value === label || (!value && role === 'USER')) ? ' selected' : '') + '>' + label + '</option>').join('')
       : label === 'Department' ? '<option value="">No department</option>' + (state?.departments || []).map(item => '<option value="' + item.DepartmentId + '"' + (value === item.DepartmentName ? ' selected' : '') + '>' + esc(item.DepartmentName) + '</option>').join('')
       : label === 'Project assignment' ? '<option value="">No project change</option>' + (state?.projects || []).filter(item => item.IsActive).map(item => '<option value="' + item.ProjectId + '">' + esc(item.ProjectName) + '</option>').join('')
       : label.includes('Schedule') ? '<option value="">Leave schedule unchanged</option>'
@@ -446,9 +446,9 @@ function modal(view, primary, record) {
         await liveRequest('/v1/users/' + record.id + '/role', { method: 'PATCH', body: JSON.stringify({ role: first }) });
         await liveRequest('/v1/users/' + record.id + '/department', { method: 'PATCH', body: JSON.stringify({ departmentId: document.getElementById('adminField1').value || null }) });
         const projectId = document.getElementById('adminField2').value;
-        if (projectId) await liveRequest('/v1/users/' + record.id + '/projects/' + projectId, { method: 'PUT' });
+        if (projectId && first === 'USER') await liveRequest('/v1/users/' + record.id + '/projects/' + projectId, { method: 'PUT' });
         const scheduleId = document.getElementById('adminField3').value;
-        if (scheduleId) await liveRequest('/v1/users/' + record.id + '/schedule', { method: 'PUT', body: JSON.stringify({ scheduleId: scheduleId === '__REMOVE__' ? null : scheduleId }) });
+        if (scheduleId && first === 'USER') await liveRequest('/v1/users/' + record.id + '/schedule', { method: 'PUT', body: JSON.stringify({ scheduleId: scheduleId === '__REMOVE__' ? null : scheduleId }) });
       }
       else if (review) await liveRequest('/v1/users/' + record.id + '/approval', { method: 'PATCH', body: JSON.stringify({ status: first }) });
       closeModal('adminActionModal');
@@ -875,10 +875,10 @@ async function renderAdminSection() {
   if (key === 'users') {
     const [departments, projects] = serverPaged ? await Promise.all([liveRequest('/v1/departments'), liveRequest('/v1/projects')]) : [[...new Set(view.records.map(record => record.cells[4]))].sort((a, b) => a.localeCompare(b)), []];
     const filters = document.createElement('div'); filters.className = 'admin-user-filters';
-    filters.innerHTML = '<label>Department<select class="form-select" id="userDepartmentFilter"><option value="">All departments</option>' + departments.map(department => '<option value="' + esc(serverPaged ? department.id : department) + '">' + esc(serverPaged ? department.name : department) + '</option>').join('') + '</select></label><label>Account type<select class="form-select" id="userRoleFilter"><option value="">All accounts</option><option value="Employee">Employees</option><option value="Admin">Administrators</option></select></label><label>Projects<select class="form-select" id="userProjectFilter"><option value="">All projects</option><option value="__UNASSIGNED__">Unassigned employees</option>' + projects.filter(project => project.is_active).map(project => '<option value="' + esc(project.id) + '">' + esc(project.name) + '</option>').join('') + '</select></label>';
+    filters.innerHTML = '<label>Department<select class="form-select" id="userDepartmentFilter"><option value="">All departments</option>' + departments.map(department => '<option value="' + esc(serverPaged ? department.id : department) + '">' + esc(serverPaged ? department.name : department) + '</option>').join('') + '</select></label><label>Account type<select class="form-select" id="userRoleFilter"><option value="">All accounts</option><option value="Employee">Employees</option><option value="Admin">Administrators</option><option value="Client">Clients</option></select></label><label>Projects<select class="form-select" id="userProjectFilter"><option value="">All projects</option><option value="__UNASSIGNED__">Unassigned employees</option>' + projects.filter(project => project.is_active).map(project => '<option value="' + esc(project.id) + '">' + esc(project.name) + '</option>').join('') + '</select></label>';
     search.insertAdjacentElement('beforebegin', filters);
     departmentFilter = filters.querySelector('#userDepartmentFilter'); roleFilter = filters.querySelector('#userRoleFilter'); projectFilter = filters.querySelector('#userProjectFilter');
-    departmentFilter.value = activeFilters.departmentId || ''; roleFilter.value = activeFilters.role === 'ADMIN' ? 'Admin' : activeFilters.role === 'USER' ? 'Employee' : '';
+    departmentFilter.value = activeFilters.departmentId || ''; roleFilter.value = activeFilters.role === 'CLIENT' ? 'Client' : activeFilters.role === 'ADMIN' ? 'Admin' : activeFilters.role === 'USER' ? 'Employee' : '';
     projectFilter.value = activeFilters.projectId || '';
   }
   if (key === 'entries') {
@@ -901,7 +901,7 @@ async function renderAdminSection() {
   const applyFilters = () => {
     if (serverPaged) {
       activeFilters.q = search.value.trim();
-      activeFilters.role = roleFilter?.value === 'Admin' ? 'ADMIN' : roleFilter?.value === 'Employee' ? 'USER' : '';
+      activeFilters.role = roleFilter?.value === 'Client' ? 'CLIENT' : roleFilter?.value === 'Admin' ? 'ADMIN' : roleFilter?.value === 'Employee' ? 'USER' : '';
       activeFilters.departmentId = departmentFilter?.value || '';
       activeFilters.projectId = key === 'users' ? (projectFilter?.value || '') : '';
       activeFilters.employee = employeeFilter?.value.trim() || '';

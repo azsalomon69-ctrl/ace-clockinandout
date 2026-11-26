@@ -9,15 +9,15 @@ function template(origin='https://workspace.example.test'){
  return vm.runInNewContext(escape+'\n'+fn+'\nbuildInvitationEmail;', {applicationUrl:origin});
 }
 test('employee and admin invitations preserve configured login URL in HTML, Outlook button and plain text',()=>{
- for(const role of ['USER','ADMIN']){
+ for(const role of ['USER','ADMIN','CLIENT']){
   const mail=template()({email:'person@example.test',role,invitedBy:'A Person'});
   assert.ok(mail.html.includes('href="https://workspace.example.test/login"'));
   assert.ok(mail.html.includes('<v:roundrect href="https://workspace.example.test/login"'));
   assert.ok(mail.text.includes('Open ACE Clock: https://workspace.example.test/login'));
   assert.ok(mail.text.includes('Your Google account: person@example.test'));
   assert.ok(mail.html.includes('person@example.test'));
-  assert.ok(mail.html.includes(role==='ADMIN'?'Open your admin workspace':'Start your first shift'));
-  assert.ok(mail.text.includes(role==='ADMIN'?'Open your admin workspace':'Start your first shift'));
+  assert.ok(mail.html.includes(role==='CLIENT'?'Open your client dashboard':role==='ADMIN'?'Open your admin workspace':'Start your first shift'));
+  assert.ok(mail.text.includes(role==='CLIENT'?'Open your client dashboard':role==='ADMIN'?'Open your admin workspace':'Start your first shift'));
   assert.ok(!mail.html.includes('${'));
  }
 });
