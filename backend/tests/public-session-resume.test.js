@@ -35,7 +35,7 @@ function harness({ role = 'USER', status = 'ACTIVE', session = true, failure } =
   vm.runInContext(resume, context);
   return { run: context.resumePublicSession, redirects, requests, saved, notices, audits: () => audits };
 }
-for (const [role, destination] of [['ADMIN', '/admin-dashboard'], ['USER', '/user-dashboard'], ['CLIENT', '/client-dashboard.html']]) {
+for (const [role, destination] of [['ADMIN', '/admin-dashboard'], ['USER', '/user-dashboard'], ['CLIENT', '/client-dashboard']]) {
   test(`returning ${role} is verified before redirecting to their dashboard`, async () => {
     const app = harness({ role }); await app.run();
     assert.deepEqual(app.requests, ['/v1/me']);

@@ -1,4 +1,5 @@
 (() => {
+    if (window.location?.pathname === '/client-dashboard.html') window.history.replaceState(null, '', '/client-dashboard' + window.location.search + window.location.hash);
     const $ = id => document.getElementById(id);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const hours = seconds => Math.floor(Math.max(0, seconds) / 3600) + 'h ' + Math.floor(Math.max(0, seconds) % 3600 / 60) + 'm';
@@ -12,7 +13,7 @@
         rows = []; total = 0;
         $('clientRows').replaceChildren();
         ['clientEmployees', 'clientShifts', 'clientActive', 'clientWorked'].forEach(id => $(id).textContent = '—');
-        $('clientActivityDialog').close();
+        $('clientActivityDialog').hidePopover();
         exportEnabled(false);
     };
     function showState(kind, description) {
@@ -41,7 +42,7 @@
         $('clientShifts').textContent = total;
         $('clientActive').textContent = data.active;
         $('clientWorked').textContent = hours(data.worked_seconds);
-        $('clientRows').innerHTML = rows.map((r, i) => '<tr><td data-label="Employee"><strong>' + escape(r.employee_name || 'Employee') + '</strong></td><td data-label="Project">' + escape(r.project_name) + '</td><td data-label="Clock in">' + escape(time(r.clock_in_at)) + '</td><td data-label="Clock out">' + escape(time(r.clock_out_at)) + '</td><td data-label="Worked">' + hours(r.worked_seconds) + '</td><td data-label="Activities">' + (r.activities.length ? '<button class="client-activity-button" type="button" data-activities="' + i + '">' + r.activities.length + ' activit' + (r.activities.length === 1 ? 'y' : 'ies') + '</button>' : '—') + '</td></tr>').join('');
+        $('clientRows').innerHTML = rows.map((r, i) => '<tr><td data-label="Employee"><strong>' + escape(r.employee_name || 'Employee') + '</strong></td><td data-label="Project">' + escape(r.project_name) + '</td><td data-label="Clock in">' + escape(time(r.clock_in_at)) + '</td><td data-label="Clock out">' + escape(time(r.clock_out_at)) + '</td><td data-label="Worked">' + hours(r.worked_seconds) + '</td><td data-label="Activities">' + (r.activities.length ? '<button class="entry-activity-trigger" type="button" data-activities="' + i + '">' + r.activities.length + ' activit' + (r.activities.length === 1 ? 'y' : 'ies') + '</button>' : '—') + '</td></tr>').join('');
         $('clientTableScroll').hidden = !rows.length;
         $('clientPagination').hidden = !rows.length;
         $('clientResultEmpty').hidden = Boolean(rows.length);
@@ -124,13 +125,27 @@
     $('clientPrevious').addEventListener('click', () => { if (page > 1) { page--; void refresh(); } });
     $('clientNext').addEventListener('click', () => { if (page * 25 < total) { page++; void refresh(); } });
     $('clientCsv').addEventListener('click', () => void download('CSV')); $('clientExcel').addEventListener('click', () => void download('XLSX'));
-    $('clientRows').addEventListener('click', e => {
+    const openActivities = e => {
         const trigger = e.target.closest('[data-activities]'); if (!trigger) return;
         const record = rows[Number(trigger.dataset.activities)]; if (!record) return;
-        $('clientActivityList').innerHTML = record.activities.map(a => '<article><strong>' + escape(a.description) + '</strong><span>' + hours(a.ended_at ? Number(a.duration_seconds) || 0 : Math.max(0, (Date.now() - Date.parse(a.started_at)) / 1000)) + '</span></article>').join('');
-        $('clientActivityDialog').showModal();
-    });
-    $('clientCloseActivities').addEventListener('click', () => $('clientActivityDialog').close());
+        $('clientActivityList').innerHTML = record.activities.map(a => '<div class="entry-activity-line"><span>' + escape(record.project_name || 'No project') + '</span><span>' + escape(a.description) + '</span><time>' + hours(a.ended_at ? Number(a.duration_seconds) || 0 : Math.max(0, (Date.now() - Date.parse(a.started_at)) / 1000)) + '</time></div>').join('');
+        const popover = $('clientActivityDialog');
+        if (!popover.matches(':popover-open')) popover.showPopover();
+        const anchor = trigger.getBoundingClientRect(), width = Math.min(440, innerWidth - 24);
+        popover.style.width = width + 'px';
+        popover.style.left = Math.max(12, Math.min(anchor.left, innerWidth - width - 12)) + 'px';
+        const height = Math.min(popover.scrollHeight, 360);
+        popover.style.top = (innerHeight - anchor.bottom >= height + 20 ? anchor.bottom + 8 : Math.max(12, anchor.top - height - 8)) + 'px';
+    };
+    $('clientRows').addEventListener('click', openActivities);
+    let activityOpenTimer, activityCloseTimer;
+    $('clientRows').addEventListener('pointerover', e => { if (e.pointerType !== 'mouse' || e.buttons || !e.target.closest('[data-activities]')) return; clearTimeout(activityCloseTimer); clearTimeout(activityOpenTimer); activityOpenTimer = setTimeout(() => openActivities(e), 140); });
+    const scheduleActivityClose = () => { clearTimeout(activityOpenTimer); activityCloseTimer = setTimeout(() => { if (!$('clientActivityDialog').matches(':hover') && !$('clientActivityDialog').contains(document.activeElement)) $('clientActivityDialog').hidePopover(); }, 240); };
+    $('clientRows').addEventListener('pointerout', e => { if (e.pointerType === 'mouse') scheduleActivityClose(); });
+    $('clientActivityDialog').addEventListener('pointerenter', () => clearTimeout(activityCloseTimer));
+    $('clientActivityDialog').addEventListener('pointerleave', scheduleActivityClose);
+    window.addEventListener('resize', () => $('clientActivityDialog').hidePopover());
+    $('clientCloseActivities').addEventListener('click', () => $('clientActivityDialog').hidePopover());
     const accountButton = $('clientAccountButton');
     const accountMenu = $('clientAccountMenu');
     const closeAccountMenu = () => { if (accountMenu.matches(':popover-open')) accountMenu.hidePopover(); };

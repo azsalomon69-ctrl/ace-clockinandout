@@ -349,7 +349,7 @@ async function loadDatabase() {
     if (profile.role === 'CLIENT') {
         AppState.users = [AppState.currentUser]; AppState.timeEntries = []; AppState.projects = []; AppState.adminRemarks = [];
         AppState.currentSession = null; AppState.isClockedIn = false;
-        if (!isPublicRoute()) window.location.replace('/client-dashboard.html');
+        if (!isPublicRoute()) window.location.replace('/client-dashboard');
         return true;
     }
     const deferEmployeeHistory = profile.role === 'USER' && /\/user-dashboard(?:\.html)?\/?$/i.test(window.location.pathname);
@@ -1150,7 +1150,7 @@ async function resumePublicSession() {
     localStorage.setItem('ace_current_user', JSON.stringify(AppState.currentUser));
     if (AppState.currentUser.Status === 'ACTIVE') {
         await recordLoginOnce();
-        window.location.replace(AppState.currentUser.Role === 'CLIENT' ? '/client-dashboard.html' : AppState.currentUser.Role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard');
+        window.location.replace(AppState.currentUser.Role === 'CLIENT' ? '/client-dashboard' : AppState.currentUser.Role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard');
     } else if (AppState.currentUser.Status === 'DENIED') {
         sessionStorage.setItem('ace_login_notice', inactiveAccountMessage);
     } else {
@@ -1172,7 +1172,7 @@ function redirectAuthenticatedPublicRoute() {
     const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
     const isPublicRoute = !routeName || routeName === 'index.html' || routeName === 'login.html' || routeName === 'index' || routeName === 'login';
     if (!isPublicRoute || AppState.currentUser?.Status !== 'ACTIVE') return;
-    window.location.replace(AppState.currentUser.Role === 'CLIENT' ? '/client-dashboard.html' : AppState.currentUser.Role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard');
+    window.location.replace(AppState.currentUser.Role === 'CLIENT' ? '/client-dashboard' : AppState.currentUser.Role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard');
 }
 
 function applyStoredAppearance() {
@@ -1633,7 +1633,7 @@ function initializeAppShell() {
     const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
     const adminFiles = ['client-access.html', 'admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chatbot-inquiry.html', 'queued-clock-reviews.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'holidays.html', 'settings.html'];
-    if (AppState.currentUser?.Role === 'CLIENT') { window.location.replace('/client-dashboard.html'); return false; }
+    if (AppState.currentUser?.Role === 'CLIENT') { window.location.replace('/client-dashboard'); return false; }
     const isSharedSettings = file === 'settings.html';
     const isAdmin = adminFiles.includes(file) || ((isSharedSettings || file === 'holidays.html') && AppState.currentUser?.Role === 'ADMIN');
     const isEmployee = employeeFiles.includes(file) && !isAdmin;
