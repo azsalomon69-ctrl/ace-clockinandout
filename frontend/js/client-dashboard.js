@@ -132,7 +132,7 @@
         employeeProfileId = null; employeeProfileArgs = null; employeeProfileGeneration++;
         $('clientEmployeeDialog').close(); $('clientEmployeeRows').replaceChildren(); $('clientEmployeeIdentity').replaceChildren();
         $('clientEmployeeStats').replaceChildren(); $('clientEmployeeContent').hidden = true;
-        $('clientPrintReport').replaceChildren(); $('clientPrintReport').hidden = true;
+        $('printableReport').replaceChildren(); $('printableReport').hidden = true;
     }
     async function loadEmployeeProfile() {
         if (!employeeProfileId || !employeeProfileArgs) return;
@@ -169,29 +169,28 @@
     $('clientEmployeeNext').addEventListener('click', () => { employeeProfilePage++; void loadEmployeeProfile(); });
     for (const [id,format] of [['clientEmployeePdf','PDF'],['clientEmployeeCsv','CSV'],['clientEmployeeExcel','XLSX']]) $(id).addEventListener('click', () => { if (employeeProfileArgs) void download(format,employeeProfileArgs); });
     function renderPdf(data) {
-        const report = $('clientPrintReport'); report.replaceChildren();
-        const add = (tag,text,parent = report) => { const node = document.createElement(tag); node.textContent = text; parent.appendChild(node); return node; };
-        add('p','ACE OUTSOURCE SOLUTIONS'); add('h1','Employee attendance');
-        add('p',data.from + ' to ' + data.to + ' · Philippine time · Activity Based');
-        add('p','Worked time: ' + hours(data.worked_seconds) + ' · Shifts: ' + (data.shifts ?? data.total));
+        const report = $('printableReport'); report.replaceChildren();
+        const add = (tag,text,parent = report,className) => { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; parent.appendChild(node); return node; };
+        const section = title => { const block = add('section','',report,'print-report-table'); add('h2',title,block); return block; };
         if (data.export_view === 'employees') {
-            add('h2','Employee totals'); const table = add('table',''), head = add('tr','',add('thead','',table)), body = add('tbody','',table);
+            const block = section('Employee totals'),total = add('p','',block); add('strong','Total worked: ',total); total.append(document.createTextNode(hours(data.worked_seconds)));
+            const table = add('table','',block), head = add('tr','',add('thead','',table)), body = add('tbody','',table);
             ['Employee','Projects','Shifts','Working now','Worked'].forEach(text => add('th',text,head));
             data.items.forEach(row => { const tr = add('tr','',body); [row.employee_name,(row.project_names || []).join(', '),row.shifts,row.active,hours(row.worked_seconds)].forEach(text => add('td',String(text ?? ''),tr)); });
         }
-        add('h2','Shift and activity details'); const table = add('table',''), head = add('tr','',add('thead','',table)), body = add('tbody','',table);
-        ['Employee / project','Clock in','Clock out','Worked'].forEach(text => add('th',text,head));
+        const block = section('Time entry details'),total = add('p','',block); add('strong','Total worked: ',total); total.append(document.createTextNode(hours(data.worked_seconds)));
+        const table = add('table','',block), head = add('tr','',add('thead','',table)), body = add('tbody','',table);
+        ['Employee','Project','Clock in','Clock out','Worked','Status'].forEach(text => add('th',text,head));
         (data.activity_items || []).forEach(row => {
-            const tr = add('tr','',body); [row.employee_name + ' · ' + row.project_name,time(row.clock_in_at),time(row.clock_out_at),hours(row.worked_seconds)].forEach(text => add('td',text,tr));
-            if (row.activities?.length) { const activityRow = add('tr','',body),cell = add('td','',activityRow); cell.colSpan = 4;
-                row.activities.forEach(a => add('div',a.description + ' · ' + activityClock(a.ended_at ? a.duration_seconds : (Date.now()-Date.parse(a.started_at))/1000) + (a.ended_at ? '' : ' · Active'),cell));
+            const tr = add('tr','',body); [row.employee_name,row.project_name,time(row.clock_in_at),row.clock_out_at ? time(row.clock_out_at) : 'Active',row.clock_out_at ? hours(row.worked_seconds) : activityClock(row.worked_seconds) + ' · Active',row.clock_out_at ? 'Completed' : 'Active'].forEach(text => add('td',text,tr));
+            if (row.activities?.length) { const activityRow = add('tr','',body,'print-activity-row'),cell = add('td','',activityRow); cell.colSpan = 6;
+                row.activities.forEach(a => { const line = add('div','',cell,'print-activity-line'); add('span',row.project_name || 'No project',line); add('span',a.description,line); add('span',activityClock(a.ended_at ? a.duration_seconds : (Date.now()-Date.parse(a.started_at))/1000) + (a.ended_at ? '' : ' · Active'),line); });
             }
         });
-        add('p','Exported ' + new Date().toLocaleString('en-GB',{timeZone:'Asia/Manila'}) + ' · Totals include only authorized project attendance.');
-        report.hidden = false; document.documentElement.dataset.clientPrinting = 'true';
-        window.setTimeout(() => window.print(),100);
+        report.hidden = false; document.body.classList.add('printing-report');
+        window.setTimeout(() => window.print(),50);
     }
-    window.addEventListener('afterprint', () => { delete document.documentElement.dataset.clientPrinting; $('clientPrintReport').hidden = true; $('clientPrintReport').replaceChildren(); });
+    window.addEventListener('afterprint', () => { document.body.classList.remove('printing-report'); $('printableReport').hidden = true; $('printableReport').replaceChildren(); });
     function renderProjectChoices() {
         $('clientProjectLabel').textContent = selectedProjects.length ? selectedProjects.length + ' project' + (selectedProjects.length === 1 ? '' : 's') : 'All my projects';
         $('clientProjectChoices').innerHTML = projectsList.map(p => '<label><input type="checkbox" value="' + escape(p.id) + '"' + (selectedProjects.includes(p.id) ? ' checked' : '') + '><span>' + escape(p.name) + (p.is_active ? '' : ' · inactive') + '</span></label>').join('');

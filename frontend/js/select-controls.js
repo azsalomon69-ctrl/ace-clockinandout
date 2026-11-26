@@ -24,7 +24,7 @@ function positionAceSelectMenu(control) {
     const rect = trigger.getBoundingClientRect();
     const gap = 7;
     const edge = 8;
-    const width = Math.min(rect.width, window.innerWidth - edge * 2);
+    const width = Math.min(Math.max(rect.width, 240), window.innerWidth - edge * 2);
     const left = Math.max(edge, Math.min(rect.left, window.innerWidth - width - edge));
     const below = Math.max(0, window.innerHeight - rect.bottom - edge - gap);
     const above = Math.max(0, rect.top - edge - gap);
