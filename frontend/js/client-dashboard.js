@@ -48,7 +48,7 @@
             exportEnabled(false);
         }
     }
-    const employeeName = row => mode === 'ACTIVE' ? '<strong>' + escape(row.employee_name || 'Employee') + '</strong>' : '<button type="button" class="client-employee-link" data-employee="' + escape(row.user_id) + '">' + escape(row.employee_name || 'Employee') + '</button>';
+    const employeeName = row => '<button type="button" class="client-employee-link" data-employee="' + escape(row.user_id) + '">' + escape(row.employee_name || 'Employee') + '</button>';
     function renderResults(data) {
         rows = data.items; total = data.total;
         $('clientEmployees').textContent = data.employees;
@@ -156,7 +156,7 @@
     }
     const activityClock = value => { const seconds = Math.max(0, Math.floor(Number(value) || 0)); return [Math.floor(seconds/3600),Math.floor(seconds%3600/60),seconds%60].map(n => String(n).padStart(2,'0')).join(':'); };
     $('clientRows').addEventListener('click', e => {
-        const trigger = e.target.closest('[data-employee]'); if (!trigger || mode === 'ACTIVE') return;
+        const trigger = e.target.closest('[data-employee]'); if (!trigger) return;
         employeeProfileId = trigger.dataset.employee; employeeProfilePage = 1;
         employeeProfileArgs = { ...filters(), employeeId: employeeProfileId, status: null, view: 'shifts', page: 1 };
         $('clientEmployeeTitle').textContent = 'Employee attendance';
