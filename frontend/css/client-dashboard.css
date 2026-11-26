@@ -198,3 +198,15 @@ html[data-theme="dark"] .client-page .client-table-panel td{background:transpare
 @media(min-width:601px){.client-page .client-table-panel table{table-layout:fixed}.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(1){width:22%}.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(2){width:20%}.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(3),.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(4){width:14%}.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(5){width:12%}.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(6){width:18%}.client-page .client-table-panel td{overflow-wrap:anywhere;white-space:normal}}
 /* Only fetched values and record rows need placeholders; retain static UI. */
 .client-is-loading #clientPage{color:transparent;background:var(--ace-surface-raised);border-radius:3px;min-width:70px;min-height:10px}
+/* Attendance totals are inline metrics; only the icon has a box. */
+.client-page #clientWorkspace>.client-stats{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:12px 28px;margin:14px 0 18px}
+.client-page #clientWorkspace>.client-stats article,.client-page #clientWorkspace>.client-stats article:hover{display:flex;flex:0 0 auto;align-items:center;gap:9px;min-height:30px;margin:0;padding:0;border:0;border-radius:0;background:transparent!important;box-shadow:none!important;transition:none}
+.client-page #clientWorkspace>.client-stats article>div{display:flex;align-items:center;justify-content:flex-start;gap:8px;min-width:0}
+.client-page #clientWorkspace>.client-stats article>div>span{font-size:11px;line-height:1.4;white-space:nowrap}
+.client-page #clientWorkspace>.client-stats strong{display:block;margin:0;min-width:3ch;width:auto;font-size:18px;line-height:1.2;letter-spacing:-.35px}
+.client-page #clientWorkspace>.client-stats #clientWorked{min-width:6ch}
+.client-page #clientWorkspace>.client-stats .client-kpi-icon{width:28px;height:28px;flex-basis:28px;border-radius:6px}
+.client-page #clientWorkspace>.client-stats .client-kpi-icon img{width:15px;height:15px}
+.client-page #clientWorkspace.client-is-loading>.client-stats strong{height:1.2em;min-height:1.2em}
+@media(max-width:600px){.client-page #clientWorkspace>.client-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px;margin:12px 0 16px}.client-page #clientWorkspace>.client-stats article{min-width:0;min-height:28px;gap:7px}.client-page #clientWorkspace>.client-stats article>div{gap:6px}.client-page #clientWorkspace>.client-stats article>div>span{font-size:10px}.client-page #clientWorkspace>.client-stats strong{font-size:17px}.client-page #clientWorkspace>.client-stats .client-kpi-icon{width:25px;height:25px;flex-basis:25px}}
+@media(max-width:350px){.client-page #clientWorkspace>.client-stats article>div{display:grid;gap:2px}.client-page #clientWorkspace>.client-stats article>div>span{font-size:10px}}
