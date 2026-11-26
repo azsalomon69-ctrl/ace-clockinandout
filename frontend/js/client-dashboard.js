@@ -136,7 +136,7 @@
     $('clientNext').addEventListener('click', () => { if (page * 25 < total) { page++; void refresh(); } });
     $('clientCsv').addEventListener('click', () => void download('CSV')); $('clientExcel').addEventListener('click', () => void download('XLSX'));
     const openActivities = e => {
-        const trigger = e.target.closest('[data-activities]'); if (!trigger) return;
+        const trigger = e.target.closest('[data-activities]'); if (!trigger || !trigger.isConnected) return;
         const record = rows[Number(trigger.dataset.activities)]; if (!record) return;
         $('clientActivityList').innerHTML = record.activities.map(a => '<div class="entry-activity-line"><span>' + escape(record.project_name || 'No project') + '</span><span>' + escape(a.description) + '</span><time>' + hours(a.ended_at ? Number(a.duration_seconds) || 0 : Math.max(0, (Date.now() - Date.parse(a.started_at)) / 1000)) + '</time></div>').join('');
         const popover = $('clientActivityDialog');
@@ -153,14 +153,31 @@
         const name = image.closest('.client-person').querySelector('strong').textContent;
         image.parentNode.textContent = name.trim().split(/\s+/).map(part => Array.from(part)[0]).slice(0, 2).join('');
     }, true);
-    $('clientRows').addEventListener('click', openActivities);
     let activityOpenTimer, activityCloseTimer;
-    $('clientRows').addEventListener('pointerover', e => { if (e.pointerType !== 'mouse' || e.buttons || !e.target.closest('[data-activities]')) return; clearTimeout(activityCloseTimer); clearTimeout(activityOpenTimer); activityOpenTimer = setTimeout(() => openActivities(e), 140); });
-    const scheduleActivityClose = () => { clearTimeout(activityOpenTimer); activityCloseTimer = setTimeout(() => { if (!$('clientActivityDialog').matches(':hover') && !$('clientActivityDialog').contains(document.activeElement)) $('clientActivityDialog').hidePopover(); }, 240); };
-    $('clientRows').addEventListener('pointerout', e => { if (e.pointerType === 'mouse') scheduleActivityClose(); });
-    $('clientActivityDialog').addEventListener('pointerenter', () => clearTimeout(activityCloseTimer));
+    const hideActivities = () => {
+        clearTimeout(activityOpenTimer); clearTimeout(activityCloseTimer);
+        $('clientActivityDialog').hidePopover();
+    };
+    $('clientRows').addEventListener('pointerover', e => {
+        const trigger = e.target.closest('[data-activities]');
+        if (e.pointerType !== 'mouse' || e.buttons || !trigger || trigger.contains(e.relatedTarget)) return;
+        clearTimeout(activityCloseTimer); clearTimeout(activityOpenTimer);
+        activityOpenTimer = setTimeout(() => openActivities({ target: trigger }), 140);
+    });
+    const scheduleActivityClose = () => {
+        clearTimeout(activityOpenTimer); clearTimeout(activityCloseTimer);
+        activityCloseTimer = setTimeout(() => {
+            if (!$('clientActivityDialog').matches(':hover')) hideActivities();
+        }, 240);
+    };
+    $('clientRows').addEventListener('pointerout', e => {
+        const trigger = e.target.closest('[data-activities]');
+        if (e.pointerType === 'mouse' && trigger && !trigger.contains(e.relatedTarget)) scheduleActivityClose();
+    });
+    $('clientActivityDialog').addEventListener('pointerenter', () => { clearTimeout(activityOpenTimer); clearTimeout(activityCloseTimer); });
     $('clientActivityDialog').addEventListener('pointerleave', scheduleActivityClose);
-    window.addEventListener('resize', () => $('clientActivityDialog').hidePopover());
+    window.addEventListener('resize', hideActivities);
+    document.addEventListener('scroll', event => { if (!event.target.closest?.('#clientActivityDialog')) hideActivities(); }, true);
     $('clientCloseActivities').addEventListener('click', () => $('clientActivityDialog').hidePopover());
     const accountButton = $('clientAccountButton');
     const accountMenu = $('clientAccountMenu');
