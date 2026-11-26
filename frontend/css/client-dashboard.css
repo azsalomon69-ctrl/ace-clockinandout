@@ -162,3 +162,5 @@ html[data-theme="dark"] .client-page .client-table-panel tbody tr{background:var
 html[data-theme="dark"] .client-page .client-table-panel tbody tr:hover{background:var(--ace-accent-muted)!important}
 html[data-theme="dark"] .client-page .client-table-panel td{background:transparent!important}
 .client-page .client-filters .btn{width:auto}
+
+.client-account-avatar{overflow:hidden}.client-account-avatar img{display:block;width:100%;height:100%;object-fit:cover;filter:none!important}.client-profile-heading{display:flex;align-items:center;gap:12px}.client-profile-avatar{width:42px;height:42px}

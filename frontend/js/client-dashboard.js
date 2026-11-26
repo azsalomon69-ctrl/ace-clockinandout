@@ -214,19 +214,35 @@
         try { await window.ACEAuth.request('/v1/auth/session-end', { method: 'POST' }); await (await window.ACEAuth.client()).auth.signOut(); localStorage.removeItem('ace_current_user'); sessionStorage.removeItem('ace_login_audited'); window.location.replace('/login'); }
         catch (e) { $('clientMessage').textContent = 'Couldn’t sign out. Please try again.'; }
     });
+    function updateAccountIdentity(profile) {
+            const name = profile.full_name || 'Client';
+            $('clientName').textContent = $('clientMenuName').textContent = $('clientProfileName').textContent = name;
+            $('clientMenuEmail').textContent = $('clientProfileEmail').textContent = profile.email || 'Email not available';
+            const initials = name.trim().split(/\s+/).slice(0, 2).map(part => Array.from(part)[0]).join('').toUpperCase();
+            for (const id of ['clientAvatar', 'clientProfileAvatar']) {
+                const avatar = $(id); avatar.textContent = initials;
+                if (!profile.profile_picture_url) continue;
+                let url; try { url = new URL(profile.profile_picture_url); } catch { continue; }
+                if (url.protocol !== 'https:') continue;
+                const image = document.createElement('img');
+                image.alt = ''; image.referrerPolicy = 'no-referrer';
+                image.addEventListener('error', () => { if (image.parentNode === avatar) avatar.textContent = initials; }, { once: true });
+                image.src = url.href; avatar.replaceChildren(image);
+            }
+            accountButton.setAttribute('aria-label', 'Account options for ' + name);
+    }
     (async () => {
         try {
             const { profile } = await window.ACEAuth.request('/v1/me');
             if (profile.role !== 'CLIENT') { window.location.replace(profile.role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard'); return; }
             if (profile.status !== 'ACTIVE') { showState('error', 'Your account is not active. Contact your administrator.'); return; }
-            const name = profile.full_name || 'Client';
-            $('clientName').textContent = $('clientMenuName').textContent = $('clientProfileName').textContent = name;
-            $('clientMenuEmail').textContent = $('clientProfileEmail').textContent = profile.email || 'Email not available';
-            $('clientAvatar').textContent = name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
-            accountButton.setAttribute('aria-label', 'Account options for ' + name);
+            updateAccountIdentity(profile);
             await refresh();
             window.setInterval(() => { if (!document.hidden && !busy) void refresh(); }, 60000);
-            window.addEventListener('focus', () => { if (!busy) void refresh(); });
+            window.addEventListener('focus', async () => {
+                if (!busy) void refresh();
+                try { const { profile: current } = await window.ACEAuth.request('/v1/me'); if (current.role === 'CLIENT' && current.status === 'ACTIVE') updateAccountIdentity(current); } catch { /* Retain the last verified account display if offline. */ }
+            });
         } catch (e) { showState('error', 'Sign in again to view employee attendance.'); }
     })();
 })();
