@@ -290,3 +290,11 @@ test('archiving a pending administrator remains allowed when two active administ
   assert.equal(h.res.statusCode, 200);
   assert.equal(h.state.profiles[2].status, 'DENIED');
 });
+
+test('adding a new Client invitation automatically sends onboarding without creating attendance',async()=>{
+ const route={...routeCases.find(item=>item.name==='new invitation'),body:{role:'CLIENT'}};
+ const h=harness(route,{target:null});await h.run();
+ assert.equal(h.res.statusCode,201);assert.equal(h.res.body.role,'CLIENT');
+ assert.equal(h.res.body.email_sent,true);assert.equal(h.effects.filter(effect=>effect.kind==='email').length,1);
+ assert.ok(!h.effects.some(effect=>effect.table==='time_entries'));
+});

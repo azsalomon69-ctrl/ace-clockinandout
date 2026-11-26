@@ -38,3 +38,18 @@ test('email essentials are HTML text and brand assets follow the configured fron
  assert.ok(mail.html.includes('prefers-color-scheme:dark'));
  assert.ok(mail.text.includes('an ACE administrator'));
 });
+
+test('client onboarding explains scoped read-only access without employee clock-in instructions',()=>{
+ const mail=template()({email:'client@example.test',role:'CLIENT',invitedBy:'Admin'});
+ assert.equal(mail.subject,'ACE Clock In Out invitation - Client');
+ assert.ok(mail.html.includes('CLIENT INVITATION'));
+ assert.ok(mail.html.includes('Your client access<br>is ready.'));
+ assert.ok(mail.html.includes('Your access at a glance'));
+ assert.ok(mail.html.includes('Open client dashboard'));
+ assert.ok(mail.html.includes('Read-only access'));
+ assert.ok(mail.html.includes('CSV and Excel'));
+ assert.ok(mail.html.includes('after your first sign-in'));
+ assert.ok(!mail.html.includes('Start your first shift'));
+ assert.ok(!mail.text.includes('Clock in, record'));
+ assert.ok(mail.text.includes('you cannot change attendance'));
+});
