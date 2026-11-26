@@ -82,3 +82,10 @@ body.client-page{display:block;min-height:100vh}
 .client-access-form #clientAccessMessage:empty{display:none}
 .client-access-hint{margin-top:18px}
 @media(max-width:600px){.client-access-form>label{max-width:none}.client-access-footer .btn{width:100%}}
+
+/* Compact attendance totals, leaving more room for employee records. */
+.client-page .client-stats{gap:12px;margin:18px 0}
+.client-page .client-stats article{padding:12px 16px;border-radius:10px}
+.client-page .client-stats span{font-size:12px;line-height:1.4}
+.client-page .client-stats strong{font-size:21px;line-height:1.2;margin-top:6px}
+@media(max-width:600px){.client-page .client-stats{gap:8px;margin:14px 0}.client-page .client-stats article{padding:10px 12px}.client-page .client-stats strong{font-size:20px;margin-top:4px}}
