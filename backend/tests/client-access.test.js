@@ -61,3 +61,13 @@ test('employee summary exports contain whole-result totals and safe text',async(
  else {const book=XLSX.read(r.body,{type:'buffer'}),rows=XLSX.utils.sheet_to_json(book.Sheets.Attendance,{header:1});assert.equal(rows[1][2],7);assert.equal(rows[1][4],7200);assert.equal(rows[1][0],"'=Unsafe");}
  }
 });
+
+test('activity PDF data is freshly authorized and scoped to the selected employee',async()=>{
+ const row={user_id:actor,employee_name:'Alex',project_name:'Support',worked_seconds:3600,activities:[{description:'Tickets',duration_seconds:3600}]};
+ const h=harness({items:[row],total:1,shifts:1,worked_seconds:3600});
+ const r=await h.invoke('POST /v1/client/attendance/export',{...filter,format:'PDF',employeeId:actor});
+ assert.equal(r.code,200);assert.equal(r.headers['Cache-Control'],'no-store');assert.equal(r.body.activity_items[0].activities[0].description,'Tickets');assert.equal(h.calls[0].args.p_employee,actor);assert.ok(h.calls.some(c=>c.audit));
+ const summary=harness({items:[row],total:1});await summary.invoke('POST /v1/client/attendance/export',{...filter,format:'PDF',view:'employees',employeeId:actor});
+ const reads=summary.calls.filter(c=>c.name);assert.equal(reads.length,2);assert.equal(reads[0].args.p_view,'employees');assert.equal(reads[1].args.p_view,'shifts');assert.ok(reads.every(c=>c.args.p_employee===actor&&c.args.p_actor===actor));
+ const denied=harness(null,{message:'PROJECT_ACCESS_DENIED'});assert.equal((await denied.invoke('POST /v1/client/attendance/export',{...filter,format:'PDF'})).code,403);
+});

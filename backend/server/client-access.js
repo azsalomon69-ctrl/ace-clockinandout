@@ -36,10 +36,16 @@ export function registerClientRoutes(app,{db,authenticate,adminOnly,fail,audit})
  }catch(e){try{errors(res,e);}catch(error){next(error);}}});
  app.post('/v1/client/attendance/export',authenticate,async(req,res,next)=>{try{
   const args=clientFilters(req.body,true);const format=req.body.format;
-  if(!args||!['CSV','XLSX'].includes(format))return fail(res,400,'Choose CSV or Excel and valid filters');
+  if(!args||!['CSV','XLSX','PDF'].includes(format))return fail(res,400,'Choose PDF, CSV or Excel and valid filters');
   const data=await freshRead(req,args);
   if(data.total>10000)return fail(res,422,'Narrow the date range before exporting more than 10,000 shifts');
   const summary=args.p_view==='employees';
+  if(format==='PDF'){
+   const detail=summary?await freshRead(req,{...args,p_view:'shifts'}):data;
+   if(detail.total>10000)return fail(res,422,'Narrow the date range before exporting more than 10,000 shifts');
+   await audit(req,'CLIENT_EXPORT','REPORT',null,'Exported authorized attendance as activity-based PDF');
+   return res.set('Cache-Control','no-store').json({...data,export_view:args.p_view,from:args.p_from,to:args.p_to,activity_items:detail.items});
+  }
   const rows=summary?[['Employee','Projects','Shifts','Working now','Worked seconds']]:[['Employee','Project','Clock in (Philippine time)','Clock out (Philippine time)','Worked seconds','Status','Recorded activities']];
   const time=value=>value?new Date(value).toLocaleString('en-GB',{timeZone:'Asia/Manila',hour12:false}):'';
   for(const row of data.items)if(summary)rows.push([safeSpreadsheetText(row.employee_name),safeSpreadsheetText((row.project_names||[]).join('; ')),row.shifts,row.active,row.worked_seconds]);else rows.push([safeSpreadsheetText(row.employee_name),safeSpreadsheetText(row.project_name),time(row.clock_in_at),time(row.clock_out_at),row.worked_seconds,row.clock_out_at?'Completed':'Active',safeSpreadsheetText(row.activities.map(a=>a.description+' ('+(a.ended_at?Number(a.duration_seconds)||0:Math.max(0,Math.floor((Date.now()-Date.parse(a.started_at))/1000)))+' seconds)').join('; '))]);

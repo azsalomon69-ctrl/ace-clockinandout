@@ -3,6 +3,7 @@
     const $ = id => document.getElementById(id);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const hours = seconds => Math.floor(Math.max(0, seconds) / 3600) + 'h ' + Math.floor(Math.max(0, seconds) % 3600 / 60) + 'm';
+    const time = value => value ? new Date(value).toLocaleString('en-GB',{timeZone:'Asia/Manila',dateStyle:'medium',timeStyle:'short'}) : 'In progress';
     const employeeAvatar = row => {
         const initials = escape((row.employee_name || 'Employee').trim().split(/\s+/).map(part => Array.from(part)[0]).slice(0, 2).join(''));
         let url; try { url = new URL(row.employee_picture_url); } catch { return initials; }
@@ -18,12 +19,13 @@
     let mode = 'ACTIVE', page = 1, total = 0, rows = [], generation = 0, busy = false, hasAccess = false;
 
     const filters = () => ({ from: $('clientFrom').value, to: $('clientTo').value, status: mode, projectIds: selectedProjects.length ? selectedProjects : undefined, employeeId: $('clientEmployee').value || undefined, view: $('clientView').value || 'shifts', page });
-    const exportEnabled = enabled => { $('clientCsv').disabled = $('clientExcel').disabled = !enabled; };
+    const exportEnabled = enabled => { $('clientPdf').disabled = $('clientCsv').disabled = $('clientExcel').disabled = !enabled; };
     const clear = () => {
         rows = []; total = 0;
         $('clientRows').replaceChildren();
         ['clientEmployees', 'clientShifts', 'clientActive', 'clientWorked'].forEach(id => $(id).textContent = '—');
         $('clientActivityDialog').hidePopover();
+        closeEmployeeProfile();
         exportEnabled(false);
     };
     function showState(kind, description) {
@@ -46,6 +48,7 @@
             exportEnabled(false);
         }
     }
+    const employeeName = row => mode === 'ACTIVE' ? '<strong>' + escape(row.employee_name || 'Employee') + '</strong>' : '<button type="button" class="client-employee-link" data-employee="' + escape(row.user_id) + '">' + escape(row.employee_name || 'Employee') + '</button>';
     function renderResults(data) {
         rows = data.items; total = data.total;
         $('clientEmployees').textContent = data.employees;
@@ -54,7 +57,7 @@
         $('clientWorked').textContent = hours(data.worked_seconds);
         const summary = $('clientView').value === 'employees';
         $('clientTableHead').innerHTML = '<tr>' + (summary ? ['Employee','Projects','Shifts','Working now','Worked'] : ['Employee','Project','Clock in','Clock out','Worked','Activities']).map(label => '<th>' + label + '</th>').join('') + '</tr>';
-        $('clientRows').innerHTML = summary ? rows.map(r => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span><strong>' + escape(r.employee_name || 'Employee') + '</strong></div></td><td data-label="Projects"><span class="client-project-tag">' + escape((r.project_names || []).join(', ')) + '</span></td><td data-label="Shifts">' + Number(r.shifts) + '</td><td data-label="Working now">' + Number(r.active) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td></tr>').join('') : rows.map((r, i) => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span><strong>' + escape(r.employee_name || 'Employee') + '</strong></div></td><td data-label="Project"><span class="client-project-tag">' + escape(r.project_name) + '</span></td><td data-label="Clock in">' + displayTime(r.clock_in_at) + '</td><td data-label="Clock out">' + displayTime(r.clock_out_at) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td><td data-label="Activities">' + (r.activities.length ? '<button class="entry-activity-trigger" type="button" data-activities="' + i + '">' + r.activities.length + ' activit' + (r.activities.length === 1 ? 'y' : 'ies') + '</button>' : '—') + '</td></tr>').join('');
+        $('clientRows').innerHTML = summary ? rows.map(r => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span>' + employeeName(r) + '</div></td><td data-label="Projects"><span class="client-project-tag">' + escape((r.project_names || []).join(', ')) + '</span></td><td data-label="Shifts">' + Number(r.shifts) + '</td><td data-label="Working now">' + Number(r.active) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td></tr>').join('') : rows.map((r, i) => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span>' + employeeName(r) + '</div></td><td data-label="Project"><span class="client-project-tag">' + escape(r.project_name) + '</span></td><td data-label="Clock in">' + displayTime(r.clock_in_at) + '</td><td data-label="Clock out">' + displayTime(r.clock_out_at) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td><td data-label="Activities">' + (r.activities.length ? '<button class="entry-activity-trigger" type="button" data-activities="' + i + '">' + r.activities.length + ' activit' + (r.activities.length === 1 ? 'y' : 'ies') + '</button>' : '—') + '</td></tr>').join('');
         $('clientTableScroll').hidden = !rows.length;
         $('clientPagination').hidden = !rows.length;
         $('clientResultEmpty').hidden = Boolean(rows.length);
@@ -107,13 +110,14 @@
             if (current === generation) { busy = false; $('clientRefresh').disabled = false; }
         }
     }
-    async function download(format) {
+    async function download(format, override) {
         if (busy || !hasAccess || total === 0) return;
-        const button = $(format === 'CSV' ? 'clientCsv' : 'clientExcel');
+        const button = override ? $(format === 'PDF' ? 'clientEmployeePdf' : format === 'CSV' ? 'clientEmployeeCsv' : 'clientEmployeeExcel') : $(format === 'PDF' ? 'clientPdf' : format === 'CSV' ? 'clientCsv' : 'clientExcel');
         button.disabled = true;
         try {
-            const response = await window.ACEAuth.authorizedFetch('/v1/client/attendance/export', { method: 'POST', body: JSON.stringify({ ...filters(), format }) });
+            const response = await window.ACEAuth.authorizedFetch('/v1/client/attendance/export', { method: 'POST', body: JSON.stringify({ ...(override || filters()), format }) });
             if (!response.ok) { const error = await window.ACEAuth.responseBody(response); throw Error(error.error || 'Export unavailable'); }
+            if (format === 'PDF') { renderPdf(await response.json()); return; }
             const url = URL.createObjectURL(await response.blob());
             const a = document.createElement('a'); a.href = url; a.download = 'client-attendance.' + format.toLowerCase();
             document.body.appendChild(a); a.click(); a.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -123,6 +127,71 @@
             $('clientMessage').textContent = '';
         } finally { if (total > 0) button.disabled = false; }
     }
+    let employeeProfileId = null, employeeProfilePage = 1, employeeProfileArgs = null, employeeProfileGeneration = 0;
+    function closeEmployeeProfile() {
+        employeeProfileId = null; employeeProfileArgs = null; employeeProfileGeneration++;
+        $('clientEmployeeDialog').close(); $('clientEmployeeRows').replaceChildren(); $('clientEmployeeIdentity').replaceChildren();
+        $('clientEmployeeStats').replaceChildren(); $('clientEmployeeContent').hidden = true;
+        $('clientPrintReport').replaceChildren(); $('clientPrintReport').hidden = true;
+    }
+    async function loadEmployeeProfile() {
+        if (!employeeProfileId || !employeeProfileArgs) return;
+        const generation = ++employeeProfileGeneration;
+        $('clientEmployeeStatus').textContent = 'Loading attendance…'; $('clientEmployeeContent').hidden = true;
+        try {
+            const data = await window.ACEAuth.request('/v1/client/attendance/search', { method: 'POST', body: JSON.stringify({ ...employeeProfileArgs, page: employeeProfilePage }) });
+            if (generation !== employeeProfileGeneration) return;
+            if (!data.items.length && data.total > 0 && employeeProfilePage > 1) { employeeProfilePage = 1; return loadEmployeeProfile(); }
+            $('clientEmployeeRows').replaceChildren();
+            if (!data.items.length) { $('clientEmployeeStatus').textContent = 'No attendance is available for this employee in the selected projects and dates.'; return; }
+            const person = data.items[0];
+            $('clientEmployeeTitle').textContent = person.employee_name || 'Employee';
+            $('clientEmployeeIdentity').innerHTML = '<span class="client-person-avatar">' + employeeAvatar(person) + '</span><div><strong>' + escape(person.employee_name || 'Employee') + '</strong><span>Attendance in projects shared with your account</span></div>';
+            $('clientEmployeeStats').innerHTML = [['Shifts',data.shifts ?? data.total],['Worked time',hours(data.worked_seconds)],['Working now',data.active]].map(([label,value]) => '<article><div><span>' + label + '</span><strong>' + escape(value) + '</strong></div></article>').join('');
+            $('clientEmployeeRows').innerHTML = data.items.map(row => '<tr><td data-label="Project"><span class="client-project-tag">' + escape(row.project_name) + '</span></td><td data-label="Clock in">' + displayTime(row.clock_in_at) + '</td><td data-label="Clock out">' + displayTime(row.clock_out_at) + '</td><td data-label="Worked">' + hours(row.worked_seconds) + '</td><td data-label="Activities"><div class="client-profile-activities">' + (row.activities || []).map(a => '<div><span>' + escape(a.description) + '</span><time>' + activityClock(a.ended_at ? a.duration_seconds : (Date.now()-Date.parse(a.started_at))/1000) + '</time></div>').join('') + '</div></td></tr>').join('');
+            $('clientEmployeeStatus').textContent = ''; $('clientEmployeeContent').hidden = false;
+            $('clientEmployeePage').textContent = 'Page ' + employeeProfilePage + ' of ' + Math.max(1, Math.ceil(data.total / 25));
+            $('clientEmployeePrevious').disabled = employeeProfilePage <= 1; $('clientEmployeeNext').disabled = employeeProfilePage * 25 >= data.total;
+        } catch { if (generation === employeeProfileGeneration) { $('clientEmployeeIdentity').replaceChildren(); $('clientEmployeeRows').replaceChildren(); $('clientEmployeeStats').replaceChildren(); $('clientEmployeeStatus').textContent = 'Attendance unavailable. Your access may have changed. Close this profile and refresh.'; } }
+    }
+    const activityClock = value => { const seconds = Math.max(0, Math.floor(Number(value) || 0)); return [Math.floor(seconds/3600),Math.floor(seconds%3600/60),seconds%60].map(n => String(n).padStart(2,'0')).join(':'); };
+    $('clientRows').addEventListener('click', e => {
+        const trigger = e.target.closest('[data-employee]'); if (!trigger || mode === 'ACTIVE') return;
+        employeeProfileId = trigger.dataset.employee; employeeProfilePage = 1;
+        employeeProfileArgs = { ...filters(), employeeId: employeeProfileId, status: null, view: 'shifts', page: 1 };
+        $('clientEmployeeTitle').textContent = 'Employee attendance';
+        $('clientEmployeeScope').textContent = employeeProfileArgs.from + ' to ' + employeeProfileArgs.to + ' · Philippine time · Only projects you can access';
+        $('clientEmployeeDialog').showModal(); void loadEmployeeProfile();
+    });
+    $('clientEmployeeClose').addEventListener('click', closeEmployeeProfile);
+    $('clientEmployeeDialog').addEventListener('close', closeEmployeeProfile);
+    $('clientEmployeePrevious').addEventListener('click', () => { if (employeeProfilePage > 1) { employeeProfilePage--; void loadEmployeeProfile(); } });
+    $('clientEmployeeNext').addEventListener('click', () => { employeeProfilePage++; void loadEmployeeProfile(); });
+    for (const [id,format] of [['clientEmployeePdf','PDF'],['clientEmployeeCsv','CSV'],['clientEmployeeExcel','XLSX']]) $(id).addEventListener('click', () => { if (employeeProfileArgs) void download(format,employeeProfileArgs); });
+    function renderPdf(data) {
+        const report = $('clientPrintReport'); report.replaceChildren();
+        const add = (tag,text,parent = report) => { const node = document.createElement(tag); node.textContent = text; parent.appendChild(node); return node; };
+        add('p','ACE OUTSOURCE SOLUTIONS'); add('h1','Employee attendance');
+        add('p',data.from + ' to ' + data.to + ' · Philippine time · Activity Based');
+        add('p','Worked time: ' + hours(data.worked_seconds) + ' · Shifts: ' + (data.shifts ?? data.total));
+        if (data.export_view === 'employees') {
+            add('h2','Employee totals'); const table = add('table',''), head = add('tr','',add('thead','',table)), body = add('tbody','',table);
+            ['Employee','Projects','Shifts','Working now','Worked'].forEach(text => add('th',text,head));
+            data.items.forEach(row => { const tr = add('tr','',body); [row.employee_name,(row.project_names || []).join(', '),row.shifts,row.active,hours(row.worked_seconds)].forEach(text => add('td',String(text ?? ''),tr)); });
+        }
+        add('h2','Shift and activity details'); const table = add('table',''), head = add('tr','',add('thead','',table)), body = add('tbody','',table);
+        ['Employee / project','Clock in','Clock out','Worked'].forEach(text => add('th',text,head));
+        (data.activity_items || []).forEach(row => {
+            const tr = add('tr','',body); [row.employee_name + ' · ' + row.project_name,time(row.clock_in_at),time(row.clock_out_at),hours(row.worked_seconds)].forEach(text => add('td',text,tr));
+            if (row.activities?.length) { const activityRow = add('tr','',body),cell = add('td','',activityRow); cell.colSpan = 4;
+                row.activities.forEach(a => add('div',a.description + ' · ' + activityClock(a.ended_at ? a.duration_seconds : (Date.now()-Date.parse(a.started_at))/1000) + (a.ended_at ? '' : ' · Active'),cell));
+            }
+        });
+        add('p','Exported ' + new Date().toLocaleString('en-GB',{timeZone:'Asia/Manila'}) + ' · Totals include only authorized project attendance.');
+        report.hidden = false; document.documentElement.dataset.clientPrinting = 'true';
+        window.setTimeout(() => window.print(),100);
+    }
+    window.addEventListener('afterprint', () => { delete document.documentElement.dataset.clientPrinting; $('clientPrintReport').hidden = true; $('clientPrintReport').replaceChildren(); });
     function renderProjectChoices() {
         $('clientProjectLabel').textContent = selectedProjects.length ? selectedProjects.length + ' project' + (selectedProjects.length === 1 ? '' : 's') : 'All my projects';
         $('clientProjectChoices').innerHTML = projectsList.map(p => '<label><input type="checkbox" value="' + escape(p.id) + '"' + (selectedProjects.includes(p.id) ? ' checked' : '') + '><span>' + escape(p.name) + (p.is_active ? '' : ' · inactive') + '</span></label>').join('');
@@ -164,6 +233,7 @@
     });
     $('clientPrevious').addEventListener('click', () => { if (page > 1) { page--; void refresh(); } });
     $('clientNext').addEventListener('click', () => { if (page * 25 < total) { page++; void refresh(); } });
+    $('clientPdf').addEventListener('click', () => void download('PDF'));
     $('clientCsv').addEventListener('click', () => void download('CSV')); $('clientExcel').addEventListener('click', () => void download('XLSX'));
     const openActivities = e => {
         const trigger = e.target.closest('[data-activities]'); if (!trigger || !trigger.isConnected) return;
@@ -296,9 +366,9 @@
             if (profile.status !== 'ACTIVE') { showState('error', 'Your account is not active. Contact your administrator.'); return; }
             updateAccountIdentity(profile);
             await refresh();
-            window.setInterval(() => { if (!document.hidden && !busy) void refresh(); }, 60000);
+            window.setInterval(() => { if (!document.hidden && !busy) { if (employeeProfileId) void loadEmployeeProfile(); else void refresh(); } }, 60000);
             window.addEventListener('focus', async () => {
-                if (!busy) void refresh();
+                if (!busy) { if (employeeProfileId) void loadEmployeeProfile(); else void refresh(); }
                 try { const { profile: current } = await window.ACEAuth.request('/v1/me'); if (current.role === 'CLIENT' && current.status === 'ACTIVE') updateAccountIdentity(current); } catch { /* Retain the last verified account display if offline. */ }
             });
         } catch (e) { showState('error', 'Sign in again to view employee attendance.'); }
