@@ -6,12 +6,12 @@ import {setImmediate} from 'node:timers/promises';
 const source=readFileSync(new URL('../../frontend/js/client-dashboard.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('../../frontend/client-dashboard.html',import.meta.url),'utf8');
 const settle=async()=>{for(let n=0;n<8;n++)await setImmediate();};
-function harness({projects=[],data={items:[],total:0,employees:0,active:0,worked_seconds:0},failure,wait}={}){
+function harness({projects=[],data={items:[],total:0,employees:0,active:0,worked_seconds:0},failure,wait,preferences,legacyTheme,systemDark=false}={}){
  const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],{hidden:false,disabled:false,value:'',textContent:'',innerHTML:'',handlers:{},setAttribute(){},replaceChildren(){this.innerHTML='';},close(){this.open=false;},showModal(){this.open=true;},matches(){return false;},focus(){this.focused=true;},classList:{toggle(){}},addEventListener(type,fn){this.handlers[type]=fn;},click(){return this.handlers.click?.();}}]));
  elements.get('clientWorkspace').hidden=true;
- const calls=[];const state={projects,data,failure};
- const context=vm.createContext({document:{documentElement:{dataset:{}},hidden:false,getElementById:id=>elements.get(id),querySelectorAll:()=>[]},window:{ACEAuth:{request:async(url,options)=>{calls.push(url);if(url==='/v1/me')return {profile:{role:'CLIENT',status:'ACTIVE',full_name:'Example Client',email:'client@example.test'}};if(wait)await wait;if(state.failure)throw state.failure;return url==='/v1/client/projects'?state.projects:state.data;}},setInterval(){},addEventListener(){},location:{replace(){}}},localStorage:{},sessionStorage:{}});
- vm.runInContext(source,context);return {elements,calls,state};
+ const calls=[];const state={projects,data,failure};const storage=new Map();if(preferences)storage.set('ace_appearance_preferences',JSON.stringify(preferences));if(legacyTheme)storage.set('ace_client_appearance',legacyTheme);const root={dataset:{}};
+ const context=vm.createContext({document:{documentElement:root,hidden:false,getElementById:id=>elements.get(id),querySelectorAll:()=>[]},window:{matchMedia:()=>({matches:systemDark,addEventListener(){}}),ACEAuth:{request:async(url,options)=>{calls.push(url);if(url==='/v1/me')return {profile:{role:'CLIENT',status:'ACTIVE',full_name:'Example Client',email:'client@example.test'}};if(wait)await wait;if(state.failure)throw state.failure;return url==='/v1/client/projects'?state.projects:state.data;}},setInterval(){},addEventListener(){},location:{replace(){}}},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},sessionStorage:{}});
+ vm.runInContext(source,context);return {elements,calls,state,storage,root};
 }
 test('no assigned projects shows a real empty state and never requests attendance',async()=>{
  const h=harness();await settle();assert.equal(h.elements.get('clientStateTitle').textContent,'No employees to display');assert.equal(h.elements.get('clientStateHelp').hidden,false);assert.equal(h.elements.get('clientWorkspace').hidden,true);assert.equal(h.elements.get('clientStateAction').hidden,false);assert.ok(!h.calls.includes('/v1/client/attendance/search'));assert.equal(h.elements.get('clientCsv').disabled,true);
@@ -37,4 +37,12 @@ test('account details and access help work without requiring employee access',as
 });
 test('appearance selection applies locally without changing permissions or requesting extra data',async()=>{
  const h=harness();await settle();const before=h.calls.length;h.elements.get('clientAppearance').value='dark';h.elements.get('clientAppearance').handlers.change();assert.equal(h.calls.length,before);assert.equal(h.elements.get('clientWorkspace').hidden,true);
+});
+
+test('client uses the app appearance preference and updates it without losing other settings',async()=>{
+ const h=harness({preferences:{theme:'dark',fontSize:'large',compact:true},legacyTheme:'light'});await settle();assert.equal(h.root.dataset.theme,'dark');assert.equal(h.elements.get('clientAppearance').value,'dark');h.elements.get('clientAppearance').value='light';h.elements.get('clientAppearance').handlers.change();assert.deepEqual(JSON.parse(h.storage.get('ace_appearance_preferences')),{theme:'light',fontSize:'large',compact:true});assert.equal(h.root.dataset.theme,'light');
+});
+test('client resolves system mode through the app data-theme attribute and migrates old preferences',async()=>{
+ const system=harness({preferences:{theme:'system'},systemDark:true});await settle();assert.equal(system.root.dataset.themePreference,'system');assert.equal(system.root.dataset.theme,'dark');
+ const legacy=harness({legacyTheme:'dark'});await settle();assert.equal(legacy.root.dataset.theme,'dark');assert.equal(JSON.parse(legacy.storage.get('ace_appearance_preferences')).theme,'dark');assert.equal(legacy.storage.has('ace_client_appearance'),false);
 });

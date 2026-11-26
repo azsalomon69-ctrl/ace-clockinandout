@@ -157,16 +157,38 @@
     $('clientAccountDialog').addEventListener('close', () => accountButton.focus());
     $('clientHelpDialog').addEventListener('close', () => accountButton.focus());
     const deviceTheme = window.matchMedia?.('(prefers-color-scheme: dark)');
-    let appearance = 'system';
-    try { const stored = localStorage.getItem('ace_client_appearance'); if (['light', 'dark', 'system'].includes(stored)) appearance = stored; } catch { /* Device storage may be unavailable. */ }
-    const applyAppearance = () => { document.documentElement.dataset.clientTheme = appearance === 'system' ? (deviceTheme?.matches ? 'dark' : 'light') : appearance; };
-    $('clientAppearance').value = appearance;
+    let appearance = 'light';
+    const readAppearance = () => {
+        try {
+            const preferences = JSON.parse(localStorage.getItem('ace_appearance_preferences') || '{}');
+            if (['light', 'dark', 'system'].includes(preferences.theme)) return preferences.theme;
+            const previousClientTheme = localStorage.getItem('ace_client_appearance');
+            if (['light', 'dark', 'system'].includes(previousClientTheme)) {
+                localStorage.setItem('ace_appearance_preferences', JSON.stringify({ ...preferences, theme: previousClientTheme }));
+                localStorage.removeItem('ace_client_appearance');
+                return previousClientTheme;
+            }
+        } catch { /* Appearance must still work when storage is unavailable. */ }
+        return 'light';
+    };
+    const applyAppearance = () => {
+        document.documentElement.dataset.themePreference = appearance;
+        document.documentElement.dataset.theme = appearance === 'system' ? (deviceTheme?.matches ? 'dark' : 'light') : appearance;
+        $('clientAppearance').value = appearance;
+    };
+    appearance = readAppearance();
     applyAppearance();
     deviceTheme?.addEventListener('change', applyAppearance);
+    window.addEventListener('storage', event => {
+        if (event.key === 'ace_appearance_preferences') { appearance = readAppearance(); applyAppearance(); }
+    });
     $('clientAppearance').addEventListener('change', () => {
         appearance = $('clientAppearance').value;
         applyAppearance();
-        try { localStorage.setItem('ace_client_appearance', appearance); } catch { /* The selected theme still works for this session. */ }
+        try {
+            const preferences = JSON.parse(localStorage.getItem('ace_appearance_preferences') || '{}');
+            localStorage.setItem('ace_appearance_preferences', JSON.stringify({ ...preferences, theme: appearance }));
+        } catch { /* The selected theme still works for this session. */ }
     });
     $('clientSignOut').addEventListener('click', async () => {
         try { await window.ACEAuth.request('/v1/auth/session-end', { method: 'POST' }); await (await window.ACEAuth.client()).auth.signOut(); localStorage.removeItem('ace_current_user'); sessionStorage.removeItem('ace_login_audited'); window.location.replace('/login'); }
