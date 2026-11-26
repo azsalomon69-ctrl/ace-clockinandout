@@ -77,7 +77,7 @@ function enhanceSelectControl(select) {
         if (event.key === 'Tab') closeAceSelectMenus();
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault(); const index = choices.indexOf(document.activeElement);
-            choices[(index + (event.key === 'ArrowDown' ? 1 : choices.length - 1)) % choices.length]?.focus();
+            choices[index < 0 ? (event.key === 'ArrowDown' ? 0 : choices.length - 1) : (index + (event.key === 'ArrowDown' ? 1 : choices.length - 1)) % choices.length]?.focus();
         }
         if (event.key === 'Enter' && event.target === search) { event.preventDefault(); choices[0]?.click(); }
     });
@@ -140,14 +140,14 @@ function initializeSelectControls(root = document) {
     window.addEventListener('resize', positionOpenAceSelectMenus);
     document.addEventListener('scroll', positionOpenAceSelectMenus, true);
     aceSelectObserver = new MutationObserver(records => records.forEach(record => {
-        if (record.type === 'childList' && record.target instanceof HTMLSelectElement && record.target.classList.contains('ace-native-select')) record.target._aceSelectRefresh?.();
+        if ((record.type === 'childList' || record.type === 'attributes') && record.target instanceof HTMLSelectElement && record.target.classList.contains('ace-native-select')) record.target._aceSelectRefresh?.();
         record.addedNodes.forEach(node => {
             if (!(node instanceof Element)) return;
             if (node.matches?.('select.form-select:not(.ace-native-select)')) enhanceSelectControl(node);
             node.querySelectorAll?.('select.form-select:not(.ace-native-select)').forEach(enhanceSelectControl);
         });
     }));
-    aceSelectObserver.observe(document.body, { childList: true, subtree: true });
+    aceSelectObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
 }
 
 window.ACESelectControls = { init: initializeSelectControls, close: closeAceSelectMenus };
