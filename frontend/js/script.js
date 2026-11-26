@@ -54,7 +54,7 @@ const enableCleanInternalPageLinks = () => {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enableCleanInternalPageLinks, { once: true });
 else enableCleanInternalPageLinks();
 const departmentRecord = item => ({ DepartmentId: item.id, DepartmentName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
-const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_active, CreatedAt: item.created_at });
+const projectRecord = item => ({ ProjectId: item.id, ProjectName: item.name, Description: item.description, IsActive: item.is_available ?? item.is_active, Status: item.status, Type: item.type, StartDate: item.start_date, EndDate: item.end_date, Color: item.color, CreatedAt: item.created_at });
 const timeEntryRecord = item => ({ Activities: item.activities || [], TimeEntryId: item.id, UserId: item.user_id, ProjectId: item.project_id, ClockInAt: item.clock_in_at, ClockOutAt: item.clock_out_at, UserNote: item.user_note, FinalNote: item.final_note, StoppedByName: item.stopped_by?.full_name || item.stopped_by?.email || '', StoppedByAt: item.stopped_by_at, DurationSeconds: item.duration_seconds, QueuedClockSyncedLate: item.queued_clock_synced_late === true, ScheduleType: item.schedule_type, ScheduledEndTime: item.scheduled_end_time, OvertimeApprovedSeconds: item.overtime_approved_seconds || 0, OvertimeApprovedAt: item.overtime_approved_at, ProjectName: item.projects?.name, UserName: item.profiles?.full_name });
 const adminRemarkRecord = item => ({ RemarkId: item.id, TimeEntryId: item.time_entry_id, AdminUserId: item.admin_user_id, Remark: item.remark, CreatedAt: item.created_at, SeenAt: item.seen_at, AdminName: item.profiles?.full_name || item.profiles?.email || 'Administrator' });
 const employeeTimeEntries = () => AppState.timeEntries.filter(entry => AppState.users.find(user => String(user.UserId) === String(entry.UserId))?.Role === 'USER');
@@ -6181,3 +6181,5 @@ if (document.readyState === 'loading') {
     window.addEventListener('pageshow', syncLoading);
     syncLoading();
 })();
+
+window.addEventListener('ace:projects-changed',async()=>{try{const projects=await window.ACEAuth.request('/v1/projects');AppState.projects=projects.map(projectRecord);}catch{/* Other views refresh their own data on navigation. */}});
