@@ -66,3 +66,19 @@ body.client-page{display:block;min-height:100vh}
 .client-page dialog{position:fixed;inset:0;margin:auto;transform:none;overflow:auto}
 .client-page dialog header>.btn{width:auto;flex:0 0 auto}
 .client-page .form-input,.client-page .form-select{background:var(--ace-surface-input);background-image:none;box-shadow:none}.client-page .client-appearance .form-select{background:var(--ace-surface-input)!important;color:var(--ace-text-primary)!important;box-shadow:none!important}
+
+/* Reveal editing controls only after selecting a client. */
+.client-access-panel{max-width:960px}
+.client-access-form [hidden]{display:none!important}
+.client-access-form>label{font-size:13px;font-weight:600;gap:10px}
+.client-access-section-heading{margin-top:28px;padding-top:24px;border-top:1px solid var(--ace-border)}
+.client-access-section-heading h2{font-size:17px;margin:0 0 6px;color:var(--ace-text-primary)}
+.client-access-section-heading p,.client-access-hint{font-size:12px;line-height:1.6;color:var(--ace-text-tertiary);margin:0}
+.client-access-projects label{cursor:pointer;background:var(--ace-surface);transition:border-color .15s,background .15s}
+.client-access-projects label:has(input:checked){border-color:var(--ace-accent);background:var(--ace-accent-muted)}
+.client-access-projects label:focus-within{outline:2px solid var(--ace-accent);outline-offset:2px}
+.client-access-footer{display:flex;justify-content:flex-end;padding-top:18px;border-top:1px solid var(--ace-border)}
+.client-access-form #clientAccessMessage{font-size:13px;line-height:1.6;color:var(--ace-text-secondary);margin:14px 0}
+.client-access-form #clientAccessMessage:empty{display:none}
+.client-access-hint{margin-top:18px}
+@media(max-width:600px){.client-access-form>label{max-width:none}.client-access-footer .btn{width:100%}}
