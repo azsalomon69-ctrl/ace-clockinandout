@@ -366,11 +366,6 @@
             if (profile.status !== 'ACTIVE') { showState('error', 'Your account is not active. Contact your administrator.'); return; }
             updateAccountIdentity(profile);
             await refresh();
-            window.setInterval(() => { if (!document.hidden && !busy) { if (employeeProfileId) void loadEmployeeProfile(); else void refresh(); } }, 60000);
-            window.addEventListener('focus', async () => {
-                if (!busy) { if (employeeProfileId) void loadEmployeeProfile(); else void refresh(); }
-                try { const { profile: current } = await window.ACEAuth.request('/v1/me'); if (current.role === 'CLIENT' && current.status === 'ACTIVE') updateAccountIdentity(current); } catch { /* Retain the last verified account display if offline. */ }
-            });
         } catch (e) { showState('error', 'Sign in again to view employee attendance.'); }
     })();
 })();

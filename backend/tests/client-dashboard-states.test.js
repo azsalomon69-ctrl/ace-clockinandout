@@ -59,3 +59,7 @@ test('employee totals render server aggregates rather than summing the current p
  h.elements.get('clientView').value='employees';h.elements.get('clientView').handlers.change();await settle();
  assert.equal(h.elements.get('clientShifts').textContent,50);assert.ok(h.elements.get('clientRows').innerHTML.includes('50h 0m'));assert.ok(h.elements.get('clientTableHead').innerHTML.includes('Shifts'));
 });
+
+test('attendance never registers background polling or focus refreshes',()=>{
+ assert.ok(!source.includes('window.setInterval('));assert.ok(!source.includes("window.addEventListener('focus'"));assert.ok(!html.includes('Updates every 60 seconds'));
+});
