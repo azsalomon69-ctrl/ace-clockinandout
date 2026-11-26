@@ -184,20 +184,17 @@ html[data-theme="dark"] .client-page .client-table-panel td{background:transpare
 
 /* Loading occupies the same real toolbar, KPI cards and table as the finished view. */
 .client-is-loading .client-toolbar{pointer-events:none}
-.client-is-loading .client-tabs,.client-is-loading .client-project-filter summary,.client-is-loading .ace-select-trigger,.client-is-loading .client-filters .form-input,.client-is-loading .client-filters>.btn,.client-is-loading .client-result-tools,.client-is-loading .client-pagination>*{color:transparent!important;background:var(--ace-surface-raised)!important;box-shadow:none!important;border-color:transparent!important;position:relative;overflow:hidden}
-.client-is-loading .client-tabs button,.client-is-loading .ace-select-trigger>*,.client-is-loading .client-result-tools>*,.client-is-loading .client-filters .form-input::-webkit-calendar-picker-indicator{visibility:hidden}
-.client-is-loading .client-result-tools{min-height:30px;border-radius:5px}
 .client-is-loading .client-stats strong{width:48px;height:22px;border-radius:4px;color:transparent;background:var(--ace-surface-raised);position:relative;overflow:hidden}
-.client-is-loading .client-kpi-icon img{visibility:hidden}
 .client-skeleton-cell{display:block;width:75%;height:12px;margin:6px 0;border-radius:4px;background:var(--ace-surface-raised);position:relative;overflow:hidden}
 .client-skeleton-person{width:85%;height:29px;border-radius:5px}
-.client-skeleton-cell::after,.client-is-loading .client-stats strong::after,.client-is-loading .client-result-tools::after,.client-is-loading .client-tabs::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ace-border) 55%,transparent),transparent);transform:translateX(-100%);animation:client-skeleton-sweep 1.5s ease-in-out infinite}
-.client-is-loading .client-pagination{min-height:53px}.client-is-loading .client-pagination>span{width:70px;height:10px;border-radius:3px}.client-page .client-is-loading .client-table-panel tbody tr:hover{background:var(--ace-surface)}
+.client-skeleton-cell::after,.client-is-loading .client-stats strong::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ace-border) 55%,transparent),transparent);transform:translateX(-100%);animation:client-skeleton-sweep 1.5s ease-in-out infinite}
 @keyframes client-skeleton-sweep{to{transform:translateX(100%)}}
-@media(prefers-reduced-motion:reduce){.client-skeleton-cell::after,.client-is-loading .client-stats strong::after,.client-is-loading .client-result-tools::after,.client-is-loading .client-tabs::after{animation:none}}
+@media(prefers-reduced-motion:reduce){.client-skeleton-cell::after,.client-is-loading .client-stats strong::after{animation:none}}
 
 .client-page .client-status:empty{display:block}
 .client-page #clientMessage{min-height:20px;line-height:20px}
 .client-is-loading .client-stats strong{height:auto;min-height:1.2em}
 .client-skeleton-person{margin:0}
 @media(min-width:601px){.client-page .client-table-panel table{table-layout:fixed}.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(1){width:22%}.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(2){width:20%}.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(3),.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(4){width:14%}.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(5){width:12%}.client-page .client-table-panel table:has(th:nth-child(6)) th:nth-child(6){width:18%}.client-page .client-table-panel td{overflow-wrap:anywhere;white-space:normal}}
+/* Only fetched values and record rows need placeholders; retain static UI. */
+.client-is-loading #clientPage{color:transparent;background:var(--ace-surface-raised);border-radius:3px;min-width:70px;min-height:10px}
