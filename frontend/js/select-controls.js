@@ -317,3 +317,47 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     window.ACETimeControls = {init, close, format};
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, {once:true}); else boot();
 })();
+
+// Disabled actions retain native behavior; a focusable wrapper explains why they are unavailable.
+(() => {
+ const wrappers=new Map();let tooltip,active,serial=0;
+ const explanation=button=>{
+  if(button.dataset.disabledReason)return button.dataset.disabledReason;
+  if(button.title)return button.title;
+  if(button.closest('[aria-busy="true"]'))return 'This section is loading. Please wait.';
+  const text=button.textContent.trim().toLowerCase();
+  if(/^(previous|prev)$/.test(text))return 'You are on the first page.';
+  if(text==='next')return 'There are no more results to display.';
+  if(button.matches('#clientPdf,#clientCsv,#clientExcel'))return document.getElementById('clientWorkspace')?.inert?'Attendance is loading. Please wait.':'There are no matching records to export.';
+  if(text==='clear selection')return 'No employees are selected.';
+  if(text==='assign selected')return 'Select at least one employee to assign.';
+  return '';
+ };
+ function hide(){if(tooltip?.isConnected&&tooltip.matches(':popover-open'))tooltip.hidePopover();if(active){active.removeAttribute('aria-describedby');active=null;}}
+ function show(wrapper){
+  const button=wrapper.querySelector('button');if(!button?.disabled)return;
+  const reason=explanation(button);if(!reason)return;
+  hide();active=wrapper;
+  if(!tooltip){tooltip=document.createElement('div');tooltip.id='aceDisabledActionHint';tooltip.className='ace-disabled-tooltip';tooltip.setAttribute('popover','manual');tooltip.setAttribute('role','tooltip');}
+  (button.closest('dialog')||document.body).appendChild(tooltip);tooltip.textContent=reason;wrapper.setAttribute('aria-describedby',tooltip.id);tooltip.showPopover();
+  const rect=wrapper.getBoundingClientRect(),width=Math.min(280,innerWidth-24);tooltip.style.width=width+'px';const height=tooltip.getBoundingClientRect().height;
+  tooltip.style.left=Math.max(12,Math.min(rect.left+rect.width/2-width/2,innerWidth-width-12))+'px';tooltip.style.top=(rect.top>=height+16?rect.top-height-8:Math.min(innerHeight-height-12,rect.bottom+8))+'px';
+ }
+ function update(button){
+  const reason=explanation(button);let wrapper=wrappers.get(button);
+  if(button.disabled&&reason&&!button.hidden){
+   if(!wrapper){wrapper=document.createElement('span');wrapper.className='ace-disabled-action';wrapper.dataset.hintId=String(++serial);button.before(wrapper);wrapper.appendChild(button);wrapper.addEventListener('pointerenter',()=>show(wrapper));wrapper.addEventListener('pointerleave',hide);wrapper.addEventListener('focus',()=>show(wrapper));wrapper.addEventListener('blur',hide);wrapper.addEventListener('click',event=>{event.preventDefault();show(wrapper);});wrappers.set(button,wrapper);}
+   wrapper.tabIndex=0;wrapper.setAttribute('role','button');wrapper.setAttribute('aria-disabled','true');wrapper.setAttribute('aria-label',(button.getAttribute('aria-label')||button.textContent.trim())+': '+reason);
+   if(active===wrapper)show(wrapper);
+  }else if(wrapper){if(active===wrapper)hide();wrapper.replaceWith(button);wrappers.delete(button);}
+ }
+ function boot(){
+  document.querySelectorAll('button:disabled').forEach(update);
+  new MutationObserver(records=>{
+   const buttons=new Set();for(const record of records){if(record.target instanceof HTMLButtonElement)buttons.add(record.target);for(const node of record.addedNodes){if(!(node instanceof Element))continue;if(node.matches('button'))buttons.add(node);node.querySelectorAll('button:disabled').forEach(b=>buttons.add(b));}}
+   buttons.forEach(b=>{if(b.isConnected)update(b);});for(const [button,wrapper]of wrappers)if(!button.isConnected){if(active===wrapper)hide();wrappers.delete(button);}
+  }).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['disabled','data-disabled-reason','hidden','title']});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')hide();});document.addEventListener('pointerdown',event=>{if(active&&!active.contains(event.target))hide();});window.addEventListener('resize',hide);document.addEventListener('scroll',hide,true);document.addEventListener('close',hide,true);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
