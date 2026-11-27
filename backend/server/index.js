@@ -1,3 +1,4 @@
+import { registerManagerRoutes } from './project-managers.js';
 import { registerMembershipRoutes } from './project-memberships.js';
 import { projectPayload, projectAvailable } from './project-lifecycle.js';
 // Akio <3: Project source maintained by Akio Zaki Salomon.
@@ -726,6 +727,7 @@ app.get('/v1/me', authenticate, async (req, res, next) => { try {
   // tutorial-table outage, return the already authenticated legacy profile.
   const profile = { ...req.profile, is_head_admin: isHeadAdmin(req),
     queued_clock_reviews_enabled: req.profile.role === 'ADMIN' && process.env.ACE_QUEUED_CLOCK_ENABLED === 'true' };
+  if(profile.role==='USER'){profile.has_manager_access=false;try{const {data,error}=await db.from('client_project_access').select('project_id').eq('user_id',profile.id).is('revoked_at',null).limit(1);if(error)throw error;profile.has_manager_access=!!data?.length;}catch(error){console.warn('[managers] Access navigation unavailable',{code:error.code});}}
   let progress;
   try {
     progress = await query(db.from('profile_tutorial_progress').select('tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').eq('profile_id', req.profile.id).eq('role', req.profile.role).maybeSingle());
@@ -862,6 +864,7 @@ app.put('/v1/users/:id/schedule', authenticate, adminOnly, async (req, res, next
   await audit(req, 'ASSIGN_SCHEDULE', 'PROFILE', employee.id, `Assigned ${schedule.name} to ${employee.full_name || employee.email}`); res.json(assignment);
 } catch (error) { next(error); } });
 
+registerManagerRoutes(app,{db,authenticate,adminOnly,fail});
 registerMembershipRoutes(app,{db,authenticate,adminOnly,fail});
 
 app.get('/v1/user-projects', authenticate, activeOnly, async (req, res, next) => { try { let request = db.from('user_projects').select('*'); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });

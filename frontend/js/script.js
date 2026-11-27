@@ -30,7 +30,7 @@ const AppState = {
 };
 window.AppState = AppState;
 
-const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), QueuedClockReviewsEnabled: Boolean(item.queued_clock_reviews_enabled), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
+const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, HasManagerAccess: Boolean(item.has_manager_access), Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), QueuedClockReviewsEnabled: Boolean(item.queued_clock_reviews_enabled), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
 // Render serves the real .html files, while these clean routes are resolved by
 // the Static Site rewrite rules. Keep every internal page link canonical.
 const cleanInternalRoute = value => {
@@ -1539,7 +1539,7 @@ function initializeAppShell() {
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['Work', [['time-entries.html', 'clock', 'My time entries'], ['remarks.html', 'remarks', 'Remarks'], ['holidays.html', 'calendar', 'Holidays']]],
+        ['Work', [...(AppState.currentUser?.HasManagerAccess ? [['client-dashboard', 'users', 'Team attendance']] : []), ['time-entries.html', 'clock', 'My time entries'], ['remarks.html', 'remarks', 'Remarks'], ['holidays.html', 'calendar', 'Holidays']]],
         ['Account', [['settings.html', 'settings', 'Settings']]]
     ];
     const groups = isAdmin ? adminGroups : employeeGroups;
