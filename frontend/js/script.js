@@ -34,7 +34,7 @@ const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: i
 // Render serves the real .html files, while these clean routes are resolved by
 // the Static Site rewrite rules. Keep every internal page link canonical.
 const cleanInternalRoute = value => {
-    const url = new URL(value, window.location.href);
+    const url = new URL(value, document.baseURI || window.location.href);
     if (url.origin !== window.location.origin || !/\.html$/i.test(url.pathname)) return value;
     url.pathname = url.pathname.replace(/\/index\.html$/i, '/').replace(/\.html$/i, '');
     return `${url.pathname}${url.search}${url.hash}`;
@@ -1432,10 +1432,10 @@ function installPageFadeNavigation() {
     };
 
     const navigateDashboardRoute = async (href, push = true) => {
-        const destination = new URL(href, window.location.href);
+        const destination = new URL(href, document.baseURI || window.location.href);
         const requiresHistory = /\/(?:time-entries|remarks)(?:\.html)?\/?$/i.test(destination.pathname);
         const employeeClockPage = /\/user-dashboard(?:\.html)?\/?$/i.test(destination.pathname);
-        if (navigating || employeeClockPage || (requiresHistory && AppState.employeeHistoryStatus !== 'ready') ||
+        if (navigating || employeeClockPage || document.body.dataset.workspacePage==='planning' || /\/shift-planning(?:\.html)?\/?$/i.test(destination.pathname) || (requiresHistory && AppState.employeeHistoryStatus !== 'ready') ||
             destination.origin !== window.location.origin || !document.body.classList.contains('has-app-shell')) {
             window.location.assign(destination.href);
             return;
@@ -1511,14 +1511,16 @@ function initializeAppShell() {
     const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
     // Render rewrites clean URLs to the deployed .html files. Normalize both
     // forms before selecting the application shell.
-    const file = routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
+    const isPlanning=document.body.dataset.workspacePage==='planning';
+    const isClient=isPlanning&&AppState.currentUser?.Role==='CLIENT';
+    const file = isPlanning?'shift-planning.html':routeName && !routeName.includes('.') ? `${routeName}.html` : routeName;
     const adminFiles = ['client-access.html', 'admin-dashboard.html', 'admin-management.html', 'employee-profile.html', 'time-entry-details.html', 'users.html', 'deleted-users.html', 'invitations.html', 'departments.html', 'projects.html', 'schedule-flex.html', 'admin-time-entries.html', 'deleted-time-entries.html', 'reports.html', 'individual-reports.html', 'audit-logs.html', 'chatbot-inquiry.html', 'queued-clock-reviews.html'];
     const employeeFiles = ['user-dashboard.html', 'time-entries.html', 'remarks.html', 'holidays.html', 'settings.html'];
-    if (AppState.currentUser?.Role === 'CLIENT') { window.location.replace('/client-dashboard'); return false; }
+    if (AppState.currentUser?.Role === 'CLIENT' && !isClient) { window.location.replace('/client-dashboard'); return false; }
     const isSharedSettings = file === 'settings.html';
-    const isAdmin = adminFiles.includes(file) || ((isSharedSettings || file === 'holidays.html') && AppState.currentUser?.Role === 'ADMIN');
-    const isEmployee = employeeFiles.includes(file) && !isAdmin;
-    if (!isAdmin && !isEmployee) return true;
+    const isAdmin = (isPlanning&&AppState.currentUser?.Role==='ADMIN') || adminFiles.includes(file) || ((isSharedSettings || file === 'holidays.html') && AppState.currentUser?.Role === 'ADMIN');
+    const isEmployee = (employeeFiles.includes(file)||isPlanning&&AppState.currentUser?.Role==='USER') && !isAdmin;
+    if (!isAdmin && !isEmployee && !isClient) return true;
     if (AppState.currentUser && isAdmin && AppState.currentUser.Role !== 'ADMIN') {
         window.location.replace('/user-dashboard');
         return false;
@@ -1542,18 +1544,21 @@ function initializeAppShell() {
         ['Work', [...(AppState.currentUser?.HasManagerAccess ? [['client-dashboard', 'users', 'Team attendance'], ['shift-planning/', 'calendar', 'Plan shifts']] : []), ['time-entries.html', 'clock', 'My time entries'], ['shift-planning/?mine=1', 'calendar', 'My shifts'], ['remarks.html', 'remarks', 'Remarks'], ['holidays.html', 'calendar', 'Holidays']]],
         ['Account', [['settings.html', 'settings', 'Settings']]]
     ];
-    const groups = isAdmin ? adminGroups : employeeGroups;
+    const clientGroups=[['Workspace',[['client-dashboard','dashboard','Employee attendance']]],['Work',[['shift-planning/','calendar','Plan shifts']]]];
+    const groups = isClient?clientGroups:isAdmin ? adminGroups : employeeGroups;
     const user = AppState.currentUser || { FullName: isAdmin ? 'ACE Administrator' : 'ACE Employee', Role: isAdmin ? 'ADMIN' : 'USER' };
     const initials = String(user.FullName || '').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
     const unreadRemarks = !isAdmin ? AppState.adminRemarks.filter(remark => !remark.SeenAt).length : 0;
-    const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const groupId = `shell-nav-group-${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => file === href); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}" aria-controls="${groupId}" aria-label="${open ? 'Collapse' : 'Expand'} ${groupLabel}"><span>${groupLabel}</span><b aria-hidden="true">${suppliedIconMarkup('chevron-right', 'shell-nav-group-chevron')}</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; const railButton = collapsible ? `<button class="shell-folded-group" type="button" title="${groupLabel}" aria-label="${groupLabel} pages" aria-expanded="false" aria-controls="shellGroupFlyout">${suppliedIconMarkup(groupLabel === 'People' ? 'hierarchy' : 'briefcase', 'shell-icon')}${suppliedIconMarkup('chevron-right', 'shell-folded-chevron')}</button>` : ''; return `<section class="shell-nav-group${collapsible ? ' shell-nav-group--collapsible' : ''}${hasActive ? ' has-active-route' : ''}${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}" data-group-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}${railButton}<div class="shell-nav-group-items" id="${groupId}"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
-        const active = file === href || (file === 'admin-management.html' && new URLSearchParams(location.search).get('view') === href.replace('.html', '').replace('admin-time-entries', 'entries').replace('audit-logs', 'audit'));
+    const minePlanning=isPlanning&&AppState.currentUser?.Role==='USER'&&(!AppState.currentUser.HasManagerAccess||new URLSearchParams(location.search).has('mine'));
+    const isActiveRoute=href=>isPlanning&&href.startsWith('shift-planning/')?(minePlanning?href.includes('mine=1'):!href.includes('mine=1')):file===href;
+    const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const groupId = `shell-nav-group-${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => isActiveRoute(href)); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}" aria-controls="${groupId}" aria-label="${open ? 'Collapse' : 'Expand'} ${groupLabel}"><span>${groupLabel}</span><b aria-hidden="true">${suppliedIconMarkup('chevron-right', 'shell-nav-group-chevron')}</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; const railButton = collapsible ? `<button class="shell-folded-group" type="button" title="${groupLabel}" aria-label="${groupLabel} pages" aria-expanded="false" aria-controls="shellGroupFlyout">${suppliedIconMarkup(groupLabel === 'People' ? 'hierarchy' : 'briefcase', 'shell-icon')}${suppliedIconMarkup('chevron-right', 'shell-folded-chevron')}</button>` : ''; return `<section class="shell-nav-group${collapsible ? ' shell-nav-group--collapsible' : ''}${hasActive ? ' has-active-route' : ''}${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}" data-group-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}${railButton}<div class="shell-nav-group-items" id="${groupId}"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
+        const active = isActiveRoute(href) || (file === 'admin-management.html' && new URLSearchParams(location.search).get('view') === href.replace('.html', '').replace('admin-time-entries', 'entries').replace('audit-logs', 'audit'));
         const remarkBadge = href === 'remarks.html' && unreadRemarks ? `<b class="shell-notification-badge" aria-label="${unreadRemarks} new administrator remark${unreadRemarks === 1 ? '' : 's'}">${unreadRemarks > 9 ? '9+' : unreadRemarks}</b>` : '';
         return `<a class="shell-link${active ? ' active' : ''}" href="${href}" title="${label}"${active ? ' aria-current="page"' : ''}>${icon(iconName)}<span class="shell-label">${label}</span>${remarkBadge}</a>`;
     }).join('')}</div></section>`; }).join('');
 
     document.body.classList.add('has-app-shell');
-    document.body.dataset.userRole = isAdmin ? 'admin' : 'employee';
+    document.body.dataset.userRole = isClient?'client':isAdmin ? 'admin' : 'employee';
     if (isSharedSettings && isAdmin) {
         const title = document.querySelector('.settings-title');
         const subtitle = document.querySelector('.settings-subtitle');
@@ -1563,7 +1568,7 @@ function initializeAppShell() {
     const sidebar = document.createElement('aside');
     sidebar.className = 'app-sidebar';
     sidebar.id = 'appSidebar';
-    sidebar.innerHTML = `<div class="shell-brand"><a href="${isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-account-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div>`;
+    sidebar.innerHTML = `<div class="shell-brand"><a href="${isClient?'/client-dashboard':isAdmin ? 'admin-dashboard.html' : 'user-dashboard.html'}" aria-label="ACE Outsource Solutions"><img src="assets/images/ace-logo-hd-cropped.png" alt="ACE Outsource Solutions"></a><button class="shell-collapse" type="button" aria-label="Collapse sidebar">${icon('chevron')}</button></div><nav class="shell-nav" aria-label="${isClient?'Client':isAdmin ? 'Administrator' : 'Employee'} navigation">${links}</nav><div class="shell-account-wrap"><button class="shell-account" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-user"><strong>${escapeHtml(user.FullName)}</strong><span>${isClient?'Client':isAdmin ? 'Administrator' : 'Employee'}</span></span>${suppliedIconMarkup('chevrons-up-down', 'shell-icon shell-account-menu-icon')}</button><div class="shell-account-menu" id="shellAccountMenu" role="menu" hidden><a href="${isClient?'/client-dashboard?account=1':'settings.html'}" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-account-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div>`;
     const sidebarUpdates = document.createElement('section');
     sidebarUpdates.className = 'shell-sidebar-updates';
     sidebarUpdates.setAttribute('aria-label', isAdmin ? 'Time-entry alerts' : 'Recent notifications');
@@ -1575,7 +1580,7 @@ function initializeAppShell() {
     mobileToggle.innerHTML = suppliedIconMarkup('menu', 'shell-icon');
     const topbar = document.createElement('header');
     topbar.className = 'shell-topbar';
-    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch" title="Search workspace (Ctrl+K)">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" role="combobox" aria-label="Search the workspace. Press Control K to focus." aria-keyshortcuts="Control+K Meta+K" aria-autocomplete="list" aria-expanded="false" aria-controls="shellGlobalResults" autocomplete="off" placeholder="${isAdmin ? 'Search workspace, people, projects…' : 'Search workspace, projects, help…'}"></label><div class="shell-global-results" id="shellGlobalResults" role="listbox" hidden></div></div><div class="shell-topbar-actions"><button class="shell-topbar-icon-button shell-theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode"></button><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('bell', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="settings.html" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
+    topbar.innerHTML = `<div class="shell-topbar-search-wrap"><label class="shell-topbar-search" for="shellGlobalSearch" title="Search workspace (Ctrl+K)">${suppliedIconMarkup('search', 'shell-icon')}<input id="shellGlobalSearch" type="search" role="combobox" aria-label="Search the workspace. Press Control K to focus." aria-keyshortcuts="Control+K Meta+K" aria-autocomplete="list" aria-expanded="false" aria-controls="shellGlobalResults" autocomplete="off" placeholder="${isAdmin ? 'Search workspace, people, projects…' : 'Search workspace, projects, help…'}"></label><div class="shell-global-results" id="shellGlobalResults" role="listbox" hidden></div></div><div class="shell-topbar-actions"><button class="shell-topbar-icon-button shell-theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode"></button><div class="shell-topbar-notification-wrap"><button class="shell-topbar-icon-button" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="shellNotificationMenu">${suppliedIconMarkup('bell', 'shell-icon')}<b class="shell-topbar-badge" hidden>0</b></button><div class="shell-topbar-menu shell-notification-menu" id="shellNotificationMenu" role="menu" hidden></div></div><div class="shell-topbar-account-wrap"><button class="shell-topbar-user-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="shellTopbarAccountMenu"><span class="shell-avatar">${user.ProfilePictureUrl ? `<img src="${escapeHtml(user.ProfilePictureUrl)}" alt="">` : escapeHtml(initials)}</span><span class="shell-topbar-user-name">${escapeHtml(user.FullName)}</span>${suppliedIconMarkup('chevron-down', 'shell-icon')}</button><div class="shell-topbar-menu shell-topbar-account-menu" id="shellTopbarAccountMenu" role="menu" hidden><a href="${isClient?'/client-dashboard?account=1':'settings.html'}" role="menuitem">${suppliedIconMarkup('settings', 'shell-icon')}<span>Profile &amp; settings</span></a><button type="button" role="menuitem" data-restart-tutorial>${suppliedIconMarkup('info', 'shell-icon')}<span>Restart tutorial</span></button><button type="button" role="menuitem" data-topbar-logout>${suppliedIconMarkup('log-out', 'shell-icon')}<span>Sign out</span></button></div></div></div>`;
     document.body.prepend(overlay); document.body.prepend(sidebar); document.body.prepend(topbar); document.body.prepend(mobileToggle);
 
     let employeeBottomNav = null;
@@ -1592,7 +1597,7 @@ function initializeAppShell() {
             employeeBottomNav.className = 'employee-bottom-nav';
             employeeBottomNav.setAttribute('aria-label', 'Employee mobile navigation');
             const navLink = ([href, iconName, label]) => `<a class="employee-bottom-nav-item${file === href ? ' is-active' : ''}" href="${href}"${file === href ? ' aria-current="page"' : ''}>${suppliedIconMarkup(iconName, 'shell-icon')}<span>${label}</span></a>`;
-            const moreIsActive = ['settings.html', 'holidays.html'].includes(file);
+            const moreIsActive = isPlanning||['settings.html', 'holidays.html'].includes(file);
             employeeBottomNav.innerHTML = `${navLink(bottomNavItems[0])}${navLink(bottomNavItems[1])}<button class="employee-bottom-nav-clock" type="button" data-mobile-clock-action aria-label="Open time actions">${suppliedIconMarkup('timer', 'shell-icon')}</button>${navLink(bottomNavItems[2])}<button class="employee-bottom-nav-item${moreIsActive ? ' is-active' : ''}" type="button" data-bottom-nav-more aria-label="Open navigation" aria-expanded="false"${moreIsActive ? ' aria-current="page"' : ''}>${suppliedIconMarkup('menu', 'shell-icon')}<span>More</span></button>`;
             document.body.append(employeeBottomNav);
         }
@@ -1777,6 +1782,7 @@ function initializeAppShell() {
         renderThemeToggle();
     });
     const renderNotifications = () => {
+        if(isClient){topbar.querySelector('.shell-topbar-notification-wrap').style.display='none';sidebarUpdates.hidden=true;return;}
         const reviewedRemarks = getReviewedAdminRemarkIds();
         const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt && (!isAdmin || !reviewedRemarks.has(String(remark.RemarkId))))
             .sort((a, b) => (Date.parse(b.CreatedAt) || 0) - (Date.parse(a.CreatedAt) || 0));
@@ -1819,11 +1825,12 @@ function initializeAppShell() {
         setTopbarMenu(topbarAccountButton, topbarAccountMenu, false);
         setTopbarMenu(notificationButton, notificationMenu, notificationMenu.hidden);
     });
-    const openWorkspaceHelp = mountWorkspaceHelp(AppState.currentUser?.Role === 'ADMIN');
+    const openWorkspaceHelp = isClient?()=>location.assign('/client-dashboard?account=1'):mountWorkspaceHelp(AppState.currentUser?.Role === 'ADMIN');
 
+    if(isClient){topbar.querySelector('.shell-topbar-search-wrap').hidden=true;document.querySelectorAll('[data-restart-tutorial]').forEach(button=>button.remove());}
     const searchInput = topbar.querySelector('#shellGlobalSearch');
     const searchResults = topbar.querySelector('.shell-global-results');
-    const workspaceSearchItems = isAdmin ? [
+    const workspaceSearchItems = isClient ? [['Employee attendance','Workspace','/client-dashboard','attendance hours'],['Plan shifts','Work','/shift-planning/','planning schedule']] : isAdmin ? [
         ['Dashboard', 'Workspace', 'admin-dashboard.html', 'dashboard home overview'],
         ['Invite user', 'People · Users tab', 'users.html', 'invite employee administrator email access'],
         ['Users', 'People · Manage accounts', 'users.html', 'people employees staff manage accounts'],
@@ -6092,6 +6099,7 @@ function hideSpinner() {
 // Start exactly once whether the script is parsed before or after DOM readiness.
 // This prevents a cached navigation transition from skipping application-shell setup.
 const startApp = () => {
+    if(document.body.dataset.workspacePage==='planning')return;
     initApp().catch(error => {
         console.error('Application startup failed.', error);
         if (document.querySelector('.shell-startup-warmup:not(.is-startup-complete)')) { showStartupConnectionError(); return; }
@@ -6185,3 +6193,16 @@ if (document.readyState === 'loading') {
 })();
 
 window.addEventListener('ace:projects-changed',async()=>{try{const projects=await window.ACEAuth.request('/v1/projects');AppState.projects=projects.map(projectRecord);}catch{/* Other views refresh their own data on navigation. */}});
+
+// Planning loads its own scoped data and reuses the same verified workspace navigation.
+window.ACEMountPlanningShell = profile => {
+ if(!profile||profile.status!=='ACTIVE')return false;
+ AppState.currentUser=profileRecord(profile);AppState.isAuthenticated=true;AppState.users=[AppState.currentUser];
+ applyStoredAppearance();const mounted=initializeAppShell();
+ if(profile.role==='USER'){
+  const clock=document.querySelector('[data-mobile-clock-action]');
+  clock?.addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();location.assign('/user-dashboard');},true);
+  window.ACEAuth.request('/v1/admin-remarks').then(rows=>{AppState.adminRemarks=rows.map(adminRemarkRecord);window.ACERenderNotifications?.();}).catch(()=>{});
+ }
+ document.body.classList.remove('app-shell-pending');return mounted;
+};

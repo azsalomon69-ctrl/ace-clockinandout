@@ -374,7 +374,7 @@
             if (!['CLIENT','USER'].includes(profile.role)) { window.location.replace(profile.role === 'ADMIN' ? '/admin-dashboard' : '/user-dashboard'); return; }
             if (profile.status !== 'ACTIVE') { showState('error', 'Your account is not active. Contact your administrator.'); return; }
             if(profile.role==='USER'){document.querySelector('.client-brand small').textContent='Manager account';document.querySelector('.client-account-label small').textContent='Manager';document.querySelector('.client-menu-identity small').textContent='Campaign manager';const back=document.createElement('a');back.href='/user-dashboard';back.className='client-manager-back';back.textContent='My dashboard';$('clientAccountMenu').appendChild(back);}
-            updateAccountIdentity(profile);
+            updateAccountIdentity(profile);if(window.location.search&&new URLSearchParams(window.location.search).get('account')==='1')$('clientAccountDialog').showModal();
             await refresh();
         } catch (e) { showState('error', 'Sign in again to view employee attendance.'); }
     })();
