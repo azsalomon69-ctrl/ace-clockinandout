@@ -17,7 +17,7 @@ test('no assigned projects shows a real empty state and never requests attendanc
  const h=harness();await settle();assert.equal(h.elements.get('clientStateTitle').textContent,'No employees to display');assert.equal(h.elements.get('clientStateHelp').hidden,false);assert.equal(h.elements.get('clientWorkspace').hidden,true);assert.equal(h.elements.get('clientStateAction').hidden,false);assert.ok(!h.calls.includes('/v1/client/attendance/search'));assert.equal(h.elements.get('clientCsv').disabled,true);
 });
 test('no active shifts and empty history have separate messages and useful actions',async()=>{
- const h=harness({projects:[{id:'a',name:'Project A',is_active:true}]});await settle();assert.equal(h.elements.get('clientEmptyTitle').textContent,'No employees clocked in');assert.equal(h.elements.get('clientEmptyAction').textContent,'View history');assert.equal(h.elements.get('clientTableScroll').hidden,true);assert.equal(h.elements.get('clientCsv').disabled,true);
+ const h=harness({projects:[{id:'a',name:'Project A',is_active:true}]});await settle();assert.equal(h.elements.get('clientEmptyTitle').textContent,'No shifts to display');assert.equal(h.elements.get('clientEmptyAction').textContent,'View history');assert.equal(h.elements.get('clientTableScroll').hidden,true);assert.equal(h.elements.get('clientCsv').disabled,true);
  h.elements.get('clientEmptyAction').click();await settle();assert.equal(h.elements.get('clientEmptyTitle').textContent,'No time entries');assert.equal(h.elements.get('clientEmptyAction').textContent,'Reset filters');
 });
 test('failed requests show retry state and retry can recover without a reload',async()=>{
@@ -56,7 +56,7 @@ test('date shortcuts use Philippine calendar dates and allow custom dates',async
 });
 test('employee totals render server aggregates rather than summing the current page',async()=>{
  const h=harness({projects:[{id:'p',name:'Support',is_active:true}],data:{items:[{user_id:'u',employee_name:'Alex Reyes',project_names:['Support','Operations'],shifts:50,active:1,worked_seconds:180000}],total:1,shifts:50,employees:1,active:1,worked_seconds:180000,employee_options:[{id:'u',name:'Alex Reyes'}]}});await settle();
- h.elements.get('clientView').value='employees';h.elements.get('clientView').handlers.change();await settle();
+ h.elements.get('clientHistory').click();await settle();h.elements.get('clientView').value='employees';h.elements.get('clientView').handlers.change();await settle();
  assert.equal(h.elements.get('clientShifts').textContent,50);assert.ok(h.elements.get('clientRows').innerHTML.includes('50h 0m'));assert.ok(h.elements.get('clientTableHead').innerHTML.includes('Shifts'));
 });
 
@@ -68,3 +68,5 @@ test('planning link appears only for View & plan and disappears after downgrade'
  const h=harness({projects:[{id:'a',name:'Support',access_level:'VIEW_PLAN'}]});await settle();assert.equal(h.elements.get('clientPlanShifts').hidden,false);
  h.state.projects=[{id:'a',name:'Support',access_level:'VIEW'}];h.elements.get('clientRefresh').click();await settle();assert.equal(h.elements.get('clientPlanShifts').hidden,true);
 });
+
+test('live planning totals and missing clock-ins are rendered without false active rows',async()=>{const h=harness({projects:[{id:'p',name:'Support'}],data:{items:[{id:'planned',user_id:'u',employee_name:'Alex',project_name:'Support',clock_in_at:null,clock_out_at:null,planned_start_at:'2026-11-27T00:00Z',planned_end_at:'2026-11-27T08:00Z',attendance_status:'NO_SHOW',worked_seconds:0,activities:[]}],total:1,employees:4,active:2,not_arrived:3,late:1,finished_today:5,worked_seconds:3600}});await settle();assert.equal(h.elements.get('clientEmployees').textContent,2);assert.equal(h.elements.get('clientShifts').textContent,3);assert.equal(h.elements.get('clientWorked').textContent,1);assert.equal(h.elements.get('clientActive').textContent,5);assert.ok(h.elements.get('clientRows').innerHTML.includes('No-show'));assert.ok(!h.elements.get('clientRows').innerHTML.includes('In progress'));assert.ok(h.elements.get('clientRows').innerHTML.includes('data-label="Planned"'));});

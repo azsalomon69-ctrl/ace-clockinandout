@@ -8,6 +8,8 @@ export function clientFilters(body = {}, exporting = false) {
  if(projects!==null&&(!Array.isArray(projects)||projects.length>100||projects.some(id=>!uuid(id))))return null;
  if(!day(body.from)||!day(body.to)||body.to<body.from||(Date.parse(body.to)-Date.parse(body.from))/86400000>366)return null;
  const status=body.status||null,page=body.page??1;
+ if(body.reporting!==undefined&&body.reporting!=='PLANNED')return null;
+ if(body.attendanceStatus!=null&&!['ON_TIME','LATE','NO_SHOW','UNSCHEDULED','PLANNED','WAITING'].includes(body.attendanceStatus))return null;
  if(![null,'ACTIVE','COMPLETED'].includes(status)||!Number.isInteger(page)||page<1||page>100000)return null;
  return {p_projects:projects===null?null:[...new Set(projects)],p_from:body.from,p_to:body.to,p_status:status,p_page:exporting?1:page,p_size:exporting?10000:25,p_employee:body.employeeId||null,p_view:body.view||'shifts'};
 }
@@ -21,7 +23,8 @@ export function registerClientRoutes(app,{db,authenticate,adminOnly,fail,audit})
   throw error;
  };
  const freshRead=async(req,args)=>{
-  const {data,error}=await db.rpc('client_attendance_v2',{p_actor:req.profile.id,...args});
+  const planned=req.body.reporting==='PLANNED';
+  const {data,error}=await db.rpc(planned?'client_attendance_v3':'client_attendance_v2',{p_actor:req.profile.id,...args,...(planned?{p_attendance:req.body.attendanceStatus||null}:{})});
   if(error)throw error;
   return data;
  };
@@ -46,9 +49,11 @@ export function registerClientRoutes(app,{db,authenticate,adminOnly,fail,audit})
    await audit(req,'CLIENT_EXPORT','REPORT',null,'Exported authorized attendance as activity-based PDF');
    return res.set('Cache-Control','no-store').json({...data,export_view:args.p_view,from:args.p_from,to:args.p_to,activity_items:detail.items});
   }
+  const planned=req.body.reporting==='PLANNED';
   const rows=summary?[['Employee','Projects','Shifts','Working now','Worked seconds']]:[['Employee','Project','Clock in (Philippine time)','Clock out (Philippine time)','Worked seconds','Status','Recorded activities']];
   const time=value=>value?new Date(value).toLocaleString('en-GB',{timeZone:'Asia/Manila',hour12:false}):'';
   for(const row of data.items)if(summary)rows.push([safeSpreadsheetText(row.employee_name),safeSpreadsheetText((row.project_names||[]).join('; ')),row.shifts,row.active,row.worked_seconds]);else rows.push([safeSpreadsheetText(row.employee_name),safeSpreadsheetText(row.project_name),time(row.clock_in_at),time(row.clock_out_at),row.worked_seconds,row.clock_out_at?'Completed':'Active',safeSpreadsheetText(row.activities.map(a=>a.description+' ('+(a.ended_at?Number(a.duration_seconds)||0:Math.max(0,Math.floor((Date.now()-Date.parse(a.started_at))/1000)))+' seconds)').join('; '))]);
+  if(planned){const columns=summary?['Planned seconds','Late arrivals','Absences']:['Planned start (Philippine time)','Planned end (Philippine time)','Difference minutes','Attendance status'];rows[0].push(...columns);data.items.forEach((row,i)=>rows[i+1].push(...(summary?[row.planned_seconds||0,row.late||0,row.absences||0]:[time(row.planned_start_at),time(row.planned_end_at),row.difference_minutes??'',row.attendance_status||''])));if(!summary)data.items.forEach((row,i)=>{if(!row.clock_in_at)rows[i+1][5]='Not clocked in';});}
   await audit(req,'CLIENT_EXPORT','REPORT',null,`Exported ${data.total} authorized shifts as ${format}`);
   res.set('Cache-Control','no-store').attachment('client-attendance.'+format.toLowerCase());
   if(format==='CSV')return res.type('text/csv').send('\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\r\n'));

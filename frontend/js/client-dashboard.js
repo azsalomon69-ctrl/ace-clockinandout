@@ -15,10 +15,16 @@
         return '<span class="client-cell-date">' + escape(date.toLocaleDateString('en-GB', { timeZone: 'Asia/Manila', day: '2-digit', month: 'short', year: 'numeric' })) + '</span><span class="client-cell-time">' + escape(date.toLocaleTimeString('en-GB', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit' })) + '</span>';
     };
     const day = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+    const attendanceLabels={ON_TIME:'On time',LATE:'Late',NO_SHOW:'No-show',UNSCHEDULED:'Unscheduled',PLANNED:'Scheduled',WAITING:'Not arrived'};
+    const attendanceBadge = r => '<span class="client-attendance-status client-attendance-'+escape((r.attendance_status||'').toLowerCase())+'">'+escape(attendanceLabels[r.attendance_status]||'Unscheduled')+'</span>'+(r.clock_in_at?'<span class="client-cell-time">'+(r.clock_out_at?'Completed':'On shift')+(r.attendance_status==='LATE'?' · '+Math.max(0,Number(r.arrival_difference_minutes)||0)+' min late':'')+'</span>':'');
+    const plannedTime = r => r.planned_start_at ? '<span class="client-cell-date">'+escape(time(r.planned_start_at))+'</span><span class="client-cell-time">to '+escape(time(r.planned_end_at))+'</span>' : '<span class="client-muted">No planned shift</span>';
+    const difference = r => r.difference_minutes == null ? '—' : (r.difference_minutes>0?'+':'')+r.difference_minutes+' min';
+    const tableLabels = summary => summary ? ['Employee','Projects','Shifts','Working now','Worked','Planned','Late','Absences'] : ['Employee','Project','Planned','Clock in','Clock out','Worked','Difference','Status','Activities'];
+    const actualTime=(r,end=false)=>!r.clock_in_at?'<span class="client-muted">—</span>':displayTime(end?r.clock_out_at:r.clock_in_at);
     let selectedProjects = [], projectsList = [], skeletonRowCount = 3;
     let mode = 'ACTIVE', page = 1, total = 0, rows = [], generation = 0, busy = false, hasAccess = false;
 
-    const filters = () => ({ from: $('clientFrom').value, to: $('clientTo').value, status: mode, projectIds: selectedProjects.length ? selectedProjects : undefined, employeeId: $('clientEmployee').value || undefined, view: $('clientView').value || 'shifts', page });
+    const filters = () => ({ from: $('clientFrom').value, to: $('clientTo').value, status: mode, projectIds: selectedProjects.length ? selectedProjects : undefined, employeeId: $('clientEmployee').value || undefined, view: $('clientView').value || 'shifts', reporting:'PLANNED', attendanceStatus:$('clientAttendanceStatus').value||undefined, page });
     const exportEnabled = enabled => { $('clientPdf').disabled = $('clientCsv').disabled = $('clientExcel').disabled = !enabled; };
     const clear = () => {
         rows = []; total = 0; $('clientPlanShifts').hidden=true;
@@ -50,7 +56,7 @@
         $('clientResultLoading').hidden = true;
         if (loading) {
             window.ACEClientDates?.close();
-            const labels = $('clientView').value === 'employees' ? ['Employee','Projects','Shifts','Working now','Worked'] : ['Employee','Project','Clock in','Clock out','Worked','Activities'];
+            const labels = tableLabels($('clientView').value === 'employees');
             $('clientTableHead').innerHTML = '<tr>' + labels.map(label => '<th>' + label + '</th>').join('') + '</tr>';
             $('clientRows').innerHTML = Array.from({length:skeletonRowCount}, () => '<tr class="client-skeleton-table-row" aria-hidden="true">' + labels.map((label,i) => '<td data-label="' + label + '"><span class="client-skeleton-cell' + (i===0 ? ' client-skeleton-person' : '') + '"></span></td>').join('') + '</tr>').join('');
             $('clientTableScroll').hidden = false; $('clientResultEmpty').hidden = true; $('clientPagination').hidden = false;
@@ -61,19 +67,19 @@
     const employeeName = row => '<button type="button" class="client-employee-link" data-employee="' + escape(row.user_id) + '">' + escape(row.employee_name || 'Employee') + '</button>';
     function renderResults(data) {
         rows = data.items; total = data.total; skeletonRowCount = Math.min(10, Math.max(1, rows.length || 3));
-        $('clientEmployees').textContent = data.employees;
-        $('clientShifts').textContent = data.shifts ?? total;
-        $('clientActive').textContent = data.active;
-        $('clientWorked').textContent = hours(data.worked_seconds);
+        $('clientEmployees').textContent = mode==='ACTIVE'?data.active:data.employees;
+        $('clientShifts').textContent = mode==='ACTIVE'?(data.not_arrived||0):(data.shifts??total);
+        $('clientActive').textContent = mode==='ACTIVE'?(data.finished_today||0):data.active;
+        $('clientWorked').textContent = mode==='ACTIVE'?(data.late||0):hours(data.worked_seconds);
         const summary = $('clientView').value === 'employees';
-        $('clientTableHead').innerHTML = '<tr>' + (summary ? ['Employee','Projects','Shifts','Working now','Worked'] : ['Employee','Project','Clock in','Clock out','Worked','Activities']).map(label => '<th>' + label + '</th>').join('') + '</tr>';
-        $('clientRows').innerHTML = summary ? rows.map(r => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span>' + employeeName(r) + '</div></td><td data-label="Projects"><span class="client-project-tag">' + escape((r.project_names || []).join(', ')) + '</span></td><td data-label="Shifts">' + Number(r.shifts) + '</td><td data-label="Working now">' + Number(r.active) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td></tr>').join('') : rows.map((r, i) => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span>' + employeeName(r) + '</div></td><td data-label="Project"><span class="client-project-tag">' + escape(r.project_name) + '</span></td><td data-label="Clock in">' + displayTime(r.clock_in_at) + '</td><td data-label="Clock out">' + displayTime(r.clock_out_at) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td><td data-label="Activities">' + (r.activities.length ? '<button class="entry-activity-trigger" type="button" data-activities="' + i + '">' + r.activities.length + ' activit' + (r.activities.length === 1 ? 'y' : 'ies') + '</button>' : '—') + '</td></tr>').join('');
+        $('clientTableHead').innerHTML = '<tr>' + tableLabels(summary).map(label => '<th>' + label + '</th>').join('') + '</tr>';
+        $('clientRows').innerHTML = summary ? rows.map(r => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span>' + employeeName(r) + '</div></td><td data-label="Projects"><span class="client-project-tag">' + escape((r.project_names || []).join(', ')) + '</span></td><td data-label="Shifts">' + Number(r.shifts) + '</td><td data-label="Working now">' + Number(r.active) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td><td data-label="Planned">'+hours(r.planned_seconds||0)+'</td><td data-label="Late">'+Number(r.late||0)+'</td><td data-label="Absences">'+Number(r.absences||0)+'</td></tr>').join('') : rows.map((r, i) => '<tr><td data-label="Employee"><div class="client-person"><span class="client-person-avatar" aria-hidden="true">' + employeeAvatar(r) + '</span>' + employeeName(r) + '</div></td><td data-label="Project"><span class="client-project-tag">' + escape(r.project_name) + '</span></td><td data-label="Planned">'+plannedTime(r)+'</td><td data-label="Clock in">' + actualTime(r) + '</td><td data-label="Clock out">' + actualTime(r,true) + '</td><td data-label="Worked"><span class="client-duration">' + hours(r.worked_seconds) + '</span></td><td data-label="Difference">'+escape(difference(r))+'</td><td data-label="Status">'+attendanceBadge(r)+'</td><td data-label="Activities">' + (r.activities.length ? '<button class="entry-activity-trigger" type="button" data-activities="' + i + '">' + r.activities.length + ' activit' + (r.activities.length === 1 ? 'y' : 'ies') + '</button>' : '—') + '</td></tr>').join('');
         $('clientTableScroll').hidden = !rows.length;
         $('clientPagination').hidden = !rows.length;
         $('clientResultEmpty').hidden = Boolean(rows.length);
         if (!rows.length) {
-            $('clientEmptyTitle').textContent = mode === 'ACTIVE' ? 'No employees clocked in' : 'No time entries';
-            $('clientEmptyDescription').textContent = mode === 'ACTIVE' ? 'Active shifts will appear here when employees clock in to your assigned projects.' : 'There are no entries for the selected project and dates. Try another project or date range.';
+            $('clientEmptyTitle').textContent = mode === 'ACTIVE' ? 'No shifts to display' : 'No time entries';
+            $('clientEmptyDescription').textContent = mode === 'ACTIVE' ? 'Today’s scheduled shifts and employees working now will appear here. Try another filter or check again later.' : 'There are no entries for the selected project and dates. Try another project or date range.';
             $('clientEmptyAction').textContent = mode === 'ACTIVE' ? 'View history' : 'Reset filters';
         }
         $('clientPage').textContent = 'Page ' + page + ' of ' + Math.max(1, Math.ceil(total / 25));
@@ -157,8 +163,8 @@
             const person = data.items[0];
             $('clientEmployeeTitle').textContent = person.employee_name || 'Employee';
             $('clientEmployeeIdentity').innerHTML = '<span class="client-person-avatar">' + employeeAvatar(person) + '</span><div><strong>' + escape(person.employee_name || 'Employee') + '</strong><span>Attendance in projects shared with your account</span></div>';
-            $('clientEmployeeStats').innerHTML = [['Shifts',data.shifts ?? data.total],['Worked time',hours(data.worked_seconds)],['Working now',data.active]].map(([label,value]) => '<article><div><span>' + label + '</span><strong>' + escape(value) + '</strong></div></article>').join('');
-            $('clientEmployeeRows').innerHTML = data.items.map(row => '<tr><td data-label="Project"><span class="client-project-tag">' + escape(row.project_name) + '</span></td><td data-label="Clock in">' + displayTime(row.clock_in_at) + '</td><td data-label="Clock out">' + displayTime(row.clock_out_at) + '</td><td data-label="Worked">' + hours(row.worked_seconds) + '</td><td data-label="Activities"><div class="client-profile-activities">' + (row.activities || []).map(a => '<div><span>' + escape(a.description) + '</span><time>' + activityClock(a.ended_at ? a.duration_seconds : (Date.now()-Date.parse(a.started_at))/1000) + '</time></div>').join('') + '</div></td></tr>').join('');
+            $('clientEmployeeStats').innerHTML = [['Shifts',data.shifts ?? data.total],['Worked time',hours(data.worked_seconds)],['Working now',data.active],['Late',data.late||0],['Absences',data.absences||0]].map(([label,value]) => '<article><div><span>' + label + '</span><strong>' + escape(value) + '</strong></div></article>').join('');
+            $('clientEmployeeRows').innerHTML = data.items.map(row => '<tr><td data-label="Project"><span class="client-project-tag">' + escape(row.project_name) + '</span></td><td data-label="Planned">'+plannedTime(row)+'</td><td data-label="Clock in">' + actualTime(row) + '</td><td data-label="Clock out">' + actualTime(row,true) + '</td><td data-label="Worked">' + hours(row.worked_seconds) + '</td><td data-label="Status">'+attendanceBadge(row)+'</td><td data-label="Difference">'+escape(difference(row))+'</td><td data-label="Activities"><div class="client-profile-activities">' + (row.activities || []).map(a => '<div><span>' + escape(a.description) + '</span><time>' + activityClock(a.ended_at ? a.duration_seconds : (Date.now()-Date.parse(a.started_at))/1000) + '</time></div>').join('') + '</div></td></tr>').join('');
             $('clientEmployeeStatus').textContent = ''; $('clientEmployeeContent').hidden = false;
             $('clientEmployeePage').textContent = 'Page ' + employeeProfilePage + ' of ' + Math.max(1, Math.ceil(data.total / 25));
             $('clientEmployeePrevious').disabled = employeeProfilePage <= 1; $('clientEmployeeNext').disabled = employeeProfilePage * 25 >= data.total;
@@ -185,15 +191,15 @@
         if (data.export_view === 'employees') {
             const block = section('Employee totals'),total = add('p','',block); add('strong','Total worked: ',total); total.append(document.createTextNode(hours(data.worked_seconds)));
             const table = add('table','',block), head = add('tr','',add('thead','',table)), body = add('tbody','',table);
-            ['Employee','Projects','Shifts','Working now','Worked'].forEach(text => add('th',text,head));
-            data.items.forEach(row => { const tr = add('tr','',body); [row.employee_name,(row.project_names || []).join(', '),row.shifts,row.active,hours(row.worked_seconds)].forEach(text => add('td',String(text ?? ''),tr)); });
+            tableLabels(true).forEach(text => add('th',text,head));
+            data.items.forEach(row => { const tr = add('tr','',body); [row.employee_name,(row.project_names || []).join(', '),row.shifts,row.active,hours(row.worked_seconds),hours(row.planned_seconds||0),row.late||0,row.absences||0].forEach(text => add('td',String(text ?? ''),tr)); });
         }
         const block = section('Time entry details'),total = add('p','',block); add('strong','Total worked: ',total); total.append(document.createTextNode(hours(data.worked_seconds)));
         const table = add('table','',block), head = add('tr','',add('thead','',table)), body = add('tbody','',table);
-        ['Employee','Project','Clock in','Clock out','Worked','Status'].forEach(text => add('th',text,head));
+        ['Employee','Project','Planned','Clock in','Clock out','Worked','Difference','Status'].forEach(text => add('th',text,head));
         (data.activity_items || []).forEach(row => {
-            const tr = add('tr','',body); [row.employee_name,row.project_name,time(row.clock_in_at),row.clock_out_at ? time(row.clock_out_at) : 'Active',row.clock_out_at ? hours(row.worked_seconds) : activityClock(row.worked_seconds) + ' · Active',row.clock_out_at ? 'Completed' : 'Active'].forEach(text => add('td',text,tr));
-            if (row.activities?.length) { const activityRow = add('tr','',body,'print-activity-row'),cell = add('td','',activityRow); cell.colSpan = 6;
+            const tr = add('tr','',body); [row.employee_name,row.project_name,row.planned_start_at?time(row.planned_start_at)+' – '+time(row.planned_end_at):'—',row.clock_in_at?time(row.clock_in_at):'—',row.clock_out_at?time(row.clock_out_at):row.clock_in_at?'Active':'—',hours(row.worked_seconds),difference(row),attendanceLabels[row.attendance_status]||'Unscheduled'].forEach(text => add('td',text,tr));
+            if (row.activities?.length) { const activityRow = add('tr','',body,'print-activity-row'),cell = add('td','',activityRow); cell.colSpan = 8;
                 row.activities.forEach(a => { const line = add('div','',cell,'print-activity-line'); add('span',row.project_name || 'No project',line); add('span',a.description,line); add('span',activityClock(a.ended_at ? a.duration_seconds : (Date.now()-Date.parse(a.started_at))/1000) + (a.ended_at ? '' : ' · Active'),line); });
             }
         });
@@ -226,19 +232,21 @@
         $('clientFrom').value = from.toISOString().slice(0,10); $('clientTo').value = to.toISOString().slice(0,10); window.ACEClientDates?.refresh();
     });
     for (const id of ['clientFrom','clientTo']) $(id).addEventListener('change', () => { $('clientPeriod').value = 'custom'; $('clientPeriod')._aceSelectRefresh?.(); });
+    function updateMetricLabels(){const labels=mode==='ACTIVE'?['On shift','Not arrived','Late','Finished today']:['Employees','Shifts','Worked time','Working now'];document.querySelectorAll('#clientWorkspace>.client-stats article>div>span').forEach((node,i)=>node.textContent=labels[i]);}
+    updateMetricLabels();
     $('clientFrom').value = day().slice(0, 8) + '01'; $('clientTo').value = day();
     $('clientFilters').addEventListener('submit', e => { e.preventDefault(); $('clientProjectPicker').open = false; page = 1; void refresh(); });
     $('clientRefresh').addEventListener('click', () => void refresh());
     $('clientStateAction').addEventListener('click', () => void refresh());
     for (const [id, value] of [['clientNow', 'ACTIVE'], ['clientHistory', null]]) $(id).addEventListener('click', () => {
-        mode = value; page = 1;
+        mode = value; page = 1; updateMetricLabels();
         for (const tab of ['clientNow', 'clientHistory']) { $(tab).classList.toggle('is-active', tab === id); $(tab).setAttribute('aria-pressed', String(tab === id)); }
         document.querySelectorAll('[data-history]').forEach(el => el.hidden = mode === 'ACTIVE');
         $('clientTableTitle').textContent = mode ? 'Working now' : 'Attendance history'; void refresh();
     });
     $('clientEmptyAction').addEventListener('click', () => {
         if (mode === 'ACTIVE') { $('clientHistory').click(); return; }
-        selectedProjects = []; $('clientEmployee').value = ''; $('clientPeriod').value = 'month'; $('clientPeriod')._aceSelectRefresh?.(); $('clientFrom').value = day().slice(0, 8) + '01'; $('clientTo').value = day(); window.ACEClientDates?.refresh(); page = 1; void refresh();
+        selectedProjects = []; $('clientEmployee').value = ''; $('clientAttendanceStatus').value='';$('clientAttendanceStatus')._aceSelectRefresh?.(); $('clientPeriod').value = 'month'; $('clientPeriod')._aceSelectRefresh?.(); $('clientFrom').value = day().slice(0, 8) + '01'; $('clientTo').value = day(); window.ACEClientDates?.refresh(); page = 1; void refresh();
     });
     $('clientPrevious').addEventListener('click', () => { if (page > 1) { page--; void refresh(); } });
     $('clientNext').addEventListener('click', () => { if (page * 25 < total) { page++; void refresh(); } });
@@ -259,7 +267,7 @@
     $('clientRows').addEventListener('error', event => {
         const image = event.target;
         if (!image.matches?.('.client-person-avatar img')) return;
-        const name = image.closest('.client-person').querySelector('strong').textContent;
+        const name = image.closest('.client-person').querySelector('[data-employee]').textContent;
         image.parentNode.textContent = name.trim().split(/\s+/).map(part => Array.from(part)[0]).slice(0, 2).join('');
     }, true);
     let activityOpenTimer, activityCloseTimer;

@@ -213,3 +213,8 @@ html[data-theme="dark"] .client-page .client-table-panel td{background:transpare
 html[data-theme="dark"] body.client-page #clientResults tbody tr:nth-child(n){background:var(--ace-surface)!important}
 html[data-theme="dark"] body.client-page #clientResults tbody tr:hover{background:var(--ace-accent-muted)!important}
 html[data-theme="dark"] body.client-page #clientResults tbody td{background:transparent!important}
+
+/* Planned attendance retains the compact ACE table and existing theme tokens. */
+#clientResults table{min-width:1120px}.client-attendance-status{display:inline-flex;align-items:center;padding:4px 7px;border:1px solid var(--ace-border);border-radius:5px;font-size:10px;line-height:1.4;white-space:nowrap;background:var(--ace-surface-raised);color:var(--ace-text-secondary)}.client-attendance-late,.client-attendance-no_show{color:var(--ace-text-primary);border-left:3px solid #d65555}.client-attendance-on_time{border-left:3px solid #289d83}.client-attendance-waiting,.client-attendance-planned{border-left:3px solid var(--ace-accent)}.client-muted{color:var(--ace-text-secondary);font-size:11px}#clientEmployeeDialog table{min-width:1000px}
+@media(max-width:600px){#clientResults table,#clientEmployeeDialog table{min-width:0}}
+@media(min-width:601px){.client-page #clientResults table{table-layout:auto}.client-page #clientResults table th:nth-child(n){width:auto}.client-page #clientResults td{white-space:nowrap;overflow-wrap:normal}.client-page #clientResults td[data-label="Project"],.client-page #clientResults td[data-label="Projects"]{max-width:200px;white-space:normal;overflow-wrap:anywhere}}
