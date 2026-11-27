@@ -1785,7 +1785,7 @@ function initializeAppShell() {
         if(shiftUpdates)notices.unshift({href:'shift-planning/?mine=1',title:shiftUpdates+' shift update'+(shiftUpdates===1?'':'s'),preview:'View published, changed and cancelled shifts.',iconName:'calendar-days'});
         const renderNotice = ({ href, title, preview, iconName='message-circle-more' }, role = '') => `<a class="shell-notification-item shell-remark-notice" href="${href}"${role}><span class="shell-notification-item-icon">${suppliedIconMarkup(iconName, 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(preview)}</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`;
         const countLabel = total ? `<span class="shell-notification-count">${unreadLabel} new</span>` : '';
-        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>No unread feedback.</span></div>`;
+        const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>No unread feedback or shift updates.</span></div>`;
         const viewAll = `<a class="shell-sidebar-updates-link" href="${feedbackList}">View all feedback ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a>`;
         notificationMenu.innerHTML = `<div class="shell-notification-header"><p class="shell-topbar-menu-title">Notifications</p>${countLabel}</div><div class="shell-notification-list">${total ? notices.map(notice => renderNotice(notice, ' role="menuitem"')).join('') : emptyState}</div><a class="shell-sidebar-updates-link" href="${feedbackList}" role="menuitem">View all feedback ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a>`;
         if (isAdmin) return;
@@ -6185,3 +6185,5 @@ window.ACEMountPlanningShell = profile => {
  }
  document.body.classList.remove('app-shell-pending');return mounted;
 };
+
+window.ACEUpdateShiftUnread=count=>{if(AppState.currentUser?.Role!=='USER')return;AppState.currentUser.UnreadShiftUpdates=Math.max(0,Number(count)||0);try{localStorage.setItem('ace_current_user',JSON.stringify(AppState.currentUser));}catch{}window.ACERenderNotifications?.();};
