@@ -143,12 +143,16 @@ async function buildPages(assetMap) {
     const withProductionAssets = source.replace(/\b(src|href)=(['"])((?:\.\/|\/)?(?:js|css)\/[^?'"\s]+)(?:\?[^'"]*)?\2/gi, (match, attribute, quote, sourcePath) => {
       const normalized = sourcePath.replace(/^(?:\.\/|\/)/, '');
       const target = assetMap.get(normalized);
-      return target ? `${attribute}=${quote}${sourcePath.startsWith('/') ? '/' : ''}${target}${quote}` : match;
+      if(!target)return match;
+      const name=path.posix.basename(normalized),modules={'deleted-users.js':'archived-users','schedule-flex.js':'work-hours','deleted-time-entries.js':'deleted-entries','individual-reports.js':'individual-reports','employee-profile.js':'employee-profile','client-access-admin.js':'client-access','admin-sections.js':'admin-sections','shift-planning.js':'shift-planning'};
+      const globals={'api-config.js':'core','supabase.js':'core','supabase-auth.js':'core','sidebar.js':'core','script.js':'core','xlsx.js':'core','initial-skeletons.js':'core','select-controls.js':'select','client-date-controls.js':'calendar','onboarding-config.js':'onboarding-config','onboarding.js':'onboarding'};
+      const tag=attribute==='src'?(modules[name]?' data-ace-module="'+modules[name]+'"':globals[name]?' data-ace-global="'+globals[name]+'"':''):name==='shift-planning.css'?' data-ace-style="planning"':'';
+      return attribute+'='+quote+(sourcePath.startsWith('/')?'/':'')+target+quote+tag;
     });
     const xlsxTarget = assetMap.get('js/xlsx.js');
     const appScriptTarget = assetMap.get('js/script.js');
     const withXlsxBundle = source.includes('js/script.js')
-      ? withProductionAssets.replace(`<script src="${appScriptTarget}"></script>`, `<script src="${xlsxTarget}"></script><script src="${appScriptTarget}"></script>`)
+      ? withProductionAssets.replace(`<script src="${appScriptTarget}"`, `<script src="${xlsxTarget}" data-ace-global="core"></script><script src="${appScriptTarget}"`)
       : withProductionAssets;
     const deduplicatedScripts = deduplicateAssetScripts(withXlsxBundle);
     const output = await minifyHtml(deduplicatedScripts, {

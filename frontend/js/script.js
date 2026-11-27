@@ -1017,6 +1017,7 @@ function initializeResponsiveTables() {
 }
 
 function isPublicRoute() {
+    if(document.body.dataset.workspacePage==='planning')return false;
     const routeName = (window.location.pathname.split('/').pop() || '').toLowerCase();
     return !routeName || routeName === 'index.html' || routeName === 'login.html' || routeName === 'index' || routeName === 'login';
 }
@@ -1329,39 +1330,26 @@ function installPageFadeNavigation() {
     if (document.body.dataset.pageFadeReady === 'true') return;
     document.body.dataset.pageFadeReady = 'true';
     let navigating = false;
-    const routeModules = {
-        'deleted-users.js': 'mountDeletedUsers',
-        'schedule-flex.js': 'mountScheduleFlex',
-        'deleted-time-entries.js': 'mountDeletedTimeEntries',
-        'individual-reports.js': 'mountIndividualReports',
-        'employee-profile.js': 'mountEmployeeProfile',
-        'client-access-admin.js': 'mountClientAccess'
+    const routeModules={'deleted-users.js':'mountDeletedUsers','schedule-flex.js':'mountScheduleFlex','deleted-time-entries.js':'mountDeletedTimeEntries','individual-reports.js':'mountIndividualReports','employee-profile.js':'mountEmployeeProfile','client-access-admin.js':'mountClientAccess','admin-sections.js':'renderAdminSection','shift-planning.js':'mountShiftPlanning'};
+    const aliases={'archived-users':'deleted-users.js','work-hours':'schedule-flex.js','deleted-entries':'deleted-time-entries.js','individual-reports':'individual-reports.js','employee-profile':'employee-profile.js','client-access':'client-access-admin.js','admin-sections':'admin-sections.js','shift-planning':'shift-planning.js'};
+    const globals={'api-config.js':'core','supabase.js':'core','supabase-auth.js':'core','script.js':'core','xlsx.js':'core','sidebar.js':'core','initial-skeletons.js':'core','select-controls.js':'select','client-date-controls.js':'calendar','onboarding-config.js':'onboarding-config','onboarding.js':'onboarding'};
+    const sourceName=node=>aliases[node.dataset.aceModule]||new URL(node.getAttribute('src'),location.href).pathname.split('/').pop();
+    const globalName=node=>node.dataset.aceGlobal||globals[sourceName(node)];
+    const loadScript=async(src)=>{if([...document.scripts].some(node=>node.src===src))return;await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});};
+    const mountRouteModule = async (doc,base) => {
+      for(const node of doc.querySelectorAll('script[src]')){
+       const name=sourceName(node),shared=globalName(node),src=new URL(node.getAttribute('src'),base).href;
+       if(shared){const ready=shared==='core'||shared==='select'&&window.initializeSelectControls||shared==='calendar'&&window.ACECalendar||shared==='onboarding-config'&&window.ACETutorialConfig||shared==='onboarding'&&window.ACETutorial;if(!ready)await loadScript(src);continue;}
+       const mountName=routeModules[name];if(!mountName)throw Error('Unsupported route module');
+       if(!window[mountName])await loadScript(src);await window[mountName]?.();
+      }
     };
-
-    const mountRouteModule = async documentFromRoute => {
-        const source = Array.from(documentFromRoute.querySelectorAll('script[src]')).map(node => node.src)
-            .find(candidate => /\.js(?:\?|$)/.test(candidate) && !/(api-config|supabase|sidebar|\/script\.js|admin-sections\.js)/.test(candidate));
-        if (!source) return;
-        const moduleName = new URL(source, window.location.href).pathname.split('/').pop();
-        const mountName = routeModules[moduleName];
-        if (!mountName) throw new Error(`Unsupported route module: ${moduleName}`);
-        if (!window[mountName]) {
-            await new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = source; script.dataset.routeModule = moduleName;
-                script.onload = resolve; script.onerror = reject;
-                document.head.appendChild(script);
-            });
-        }
-        await window[mountName]?.();
-    };
-
+    const routeKey=url=>url.pathname.replace(/\/$/,'').split('/').pop().replace(/\.html$/i,'').toLowerCase();
     const updateShellRoute = destination => {
-        const currentFile = (destination.pathname.split('/').pop() || '').toLowerCase();
-        const routeFile = currentFile && !currentFile.includes('.') ? `${currentFile}.html` : currentFile;
+        const currentFile=routeKey(destination),routeFile=currentFile+'.html';
         document.querySelectorAll('.shell-link').forEach(link => {
-            const linkFile = (new URL(link.href, window.location.href).pathname.split('/').pop() || '').toLowerCase();
-            const active = linkFile === routeFile;
+            const linkUrl=new URL(link.href,document.baseURI),linkFile=routeKey(linkUrl);
+            const active=linkFile==='shift-planning'&&AppState.currentUser?.Role==='ADMIN'&&['shift-planning','schedule-flex'].includes(currentFile)?true:linkFile===currentFile&&(currentFile!=='shift-planning'||linkUrl.searchParams.has('mine')===destination.searchParams.has('mine'));
             link.classList.toggle('active', active);
             if (active) link.setAttribute('aria-current', 'page');
             else link.removeAttribute('aria-current');
@@ -1385,7 +1373,7 @@ function installPageFadeNavigation() {
             else link.removeAttribute('aria-current');
         });
         const moreButton = document.querySelector('[data-bottom-nav-more]');
-        const moreIsActive = routeFile === 'settings.html';
+        const moreIsActive = ['settings.html','shift-planning.html'].includes(routeFile);
         moreButton?.classList.toggle('is-active', moreIsActive);
         if (moreIsActive) moreButton?.setAttribute('aria-current', 'page');
         else moreButton?.removeAttribute('aria-current');
@@ -1408,34 +1396,18 @@ function installPageFadeNavigation() {
         else moreButton?.removeAttribute('aria-current');
     };
 
-    const runMountedPage = async documentFromRoute => {
-        applySuppliedIcons();
-        initializeNavigation();
-        initializeModals();
-        initializeForms();
-        initializeUXEnhancements();
-        initializeResponsiveTables();
-        updateUI();
-        startClock();
-        loadPageSpecificData();
-        initializeSelectControls();
-        initializeAutocompleteControls();
-        if (documentFromRoute.querySelector('script[src*="admin-sections.js"]')) {
-            if (!window.renderAdminSection) {
-                const source = documentFromRoute.querySelector('script[src*="admin-sections.js"]')?.src;
-                if (source) await new Promise((resolve, reject) => {
-                    const script = document.createElement('script'); script.src = source; script.onload = resolve; script.onerror = reject; document.head.appendChild(script);
-                });
-            }
-            await window.renderAdminSection?.();
-        }
+    const runMountedPage = async doc => {
+      if(document.body.dataset.workspacePage==='planning'){initializeSelectControls();return;}
+      applySuppliedIcons();initializeNavigation();initializeModals();initializeForms();initializeUXEnhancements();initializeResponsiveTables();updateUI();startClock();
+      if(![...doc.querySelectorAll('script[src]')].some(node=>routeModules[sourceName(node)]))loadPageSpecificData();
+      initializeSelectControls();initializeAutocompleteControls();
     };
 
     const navigateDashboardRoute = async (href, push = true) => {
         const destination = new URL(href, document.baseURI || window.location.href);
         const requiresHistory = /\/(?:time-entries|remarks)(?:\.html)?\/?$/i.test(destination.pathname);
         const employeeClockPage = /\/user-dashboard(?:\.html)?\/?$/i.test(destination.pathname);
-        if (navigating || employeeClockPage || document.body.dataset.workspacePage==='planning' || /\/shift-planning(?:\.html)?\/?$/i.test(destination.pathname) || (requiresHistory && AppState.employeeHistoryStatus !== 'ready') ||
+        if (navigating || employeeClockPage || (requiresHistory && AppState.employeeHistoryStatus !== 'ready') ||
             destination.origin !== window.location.origin || !document.body.classList.contains('has-app-shell')) {
             window.location.assign(destination.href);
             return;
@@ -1453,19 +1425,25 @@ function installPageFadeNavigation() {
             const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
             const nextMain = parsed.querySelector('main.main-content');
             if (!nextMain) throw new Error('The selected dashboard page is unavailable.');
-            const unsupportedModule = Array.from(parsed.querySelectorAll('script[src]')).map(node => node.src)
-                .find(source => /\.js(?:\?|$)/.test(source) && !/(api-config|supabase-auth|sidebar|\/script\.js|admin-sections\.js)/.test(source) && !routeModules[new URL(source, window.location.href).pathname.split('/').pop()]);
-            if (unsupportedModule) { window.location.assign(destination.href); return; }
-            main.className = nextMain.className;
-            main.innerHTML = nextMain.innerHTML;
-            const nextView = parsed.body.dataset.adminView;
-            if (nextView) document.body.dataset.adminView = nextView;
-            else delete document.body.dataset.adminView;
-            document.title = parsed.title || document.title;
-            if (push) history.pushState({ aceDashboard: true }, '', destination.href);
-            updateShellRoute(destination);
-            await runMountedPage(parsed);
-            await mountRouteModule(parsed);
+            const unsupported=[...parsed.querySelectorAll('script[src]')].find(node=>!globalName(node)&&!routeModules[sourceName(node)]);
+            if(unsupported){window.location.assign(destination.href);return;}
+            const wasPlanning=document.body.dataset.workspacePage==='planning',nextPlanning=parsed.body.dataset.workspacePage==='planning';
+            if(wasPlanning)window.unmountShiftPlanning?.();
+            if(push)history.pushState({aceDashboard:true},'',destination.href);
+            const parsedBase=parsed.querySelector('base[href]'),routeBase=new URL(parsedBase?.getAttribute('href')||'.',destination.href);
+            let base=document.querySelector('base');
+            if(parsedBase){if(!base){base=document.createElement('base');document.head.prepend(base);}base.href=routeBase.href;base.dataset.aceNavBase='true';}
+            else if(base&&(wasPlanning||base.dataset.aceNavBase))base.remove();
+            for(const style of parsed.querySelectorAll('link[data-ace-style="planning"],link[href*="shift-planning.css"]')){const href=new URL(style.getAttribute('href'),routeBase).href;if(![...document.querySelectorAll('link[rel="stylesheet"]')].some(link=>link.href===href)){await new Promise((resolve,reject)=>{const link=document.createElement('link');link.rel='stylesheet';link.href=href;link.onload=resolve;link.onerror=reject;document.head.appendChild(link);});}}
+            document.body.classList.toggle('planning-page',nextPlanning);
+            if(nextPlanning)document.body.dataset.workspacePage='planning';else delete document.body.dataset.workspacePage;
+            main.className=nextMain.className;
+            for(const key of Object.keys(main.dataset))delete main.dataset[key];
+            for(const [key,value]of Object.entries(nextMain.dataset))main.dataset[key]=value;
+            main.innerHTML=nextMain.innerHTML;
+            const nextView=parsed.body.dataset.adminView;if(nextView)document.body.dataset.adminView=nextView;else delete document.body.dataset.adminView;
+            document.title=parsed.title||document.title;updateShellRoute(destination);
+            await runMountedPage(parsed);await mountRouteModule(parsed,routeBase);
             const reviewSection = destination.hash === '#reviewAlertsSection' && document.getElementById('reviewAlertsSection');
             if (reviewSection) reviewSection.scrollIntoView({ block: 'start' });
             else window.scrollTo({ top: 0, behavior: 'auto' });
@@ -1535,13 +1513,13 @@ function initializeAppShell() {
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
         ['People', [['users.html', 'users', 'Users'], ['client-access.html', 'users', 'Client access'], ['deleted-users.html', 'archive', 'Archived users'], ['departments.html', 'building', 'Departments']]],
-        ['Work', [['projects.html', 'folder', 'Projects & Campaign'], ['shift-planning/', 'calendar', 'Plan shifts'], ['schedule-flex.html', 'schedule', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['holidays.html', 'calendar', 'Holidays']]],
+        ['Work', [['projects.html', 'folder', 'Projects & Campaign'], ['shift-planning/', 'schedule', 'Schedules'], ['admin-time-entries.html', 'clock', 'Time entries'], ['holidays.html', 'calendar', 'Holidays']]],
         ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'document', 'Individual reports']]],
         ['Administration', [...(AppState.currentUser?.IsHeadAdmin ? [['chatbot-inquiry.html', 'remarks', 'Chatbot Inquiry']] : []), ['audit-logs.html', 'audit', 'Audit log'], ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['Work', [...(AppState.currentUser?.HasManagerAccess ? [['client-dashboard', 'users', 'Team attendance'], ['shift-planning/', 'calendar', 'Plan shifts']] : []), ['time-entries.html', 'clock', 'My time entries'], ['shift-planning/?mine=1', 'calendar', 'My shifts'], ['remarks.html', 'remarks', 'Remarks'], ['holidays.html', 'calendar', 'Holidays']]],
+        ['Work', [...(AppState.currentUser?.HasManagerAccess ? [['client-dashboard', 'users', 'Team attendance'], ['shift-planning/', 'calendar', 'Schedules']] : []), ['time-entries.html', 'clock', 'My time entries'], ['shift-planning/?mine=1', 'calendar', 'My shifts'], ['remarks.html', 'remarks', 'Remarks'], ['holidays.html', 'calendar', 'Holidays']]],
         ['Account', [['settings.html', 'settings', 'Settings']]]
     ];
     const clientGroups=[['Workspace',[['client-dashboard','dashboard','Employee attendance']]],['Work',[['shift-planning/','calendar','Plan shifts']]]];
@@ -1550,7 +1528,7 @@ function initializeAppShell() {
     const initials = String(user.FullName || '').split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase();
     const unreadRemarks = !isAdmin ? AppState.adminRemarks.filter(remark => !remark.SeenAt).length : 0;
     const minePlanning=isPlanning&&AppState.currentUser?.Role==='USER'&&(!AppState.currentUser.HasManagerAccess||new URLSearchParams(location.search).has('mine'));
-    const isActiveRoute=href=>isPlanning&&href.startsWith('shift-planning/')?(minePlanning?href.includes('mine=1'):!href.includes('mine=1')):file===href;
+    const isActiveRoute=href=>file==='schedule-flex.html'&&AppState.currentUser?.Role==='ADMIN'&&href.startsWith('shift-planning/')?true:isPlanning&&href.startsWith('shift-planning/')?(minePlanning?href.includes('mine=1'):!href.includes('mine=1')):file===href;
     const links = groups.map(([groupLabel, items]) => { const collapsible = isAdmin && (groupLabel === 'People' || groupLabel === 'Work'); const groupKey = `ace_sidebar_group_${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const groupId = `shell-nav-group-${groupLabel.toLowerCase().replace(/\s+/g, '-')}`; const hasActive = items.some(([href]) => isActiveRoute(href)); const open = hasActive || localStorage.getItem(groupKey) === '1' || groupLabel === 'Workspace'; const header = collapsible ? `<button class="shell-nav-label shell-nav-group-toggle" type="button" aria-expanded="${open}" aria-controls="${groupId}" aria-label="${open ? 'Collapse' : 'Expand'} ${groupLabel}"><span>${groupLabel}</span><b aria-hidden="true">${suppliedIconMarkup('chevron-right', 'shell-nav-group-chevron')}</b></button>` : `<p class="shell-nav-label">${groupLabel}</p>`; const railButton = collapsible ? `<button class="shell-folded-group" type="button" title="${groupLabel}" aria-label="${groupLabel} pages" aria-expanded="false" aria-controls="shellGroupFlyout">${suppliedIconMarkup(groupLabel === 'People' ? 'hierarchy' : 'briefcase', 'shell-icon')}${suppliedIconMarkup('chevron-right', 'shell-folded-chevron')}</button>` : ''; return `<section class="shell-nav-group${collapsible ? ' shell-nav-group--collapsible' : ''}${hasActive ? ' has-active-route' : ''}${collapsible && open ? ' is-open' : ''}" aria-label="${groupLabel}" data-group-label="${groupLabel}"${collapsible ? ` data-group-key="${groupKey}"` : ''}>${header}${railButton}<div class="shell-nav-group-items" id="${groupId}"${collapsible && !open ? ' hidden' : ''}>${items.map(([href, iconName, label]) => {
         const active = isActiveRoute(href) || (file === 'admin-management.html' && new URLSearchParams(location.search).get('view') === href.replace('.html', '').replace('admin-time-entries', 'entries').replace('audit-logs', 'audit'));
         const remarkBadge = href === 'remarks.html' && unreadRemarks ? `<b class="shell-notification-badge" aria-label="${unreadRemarks} new administrator remark${unreadRemarks === 1 ? '' : 's'}">${unreadRemarks > 9 ? '9+' : unreadRemarks}</b>` : '';
@@ -1830,13 +1808,13 @@ function initializeAppShell() {
     if(isClient){topbar.querySelector('.shell-topbar-search-wrap').hidden=true;document.querySelectorAll('[data-restart-tutorial]').forEach(button=>button.remove());}
     const searchInput = topbar.querySelector('#shellGlobalSearch');
     const searchResults = topbar.querySelector('.shell-global-results');
-    const workspaceSearchItems = isClient ? [['Employee attendance','Workspace','/client-dashboard','attendance hours'],['Plan shifts','Work','/shift-planning/','planning schedule']] : isAdmin ? [
+    const workspaceSearchItems = isClient ? [['Employee attendance','Workspace','/client-dashboard','attendance hours'],['Schedules','Work','/shift-planning/','planning schedule']] : isAdmin ? [
         ['Dashboard', 'Workspace', 'admin-dashboard.html', 'dashboard home overview'],
         ['Invite user', 'People · Users tab', 'users.html', 'invite employee administrator email access'],
         ['Users', 'People · Manage accounts', 'users.html', 'people employees staff manage accounts'],
         ['Departments', 'People · Organize your team', 'departments.html', 'department team organization'],
         ['Projects', 'Work · Create and manage projects', 'projects.html', 'project assignment assign'],
-        ['Schedule & flextime', 'Work · Create or assign schedules', 'schedule-flex.html', 'schedule flextime workdays'],
+        ['Schedules', 'Work · Plan shifts or manage regular hours', '/shift-planning/', 'schedule planning flextime workdays'],
         ['Time entries', 'Work · Review and correct time', 'admin-time-entries.html', 'time clock clock out correct entry'],
         ['Deleted time entries', 'Work · Time entries recovery list', 'admin-time-entries.html', 'deleted restore time entries'],
         ['Reports', 'Insights · Reports and exports', 'reports.html', 'report export analytics'],
@@ -6195,13 +6173,14 @@ if (document.readyState === 'loading') {
 window.addEventListener('ace:projects-changed',async()=>{try{const projects=await window.ACEAuth.request('/v1/projects');AppState.projects=projects.map(projectRecord);}catch{/* Other views refresh their own data on navigation. */}});
 
 // Planning loads its own scoped data and reuses the same verified workspace navigation.
+window.ACEPreparePlanningShell=()=>{applyStoredAppearance();mountCachedDashboardShell();};
 window.ACEMountPlanningShell = profile => {
  if(!profile||profile.status!=='ACTIVE')return false;
- AppState.currentUser=profileRecord(profile);AppState.isAuthenticated=true;AppState.users=[AppState.currentUser];
+ AppState.currentUser=profileRecord(profile);AppState.isAuthenticated=true;AppState.users=[AppState.currentUser];try{localStorage.setItem('ace_current_user',JSON.stringify(AppState.currentUser));}catch{}
  applyStoredAppearance();const mounted=initializeAppShell();
  if(profile.role==='USER'){
   const clock=document.querySelector('[data-mobile-clock-action]');
-  clock?.addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();location.assign('/user-dashboard');},true);
+  if(clock&&!clock.dataset.planningClockBound){clock.dataset.planningClockBound='true';clock.addEventListener('click',event=>{if(document.body.dataset.workspacePage!=='planning')return;event.preventDefault();event.stopImmediatePropagation();location.assign('/user-dashboard');},true);}
   window.ACEAuth.request('/v1/admin-remarks').then(rows=>{AppState.adminRemarks=rows.map(adminRemarkRecord);window.ACERenderNotifications?.();}).catch(()=>{});
  }
  document.body.classList.remove('app-shell-pending');return mounted;
