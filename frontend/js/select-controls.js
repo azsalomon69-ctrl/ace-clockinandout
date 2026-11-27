@@ -153,3 +153,167 @@ function initializeSelectControls(root = document) {
 window.ACESelectControls = { init: initializeSelectControls, close: closeAceSelectMenus };
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>initializeSelectControls());else initializeSelectControls();
 })();
+// Shared time picker. Original input types, form names, ISO values and validation stay authoritative.
+(() => {
+    const controls = new Map();
+    let active = null, popup, serial = 0;
+    const pad = value => String(value).padStart(2, '0');
+    const format = value => {
+        if (!value) return 'Select time';
+        const [hour, minute] = value.split(':').map(Number);
+        return `${pad(hour % 12 || 12)}:${pad(minute)} ${hour < 12 ? 'AM' : 'PM'}`;
+    };
+    const labelFor = input => (input.labels?.[0]?.textContent || input.closest('.form-group')?.querySelector('label')?.textContent || input.name || 'Time').trim();
+    const clockIcon = '<img src="assets/icons/clock.svg" width="16" height="16" alt="">';
+    function refresh(control) {
+        const {input, trigger, date} = control;
+        const value = input.value;
+        control.time = value ? value.split('T').pop() : '';
+        if (date) {
+            date.value = value ? value.split('T')[0] : '';
+            date.min = input.min.split('T')[0]; date.max = input.max.split('T')[0];
+            date.disabled = input.disabled || input.readOnly;
+            date.required = input.required;
+            control.calendar?.refresh();
+            if(date.nextElementSibling?.classList.contains('client-date-trigger')) date.nextElementSibling.disabled = input.disabled || input.readOnly;
+        }
+        trigger.firstElementChild.textContent = format(control.time);
+        trigger.setAttribute('aria-label', control.label + ': ' + format(control.time));
+        trigger.disabled = input.disabled || input.readOnly;
+    }
+    function close(restoreFocus = false) {
+        if (!popup) return;
+        if (popup.isConnected && popup.matches(':popover-open')) popup.hidePopover();
+        if (active) { active.trigger.setAttribute('aria-expanded', 'false'); if (restoreFocus) active.trigger.focus(); }
+    }
+    function position() {
+        if (!active || !popup.matches(':popover-open')) return;
+        const rect = active.trigger.getBoundingClientRect();
+        const width = Math.min(292, innerWidth - 24);
+        popup.style.width = width + 'px';
+        popup.style.maxHeight = Math.max(120, innerHeight - 24) + 'px';
+        const height = Math.min(popup.scrollHeight, innerHeight - 24);
+        popup.style.left = Math.max(12, Math.min(rect.left, innerWidth - width - 12)) + 'px';
+        popup.style.top = (rect.bottom + height + 8 <= innerHeight - 12 ? rect.bottom + 8 : Math.max(12, rect.top - height - 8)) + 'px';
+    }
+    function setupPopup() {
+        if (popup) return;
+        popup = document.createElement('div');
+        popup.id = 'aceTimePicker'; popup.className = 'ace-time-picker';
+        popup.setAttribute('popover', 'auto'); popup.setAttribute('role', 'dialog');
+        popup.setAttribute('aria-label', 'Choose time');
+        popup.innerHTML = '<header><div><small data-time-label></small><strong data-time-preview></strong></div><button type="button" class="ace-time-close" aria-label="Close time picker"><img src="assets/icons/x.svg" width="16" height="16" alt=""></button></header><div class="ace-time-fields"><label>Hour<input type="number" inputmode="numeric" min="1" max="12" step="1" data-time-hour aria-label="Hour"></label><span aria-hidden="true">:</span><label>Minute<input type="number" inputmode="numeric" min="0" max="59" step="1" data-time-minute aria-label="Minute"></label><div class="ace-time-period" role="group" aria-label="AM or PM"><button type="button" data-time-period="AM">AM</button><button type="button" data-time-period="PM">PM</button></div></div><div class="ace-time-quick" role="group" aria-label="Quick minute selection"><span>Minutes</span><button type="button" data-time-quick="0">:00</button><button type="button" data-time-quick="15">:15</button><button type="button" data-time-quick="30">:30</button><button type="button" data-time-quick="45">:45</button></div><p class="ace-time-error" role="alert" hidden></p><footer><button type="button" data-time-clear>Clear</button><button type="button" data-time-apply>Done</button></footer>';
+        popup.querySelector('.ace-time-close').onclick = () => close(true);
+        popup.querySelector('[data-time-clear]').onclick = () => {
+            if (!active || active.input.required) return;
+            active.input.value = ''; refresh(active); emit(active.input); close(true);
+        };
+        popup.querySelector('[data-time-apply]').onclick = apply;
+        popup.addEventListener('click', event => {
+            const period = event.target.closest('[data-time-period]');
+            if (period) popup.dataset.period = period.dataset.timePeriod;
+            const minute = event.target.closest('[data-time-quick]');
+            if (minute) popup.querySelector('[data-time-minute]').value = pad(minute.dataset.timeQuick);
+            if (period || minute) preview();
+        });
+        popup.addEventListener('input', preview);
+        popup.addEventListener('keydown', event => {
+            if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(true); }
+            if (event.key === 'Enter') { event.preventDefault(); apply(); }
+        });
+        popup.addEventListener('toggle', () => { if (active) active.trigger.setAttribute('aria-expanded', String(popup.matches(':popover-open'))); });
+    }
+    function selectedTime() {
+        const hour = Number(popup.querySelector('[data-time-hour]').value);
+        const minute = Number(popup.querySelector('[data-time-minute]').value);
+        if (!Number.isInteger(hour) || hour < 1 || hour > 12 || !Number.isInteger(minute) || minute < 0 || minute > 59 || popup.querySelector('[data-time-minute]').value === '') return null;
+        return pad(hour % 12 + (popup.dataset.period === 'PM' ? 12 : 0)) + ':' + pad(minute);
+    }
+    function preview() {
+        const value = selectedTime();
+        popup.querySelector('[data-time-preview]').textContent = value ? format(value) : 'Choose time';
+        popup.querySelectorAll('[data-time-period]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.timePeriod === popup.dataset.period)));
+        popup.querySelectorAll('[data-time-quick]').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.timeQuick) === Number(popup.querySelector('[data-time-minute]').value))));
+        popup.querySelector('.ace-time-error').hidden = true;
+    }
+    function emit(input) { input.dispatchEvent(new Event('input', {bubbles:true})); input.dispatchEvent(new Event('change', {bubbles:true})); }
+    function apply() {
+        if (!active?.input.isConnected) return close();
+        const value = selectedTime(), error = popup.querySelector('.ace-time-error');
+        const fail = message => { error.textContent = message; error.hidden = false; position(); };
+        if (!value) return fail('Enter an hour from 1 to 12 and minutes from 00 to 59.');
+        if (active.date && !active.date.value) return fail('Choose a date before setting the time.');
+        const previous = active.input.value;
+        active.input.value = active.date ? active.date.value + 'T' + value : value;
+        if (!active.input.validity.valid) {
+            const message = active.input.validationMessage;
+            active.input.value = previous;
+            return fail(message || 'Choose a time within the allowed range.');
+        }
+        refresh(active); emit(active.input); close(true);
+    }
+    function open(control) {
+        setupPopup(); close(); active = control; refresh(control);
+        const host = control.input.closest('dialog') || document.body;
+        host.appendChild(popup);
+        const value = control.time || '09:00', [hour, minute] = value.split(':').map(Number);
+        popup.querySelector('[data-time-label]').textContent = control.label;
+        popup.querySelector('[data-time-hour]').value = pad(hour % 12 || 12);
+        popup.querySelector('[data-time-minute]').value = pad(minute);
+        popup.dataset.period = hour < 12 ? 'AM' : 'PM';
+        popup.querySelector('[data-time-clear]').hidden = control.input.required;
+        preview(); popup.showPopover(); control.trigger.setAttribute('aria-expanded', 'true'); position();
+        const field = popup.querySelector('[data-time-hour]'); field.focus(); field.select();
+    }
+    function mount(input) {
+        if (controls.has(input)) return;
+        const control = {input, label:labelFor(input)};
+        const trigger = document.createElement('button');
+        trigger.type = 'button'; trigger.className = 'ace-time-trigger';
+        trigger.innerHTML = '<span></span>' + clockIcon;
+        trigger.setAttribute('aria-haspopup', 'dialog'); trigger.setAttribute('aria-controls', 'aceTimePicker'); trigger.setAttribute('aria-expanded', 'false');
+        control.trigger = trigger;
+        input.classList.add('ace-time-native'); input.tabIndex = -1; input.setAttribute('aria-hidden','true');
+        if (input.type === 'datetime-local') {
+            const group = document.createElement('div'); group.className = 'ace-datetime-control';
+            const date = document.createElement('input'); date.type = 'date'; date.className = 'form-input';
+            date.id = 'aceTimeDate-' + ++serial; date.dataset.calendarLabel = control.label + ' date';
+            date.setAttribute('aria-label', control.label + ' date');
+            control.date = date; group.append(date, trigger); input.after(group);
+            date.addEventListener('invalid', event => {event.preventDefault();(date.nextElementSibling?.classList.contains('client-date-trigger')?date.nextElementSibling:date).focus();});
+            date.addEventListener('change', () => {
+                const time = control.time || '09:00';
+                input.value = date.value ? date.value + 'T' + time : '';
+                refresh(control); emit(input);
+            });
+        } else input.after(trigger);
+        controls.set(input, control); refresh(control);
+        trigger.onclick = () => active === control && popup?.matches(':popover-open') ? close(true) : open(control);
+        input.addEventListener('change', () => refresh(control));
+        input.addEventListener('focus', () => (control.date?.nextElementSibling?.classList.contains('client-date-trigger') ? control.date.nextElementSibling : trigger).focus());
+        input.addEventListener('invalid', event => { event.preventDefault(); if (control.date && !control.date.value) { (control.date.nextElementSibling?.classList.contains('client-date-trigger') ? control.date.nextElementSibling : control.date).focus(); } else open(control); });
+    }
+    function init(root = document) {
+        root.querySelectorAll?.('input[type="time"],input[type="datetime-local"]').forEach(mount);
+        for (const [input, control] of controls) {
+            if (!input.isConnected) { if (active === control) { close(); active = null; popup?.remove(); } controls.delete(input); continue; }
+            if (control.date && !control.calendar && window.ACECalendar) control.calendar = window.ACECalendar.mount(control.date);
+        }
+    }
+    function boot() {
+        init();
+        new MutationObserver(records => {
+            for (const record of records) {
+                if (record.type === 'attributes' && controls.has(record.target)) refresh(controls.get(record.target));
+                for (const node of record.addedNodes) if (node instanceof Element) { if (node.matches('input[type="time"],input[type="datetime-local"]')) mount(node); init(node); }
+            }
+            for (const [input, control] of controls) if (!input.isConnected) { if (active === control) { close(); active = null; popup?.remove(); } controls.delete(input); }
+        }).observe(document.body, {subtree:true,childList:true,attributes:true,attributeFilter:['disabled','readonly','min','max','required','value']});
+        document.addEventListener('reset', () => setTimeout(() => controls.forEach(refresh), 0), true);
+        document.addEventListener('close', event => { if(active && event.target.contains?.(active.input)) close(); }, true);
+        window.addEventListener('resize', position);
+        document.addEventListener('scroll', event => { if (!popup?.contains(event.target)) position(); }, true);
+    }
+    window.ACETimeControls = {init, close, format};
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, {once:true}); else boot();
+})();

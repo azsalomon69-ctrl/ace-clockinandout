@@ -30,5 +30,6 @@
   if(!customFields)window.ACEClientDates={refresh,close};refresh();if(customFields){const observer=new MutationObserver(()=>{if(!fields[0].isConnected){popup.remove();observer.disconnect();window.removeEventListener('resize',close);document.removeEventListener('scroll',onScroll,true);}});observer.observe(document.body,{childList:true,subtree:true});}return {refresh,close};
  }
  window.ACECalendar={mount:input=>init([input])};
+ window.ACETimeControls?.init();
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>init());else init();
 })();
