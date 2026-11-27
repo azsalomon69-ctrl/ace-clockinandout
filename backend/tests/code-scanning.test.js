@@ -1,3 +1,4 @@
+import { enrichPlannedAttendance } from '../server/planned-attendance.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -108,7 +109,7 @@ test('#12/#13: searches require POST; GET listing, paging and ownership remain i
   const handlers = new Map();
   const operations = [];
   const authenticate = () => {}, activeOnly = () => {};
-  const context = vm.createContext({ authenticate, activeOnly, fail: (res, code, error) => res.status(code).json({ error }),
+  const context = vm.createContext({ enrichPlannedAttendance, authenticate, activeOnly, fail: (res, code, error) => res.status(code).json({ error }),
     app: Object.fromEntries(['get', 'post'].map(method => [method, (path, ...middleware) => handlers.set(method + path, middleware)])),
     query: async builder => builder.table === 'profiles' ? [{ id: 'person' }] : builder.table === 'projects' ? [{ id: 'project' }] : [{ id: 'entry' }],
     db: { from(table) {

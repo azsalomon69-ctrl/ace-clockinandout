@@ -1,3 +1,4 @@
+import { enrichPlannedAttendance } from './planned-attendance.js';
 import { registerPlanningRoutes } from './shift-planning.js';
 import { registerManagerRoutes } from './project-managers.js';
 import { registerMembershipRoutes } from './project-memberships.js';
@@ -1103,9 +1104,9 @@ const listTimeEntries = async (req, res, next) => { try {
       request = request.or(matches.join(','));
     }
   }
-  if (!paged) return res.json(await query(request));
+  if (!paged) return res.json(await enrichPlannedAttendance(db,req.profile.id,await query(request)));
   const response = await request.range((page - 1) * pageSize, page * pageSize - 1); if (response.error) throw response.error;
-  res.json({ items: response.data || [], total: response.count || 0, page, pageSize });
+  res.json({ items: await enrichPlannedAttendance(db,req.profile.id,response.data || []), total: response.count || 0, page, pageSize });
 } catch (error) { next(error); } };
 // GET serves listing controls only; private text searches are accepted in POST bodies.
 app.get('/v1/time-entries', authenticate, activeOnly, listTimeEntries);

@@ -155,3 +155,5 @@ test('automatic unrecorded blocks are hidden from counts, details and exports wi
     assert.ok(!JSON.stringify(rows).includes('No activity recorded'));
     assert.equal(data.Activities.length,2);
 });
+
+test('activity exports include linked planning values while default export keeps its original columns',()=>{const sandbox=context();sandbox.filterEntriesForReport=()=>[{...entry,Planning:{planned_start_at:'2026-11-23T23:40:00Z',planned_end_at:'2026-11-24T07:40:00Z',attendance_status:'LATE',difference_minutes:60}}];const activity=sandbox.reportWorkbookData({Filters:{exportMode:'ACTIVITY'}}),normal=sandbox.reportWorkbookData({Filters:{exportMode:'DEFAULT'}});assert.equal(activity[0].length,13);assert.equal(activity[1][11],'Late');assert.equal(activity[1][12],60);assert.equal(activity[2].length,13);assert.equal(normal[0].length,8);assert.equal(normal[1][4],32400);assert.equal(activity[1][4],32400);});

@@ -1,0 +1,7 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {enrichPlannedAttendance} from '../server/planned-attendance.js';
+test('planning comparison uses trusted actor, preserves entries and avoids queries for unplanned entries',async()=>{const raw=[{id:'unplanned',duration_seconds:90}];assert.equal(await enrichPlannedAttendance({},'self',raw),raw);const calls=[],rows=[{id:'one',planned_shift_id:'plan',duration_seconds:3600},{id:'two',duration_seconds:0}],db={rpc:async(name,args)=>{calls.push({name,args});return {data:{one:{attendance_status:'LATE',difference_minutes:15}}};}};const result=await enrichPlannedAttendance(db,'trusted',rows);assert.deepEqual(calls,[{name:'attendance_plan_details',args:{p_actor:'trusted',p_entries:['one']}}]);assert.equal(result[0].duration_seconds,3600);assert.equal(result[0].planning_comparison.attendance_status,'LATE');assert.equal(result[1].planning_comparison,null);assert.equal(rows[0].planning_comparison,undefined);});
+test('planning read errors do not silently invent attendance comparisons',async()=>{const error=Error('Denied');await assert.rejects(enrichPlannedAttendance({rpc:async()=>({error})},'self',[{id:'one',planned_shift_id:'plan'}]),error);});
+
+test('revoked attendance access returns a safe authorization error',async()=>{await assert.rejects(enrichPlannedAttendance({rpc:async()=>({error:{message:'ATTENDANCE_ACCESS_REQUIRED'}})},'self',[{id:'one',planned_shift_id:'plan'}]),e=>e.status===403&&e.expose===true&&!e.message.includes('ATTENDANCE_ACCESS_REQUIRED'));});
