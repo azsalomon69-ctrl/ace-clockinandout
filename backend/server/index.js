@@ -1,3 +1,4 @@
+import { registerPlanningRoutes } from './shift-planning.js';
 import { registerManagerRoutes } from './project-managers.js';
 import { registerMembershipRoutes } from './project-memberships.js';
 import { projectPayload, projectAvailable } from './project-lifecycle.js';
@@ -512,7 +513,7 @@ async function authenticate(req, res, next) {
   if (req.profile.role === 'CLIENT' && ![
     'GET /v1/me', 'POST /v1/auth/session-start', 'POST /v1/auth/session-end',
     'GET /v1/client/projects', 'POST /v1/client/attendance/search', 'POST /v1/client/attendance/export'
-  ].includes(req.method + ' ' + req.path)) return fail(res, 403, 'Client access is read-only and limited to assigned projects');
+  ].includes(req.method + ' ' + req.path) && !/^(GET \/v1\/planning\/(projects|[0-9a-f-]{36}\/board)|POST \/v1\/planning\/[0-9a-f-]{36}\/(shifts|publish|cancel|copy-week|templates)|DELETE \/v1\/planning\/[0-9a-f-]{36}\/templates\/[0-9a-f-]{36})$/i.test(req.method+' '+req.path)) return fail(res, 403, 'Client access is limited to assigned projects and granted permissions');
   return next();
 }
 
@@ -727,7 +728,14 @@ app.get('/v1/me', authenticate, async (req, res, next) => { try {
   // tutorial-table outage, return the already authenticated legacy profile.
   const profile = { ...req.profile, is_head_admin: isHeadAdmin(req),
     queued_clock_reviews_enabled: req.profile.role === 'ADMIN' && process.env.ACE_QUEUED_CLOCK_ENABLED === 'true' };
-  if(profile.role==='USER'){profile.has_manager_access=false;try{const {data,error}=await db.from('client_project_access').select('project_id').eq('user_id',profile.id).is('revoked_at',null).limit(1);if(error)throw error;profile.has_manager_access=!!data?.length;}catch(error){console.warn('[managers] Access navigation unavailable',{code:error.code});}}
+  if(profile.role==='USER'){
+    profile.has_manager_access=false;profile.unread_shift_updates=0;
+    const metadata=await Promise.allSettled([
+      (async()=>{const r=await db.from('client_project_access').select('project_id').eq('user_id',profile.id).is('revoked_at',null).limit(1);if(r.error)throw r.error;profile.has_manager_access=!!r.data?.length;})(),
+      (async()=>{const r=await db.from('shift_notifications').select('id',{count:'exact',head:true}).eq('employee_id',profile.id).is('seen_at',null);if(r.error)throw r.error;profile.unread_shift_updates=r.count||0;})()
+    ]);
+    for(const result of metadata)if(result.status==='rejected')console.warn('[shifts] Optional navigation metadata unavailable',{code:result.reason?.code});
+  }
   let progress;
   try {
     progress = await query(db.from('profile_tutorial_progress').select('tutorial_status,tutorial_step,tutorial_version,tutorial_started_at,tutorial_completed_at,tutorial_skipped_at').eq('profile_id', req.profile.id).eq('role', req.profile.role).maybeSingle());
@@ -864,6 +872,7 @@ app.put('/v1/users/:id/schedule', authenticate, adminOnly, async (req, res, next
   await audit(req, 'ASSIGN_SCHEDULE', 'PROFILE', employee.id, `Assigned ${schedule.name} to ${employee.full_name || employee.email}`); res.json(assignment);
 } catch (error) { next(error); } });
 
+registerPlanningRoutes(app,{db,authenticate,activeOnly,adminOnly,fail,audit});
 registerManagerRoutes(app,{db,authenticate,adminOnly,fail});
 registerMembershipRoutes(app,{db,authenticate,adminOnly,fail});
 

@@ -63,3 +63,8 @@ test('employee totals render server aggregates rather than summing the current p
 test('attendance never registers background polling or focus refreshes',()=>{
  assert.ok(!source.includes('window.setInterval('));assert.ok(!source.includes("window.addEventListener('focus'"));assert.ok(!html.includes('Updates every 60 seconds'));
 });
+
+test('planning link appears only for View & plan and disappears after downgrade',async()=>{
+ const h=harness({projects:[{id:'a',name:'Support',access_level:'VIEW_PLAN'}]});await settle();assert.equal(h.elements.get('clientPlanShifts').hidden,false);
+ h.state.projects=[{id:'a',name:'Support',access_level:'VIEW'}];h.elements.get('clientRefresh').click();await settle();assert.equal(h.elements.get('clientPlanShifts').hidden,true);
+});

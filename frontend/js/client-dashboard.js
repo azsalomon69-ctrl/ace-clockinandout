@@ -21,7 +21,7 @@
     const filters = () => ({ from: $('clientFrom').value, to: $('clientTo').value, status: mode, projectIds: selectedProjects.length ? selectedProjects : undefined, employeeId: $('clientEmployee').value || undefined, view: $('clientView').value || 'shifts', page });
     const exportEnabled = enabled => { $('clientPdf').disabled = $('clientCsv').disabled = $('clientExcel').disabled = !enabled; };
     const clear = () => {
-        rows = []; total = 0;
+        rows = []; total = 0; $('clientPlanShifts').hidden=true;
         $('clientRows').replaceChildren();
         ['clientEmployees', 'clientShifts', 'clientActive', 'clientWorked'].forEach(id => $(id).textContent = '—');
         $('clientActivityDialog').hidePopover();
@@ -95,7 +95,7 @@
         try {
             const projects = await window.ACEAuth.request('/v1/client/projects');
             if (current !== generation) return;
-            projectsList = projects;
+            projectsList = projects;$('clientPlanShifts').hidden=!projects.some(p=>p.access_level==='VIEW_PLAN');
             selectedProjects = selectedProjects.filter(id => projects.some(p => p.id === id));
             renderProjectChoices();
             hasAccess = projects.length > 0;

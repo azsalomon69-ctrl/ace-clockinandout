@@ -163,6 +163,7 @@ async function buildPages(assetMap) {
       keepClosingSlash: true
     });
     await writeFile(path.join(dist, file), output);
+    if(file==='shift-planning.html'){await mkdir(path.join(dist,'shift-planning'),{recursive:true});await writeFile(path.join(dist,'shift-planning','index.html'),output);}
   }
 }
 

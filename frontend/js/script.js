@@ -30,7 +30,7 @@ const AppState = {
 };
 window.AppState = AppState;
 
-const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, HasManagerAccess: Boolean(item.has_manager_access), Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), QueuedClockReviewsEnabled: Boolean(item.queued_clock_reviews_enabled), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
+const profileRecord = item => ({ UserId: item.id, Email: item.email, FullName: item.full_name, ProfilePictureUrl: item.profile_picture_url, HasManagerAccess: Boolean(item.has_manager_access), UnreadShiftUpdates: Number(item.unread_shift_updates)||0, Role: item.role, Status: item.status, DepartmentId: item.department_id, CreatedAt: item.created_at, IsHeadAdmin: Boolean(item.is_head_admin), QueuedClockReviewsEnabled: Boolean(item.queued_clock_reviews_enabled), RawTutorial: { tutorial_status: item.tutorial_status, tutorial_step: item.tutorial_step, tutorial_version: item.tutorial_version } });
 // Render serves the real .html files, while these clean routes are resolved by
 // the Static Site rewrite rules. Keep every internal page link canonical.
 const cleanInternalRoute = value => {
@@ -1533,13 +1533,13 @@ function initializeAppShell() {
     const adminGroups = [
         ['Workspace', [['admin-dashboard.html', 'dashboard', 'Dashboard']]],
         ['People', [['users.html', 'users', 'Users'], ['client-access.html', 'users', 'Client access'], ['deleted-users.html', 'archive', 'Archived users'], ['departments.html', 'building', 'Departments']]],
-        ['Work', [['projects.html', 'folder', 'Projects & Campaign'], ['schedule-flex.html', 'schedule', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['holidays.html', 'calendar', 'Holidays']]],
+        ['Work', [['projects.html', 'folder', 'Projects & Campaign'], ['shift-planning/', 'calendar', 'Plan shifts'], ['schedule-flex.html', 'schedule', 'Schedule & flextime'], ['admin-time-entries.html', 'clock', 'Time entries'], ['holidays.html', 'calendar', 'Holidays']]],
         ['Insights', [['reports.html', 'chart', 'Reports'], ['individual-reports.html', 'document', 'Individual reports']]],
         ['Administration', [...(AppState.currentUser?.IsHeadAdmin ? [['chatbot-inquiry.html', 'remarks', 'Chatbot Inquiry']] : []), ['audit-logs.html', 'audit', 'Audit log'], ['settings.html', 'settings', 'Settings']]]
     ];
     const employeeGroups = [
         ['Workspace', [['user-dashboard.html', 'dashboard', 'Dashboard']]],
-        ['Work', [...(AppState.currentUser?.HasManagerAccess ? [['client-dashboard', 'users', 'Team attendance']] : []), ['time-entries.html', 'clock', 'My time entries'], ['remarks.html', 'remarks', 'Remarks'], ['holidays.html', 'calendar', 'Holidays']]],
+        ['Work', [...(AppState.currentUser?.HasManagerAccess ? [['client-dashboard', 'users', 'Team attendance'], ['shift-planning/', 'calendar', 'Plan shifts']] : []), ['time-entries.html', 'clock', 'My time entries'], ['shift-planning/?mine=1', 'calendar', 'My shifts'], ['remarks.html', 'remarks', 'Remarks'], ['holidays.html', 'calendar', 'Holidays']]],
         ['Account', [['settings.html', 'settings', 'Settings']]]
     ];
     const groups = isAdmin ? adminGroups : employeeGroups;
@@ -1780,7 +1780,8 @@ function initializeAppShell() {
         const reviewedRemarks = getReviewedAdminRemarkIds();
         const unreadRemarks = AppState.adminRemarks.filter(remark => !remark.SeenAt && (!isAdmin || !reviewedRemarks.has(String(remark.RemarkId))))
             .sort((a, b) => (Date.parse(b.CreatedAt) || 0) - (Date.parse(a.CreatedAt) || 0));
-        const total = unreadRemarks.length;
+        const shiftUpdates=isAdmin?0:Number(AppState.currentUser?.UnreadShiftUpdates)||0;
+        const total = unreadRemarks.length+shiftUpdates;
         const unreadLabel = total > 99 ? '99+' : String(total);
         const feedbackList = isAdmin ? 'admin-time-entries.html?remarks=with' : 'remarks.html';
         notificationBadge.hidden = !total;
@@ -1797,7 +1798,8 @@ function initializeAppShell() {
                 : `Feedback from ${remark.AdminName || 'an administrator'}`;
             return { href, title, preview: summary.length > 100 ? `${summary.slice(0, 99)}…` : summary || 'Open to read the feedback.' };
         });
-        const renderNotice = ({ href, title, preview }, role = '') => `<a class="shell-notification-item shell-remark-notice" href="${href}"${role}><span class="shell-notification-item-icon">${suppliedIconMarkup('message-circle-more', 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(preview)}</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`;
+        if(shiftUpdates)notices.unshift({href:'shift-planning/?mine=1',title:shiftUpdates+' shift update'+(shiftUpdates===1?'':'s'),preview:'View published, changed and cancelled shifts.',iconName:'calendar-days'});
+        const renderNotice = ({ href, title, preview, iconName='message-circle-more' }, role = '') => `<a class="shell-notification-item shell-remark-notice" href="${href}"${role}><span class="shell-notification-item-icon">${suppliedIconMarkup(iconName, 'shell-icon')}</span><span class="shell-notification-item-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(preview)}</small></span>${suppliedIconMarkup('chevron-right', 'shell-icon shell-notification-item-chevron')}</a>`;
         const countLabel = total ? `<span class="shell-notification-count">${unreadLabel} new</span>` : '';
         const emptyState = `<div class="shell-topbar-empty">${suppliedIconMarkup('bell', 'shell-icon')}<strong>You’re all caught up</strong><span>No unread feedback.</span></div>`;
         const viewAll = `<a class="shell-sidebar-updates-link" href="${feedbackList}">View all feedback ${suppliedIconMarkup('chevron-right', 'shell-icon')}</a>`;
