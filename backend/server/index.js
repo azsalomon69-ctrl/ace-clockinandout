@@ -1,3 +1,4 @@
+import { registerMembershipRoutes } from './project-memberships.js';
 import { projectPayload, projectAvailable } from './project-lifecycle.js';
 // Akio <3: Project source maintained by Akio Zaki Salomon.
 import 'dotenv/config';
@@ -860,6 +861,8 @@ app.put('/v1/users/:id/schedule', authenticate, adminOnly, async (req, res, next
   const assignment = await query(db.from('user_schedule_assignments').upsert({ user_id: employee.id, schedule_id: schedule.id, assigned_by_user_id: req.profile.id, assigned_at: new Date().toISOString() }).select().single());
   await audit(req, 'ASSIGN_SCHEDULE', 'PROFILE', employee.id, `Assigned ${schedule.name} to ${employee.full_name || employee.email}`); res.json(assignment);
 } catch (error) { next(error); } });
+
+registerMembershipRoutes(app,{db,authenticate,adminOnly,fail});
 
 app.get('/v1/user-projects', authenticate, activeOnly, async (req, res, next) => { try { let request = db.from('user_projects').select('*'); if (req.profile.role !== 'ADMIN') request = request.eq('user_id', req.profile.id); res.json(await query(request)); } catch (error) { next(error); } });
 app.put('/v1/users/:id/projects/:projectId', authenticate, adminOnly, async (req, res, next) => { try {
